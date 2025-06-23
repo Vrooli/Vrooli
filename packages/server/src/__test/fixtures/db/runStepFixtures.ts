@@ -126,7 +126,7 @@ export const complexRunStepDb: Prisma.run_stepCreateInput = {
 export class RunStepDbFactory {
     static createMinimal(
         runId: string,
-        overrides?: Partial<Prisma.run_stepCreateInput>
+        overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
             ...minimalRunStepDb,
@@ -144,7 +144,7 @@ export class RunStepDbFactory {
     static createWithResourceVersion(
         runId: string,
         resourceVersionId: string,
-        overrides?: Partial<Prisma.run_stepCreateInput>
+        overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
             ...runStepWithResourceVersionDb,
@@ -164,7 +164,7 @@ export class RunStepDbFactory {
 
     static createComplete(
         runId: string,
-        overrides?: Partial<Prisma.run_stepCreateInput>
+        overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
             ...completeRunStepDb,
@@ -181,7 +181,7 @@ export class RunStepDbFactory {
 
     static createSkipped(
         runId: string,
-        overrides?: Partial<Prisma.run_stepCreateInput>
+        overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
             ...skippedRunStepDb,
@@ -198,7 +198,7 @@ export class RunStepDbFactory {
 
     static createComplex(
         runId: string,
-        overrides?: Partial<Prisma.run_stepCreateInput>
+        overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
             ...complexRunStepDb,
@@ -219,7 +219,7 @@ export class RunStepDbFactory {
     static createWithStatus(
         runId: string,
         status: "InProgress" | "Completed" | "Skipped",
-        overrides?: Partial<Prisma.run_stepCreateInput>
+        overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         const now = new Date();
         const baseData: Partial<Prisma.run_stepCreateInput> = {
@@ -247,8 +247,8 @@ export class RunStepDbFactory {
     static createWithComplexity(
         runId: string,
         complexity: number,
-        contextSwitches: number = 0,
-        overrides?: Partial<Prisma.run_stepCreateInput>
+        contextSwitches = 0,
+        overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return this.createMinimal(runId, {
             complexity,
@@ -263,7 +263,7 @@ export class RunStepDbFactory {
     static createWithOrder(
         runId: string,
         order: number,
-        overrides?: Partial<Prisma.run_stepCreateInput>
+        overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return this.createMinimal(runId, {
             order,
@@ -277,12 +277,12 @@ export class RunStepDbFactory {
      */
     static createSequence(
         runId: string,
-        stepCount: number = 3,
+        stepCount = 3,
         options?: {
             allCompleted?: boolean;
             lastInProgress?: boolean;
             complexityRange?: [number, number];
-        }
+        },
     ): Prisma.run_stepCreateInput[] {
         const {
             allCompleted = false,
@@ -304,7 +304,7 @@ export class RunStepDbFactory {
             }
 
             const complexity = Math.floor(
-                Math.random() * (complexityRange[1] - complexityRange[0] + 1)
+                Math.random() * (complexityRange[1] - complexityRange[0] + 1),
             ) + complexityRange[0];
             
             const contextSwitches = Math.floor(Math.random() * complexity);
@@ -333,7 +333,7 @@ export async function seedRunSteps(
         withResourceVersions?: boolean;
         resourceVersionIds?: string[];
         complexityRange?: [number, number];
-    }
+    },
 ) {
     const {
         runId,
@@ -350,10 +350,10 @@ export async function seedRunSteps(
         const order = i + 1;
         const status = statuses[i % statuses.length];
         const complexity = Math.floor(
-            Math.random() * (complexityRange[1] - complexityRange[0] + 1)
+            Math.random() * (complexityRange[1] - complexityRange[0] + 1),
         ) + complexityRange[0];
         
-        let stepData = RunStepDbFactory.createWithStatus(runId, status, {
+        const stepData = RunStepDbFactory.createWithStatus(runId, status, {
             order,
             name: `Seeded Step ${order}`,
             nodeId: `seeded_node_${order}`,
@@ -416,7 +416,7 @@ export async function verifyRunStepState(
         contextSwitches: number;
         timeElapsed: number | null;
         completedAt: Date | null;
-    }>
+    }>,
 ) {
     const actual = await prisma.run_step.findUnique({
         where: { id: stepId },

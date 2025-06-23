@@ -185,11 +185,11 @@ export class CacheService {
                         connectTimeout: this.opts.maxReconnectDelayMs,
                         commandTimeout: this.opts.maxReconnectDelayMs,
                         lazyConnect: true,
-                        maxRetriesPerRequest: process.env.NODE_ENV === 'test' ? 1 : 3,
+                        maxRetriesPerRequest: process.env.NODE_ENV === "test" ? 1 : 3,
                         maxRetriesForFailover: 1, // Fail fast in tests
                         retryStrategy: (times: number) => {
                             // In test environment, fail immediately if can't connect
-                            if (process.env.NODE_ENV === 'test') {
+                            if (process.env.NODE_ENV === "test") {
                                 if (times > 1) return null;
                                 return 100; // Short retry once
                             }
@@ -202,12 +202,12 @@ export class CacheService {
                 this.client = redisInstance;
                 
                 // Set up error event listeners
-                this.client.on('error', (err) => {
+                this.client.on("error", (err) => {
                     // In test environment, only log non-timeout errors
-                    if (process.env.NODE_ENV === 'test' && (err as any).code === 'ETIMEDOUT') {
+                    if (process.env.NODE_ENV === "test" && (err as any).code === "ETIMEDOUT") {
                         return; // Silently ignore timeout errors in tests
                     }
-                    logger.error('[CacheService] Redis client error:', {
+                    logger.error("[CacheService] Redis client error:", {
                         message: err.message,
                         code: (err as any).code,
                     });

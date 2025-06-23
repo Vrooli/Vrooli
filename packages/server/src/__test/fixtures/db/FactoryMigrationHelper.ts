@@ -13,7 +13,7 @@ export class FactoryMigrationHelper {
     static createFactoryFromFixtures<TCreate, TUpdate = Partial<TCreate>>(
         modelName: string,
         fixtures: DbTestFixtures<TCreate, TUpdate>,
-        prismaDelegate: string
+        prismaDelegate: string,
     ): string {
         return `import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
@@ -85,22 +85,22 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
      * Format object properties for code generation
      */
     private static formatObjectProperties(obj: any, indentLevel: number): string {
-        const indent = ' '.repeat(indentLevel * 4);
+        const indent = " ".repeat(indentLevel * 4);
         const entries = Object.entries(obj);
         
         return entries.map(([key, value]) => {
-            if (typeof value === 'string') {
+            if (typeof value === "string") {
                 return `${indent}${key}: "${value}",`;
-            } else if (typeof value === 'object' && value !== null) {
+            } else if (typeof value === "object" && value !== null) {
                 if (Array.isArray(value)) {
-                    return `${indent}${key}: ${JSON.stringify(value, null, 4).replace(/\n/g, '\n' + indent)},`;
+                    return `${indent}${key}: ${JSON.stringify(value, null, 4).replace(/\n/g, "\n" + indent)},`;
                 } else {
                     return `${indent}${key}: {\n${this.formatObjectProperties(value, indentLevel + 1)}\n${indent}},`;
                 }
             } else {
                 return `${indent}${key}: ${value},`;
             }
-        }).join('\n');
+        }).join("\n");
     }
 
     /**
@@ -111,13 +111,13 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
         
         // Check for config usage in fixtures
         const checkForConfigs = (obj: any) => {
-            if (!obj || typeof obj !== 'object') return;
+            if (!obj || typeof obj !== "object") return;
             
             Object.entries(obj).forEach(([key, value]) => {
-                if (key.endsWith('Settings') || key.endsWith('Config')) {
-                    const configName = key.replace('Settings', '').replace('Config', '');
+                if (key.endsWith("Settings") || key.endsWith("Config")) {
+                    const configName = key.replace("Settings", "").replace("Config", "");
                     imports.add(`import { ${configName}ConfigFixtures } from "@vrooli/shared/__test/fixtures/config";`);
-                } else if (typeof value === 'object') {
+                } else if (typeof value === "object") {
                     checkForConfigs(value);
                 }
             });
@@ -125,7 +125,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
         
         checkForConfigs(fixtures);
         
-        return Array.from(imports).join('\n');
+        return Array.from(imports).join("\n");
     }
 
     /**
@@ -134,15 +134,15 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
     private static generateDefaultInclude(modelName: string): string {
         // Common relationships by model
         const includeMap: Record<string, string[]> = {
-            User: ['emails', 'auths', 'translations', 'teams { select: { id: true, team: { select: { id: true, name: true } } } }'],
-            Team: ['members { select: { id: true, user: { select: { id: true, name: true } } } }', 'translations'],
-            Project: ['team', 'versions', 'translations', 'owner'],
-            Chat: ['participants', 'messages { take: 10 }', 'translations', 'team'],
+            User: ["emails", "auths", "translations", "teams { select: { id: true, team: { select: { id: true, name: true } } } }"],
+            Team: ["members { select: { id: true, user: { select: { id: true, name: true } } } }", "translations"],
+            Project: ["team", "versions", "translations", "owner"],
+            Chat: ["participants", "messages { take: 10 }", "translations", "team"],
             // Add more as needed
         };
         
         const includes = includeMap[modelName] || [];
-        return includes.join(',\n            ');
+        return includes.join(",\n            ");
     }
 
     /**
@@ -203,7 +203,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
             // Add more as needed
         };
         
-        return handlers[modelName] || '// TODO: Add relationship handlers';
+        return handlers[modelName] || "// TODO: Add relationship handlers";
     }
 
     /**
@@ -211,7 +211,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
      */
     private static generateScenarioMethods(edgeCases: Record<string, any>): string {
         if (!edgeCases || Object.keys(edgeCases).length === 0) {
-            return '';
+            return "";
         }
         
         const scenarios = Object.entries(edgeCases).map(([name, data]) => {
@@ -221,7 +221,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
             ${this.formatObjectProperties(data, 3)}
         });
     }`;
-        }).join('\n');
+        }).join("\n");
         
         return `
     // Scenario creation methods
@@ -269,7 +269,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
             // Add more as needed
         };
         
-        return constraints[modelName] || '// No specific constraints';
+        return constraints[modelName] || "// No specific constraints";
     }
 
     /**

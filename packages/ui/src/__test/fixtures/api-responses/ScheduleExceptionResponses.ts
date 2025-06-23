@@ -5,15 +5,15 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     ScheduleException, 
     ScheduleExceptionCreateInput, 
-    ScheduleExceptionUpdateInput
-} from '@vrooli/shared';
+    ScheduleExceptionUpdateInput,
+} from "@vrooli/shared";
 import { 
-    scheduleExceptionValidation 
-} from '@vrooli/shared';
+    scheduleExceptionValidation, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -65,7 +65,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ScheduleExceptionResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -92,14 +92,14 @@ export class ScheduleExceptionResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/schedule-exception/${exception.id}`,
                     related: {
-                        schedule: `${this.baseUrl}/api/schedule/${exception.schedule?.id}`
-                    }
-                }
-            }
+                        schedule: `${this.baseUrl}/api/schedule/${exception.schedule?.id}`,
+                    },
+                },
+            },
         };
     }
     
@@ -114,7 +114,7 @@ export class ScheduleExceptionResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: exceptions.length,
-            totalCount: exceptions.length
+            totalCount: exceptions.length,
         };
         
         return {
@@ -122,17 +122,17 @@ export class ScheduleExceptionResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/schedule-exception?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/schedule-exception?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -142,16 +142,16 @@ export class ScheduleExceptionResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/schedule-exception'
-            }
+                path: "/api/schedule-exception",
+            },
         };
     }
     
@@ -161,16 +161,16 @@ export class ScheduleExceptionResponseFactory {
     createNotFoundErrorResponse(exceptionId: string): APIErrorResponse {
         return {
             error: {
-                code: 'SCHEDULE_EXCEPTION_NOT_FOUND',
+                code: "SCHEDULE_EXCEPTION_NOT_FOUND",
                 message: `Schedule exception with ID '${exceptionId}' was not found`,
                 details: {
                     exceptionId,
-                    searchCriteria: { id: exceptionId }
+                    searchCriteria: { id: exceptionId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/schedule-exception/${exceptionId}`
-            }
+                path: `/api/schedule-exception/${exceptionId}`,
+            },
         };
     }
     
@@ -180,17 +180,17 @@ export class ScheduleExceptionResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this schedule exception`,
                 details: {
                     operation,
-                    requiredPermissions: ['schedule:write'],
-                    userPermissions: ['schedule:read']
+                    requiredPermissions: ["schedule:write"],
+                    userPermissions: ["schedule:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/schedule-exception'
-            }
+                path: "/api/schedule-exception",
+            },
         };
     }
     
@@ -200,17 +200,17 @@ export class ScheduleExceptionResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/schedule-exception'
-            }
+                path: "/api/schedule-exception",
+            },
         };
     }
     
@@ -220,17 +220,17 @@ export class ScheduleExceptionResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/schedule-exception'
-            }
+                path: "/api/schedule-exception",
+            },
         };
     }
     
@@ -280,20 +280,20 @@ export class ScheduleExceptionResponseFactory {
                     runProject: null,
                     steps: [],
                     inputs: [],
-                    outputs: []
+                    outputs: [],
                 },
                 you: {
                     __typename: "ScheduleYou",
                     canDelete: true,
                     canUpdate: true,
-                    canRead: true
-                }
-            }
+                    canRead: true,
+                },
+            },
         };
         
         return {
             ...defaultException,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -335,42 +335,42 @@ export class ScheduleExceptionResponseFactory {
             this.createMockException({
                 originalStartTime: new Date(baseTime + day).toISOString(),
                 newStartTime: null,
-                newEndTime: null
+                newEndTime: null,
             }),
             
             // Rescheduled exception (new start time)
             this.createMockException({
                 originalStartTime: new Date(baseTime + 2 * day).toISOString(),
                 newStartTime: new Date(baseTime + 3 * day).toISOString(),
-                newEndTime: new Date(baseTime + 3 * day + 2 * 60 * 60 * 1000).toISOString()
+                newEndTime: new Date(baseTime + 3 * day + 2 * 60 * 60 * 1000).toISOString(),
             }),
             
             // Time change exception (different duration)
             this.createMockException({
                 originalStartTime: new Date(baseTime + 4 * day).toISOString(),
                 newStartTime: new Date(baseTime + 4 * day + 60 * 60 * 1000).toISOString(),
-                newEndTime: new Date(baseTime + 4 * day + 4 * 60 * 60 * 1000).toISOString()
+                newEndTime: new Date(baseTime + 4 * day + 4 * 60 * 60 * 1000).toISOString(),
             }),
             
             // Next week exception
             this.createMockException({
                 originalStartTime: new Date(baseTime + 7 * day).toISOString(),
                 newStartTime: new Date(baseTime + 8 * day).toISOString(),
-                newEndTime: null
-            })
+                newEndTime: null,
+            }),
         ];
     }
     
     /**
      * Create exceptions for a specific schedule
      */
-    createExceptionsForSchedule(scheduleId: string, count: number = 3): ScheduleException[] {
+    createExceptionsForSchedule(scheduleId: string, count = 3): ScheduleException[] {
         const baseTime = Date.now();
         const day = 24 * 60 * 60 * 1000;
         
         return Array.from({ length: count }, (_, index) => {
             const exception = this.createMockException({
-                originalStartTime: new Date(baseTime + (index + 1) * day).toISOString()
+                originalStartTime: new Date(baseTime + (index + 1) * day).toISOString(),
             });
             exception.schedule.id = scheduleId;
             return exception;
@@ -402,7 +402,7 @@ export class ScheduleExceptionResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -424,7 +424,7 @@ export class ScheduleExceptionMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create schedule exception
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule-exception`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async (req, res, ctx) => {
                 const body = await req.json() as ScheduleExceptionCreateInput;
                 
                 // Validate input
@@ -432,7 +432,7 @@ export class ScheduleExceptionMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -442,12 +442,12 @@ export class ScheduleExceptionMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get schedule exception by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/schedule-exception/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const exception = this.responseFactory.createMockException({ id: id as string });
@@ -455,18 +455,18 @@ export class ScheduleExceptionMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update schedule exception
-            rest.put(`${this.responseFactory['baseUrl']}/api/schedule-exception/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ScheduleExceptionUpdateInput;
                 
                 const exception = this.responseFactory.createMockException({ 
                     id: id as string,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 });
                 
                 // Apply updates from body
@@ -482,22 +482,22 @@ export class ScheduleExceptionMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete schedule exception
-            rest.delete(`${this.responseFactory['baseUrl']}/api/schedule-exception/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List schedule exceptions
-            rest.get(`${this.responseFactory['baseUrl']}/api/schedule-exception`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const scheduleId = url.searchParams.get('scheduleId');
-                const cancelled = url.searchParams.get('cancelled') === 'true';
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const scheduleId = url.searchParams.get("scheduleId");
+                const cancelled = url.searchParams.get("cancelled") === "true";
                 
                 let exceptions = scheduleId 
                     ? this.responseFactory.createExceptionsForSchedule(scheduleId)
@@ -506,7 +506,7 @@ export class ScheduleExceptionMSWHandlers {
                 // Filter by cancelled status if specified
                 if (cancelled !== null) {
                     exceptions = exceptions.filter(e => 
-                        cancelled ? (e.newStartTime === null) : (e.newStartTime !== null)
+                        cancelled ? (e.newStartTime === null) : (e.newStartTime !== null),
                     );
                 }
                 
@@ -519,15 +519,15 @@ export class ScheduleExceptionMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: exceptions.length
-                    }
+                        totalCount: exceptions.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -537,49 +537,49 @@ export class ScheduleExceptionMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule-exception`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        originalStartTime: 'Original start time is required',
-                        scheduleConnect: 'Schedule is required'
-                    }))
+                        originalStartTime: "Original start time is required",
+                        scheduleConnect: "Schedule is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/schedule-exception/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule-exception`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule-exception`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule-exception`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async (req, res, ctx) => {
                 const body = await req.json() as ScheduleExceptionCreateInput;
                 const exception = this.responseFactory.createExceptionFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(exception);
@@ -587,9 +587,9 @@ export class ScheduleExceptionMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -598,13 +598,13 @@ export class ScheduleExceptionMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule-exception`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/schedule-exception/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -613,13 +613,13 @@ export class ScheduleExceptionMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -641,14 +641,14 @@ export const scheduleExceptionResponseScenarios = {
     createSuccess: (exception?: ScheduleException) => {
         const factory = new ScheduleExceptionResponseFactory();
         return factory.createSuccessResponse(
-            exception || factory.createMockException()
+            exception || factory.createMockException(),
         );
     },
     
     listSuccess: (exceptions?: ScheduleException[]) => {
         const factory = new ScheduleExceptionResponseFactory();
         return factory.createExceptionListResponse(
-            exceptions || factory.createVariousExceptionTypes()
+            exceptions || factory.createVariousExceptionTypes(),
         );
     },
     
@@ -669,23 +669,23 @@ export const scheduleExceptionResponseScenarios = {
         const factory = new ScheduleExceptionResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                originalStartTime: 'Original start time is required',
-                scheduleConnect: 'Schedule is required'
-            }
+                originalStartTime: "Original start time is required",
+                scheduleConnect: "Schedule is required",
+            },
         );
     },
     
     notFoundError: (exceptionId?: string) => {
         const factory = new ScheduleExceptionResponseFactory();
         return factory.createNotFoundErrorResponse(
-            exceptionId || 'non-existent-id'
+            exceptionId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ScheduleExceptionResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -698,7 +698,7 @@ export const scheduleExceptionResponseScenarios = {
     successHandlers: () => new ScheduleExceptionMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ScheduleExceptionMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ScheduleExceptionMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ScheduleExceptionMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ScheduleExceptionMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

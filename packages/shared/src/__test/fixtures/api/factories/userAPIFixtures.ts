@@ -538,23 +538,23 @@ export class UserAPIFixtureFactory extends BaseAPIFixtureFactory<
         const result = { ...base };
 
         if (relations.translations && Array.isArray(relations.translations)) {
-            result.translations = relations.translations as any;
+            result.translations = relations.translations as User["translations"];
         }
 
         if (relations.memberships && Array.isArray(relations.memberships)) {
-            result.memberships = relations.memberships as any;
+            result.memberships = relations.memberships as User["memberships"];
         }
 
         if (relations.bookmarked && Array.isArray(relations.bookmarked)) {
-            result.bookmarked = relations.bookmarked as any;
+            result.bookmarked = relations.bookmarked as User["bookmarked"];
         }
 
         if (relations.bookmarkedBy && Array.isArray(relations.bookmarkedBy)) {
-            result.bookmarkedBy = relations.bookmarkedBy as any;
+            result.bookmarkedBy = relations.bookmarkedBy as User["bookmarkedBy"];
         }
 
         if (relations.teamsCreated && Array.isArray(relations.teamsCreated)) {
-            result.teamsCreated = relations.teamsCreated as any;
+            result.teamsCreated = relations.teamsCreated as User["teamsCreated"];
         }
 
         return result;

@@ -14,19 +14,19 @@
  * - Agent-driven pattern optimization
  */
 
-import { AdaptiveCircuitBreaker, CircuitBreakerFactory } from "./circuitBreaker.js";
-import { ErrorClassifier } from "./errorClassifier.js";
-import { EventBus } from "../events/eventBus.js";
+import { type AdaptiveCircuitBreaker, CircuitBreakerFactory } from "./circuitBreaker.js";
+import { type ErrorClassifier } from "./errorClassifier.js";
+import { type EventBus } from "../events/eventBus.js";
 import {
     CircuitState,
-    CircuitBreakerConfig,
-    CircuitBreakerState,
-    ErrorClassification,
-    ErrorContext,
+    type CircuitBreakerConfig,
+    type CircuitBreakerState,
+    type ErrorClassification,
+    type ErrorContext,
     ErrorSeverity,
     ErrorCategory,
     ResilienceEventType,
-    ResilienceMetrics,
+    type ResilienceMetrics,
     MonitoringEventPrefix,
 } from "@vrooli/shared";
 

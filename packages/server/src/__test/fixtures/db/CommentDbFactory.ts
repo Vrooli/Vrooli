@@ -39,7 +39,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
     Prisma.commentUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('comment', prisma);
+        super("comment", prisma);
         this.initializeScenarios();
     }
 
@@ -142,7 +142,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
                         create: [{
                             id: generatePK().toString(),
                             language: "en",
-                            text: 'a'.repeat(32768), // Max length text
+                            text: "a".repeat(32768), // Max length text
                         }],
                     },
                 },
@@ -446,7 +446,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a comment thread with replies
      */
-    async createCommentThread(rootComment: Partial<Prisma.commentCreateInput>, replyCount: number = 3): Promise<Prisma.comment[]> {
+    async createCommentThread(rootComment: Partial<Prisma.commentCreateInput>, replyCount = 3): Promise<Prisma.comment[]> {
         const comments: Prisma.comment[] = [];
         
         // Create root comment
@@ -458,7 +458,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
             const reply = await this.createReply(
                 root.id,
                 generatePK().toString(),
-                `Reply ${i + 1} to the comment`
+                `Reply ${i + 1} to the comment`,
             );
             comments.push(reply);
         }
@@ -496,44 +496,44 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.commentCreateInput,
         config: CommentRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.commentCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle owner relationships
         if (config.withOwnerUser) {
-            const userId = typeof config.withOwnerUser === 'string' ? config.withOwnerUser : generatePK().toString();
+            const userId = typeof config.withOwnerUser === "string" ? config.withOwnerUser : generatePK().toString();
             data.ownedByUserId = userId;
             data.ownedByTeamId = undefined;
         }
         
         if (config.withOwnerTeam) {
-            const teamId = typeof config.withOwnerTeam === 'string' ? config.withOwnerTeam : generatePK().toString();
+            const teamId = typeof config.withOwnerTeam === "string" ? config.withOwnerTeam : generatePK().toString();
             data.ownedByTeamId = teamId;
             data.ownedByUserId = undefined;
         }
 
         // Handle target relationships
         if (config.withResourceVersion) {
-            const resourceVersionId = typeof config.withResourceVersion === 'string' ? config.withResourceVersion : generatePK().toString();
+            const resourceVersionId = typeof config.withResourceVersion === "string" ? config.withResourceVersion : generatePK().toString();
             data.resourceVersionId = resourceVersionId;
         }
         
         if (config.withIssue) {
-            const issueId = typeof config.withIssue === 'string' ? config.withIssue : generatePK().toString();
+            const issueId = typeof config.withIssue === "string" ? config.withIssue : generatePK().toString();
             data.issueId = issueId;
             data.resourceVersionId = undefined;
         }
         
         if (config.withPullRequest) {
-            const pullRequestId = typeof config.withPullRequest === 'string' ? config.withPullRequest : generatePK().toString();
+            const pullRequestId = typeof config.withPullRequest === "string" ? config.withPullRequest : generatePK().toString();
             data.pullRequestId = pullRequestId;
             data.resourceVersionId = undefined;
         }
 
         // Handle parent relationship
         if (config.withParent) {
-            const parentId = typeof config.withParent === 'string' ? config.withParent : generatePK().toString();
+            const parentId = typeof config.withParent === "string" ? config.withParent : generatePK().toString();
             data.parentId = parentId;
         }
 
@@ -548,7 +548,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Handle replies (will be created after main comment)
-        if (config.withReplies && typeof config.withReplies === 'number') {
+        if (config.withReplies && typeof config.withReplies === "number") {
             // Replies will be handled in createWithRelations
         }
 
@@ -560,30 +560,30 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         
         // Check that comment has an owner
         if (!record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Comment must have an owner (user or team)');
+            violations.push("Comment must have an owner (user or team)");
         }
         
         // Check that comment doesn't have multiple owners
         if (record.ownedByUserId && record.ownedByTeamId) {
-            violations.push('Comment cannot be owned by both user and team');
+            violations.push("Comment cannot be owned by both user and team");
         }
 
         // Check that comment has a target
         const hasTarget = record.resourceVersionId || record.issueId || record.pullRequestId;
         if (!hasTarget) {
-            violations.push('Comment must target a resource version, issue, or pull request');
+            violations.push("Comment must target a resource version, issue, or pull request");
         }
 
         // Check that comment doesn't have multiple targets
         const targetCount = [record.resourceVersionId, record.issueId, record.pullRequestId].filter(Boolean).length;
         if (targetCount > 1) {
-            violations.push('Comment can only have one target');
+            violations.push("Comment can only have one target");
         }
 
         // Check parent relationship validity
         if (record.parentId) {
             if (record.parentId === record.id) {
-                violations.push('Comment cannot be its own parent');
+                violations.push("Comment cannot be its own parent");
             }
             
             // Check parent exists and has same target
@@ -592,17 +592,17 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
             });
             
             if (!parent) {
-                violations.push('Parent comment does not exist');
+                violations.push("Parent comment does not exist");
             } else {
                 // Check same target
                 if (record.resourceVersionId && parent.resourceVersionId !== record.resourceVersionId) {
-                    violations.push('Reply must target same resource as parent');
+                    violations.push("Reply must target same resource as parent");
                 }
                 if (record.issueId && parent.issueId !== record.issueId) {
-                    violations.push('Reply must target same issue as parent');
+                    violations.push("Reply must target same issue as parent");
                 }
                 if (record.pullRequestId && parent.pullRequestId !== record.pullRequestId) {
-                    violations.push('Reply must target same pull request as parent');
+                    violations.push("Reply must target same pull request as parent");
                 }
             }
         }
@@ -613,7 +613,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (translations.length === 0) {
-            violations.push('Comment must have at least one translation');
+            violations.push("Comment must have at least one translation");
         }
 
         return violations;
@@ -635,56 +635,56 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.comment,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete child comments (replies)
-        if (shouldDelete('parents') && record.parents?.length) {
+        if (shouldDelete("parents") && record.parents?.length) {
             for (const child of record.parents) {
                 await this.cascadeDelete(child.id, remainingDepth, tx, includeOnly);
             }
         }
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.comment_translation.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete bookmarks
-        if (shouldDelete('bookmarkedBy') && record.bookmarkedBy?.length) {
+        if (shouldDelete("bookmarkedBy") && record.bookmarkedBy?.length) {
             await tx.bookmark.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete reactions
-        if (shouldDelete('reactions') && record.reactions?.length) {
+        if (shouldDelete("reactions") && record.reactions?.length) {
             await tx.reaction.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete reaction summaries
-        if (shouldDelete('reactionSummaries') && record.reactionSummaries?.length) {
+        if (shouldDelete("reactionSummaries") && record.reactionSummaries?.length) {
             await tx.reaction_summary.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete reports
-        if (shouldDelete('reports') && record.reports?.length) {
+        if (shouldDelete("reports") && record.reports?.length) {
             await tx.report.deleteMany({
                 where: { commentId: record.id },
             });
         }
 
         // Delete notification subscriptions
-        if (shouldDelete('subscriptions') && record.subscriptions?.length) {
+        if (shouldDelete("subscriptions") && record.subscriptions?.length) {
             await tx.notification_subscription.deleteMany({
                 where: { commentId: record.id },
             });
@@ -739,7 +739,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
         const replies = await this.prisma.comment.findMany({
             where: { parentId: rootId },
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'asc' },
+            orderBy: { createdAt: "asc" },
         });
         
         for (const reply of replies) {
@@ -753,7 +753,7 @@ export class CommentDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createCommentDbFactory = (prisma: PrismaClient) => 
-    CommentDbFactory.getInstance('comment', prisma);
+    CommentDbFactory.getInstance("comment", prisma);
 
 // Export the class for type usage
 export { CommentDbFactory as CommentDbFactoryClass };

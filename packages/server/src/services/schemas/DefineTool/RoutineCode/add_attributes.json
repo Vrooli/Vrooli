@@ -1,624 +1,624 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "MCP Routine Code Add Attributes",
-  "description": "Defines the properties for adding a new Code routine through the MCP.",
-  "type": "object",
-  "properties": {
-    "config": {
-      "description": "Optional routine configuration object.",
-      "type": "object",
-      "properties": {
-        "__version": {
-          "type": "string",
-          "const": "1.0"
-        },
-        "formInput": {
-          "type": "object",
-          "properties": {
-            "__version": {
-              "type": "string",
-              "const": "1.0"
-            },
-            "schema": {
-              "type": "object",
-              "properties": {
-                "elements": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/FormElement"
-                  }
-                }
-              },
-              "required": [
-                "elements"
-              ]
-            }
-          },
-          "required": [
-            "__version",
-            "schema"
-          ]
-        },
-        "formOutput": {
-          "type": "object",
-          "properties": {
-            "__version": {
-              "type": "string",
-              "const": "1.0"
-            },
-            "schema": {
-              "type": "object",
-              "properties": {
-                "elements": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/FormElement"
-                  }
-                }
-              },
-              "required": [
-                "elements"
-              ]
-            }
-          },
-          "required": [
-            "__version",
-            "schema"
-          ]
-        },
-        "callDataCode": {
-          "description": "Linked code object used for conversion",
-          "type": "object",
-          "properties": {
-            "__version": {
-              "type": "string"
-            },
-            "schema": {
-              "$ref": "#/definitions/ConfigCallDataCode"
-            }
-          },
-          "required": [
-            "__version",
-            "schema"
-          ]
-        }
-      },
-      "required": [
-        "__version",
-        "callDataCode",
-        "formInput",
-        "formOutput"
-      ]
-    },
-    "resourceSubType": {
-      "type": "string",
-      "const": "RoutineCode"
-    },
-    "rootCreate": {
-      "description": "Root resource information",
-      "type": "object",
-      "properties": {
-        "isPrivate": {
-          "default": false,
-          "type": "boolean"
-        },
-        "tagsConnect": {
-          "description": "Tags to associate with the resource.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "resourceType": {
-          "type": "string",
-          "const": "Routine"
-        }
-      },
-      "required": [
-        "isPrivate",
-        "resourceType"
-      ]
-    },
-    "isComplete": {
-      "default": false,
-      "type": "boolean"
-    },
-    "versionLabel": {
-      "type": "string"
-    },
-    "isPrivate": {
-      "default": false,
-      "type": "boolean"
-    }
-  },
-  "required": [
-    "isPrivate",
-    "resourceSubType",
-    "rootCreate",
-    "versionLabel"
-  ],
-  "definitions": {
-    "FormElement": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "enum": [
-                "CheckboxInput",
-                "CodeInput",
-                "DropzoneInput",
-                "IntegerInput",
-                "LinkUrlInput",
-                "RadioInput",
-                "SelectorInput",
-                "SliderInput",
-                "SwitchInput",
-                "TextInput"
-              ],
-              "type": "string"
-            },
-            "id": {
-              "description": "ID for field",
-              "type": "string"
-            },
-            "fieldName": {
-              "description": "The name of the field, as will be used by formik",
-              "type": "string"
-            },
-            "label": {
-              "description": "The label to display for the field",
-              "type": "string"
-            },
-            "helpText": {
-              "description": "Longer help text. Markdown OK",
-              "type": "string"
-            },
-            "isRequired": {
-              "description": "If the field is required. Defaults to false.",
-              "type": "boolean"
-            },
-            "props": {
-              "description": "Type-specific props",
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/CheckboxInputProps"
-                },
-                {
-                  "$ref": "#/definitions/CodeInputProps"
-                },
-                {
-                  "$ref": "#/definitions/DropzoneInputProps"
-                },
-                {
-                  "$ref": "#/definitions/IntegerInputProps"
-                },
-                {
-                  "$ref": "#/definitions/LinkUrlInputProps"
-                },
-                {
-                  "$ref": "#/definitions/RadioInputProps"
-                },
-                {
-                  "$ref": "#/definitions/SelectorInputProps"
-                },
-                {
-                  "$ref": "#/definitions/SliderInputProps"
-                },
-                {
-                  "$ref": "#/definitions/SwitchInputProps"
-                },
-                {
-                  "$ref": "#/definitions/TextInputProps"
-                }
-              ]
-            }
-          },
-          "required": [
-            "fieldName",
-            "id",
-            "label",
-            "props",
-            "type"
-          ]
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "enum": [
-                "Divider",
-                "Header",
-                "Image",
-                "QrCode",
-                "Tip",
-                "Video"
-              ],
-              "type": "string"
-            },
-            "id": {
-              "description": "ID for field",
-              "type": "string"
-            },
-            "label": {
-              "description": "The label to display for the field",
-              "type": "string"
-            },
-            "helpText": {
-              "description": "Longer help text. Markdown OK",
-              "type": "string"
-            },
-            "tag": {
-              "description": "Header tag if type is Header",
-              "enum": [
-                "h1",
-                "h2",
-                "h3",
-                "h4",
-                "h5",
-                "h6"
-              ],
-              "type": "string"
-            },
-            "icon": {
-              "description": "Icon type if type is Tip",
-              "enum": [
-                "Error",
-                "Info",
-                "Warning"
-              ],
-              "type": "string"
-            },
-            "link": {
-              "description": "URL if type is Tip",
-              "type": "string"
-            },
-            "url": {
-              "description": "URL of type is Image, QrCode, or Video",
-              "type": "string"
-            }
-          },
-          "required": [
-            "id",
-            "label",
-            "type"
-          ]
-        }
-      ]
-    },
-    "CheckboxInputProps": {
-      "type": "object",
-      "properties": {
-        "options": {
-          "description": "Array of checkbox options",
-          "type": "array",
-          "items": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "MCP Routine Code Add Attributes",
+    "description": "Defines the properties for adding a new Code routine through the MCP.",
+    "type": "object",
+    "properties": {
+        "config": {
+            "description": "Optional routine configuration object.",
             "type": "object",
             "properties": {
-              "label": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
+                "__version": {
+                    "type": "string",
+                    "const": "1.0"
+                },
+                "formInput": {
+                    "type": "object",
+                    "properties": {
+                        "__version": {
+                            "type": "string",
+                            "const": "1.0"
+                        },
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "elements": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/FormElement"
+                                    }
+                                }
+                            },
+                            "required": [
+                                "elements"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "__version",
+                        "schema"
+                    ]
+                },
+                "formOutput": {
+                    "type": "object",
+                    "properties": {
+                        "__version": {
+                            "type": "string",
+                            "const": "1.0"
+                        },
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "elements": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/FormElement"
+                                    }
+                                }
+                            },
+                            "required": [
+                                "elements"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "__version",
+                        "schema"
+                    ]
+                },
+                "callDataCode": {
+                    "description": "Linked code object used for conversion",
+                    "type": "object",
+                    "properties": {
+                        "__version": {
+                            "type": "string"
+                        },
+                        "schema": {
+                            "$ref": "#/definitions/ConfigCallDataCode"
+                        }
+                    },
+                    "required": [
+                        "__version",
+                        "schema"
+                    ]
+                }
             },
             "required": [
-              "label",
-              "value"
+                "__version",
+                "callDataCode",
+                "formInput",
+                "formOutput"
             ]
-          }
         },
-        "allowCustomValues": {
-          "description": "Allow users to input custom values",
-          "type": "boolean"
+        "resourceSubType": {
+            "type": "string",
+            "const": "RoutineCode"
         },
-        "defaultValue": {
-          "description": "Array of booleans. One for each option in props",
-          "type": "array",
-          "items": {
+        "rootCreate": {
+            "description": "Root resource information",
+            "type": "object",
+            "properties": {
+                "isPrivate": {
+                    "default": false,
+                    "type": "boolean"
+                },
+                "tagsConnect": {
+                    "description": "Tags to associate with the resource.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "resourceType": {
+                    "type": "string",
+                    "const": "Routine"
+                }
+            },
+            "required": [
+                "isPrivate",
+                "resourceType"
+            ]
+        },
+        "isComplete": {
+            "default": false,
             "type": "boolean"
-          }
         },
-        "maxCustomValues": {
-          "description": "Maximum number of custom values allowed",
-          "type": "number"
-        },
-        "maxSelection": {
-          "description": "The maximum number of checkboxes that can be selected. \nIf 0 or not set, there is no limit.",
-          "type": "number"
-        },
-        "minSelection": {
-          "description": "The minimum number of checkboxes that must be selected.\nIf 0 or not set, there is no minimum.",
-          "type": "number"
-        }
-      },
-      "required": [
-        "options"
-      ]
-    },
-    "CodeInputProps": {
-      "type": "object",
-      "properties": {
-        "defaultValue": {
-          "type": "string"
-        },
-        "limitTo": {
-          "description": "Limit the languages that can be selected in the language dropdown.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/CodeLanguage"
-          }
-        }
-      }
-    },
-    "CodeLanguage": {
-      "type": "string",
-      "enum": [
-        "angular",
-        "cpp",
-        "css",
-        "dockerfile",
-        "go",
-        "graphql",
-        "groovy",
-        "haskell",
-        "html",
-        "java",
-        "javascript",
-        "json",
-        "jsonStandard",
-        "nginx",
-        "nix",
-        "php",
-        "powershell",
-        "protobuf",
-        "puppet",
-        "python",
-        "r",
-        "ruby",
-        "rust",
-        "sass",
-        "shell",
-        "solidity",
-        "spreadsheet",
-        "sql",
-        "svelte",
-        "swift",
-        "typescript",
-        "vb",
-        "vbscript",
-        "verilog",
-        "vhdl",
-        "vue",
-        "xml",
-        "yacas",
-        "yaml"
-      ]
-    },
-    "DropzoneInputProps": {
-      "type": "object",
-      "properties": {
-        "acceptedFileTypes": {
-          "type": "array",
-          "items": {
+        "versionLabel": {
             "type": "string"
-          }
         },
-        "maxFiles": {
-          "type": "number"
+        "isPrivate": {
+            "default": false,
+            "type": "boolean"
         }
-      }
     },
-    "IntegerInputProps": {
-      "type": "object",
-      "properties": {
-        "max": {
-          "type": "number"
-        },
-        "min": {
-          "type": "number"
-        },
-        "defaultValue": {
-          "type": "number"
-        },
-        "allowDecimal": {
-          "type": "boolean"
-        },
-        "initial": {
-          "type": "number"
-        },
-        "offset": {
-          "type": "number"
-        },
-        "step": {
-          "type": "number"
-        }
-      }
-    },
-    "LinkUrlInputProps": {
-      "type": "object",
-      "properties": {
-        "defaultValue": {
-          "type": "string"
-        },
-        "acceptedHosts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "RadioInputProps": {
-      "type": "object",
-      "properties": {
-        "options": {
-          "description": "Radio button options.",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "label": {
-                "type": "string"
-              },
-              "value": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "label",
-              "value"
-            ]
-          }
-        },
-        "defaultValue": {
-          "description": "The initial value of the radio button. Must be one of the values in the `options` prop.",
-          "type": [
-            "null",
-            "string"
-          ]
-        }
-      },
-      "required": [
-        "options"
-      ]
-    },
-    "SelectorInputProps": {
-      "type": "object",
-      "properties": {
-        "label": {
-          "type": "string"
-        },
-        "isRequired": {
-          "type": "boolean"
-        },
-        "options": {
-          "type": "array",
-          "items": {}
-        },
-        "defaultValue": {},
-        "addOption": {
-          "type": "object",
-          "properties": {
-            "label": {
-              "type": "string"
-            },
-            "onSelect": {
-              "type": "object"
-            }
-          },
-          "required": [
-            "label",
-            "onSelect"
-          ]
-        },
-        "multiple": {
-          "type": "boolean"
-        },
-        "noneOption": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "options"
-      ]
-    },
-    "SliderInputProps": {
-      "type": "object",
-      "properties": {
-        "max": {
-          "type": "number"
-        },
-        "min": {
-          "type": "number"
-        },
-        "defaultValue": {
-          "type": "number"
-        },
-        "step": {
-          "type": "number"
-        }
-      }
-    },
-    "SwitchInputProps": {
-      "type": "object",
-      "properties": {
-        "defaultValue": {
-          "type": "boolean"
-        }
-      }
-    },
-    "TextInputProps": {
-      "type": "object",
-      "properties": {
-        "defaultValue": {
-          "description": "Initial value of the text field.",
-          "type": "string"
-        },
-        "placeholder": {
-          "type": "string"
-        },
-        "autoComplete": {
-          "description": "Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password')",
-          "type": "string"
-        },
-        "isMarkdown": {
-          "description": "If true, displays RichInput instead of TextInput",
-          "type": "boolean"
-        },
-        "maxChars": {
-          "description": "Maximum number of characters for the text field. Defaults to 1000",
-          "type": "number"
-        }
-      }
-    },
-    "ConfigCallDataCode": {
-      "description": "Represents how to run sandboxed code.\n\nCan be applied to any attached code, whether it's for data transformation, \nsmart contract execution, or other purposes.",
-      "type": "object",
-      "properties": {
-        "inputTemplate": {
-          "description": "Template to map routine inputs to the sandbox input.\n\nExamples:\n- `{ \"input\": \"{{routineInputA}}\" }`\n- `[\"{{routineInputA}}\", \"{{routineInputB}}\"]`\n- `{ \"inputA\": \"{{routineInputA}}\", \"inputB\": \"{{routineInputB}}\" }`",
-          "anyOf": [
-            {
-              "type": "object",
-              "properties": {},
-              "additionalProperties": true
-            },
-            {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          ]
-        },
-        "outputMappings": {
-          "description": "Maps sandbox output formats (since there could be multiple) to routine outputs.",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "schemaIndex": {
-                "type": "number"
-              },
-              "mapping": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "string"
+    "required": [
+        "isPrivate",
+        "resourceSubType",
+        "rootCreate",
+        "versionLabel"
+    ],
+    "definitions": {
+        "FormElement": {
+            "anyOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "enum": [
+                                "CheckboxInput",
+                                "CodeInput",
+                                "DropzoneInput",
+                                "IntegerInput",
+                                "LinkUrlInput",
+                                "RadioInput",
+                                "SelectorInput",
+                                "SliderInput",
+                                "SwitchInput",
+                                "TextInput"
+                            ],
+                            "type": "string"
+                        },
+                        "id": {
+                            "description": "ID for field",
+                            "type": "string"
+                        },
+                        "fieldName": {
+                            "description": "The name of the field, as will be used by formik",
+                            "type": "string"
+                        },
+                        "label": {
+                            "description": "The label to display for the field",
+                            "type": "string"
+                        },
+                        "helpText": {
+                            "description": "Longer help text. Markdown OK",
+                            "type": "string"
+                        },
+                        "isRequired": {
+                            "description": "If the field is required. Defaults to false.",
+                            "type": "boolean"
+                        },
+                        "props": {
+                            "description": "Type-specific props",
+                            "anyOf": [
+                                {
+                                    "$ref": "#/definitions/CheckboxInputProps"
+                                },
+                                {
+                                    "$ref": "#/definitions/CodeInputProps"
+                                },
+                                {
+                                    "$ref": "#/definitions/DropzoneInputProps"
+                                },
+                                {
+                                    "$ref": "#/definitions/IntegerInputProps"
+                                },
+                                {
+                                    "$ref": "#/definitions/LinkUrlInputProps"
+                                },
+                                {
+                                    "$ref": "#/definitions/RadioInputProps"
+                                },
+                                {
+                                    "$ref": "#/definitions/SelectorInputProps"
+                                },
+                                {
+                                    "$ref": "#/definitions/SliderInputProps"
+                                },
+                                {
+                                    "$ref": "#/definitions/SwitchInputProps"
+                                },
+                                {
+                                    "$ref": "#/definitions/TextInputProps"
+                                }
+                            ]
+                        }
+                    },
+                    "required": [
+                        "fieldName",
+                        "id",
+                        "label",
+                        "props",
+                        "type"
+                    ]
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "enum": [
+                                "Divider",
+                                "Header",
+                                "Image",
+                                "QrCode",
+                                "Tip",
+                                "Video"
+                            ],
+                            "type": "string"
+                        },
+                        "id": {
+                            "description": "ID for field",
+                            "type": "string"
+                        },
+                        "label": {
+                            "description": "The label to display for the field",
+                            "type": "string"
+                        },
+                        "helpText": {
+                            "description": "Longer help text. Markdown OK",
+                            "type": "string"
+                        },
+                        "tag": {
+                            "description": "Header tag if type is Header",
+                            "enum": [
+                                "h1",
+                                "h2",
+                                "h3",
+                                "h4",
+                                "h5",
+                                "h6"
+                            ],
+                            "type": "string"
+                        },
+                        "icon": {
+                            "description": "Icon type if type is Tip",
+                            "enum": [
+                                "Error",
+                                "Info",
+                                "Warning"
+                            ],
+                            "type": "string"
+                        },
+                        "link": {
+                            "description": "URL if type is Tip",
+                            "type": "string"
+                        },
+                        "url": {
+                            "description": "URL of type is Image, QrCode, or Video",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "id",
+                        "label",
+                        "type"
+                    ]
                 }
-              }
+            ]
+        },
+        "CheckboxInputProps": {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "description": "Array of checkbox options",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "label",
+                            "value"
+                        ]
+                    }
+                },
+                "allowCustomValues": {
+                    "description": "Allow users to input custom values",
+                    "type": "boolean"
+                },
+                "defaultValue": {
+                    "description": "Array of booleans. One for each option in props",
+                    "type": "array",
+                    "items": {
+                        "type": "boolean"
+                    }
+                },
+                "maxCustomValues": {
+                    "description": "Maximum number of custom values allowed",
+                    "type": "number"
+                },
+                "maxSelection": {
+                    "description": "The maximum number of checkboxes that can be selected. \nIf 0 or not set, there is no limit.",
+                    "type": "number"
+                },
+                "minSelection": {
+                    "description": "The minimum number of checkboxes that must be selected.\nIf 0 or not set, there is no minimum.",
+                    "type": "number"
+                }
             },
             "required": [
-              "mapping",
-              "schemaIndex"
+                "options"
             ]
-          }
+        },
+        "CodeInputProps": {
+            "type": "object",
+            "properties": {
+                "defaultValue": {
+                    "type": "string"
+                },
+                "limitTo": {
+                    "description": "Limit the languages that can be selected in the language dropdown.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CodeLanguage"
+                    }
+                }
+            }
+        },
+        "CodeLanguage": {
+            "type": "string",
+            "enum": [
+                "angular",
+                "cpp",
+                "css",
+                "dockerfile",
+                "go",
+                "graphql",
+                "groovy",
+                "haskell",
+                "html",
+                "java",
+                "javascript",
+                "json",
+                "jsonStandard",
+                "nginx",
+                "nix",
+                "php",
+                "powershell",
+                "protobuf",
+                "puppet",
+                "python",
+                "r",
+                "ruby",
+                "rust",
+                "sass",
+                "shell",
+                "solidity",
+                "spreadsheet",
+                "sql",
+                "svelte",
+                "swift",
+                "typescript",
+                "vb",
+                "vbscript",
+                "verilog",
+                "vhdl",
+                "vue",
+                "xml",
+                "yacas",
+                "yaml"
+            ]
+        },
+        "DropzoneInputProps": {
+            "type": "object",
+            "properties": {
+                "acceptedFileTypes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "maxFiles": {
+                    "type": "number"
+                }
+            }
+        },
+        "IntegerInputProps": {
+            "type": "object",
+            "properties": {
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
+                },
+                "defaultValue": {
+                    "type": "number"
+                },
+                "allowDecimal": {
+                    "type": "boolean"
+                },
+                "initial": {
+                    "type": "number"
+                },
+                "offset": {
+                    "type": "number"
+                },
+                "step": {
+                    "type": "number"
+                }
+            }
+        },
+        "LinkUrlInputProps": {
+            "type": "object",
+            "properties": {
+                "defaultValue": {
+                    "type": "string"
+                },
+                "acceptedHosts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "RadioInputProps": {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "description": "Radio button options.",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "label",
+                            "value"
+                        ]
+                    }
+                },
+                "defaultValue": {
+                    "description": "The initial value of the radio button. Must be one of the values in the `options` prop.",
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                }
+            },
+            "required": [
+                "options"
+            ]
+        },
+        "SelectorInputProps": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "isRequired": {
+                    "type": "boolean"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {}
+                },
+                "defaultValue": {},
+                "addOption": {
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "type": "string"
+                        },
+                        "onSelect": {
+                            "type": "object"
+                        }
+                    },
+                    "required": [
+                        "label",
+                        "onSelect"
+                    ]
+                },
+                "multiple": {
+                    "type": "boolean"
+                },
+                "noneOption": {
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "options"
+            ]
+        },
+        "SliderInputProps": {
+            "type": "object",
+            "properties": {
+                "max": {
+                    "type": "number"
+                },
+                "min": {
+                    "type": "number"
+                },
+                "defaultValue": {
+                    "type": "number"
+                },
+                "step": {
+                    "type": "number"
+                }
+            }
+        },
+        "SwitchInputProps": {
+            "type": "object",
+            "properties": {
+                "defaultValue": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "TextInputProps": {
+            "type": "object",
+            "properties": {
+                "defaultValue": {
+                    "description": "Initial value of the text field.",
+                    "type": "string"
+                },
+                "placeholder": {
+                    "type": "string"
+                },
+                "autoComplete": {
+                    "description": "Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password')",
+                    "type": "string"
+                },
+                "isMarkdown": {
+                    "description": "If true, displays rich input editor",
+                    "type": "boolean"
+                },
+                "maxChars": {
+                    "description": "Maximum number of characters for the text field. Defaults to 1000",
+                    "type": "number"
+                }
+            }
+        },
+        "ConfigCallDataCode": {
+            "description": "Represents how to run sandboxed code.\n\nCan be applied to any attached code, whether it's for data transformation, \nsmart contract execution, or other purposes.",
+            "type": "object",
+            "properties": {
+                "inputTemplate": {
+                    "description": "Template to map routine inputs to the sandbox input.\n\nExamples:\n- `{ \"input\": \"{{routineInputA}}\" }`\n- `[\"{{routineInputA}}\", \"{{routineInputB}}\"]`\n- `{ \"inputA\": \"{{routineInputA}}\", \"inputB\": \"{{routineInputB}}\" }`",
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "properties": {},
+                            "additionalProperties": true
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
+                "outputMappings": {
+                    "description": "Maps sandbox output formats (since there could be multiple) to routine outputs.",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "schemaIndex": {
+                                "type": "number"
+                            },
+                            "mapping": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": [
+                            "mapping",
+                            "schemaIndex"
+                        ]
+                    }
+                }
+            },
+            "required": [
+                "inputTemplate",
+                "outputMappings"
+            ]
         }
-      },
-      "required": [
-        "inputTemplate",
-        "outputMappings"
-      ]
     }
-  }
 }

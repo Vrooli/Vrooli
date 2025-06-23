@@ -380,7 +380,7 @@ export class ContextFactory {
      * Create minimal coordination context
      */
     static createCoordinationContext(
-        overrides?: Partial<CoordinationContext>
+        overrides?: Partial<CoordinationContext>,
     ): CoordinationContext {
         return {
             ...minimalCoordinationContext,
@@ -400,8 +400,8 @@ export class ContextFactory {
      * Create coordination context with decisions
      */
     static createCoordinationWithDecisions(
-        decisionCount: number = 3,
-        overrides?: Partial<CoordinationContext>
+        decisionCount = 3,
+        overrides?: Partial<CoordinationContext>,
     ): CoordinationContext {
         const decisions: DecisionRecord[] = [];
         
@@ -429,7 +429,7 @@ export class ContextFactory {
      * Create minimal process context
      */
     static createProcessContext(
-        overrides?: Partial<ProcessContext>
+        overrides?: Partial<ProcessContext>,
     ): ProcessContext {
         return {
             ...minimalProcessContext,
@@ -449,8 +449,8 @@ export class ContextFactory {
      * Create process context with performance data
      */
     static createProcessWithPerformance(
-        stepCount: number = 5,
-        overrides?: Partial<ProcessContext>
+        stepCount = 5,
+        overrides?: Partial<ProcessContext>,
     ): ProcessContext {
         const stepDurations: Record<string, number> = {};
         const completedSteps: string[] = [];
@@ -490,7 +490,7 @@ export class ContextFactory {
      * Create minimal execution context
      */
     static createExecutionContext(
-        overrides?: Partial<ExecutionContext>
+        overrides?: Partial<ExecutionContext>,
     ): ExecutionContext {
         return {
             ...minimalExecutionContext,
@@ -510,7 +510,7 @@ export class ContextFactory {
      */
     static createExecutionWithTools(
         toolCalls: Array<{ name: string; duration?: number }>,
-        overrides?: Partial<ExecutionContext>
+        overrides?: Partial<ExecutionContext>,
     ): ExecutionContext {
         const toolCallRecords: ToolCallRecord[] = toolCalls.map((tool, index) => ({
             id: generatePK(),
@@ -535,7 +535,7 @@ export class ContextFactory {
      */
     static createCrossTierContext(
         tiers: Array<1 | 2 | 3> = [1, 2, 3],
-        overrides?: Partial<CrossTierContext>
+        overrides?: Partial<CrossTierContext>,
     ): CrossTierContext {
         const context: CrossTierContext = {
             requestId: generatePublicId(),
@@ -564,7 +564,7 @@ export class ContextFactory {
      */
     static createSnapshot(
         context: BaseContext | CrossTierContext,
-        contextType: "coordination" | "process" | "execution" | "crossTier"
+        contextType: "coordination" | "process" | "execution" | "crossTier",
     ): ContextSnapshot {
         return {
             id: generatePK(),
@@ -586,7 +586,7 @@ export function createSharedMemory(
         consensusCount?: number;
         conflictCount?: number;
         blackboardData?: Record<string, unknown>;
-    }
+    },
 ): SharedMemory {
     const memory: SharedMemory = {
         blackboard: options?.blackboardData || {},
@@ -643,11 +643,11 @@ export function createSharedMemory(
  */
 export async function seedTestContexts(
     prisma: any,
-    count: number = 3,
+    count = 3,
     options?: {
         tier?: 1 | 2 | 3;
         userId?: string;
-    }
+    },
 ) {
     const contexts = [];
 

@@ -40,7 +40,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
     Prisma.MeetingUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Meeting', prisma);
+        super("Meeting", prisma);
         this.initializeScenarios();
     }
 
@@ -379,9 +379,9 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.MeetingCreateInput,
         config: MeetingRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.MeetingCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle team connection (required)
         if (config.team) {
@@ -389,7 +389,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                 connect: { id: config.team.teamId },
             };
         } else {
-            throw new Error('Meeting requires a team connection');
+            throw new Error("Meeting requires a team connection");
         }
 
         // Handle schedule connection
@@ -445,7 +445,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
             link?: string;
             isPublic?: boolean;
             showOnProfile?: boolean;
-        }
+        },
     ): Promise<Prisma.Meeting> {
         return await this.createWithRelations({
             overrides: {
@@ -468,7 +468,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
     async createRecurringMeeting(
         teamId: string,
         scheduleId: string,
-        name: string
+        name: string,
     ): Promise<Prisma.Meeting> {
         return await this.createWithRelations({
             overrides: {
@@ -515,7 +515,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
      */
     async createInvites(
         meetingId: string,
-        invites: Array<{ userId: string; message?: string }>
+        invites: Array<{ userId: string; message?: string }>,
     ): Promise<void> {
         await this.prisma.meetingInvite.createMany({
             data: invites.map(invite => ({
@@ -538,7 +538,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (!team) {
-            violations.push('Team does not exist');
+            violations.push("Team does not exist");
         }
 
         // Check schedule exists if specified
@@ -548,13 +548,13 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
             });
             
             if (!schedule) {
-                violations.push('Schedule does not exist');
+                violations.push("Schedule does not exist");
             }
         }
 
         // Check logical constraints
         if (!record.showOnTeamProfile && record.openToAnyoneWithInvite) {
-            violations.push('Meeting open to anyone should be shown on team profile');
+            violations.push("Meeting open to anyone should be shown on team profile");
         }
 
         // Check attendee limit (hypothetical)
@@ -583,7 +583,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.Meeting,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
@@ -592,28 +592,28 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
         
         // Delete invites
-        if (shouldDelete('invites') && record.invites?.length) {
+        if (shouldDelete("invites") && record.invites?.length) {
             await tx.meetingInvite.deleteMany({
                 where: { meetingId: record.id },
             });
         }
 
         // Delete attendees
-        if (shouldDelete('attendees') && record.attendees?.length) {
+        if (shouldDelete("attendees") && record.attendees?.length) {
             await tx.meetingAttendee.deleteMany({
                 where: { meetingId: record.id },
             });
         }
 
         // Delete subscriptions
-        if (shouldDelete('subscriptions') && record.subscriptions?.length) {
+        if (shouldDelete("subscriptions") && record.subscriptions?.length) {
             await tx.notificationSubscription.deleteMany({
                 where: { meetingId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.meetingTranslation.deleteMany({
                 where: { meetingId: record.id },
             });
@@ -630,7 +630,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                 showOnTeamProfile: true,
             },
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
         });
     }
 
@@ -643,7 +643,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                 openToAnyoneWithInvite: true,
             },
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
         });
     }
 
@@ -663,7 +663,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                 description: "Open to all team members",
                 isPublic: true,
                 showOnProfile: true,
-            }
+            },
         );
 
         const privateMeeting = await this.createTeamMeeting(
@@ -673,13 +673,13 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                 description: "Executive team only",
                 isPublic: false,
                 showOnProfile: false,
-            }
+            },
         );
 
         const recurringMeeting = await this.createRecurringMeeting(
             teamId,
             "schedule-123",
-            "Weekly Team Sync"
+            "Weekly Team Sync",
         );
 
         const webinar = await this.createTeamMeeting(
@@ -690,7 +690,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
                 link: "https://webinar.example.com/launch",
                 isPublic: true,
                 showOnProfile: true,
-            }
+            },
         );
 
         return {
@@ -704,7 +704,7 @@ export class MeetingDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createMeetingDbFactory = (prisma: PrismaClient) => 
-    MeetingDbFactory.getInstance('Meeting', prisma);
+    MeetingDbFactory.getInstance("Meeting", prisma);
 
 // Export the class for type usage
 export { MeetingDbFactory as MeetingDbFactoryClass };

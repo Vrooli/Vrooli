@@ -1,5 +1,4 @@
 import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";
-
 import { ModelMap } from "../models/base/index.js";
 import { JoinType, SqlBuilder } from "./sqlBuilder.js";
 

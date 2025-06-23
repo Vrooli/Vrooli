@@ -469,7 +469,7 @@ export async function seedTransactionHistory(db: any, accountId: bigint) {
     ]);
 
     const entries = await Promise.all(
-        sequence.map(entry => db.creditLedgerEntry.create({ data: entry }))
+        sequence.map(entry => db.creditLedgerEntry.create({ data: entry })),
     );
 
     return entries;

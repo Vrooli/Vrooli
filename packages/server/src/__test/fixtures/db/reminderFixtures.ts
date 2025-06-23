@@ -313,7 +313,7 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     // Static methods for backward compatibility
     static createMinimal(
         userId: string,
-        overrides?: Partial<Prisma.ReminderCreateInput>
+        overrides?: Partial<Prisma.ReminderCreateInput>,
     ): Prisma.ReminderCreateInput {
         const factory = new ReminderDbFactory();
         const data = factory.createMinimal(overrides);
@@ -323,17 +323,17 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     static createWithName(
         userId: string,
         name: string,
-        overrides?: Partial<Prisma.ReminderCreateInput>
+        overrides?: Partial<Prisma.ReminderCreateInput>,
     ): Prisma.ReminderCreateInput {
         const factory = new ReminderDbFactory();
-        let data = factory.createMinimal({ name, ...overrides });
+        const data = factory.createMinimal({ name, ...overrides });
         return factory.addUserAssociation(data, userId);
     }
 
     static createInList(
         userId: string,
         listId: string,
-        overrides?: Partial<Prisma.ReminderCreateInput>
+        overrides?: Partial<Prisma.ReminderCreateInput>,
     ): Prisma.ReminderCreateInput {
         const factory = new ReminderDbFactory();
         let data = factory.createMinimal(overrides);
@@ -344,7 +344,7 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.ReminderCreateIn
     static createWithItem(
         userId: string,
         itemData: Partial<Prisma.ReminderItemCreateWithoutReminderInput>,
-        overrides?: Partial<Prisma.ReminderCreateInput>
+        overrides?: Partial<Prisma.ReminderCreateInput>,
     ): Prisma.ReminderCreateInput {
         const factory = new ReminderDbFactory();
         let data = factory.createMinimal(overrides);
@@ -549,7 +549,7 @@ export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderList
     // Static methods for backward compatibility
     static createMinimal(
         userId: string,
-        overrides?: Partial<Prisma.ReminderListCreateInput>
+        overrides?: Partial<Prisma.ReminderListCreateInput>,
     ): Prisma.ReminderListCreateInput {
         const factory = new ReminderListDbFactory();
         const data = factory.createMinimal(overrides);
@@ -559,7 +559,7 @@ export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderList
     static createWithReminders(
         userId: string,
         reminders: Array<{ name: string; reminderAt: Date }>,
-        overrides?: Partial<Prisma.ReminderListCreateInput>
+        overrides?: Partial<Prisma.ReminderListCreateInput>,
     ): Prisma.ReminderListCreateInput {
         const factory = new ReminderListDbFactory();
         let data = factory.createMinimal(overrides);
@@ -579,7 +579,7 @@ export async function seedReminders(
         withList?: boolean;
         withItems?: boolean;
         datesFrom?: Date;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const reminderFactory = new ReminderDbFactory();
     const listFactory = new ReminderListDbFactory();
@@ -620,7 +620,7 @@ export async function seedReminders(
                     reminderAt,
                     description: `Reminder ${i + 1} description`,
                     ...(list && { reminderList: { connect: { id: list.id } } }),
-                }
+                },
             );
             itemCount++;
         } else {
@@ -632,7 +632,7 @@ export async function seedReminders(
                         name: `Reminder ${i + 1}`,
                         reminderAt,
                         description: `Description for reminder ${i + 1}`,
-                    }
+                    },
                 )
                 : ReminderDbFactory.createWithName(
                     options.userId,
@@ -640,7 +640,7 @@ export async function seedReminders(
                     { 
                         reminderAt,
                         description: `Description for reminder ${i + 1}`,
-                    }
+                    },
                 );
         }
 

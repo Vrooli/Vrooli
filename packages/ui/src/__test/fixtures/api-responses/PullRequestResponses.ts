@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { HttpResponse, http } from 'msw';
+import { HttpResponse, http } from "msw";
 import type { 
     PullRequest, 
     PullRequestCreateInput, 
@@ -17,14 +17,14 @@ import type {
     User,
     ResourceVersion,
     Resource,
-    Comment
-} from '@vrooli/shared';
+    Comment,
+} from "@vrooli/shared";
 import { 
     pullRequestValidation,
     PullRequestStatus as PullRequestStatusEnum,
     PullRequestFromObjectType as PullRequestFromObjectTypeEnum,
-    PullRequestToObjectType as PullRequestToObjectTypeEnum
-} from '@vrooli/shared';
+    PullRequestToObjectType as PullRequestToObjectTypeEnum,
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -76,7 +76,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class PullRequestResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -110,17 +110,17 @@ export class PullRequestResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/pull-request/${pullRequest.id}`,
                     related: {
                         from: `${this.baseUrl}/api/resource-version/${pullRequest.from.id}`,
                         to: `${this.baseUrl}/api/resource/${pullRequest.to.id}`,
                         user: pullRequest.createdBy ? `${this.baseUrl}/api/user/${pullRequest.createdBy.id}` : undefined,
-                        comments: `${this.baseUrl}/api/pull-request/${pullRequest.id}/comments`
-                    }
-                }
-            }
+                        comments: `${this.baseUrl}/api/pull-request/${pullRequest.id}/comments`,
+                    },
+                },
+            },
         };
     }
     
@@ -135,7 +135,7 @@ export class PullRequestResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: pullRequests.length,
-            totalCount: pullRequests.length
+            totalCount: pullRequests.length,
         };
         
         return {
@@ -143,17 +143,17 @@ export class PullRequestResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/pull-request?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/pull-request?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -163,16 +163,16 @@ export class PullRequestResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/pull-request'
-            }
+                path: "/api/pull-request",
+            },
         };
     }
     
@@ -182,16 +182,16 @@ export class PullRequestResponseFactory {
     createNotFoundErrorResponse(pullRequestId: string): APIErrorResponse {
         return {
             error: {
-                code: 'PULL_REQUEST_NOT_FOUND',
+                code: "PULL_REQUEST_NOT_FOUND",
                 message: `Pull request with ID '${pullRequestId}' was not found`,
                 details: {
                     pullRequestId,
-                    searchCriteria: { id: pullRequestId }
+                    searchCriteria: { id: pullRequestId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/pull-request/${pullRequestId}`
-            }
+                path: `/api/pull-request/${pullRequestId}`,
+            },
         };
     }
     
@@ -201,37 +201,37 @@ export class PullRequestResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this pull request`,
                 details: {
                     operation,
-                    requiredPermissions: ['pull-request:write'],
-                    userPermissions: ['pull-request:read']
+                    requiredPermissions: ["pull-request:write"],
+                    userPermissions: ["pull-request:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/pull-request'
-            }
+                path: "/api/pull-request",
+            },
         };
     }
     
     /**
      * Create conflict error response (for merge conflicts)
      */
-    createConflictErrorResponse(reason: string = 'Merge conflict detected'): APIErrorResponse {
+    createConflictErrorResponse(reason = "Merge conflict detected"): APIErrorResponse {
         return {
             error: {
-                code: 'MERGE_CONFLICT',
-                message: 'Pull request cannot be merged due to conflicts',
+                code: "MERGE_CONFLICT",
+                message: "Pull request cannot be merged due to conflicts",
                 details: {
                     reason,
                     conflictResolutionRequired: true,
-                    conflictFiles: ['src/main.ts', 'package.json']
+                    conflictFiles: ["src/main.ts", "package.json"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/pull-request'
-            }
+                path: "/api/pull-request",
+            },
         };
     }
     
@@ -241,17 +241,17 @@ export class PullRequestResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/pull-request'
-            }
+                path: "/api/pull-request",
+            },
         };
     }
     
@@ -261,17 +261,17 @@ export class PullRequestResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/pull-request'
-            }
+                path: "/api/pull-request",
+            },
         };
     }
     
@@ -311,9 +311,9 @@ export class PullRequestResponseFactory {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         };
     }
     
@@ -350,8 +350,8 @@ export class PullRequestResponseFactory {
                 canRead: true,
                 isBookmarked: false,
                 isReacted: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         };
     }
     
@@ -380,8 +380,8 @@ export class PullRequestResponseFactory {
                 canReport: false,
                 isBookmarked: false,
                 isReacted: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         };
     }
     
@@ -409,7 +409,7 @@ export class PullRequestResponseFactory {
                 __typename: "PullRequestTranslation",
                 id: `trans_${id}`,
                 language: "en",
-                text: "This pull request adds a new feature to improve user experience."
+                text: "This pull request adds a new feature to improve user experience.",
             }],
             translationsCount: 1,
             you: {
@@ -417,13 +417,13 @@ export class PullRequestResponseFactory {
                 canComment: true,
                 canDelete: false,
                 canReport: false,
-                canUpdate: false
-            }
+                canUpdate: false,
+            },
         };
         
         return {
             ...defaultPullRequest,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -443,7 +443,7 @@ export class PullRequestResponseFactory {
                 __typename: "PullRequestTranslation" as const,
                 id: trans.id,
                 language: trans.language,
-                text: trans.text
+                text: trans.text,
             }));
             pullRequest.translationsCount = input.translationsCreate.length;
         }
@@ -461,19 +461,19 @@ export class PullRequestResponseFactory {
                 publicId: `${String(status).toUpperCase()}-${this.generatePublicId()}`,
                 closedAt: [PullRequestStatusEnum.Merged, PullRequestStatusEnum.Rejected, PullRequestStatusEnum.Canceled].includes(status) 
                     ? new Date().toISOString() 
-                    : null
-            })
+                    : null,
+            }),
         );
     }
     
     /**
      * Create pull request with specific workflow state
      */
-    createWorkflowPullRequest(workflow: 'draft' | 'review' | 'approved' | 'merged' | 'rejected'): PullRequest {
+    createWorkflowPullRequest(workflow: "draft" | "review" | "approved" | "merged" | "rejected"): PullRequest {
         const baseData = this.createMockPullRequest();
         
         switch (workflow) {
-            case 'draft':
+            case "draft":
                 return {
                     ...baseData,
                     status: PullRequestStatusEnum.Draft,
@@ -481,11 +481,11 @@ export class PullRequestResponseFactory {
                     you: {
                         ...baseData.you,
                         canUpdate: true,
-                        canDelete: true
-                    }
+                        canDelete: true,
+                    },
                 };
             
-            case 'review':
+            case "review":
                 return {
                     ...baseData,
                     status: PullRequestStatusEnum.Open,
@@ -493,11 +493,11 @@ export class PullRequestResponseFactory {
                     you: {
                         ...baseData.you,
                         canComment: true,
-                        canUpdate: false
-                    }
+                        canUpdate: false,
+                    },
                 };
             
-            case 'approved':
+            case "approved":
                 return {
                     ...baseData,
                     status: PullRequestStatusEnum.Open,
@@ -505,11 +505,11 @@ export class PullRequestResponseFactory {
                     you: {
                         ...baseData.you,
                         canComment: true,
-                        canUpdate: false
-                    }
+                        canUpdate: false,
+                    },
                 };
             
-            case 'merged':
+            case "merged":
                 return {
                     ...baseData,
                     status: PullRequestStatusEnum.Merged,
@@ -519,11 +519,11 @@ export class PullRequestResponseFactory {
                         ...baseData.you,
                         canComment: false,
                         canUpdate: false,
-                        canDelete: false
-                    }
+                        canDelete: false,
+                    },
                 };
             
-            case 'rejected':
+            case "rejected":
                 return {
                     ...baseData,
                     status: PullRequestStatusEnum.Rejected,
@@ -533,8 +533,8 @@ export class PullRequestResponseFactory {
                         ...baseData.you,
                         canComment: false,
                         canUpdate: false,
-                        canDelete: false
-                    }
+                        canDelete: false,
+                    },
                 };
             
             default:
@@ -567,7 +567,7 @@ export class PullRequestResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -597,7 +597,7 @@ export class PullRequestResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -619,7 +619,7 @@ export class PullRequestMSWHandlers {
     createSuccessHandlers() {
         return [
             // Create pull request
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request`, async ({ request }) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request`, async ({ request }) => {
                 const body = await request.json() as PullRequestCreateInput;
                 
                 // Validate input
@@ -627,7 +627,7 @@ export class PullRequestMSWHandlers {
                 if (!validation.valid) {
                     return HttpResponse.json(
                         this.responseFactory.createValidationErrorResponse(validation.errors || {}),
-                        { status: 400 }
+                        { status: 400 },
                     );
                 }
                 
@@ -639,7 +639,7 @@ export class PullRequestMSWHandlers {
             }),
             
             // Get pull request by ID
-            http.get(`${this.responseFactory['baseUrl']}/api/pull-request/:id`, ({ params }) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/pull-request/:id`, ({ params }) => {
                 const { id } = params;
                 
                 const pullRequest = this.responseFactory.createMockPullRequest({ id: id as string });
@@ -649,7 +649,7 @@ export class PullRequestMSWHandlers {
             }),
             
             // Update pull request
-            http.put(`${this.responseFactory['baseUrl']}/api/pull-request/:id`, async ({ params, request }) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/pull-request/:id`, async ({ params, request }) => {
                 const { id } = params;
                 const body = await request.json() as PullRequestUpdateInput;
                 
@@ -658,14 +658,14 @@ export class PullRequestMSWHandlers {
                 if (!validation.valid) {
                     return HttpResponse.json(
                         this.responseFactory.createValidationErrorResponse(validation.errors || {}),
-                        { status: 400 }
+                        { status: 400 },
                     );
                 }
                 
                 const pullRequest = this.responseFactory.createMockPullRequest({ 
                     id: id as string,
                     updatedAt: new Date().toISOString(),
-                    status: body.status || PullRequestStatusEnum.Open
+                    status: body.status || PullRequestStatusEnum.Open,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(pullRequest);
@@ -674,18 +674,18 @@ export class PullRequestMSWHandlers {
             }),
             
             // Delete pull request
-            http.delete(`${this.responseFactory['baseUrl']}/api/pull-request/:id`, () => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/pull-request/:id`, () => {
                 return new HttpResponse(null, { status: 204 });
             }),
             
             // Merge pull request
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request/:id/merge`, ({ params }) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request/:id/merge`, ({ params }) => {
                 const { id } = params;
                 
                 const pullRequest = this.responseFactory.createMockPullRequest({ 
                     id: id as string,
                     status: PullRequestStatusEnum.Merged,
-                    closedAt: new Date().toISOString()
+                    closedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(pullRequest);
@@ -694,13 +694,13 @@ export class PullRequestMSWHandlers {
             }),
             
             // Reject pull request
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request/:id/reject`, ({ params }) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request/:id/reject`, ({ params }) => {
                 const { id } = params;
                 
                 const pullRequest = this.responseFactory.createMockPullRequest({ 
                     id: id as string,
                     status: PullRequestStatusEnum.Rejected,
-                    closedAt: new Date().toISOString()
+                    closedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(pullRequest);
@@ -709,12 +709,12 @@ export class PullRequestMSWHandlers {
             }),
             
             // List pull requests
-            http.get(`${this.responseFactory['baseUrl']}/api/pull-request`, ({ request }) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/pull-request`, ({ request }) => {
                 const url = new URL(request.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const status = url.searchParams.get('status') as PullRequestStatus;
-                const toId = url.searchParams.get('toId');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as PullRequestStatus;
+                const toId = url.searchParams.get("toId");
                 
                 let pullRequests = this.responseFactory.createPullRequestsForAllStatuses();
                 
@@ -737,12 +737,12 @@ export class PullRequestMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: pullRequests.length
-                    }
+                        totalCount: pullRequests.length,
+                    },
                 );
                 
                 return HttpResponse.json(response);
-            })
+            }),
         ];
     }
     
@@ -752,58 +752,58 @@ export class PullRequestMSWHandlers {
     createErrorHandlers() {
         return [
             // Validation error
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request`, () => {
                 return HttpResponse.json(
                     this.responseFactory.createValidationErrorResponse({
-                        fromConnect: 'Source resource version ID is required',
-                        toConnect: 'Target resource ID is required',
-                        toObjectType: 'Target object type must be specified'
+                        fromConnect: "Source resource version ID is required",
+                        toConnect: "Target resource ID is required",
+                        toObjectType: "Target object type must be specified",
                     }),
-                    { status: 400 }
+                    { status: 400 },
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory['baseUrl']}/api/pull-request/:id`, ({ params }) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/pull-request/:id`, ({ params }) => {
                 const { id } = params;
                 return HttpResponse.json(
                     this.responseFactory.createNotFoundErrorResponse(id as string),
-                    { status: 404 }
+                    { status: 404 },
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request`, () => {
                 return HttpResponse.json(
-                    this.responseFactory.createPermissionErrorResponse('create'),
-                    { status: 403 }
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 },
                 );
             }),
             
             // Merge conflict error
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request/:id/merge`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request/:id/merge`, () => {
                 return HttpResponse.json(
                     this.responseFactory.createConflictErrorResponse(),
-                    { status: 409 }
+                    { status: 409 },
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request`, () => {
                 return HttpResponse.json(
                     this.responseFactory.createServerErrorResponse(),
-                    { status: 500 }
+                    { status: 500 },
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000) {
+    createLoadingHandlers(delay = 2000) {
         return [
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request`, async ({ request }) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request`, async ({ request }) => {
                 const body = await request.json() as PullRequestCreateInput;
                 const pullRequest = this.responseFactory.createPullRequestFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(pullRequest);
@@ -812,20 +812,20 @@ export class PullRequestMSWHandlers {
                 return HttpResponse.json(response, { status: 201 });
             }),
             
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request/:id/merge`, async ({ params }) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request/:id/merge`, async ({ params }) => {
                 const { id } = params;
                 
                 const pullRequest = this.responseFactory.createMockPullRequest({ 
                     id: id as string,
                     status: PullRequestStatusEnum.Merged,
-                    closedAt: new Date().toISOString()
+                    closedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(pullRequest);
                 
                 await new Promise(resolve => setTimeout(resolve, delay));
                 return HttpResponse.json(response);
-            })
+            }),
         ];
     }
     
@@ -834,17 +834,17 @@ export class PullRequestMSWHandlers {
      */
     createNetworkErrorHandlers() {
         return [
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request`, () => {
                 return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory['baseUrl']}/api/pull-request/:id`, () => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/pull-request/:id`, () => {
                 return HttpResponse.error();
             }),
             
-            http.post(`${this.responseFactory['baseUrl']}/api/pull-request/:id/merge`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/pull-request/:id/merge`, () => {
                 return HttpResponse.error();
-            })
+            }),
         ];
     }
     
@@ -853,31 +853,31 @@ export class PullRequestMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }) {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         switch (method) {
-            case 'GET':
+            case "GET":
                 return http.get(fullEndpoint, async () => {
                     if (delay) await new Promise(resolve => setTimeout(resolve, delay));
                     return HttpResponse.json(response, { status });
                 });
-            case 'POST':
+            case "POST":
                 return http.post(fullEndpoint, async () => {
                     if (delay) await new Promise(resolve => setTimeout(resolve, delay));
                     return HttpResponse.json(response, { status });
                 });
-            case 'PUT':
+            case "PUT":
                 return http.put(fullEndpoint, async () => {
                     if (delay) await new Promise(resolve => setTimeout(resolve, delay));
                     return HttpResponse.json(response, { status });
                 });
-            case 'DELETE':
+            case "DELETE":
                 return http.delete(fullEndpoint, async () => {
                     if (delay) await new Promise(resolve => setTimeout(resolve, delay));
                     return HttpResponse.json(response, { status });
@@ -896,42 +896,42 @@ export const pullRequestResponseScenarios = {
     createSuccess: (pullRequest?: PullRequest) => {
         const factory = new PullRequestResponseFactory();
         return factory.createSuccessResponse(
-            pullRequest || factory.createMockPullRequest()
+            pullRequest || factory.createMockPullRequest(),
         );
     },
     
     listSuccess: (pullRequests?: PullRequest[]) => {
         const factory = new PullRequestResponseFactory();
         return factory.createPullRequestListResponse(
-            pullRequests || factory.createPullRequestsForAllStatuses()
+            pullRequests || factory.createPullRequestsForAllStatuses(),
         );
     },
     
     draftPullRequest: () => {
         const factory = new PullRequestResponseFactory();
         return factory.createSuccessResponse(
-            factory.createWorkflowPullRequest('draft')
+            factory.createWorkflowPullRequest("draft"),
         );
     },
     
     reviewPullRequest: () => {
         const factory = new PullRequestResponseFactory();
         return factory.createSuccessResponse(
-            factory.createWorkflowPullRequest('review')
+            factory.createWorkflowPullRequest("review"),
         );
     },
     
     mergedPullRequest: () => {
         const factory = new PullRequestResponseFactory();
         return factory.createSuccessResponse(
-            factory.createWorkflowPullRequest('merged')
+            factory.createWorkflowPullRequest("merged"),
         );
     },
     
     rejectedPullRequest: () => {
         const factory = new PullRequestResponseFactory();
         return factory.createSuccessResponse(
-            factory.createWorkflowPullRequest('rejected')
+            factory.createWorkflowPullRequest("rejected"),
         );
     },
     
@@ -940,24 +940,24 @@ export const pullRequestResponseScenarios = {
         const factory = new PullRequestResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                fromConnect: 'Source resource version is required',
-                toConnect: 'Target resource is required',
-                toObjectType: 'Target object type must be specified'
-            }
+                fromConnect: "Source resource version is required",
+                toConnect: "Target resource is required",
+                toObjectType: "Target object type must be specified",
+            },
         );
     },
     
     notFoundError: (pullRequestId?: string) => {
         const factory = new PullRequestResponseFactory();
         return factory.createNotFoundErrorResponse(
-            pullRequestId || 'non-existent-pr-id'
+            pullRequestId || "non-existent-pr-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new PullRequestResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -975,7 +975,7 @@ export const pullRequestResponseScenarios = {
     successHandlers: () => new PullRequestMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new PullRequestMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new PullRequestMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new PullRequestMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new PullRequestMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

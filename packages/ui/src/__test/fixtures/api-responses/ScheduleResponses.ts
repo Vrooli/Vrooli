@@ -5,17 +5,17 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     Schedule, 
     ScheduleCreateInput, 
     ScheduleUpdateInput,
-    ScheduleFor
-} from '@vrooli/shared';
+    ScheduleFor,
+} from "@vrooli/shared";
 import { 
     scheduleValidation,
-    ScheduleFor as ScheduleForEnum 
-} from '@vrooli/shared';
+    ScheduleFor as ScheduleForEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -67,7 +67,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ScheduleResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -94,17 +94,17 @@ export class ScheduleResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/schedule/${schedule.id}`,
                     related: {
                         recurrences: `${this.baseUrl}/api/schedule/${schedule.id}/recurrences`,
                         exceptions: `${this.baseUrl}/api/schedule/${schedule.id}/exceptions`,
                         runProject: schedule.runProject ? `${this.baseUrl}/api/run-project/${schedule.runProject.id}` : undefined,
-                        runRoutine: schedule.runRoutine ? `${this.baseUrl}/api/run-routine/${schedule.runRoutine.id}` : undefined
-                    }
-                }
-            }
+                        runRoutine: schedule.runRoutine ? `${this.baseUrl}/api/run-routine/${schedule.runRoutine.id}` : undefined,
+                    },
+                },
+            },
         };
     }
     
@@ -119,7 +119,7 @@ export class ScheduleResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: schedules.length,
-            totalCount: schedules.length
+            totalCount: schedules.length,
         };
         
         return {
@@ -127,17 +127,17 @@ export class ScheduleResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/schedule?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/schedule?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -147,16 +147,16 @@ export class ScheduleResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/schedule'
-            }
+                path: "/api/schedule",
+            },
         };
     }
     
@@ -166,16 +166,16 @@ export class ScheduleResponseFactory {
     createNotFoundErrorResponse(scheduleId: string): APIErrorResponse {
         return {
             error: {
-                code: 'SCHEDULE_NOT_FOUND',
+                code: "SCHEDULE_NOT_FOUND",
                 message: `Schedule with ID '${scheduleId}' was not found`,
                 details: {
                     scheduleId,
-                    searchCriteria: { id: scheduleId }
+                    searchCriteria: { id: scheduleId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/schedule/${scheduleId}`
-            }
+                path: `/api/schedule/${scheduleId}`,
+            },
         };
     }
     
@@ -185,17 +185,17 @@ export class ScheduleResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this schedule`,
                 details: {
                     operation,
-                    requiredPermissions: ['schedule:write'],
-                    userPermissions: ['schedule:read']
+                    requiredPermissions: ["schedule:write"],
+                    userPermissions: ["schedule:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/schedule'
-            }
+                path: "/api/schedule",
+            },
         };
     }
     
@@ -205,17 +205,17 @@ export class ScheduleResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/schedule'
-            }
+                path: "/api/schedule",
+            },
         };
     }
     
@@ -225,17 +225,17 @@ export class ScheduleResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/schedule'
-            }
+                path: "/api/schedule",
+            },
         };
     }
     
@@ -277,19 +277,19 @@ export class ScheduleResponseFactory {
                 runProject: null,
                 steps: [],
                 inputs: [],
-                outputs: []
+                outputs: [],
             },
             you: {
                 __typename: "ScheduleYou",
                 canDelete: true,
                 canUpdate: true,
-                canRead: true
-            }
+                canRead: true,
+            },
         };
         
         return {
             ...defaultSchedule,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -322,13 +322,13 @@ export class ScheduleResponseFactory {
                 isPrivate: false,
                 timeElapsed: 0,
                 title: "Scheduled Project Run",
-                steps: []
+                steps: [],
             };
             schedule.runRoutine = null;
         } else if (input.runRoutineConnect) {
             schedule.runRoutine = {
                 ...schedule.runRoutine!,
-                id: input.runRoutineConnect
+                id: input.runRoutineConnect,
             };
         }
         
@@ -353,17 +353,17 @@ export class ScheduleResponseFactory {
                         isPrivate: false,
                         timeElapsed: 0,
                         title: "Project Schedule",
-                        steps: []
+                        steps: [],
                     },
-                    runRoutine: null
+                    runRoutine: null,
                 };
             } else {
                 return {
                     ...base,
                     runRoutine: {
                         ...base.runRoutine!,
-                        title: "Routine Schedule"
-                    }
+                        title: "Routine Schedule",
+                    },
                 };
             }
         });
@@ -387,9 +387,9 @@ export class ScheduleResponseFactory {
                     dayOfWeek: null,
                     dayOfMonth: null,
                     month: null,
-                    endDate: null
+                    endDate: null,
                 }],
-                recurrencesCount: 1
+                recurrencesCount: 1,
             }),
             
             // Weekly schedule
@@ -403,9 +403,9 @@ export class ScheduleResponseFactory {
                     dayOfWeek: now.getDay(),
                     dayOfMonth: null,
                     month: null,
-                    endDate: null
+                    endDate: null,
                 }],
-                recurrencesCount: 1
+                recurrencesCount: 1,
             }),
             
             // Monthly schedule
@@ -419,10 +419,10 @@ export class ScheduleResponseFactory {
                     dayOfWeek: null,
                     dayOfMonth: now.getDate(),
                     month: null,
-                    endDate: null
+                    endDate: null,
                 }],
-                recurrencesCount: 1
-            })
+                recurrencesCount: 1,
+            }),
         ];
     }
     
@@ -451,7 +451,7 @@ export class ScheduleResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -473,7 +473,7 @@ export class ScheduleMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create schedule
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule`, async (req, res, ctx) => {
                 const body = await req.json() as ScheduleCreateInput;
                 
                 // Validate input
@@ -481,7 +481,7 @@ export class ScheduleMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -491,12 +491,12 @@ export class ScheduleMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get schedule by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/schedule/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const schedule = this.responseFactory.createMockSchedule({ id: id as string });
@@ -504,18 +504,18 @@ export class ScheduleMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update schedule
-            rest.put(`${this.responseFactory['baseUrl']}/api/schedule/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ScheduleUpdateInput;
                 
                 const schedule = this.responseFactory.createMockSchedule({ 
                     id: id as string,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 });
                 
                 // Apply updates from body
@@ -535,22 +535,22 @@ export class ScheduleMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete schedule
-            rest.delete(`${this.responseFactory['baseUrl']}/api/schedule/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List schedules
-            rest.get(`${this.responseFactory['baseUrl']}/api/schedule`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const scheduleFor = url.searchParams.get('scheduleFor') as ScheduleFor;
-                const upcoming = url.searchParams.get('upcoming') === 'true';
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const scheduleFor = url.searchParams.get("scheduleFor") as ScheduleFor;
+                const upcoming = url.searchParams.get("upcoming") === "true";
                 
                 let schedules = upcoming 
                     ? this.responseFactory.createVariousScheduleTypes()
@@ -576,15 +576,15 @@ export class ScheduleMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: schedules.length
-                    }
+                        totalCount: schedules.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -594,49 +594,49 @@ export class ScheduleMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        startTime: 'Start time is required',
-                        timezone: 'Timezone is required'
-                    }))
+                        startTime: "Start time is required",
+                        timezone: "Timezone is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/schedule/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule`, async (req, res, ctx) => {
                 const body = await req.json() as ScheduleCreateInput;
                 const schedule = this.responseFactory.createScheduleFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(schedule);
@@ -644,9 +644,9 @@ export class ScheduleMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -655,13 +655,13 @@ export class ScheduleMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/schedule`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/schedule/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -670,13 +670,13 @@ export class ScheduleMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -698,21 +698,21 @@ export const scheduleResponseScenarios = {
     createSuccess: (schedule?: Schedule) => {
         const factory = new ScheduleResponseFactory();
         return factory.createSuccessResponse(
-            schedule || factory.createMockSchedule()
+            schedule || factory.createMockSchedule(),
         );
     },
     
     listSuccess: (schedules?: Schedule[]) => {
         const factory = new ScheduleResponseFactory();
         return factory.createScheduleListResponse(
-            schedules || factory.createSchedulesForAllTypes()
+            schedules || factory.createSchedulesForAllTypes(),
         );
     },
     
     upcomingSchedules: () => {
         const factory = new ScheduleResponseFactory();
         return factory.createScheduleListResponse(
-            factory.createVariousScheduleTypes()
+            factory.createVariousScheduleTypes(),
         );
     },
     
@@ -721,23 +721,23 @@ export const scheduleResponseScenarios = {
         const factory = new ScheduleResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                startTime: 'Start time is required',
-                timezone: 'Timezone is required'
-            }
+                startTime: "Start time is required",
+                timezone: "Timezone is required",
+            },
         );
     },
     
     notFoundError: (scheduleId?: string) => {
         const factory = new ScheduleResponseFactory();
         return factory.createNotFoundErrorResponse(
-            scheduleId || 'non-existent-id'
+            scheduleId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ScheduleResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -750,7 +750,7 @@ export const scheduleResponseScenarios = {
     successHandlers: () => new ScheduleMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ScheduleMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ScheduleMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ScheduleMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ScheduleMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

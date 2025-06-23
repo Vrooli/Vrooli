@@ -29,7 +29,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     Prisma.tagUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('tag', prisma);
+        super("tag", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -43,18 +43,18 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
         return {
             minimal: {
                 id: generatePK(),
-                tag: 'test-tag',
+                tag: "test-tag",
             },
             
             complete: {
                 id: generatePK(),
-                tag: 'complete-test-tag',
+                tag: "complete-test-tag",
                 translations: {
                     create: [
                         {
                             id: generatePK(),
-                            language: 'en',
-                            description: 'A comprehensive test tag for testing purposes',
+                            language: "en",
+                            description: "A comprehensive test tag for testing purposes",
                         },
                     ],
                 },
@@ -63,13 +63,13 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             variants: {
                 withDescription: {
                     id: generatePK(),
-                    tag: 'described-tag',
+                    tag: "described-tag",
                     translations: {
                         create: [
                             {
                                 id: generatePK(),
-                                language: 'en',
-                                description: 'Tag with detailed description',
+                                language: "en",
+                                description: "Tag with detailed description",
                             },
                         ],
                     },
@@ -77,18 +77,18 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 
                 multiLanguage: {
                     id: generatePK(),
-                    tag: 'multilang-tag',
+                    tag: "multilang-tag",
                     translations: {
                         create: [
                             {
                                 id: generatePK(),
-                                language: 'en',
-                                description: 'English description',
+                                language: "en",
+                                description: "English description",
                             },
                             {
                                 id: generatePK(),
-                                language: 'es',
-                                description: 'Descripción en español',
+                                language: "es",
+                                description: "Descripción en español",
                             },
                         ],
                     },
@@ -96,12 +96,12 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 
                 shortTag: {
                     id: generatePK(),
-                    tag: 'a',
+                    tag: "a",
                 },
                 
                 longTag: {
                     id: generatePK(),
-                    tag: 'this-is-a-very-long-tag-name-for-testing-boundaries',
+                    tag: "this-is-a-very-long-tag-name-for-testing-boundaries",
                 },
             },
             
@@ -118,7 +118,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 
                 emptyTag: {
                     id: generatePK(),
-                    tag: '',
+                    tag: "",
                 },
                 
                 nullTag: {
@@ -130,36 +130,36 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             edgeCase: {
                 specialCharacters: {
                     id: generatePK(),
-                    tag: 'tag-with-special-chars-!@#$%^&*()',
+                    tag: "tag-with-special-chars-!@#$%^&*()",
                 },
                 
                 unicodeTag: {
                     id: generatePK(),
-                    tag: 'тег-тест-unicode-🏷️',
+                    tag: "тег-тест-unicode-🏷️",
                 },
                 
                 numbersOnly: {
                     id: generatePK(),
-                    tag: '12345',
+                    tag: "12345",
                 },
                 
                 duplicateId: {
                     id: generatePK(), // This would be used to test unique constraint violations
-                    tag: 'duplicate-test',
+                    tag: "duplicate-test",
                 },
             },
             
             update: {
                 updateTag: {
-                    tag: 'updated-tag-name',
+                    tag: "updated-tag-name",
                 },
                 
                 addTranslation: {
                     translations: {
                         create: {
                             id: generatePK(),
-                            language: 'fr',
-                            description: 'Description française',
+                            language: "fr",
+                            description: "Description française",
                         },
                     },
                 },
@@ -186,7 +186,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     async createWithTranslations(
         tagName: string, 
         translations: Array<{ language: string; description: string }>,
-        overrides?: Partial<Prisma.tagCreateInput>
+        overrides?: Partial<Prisma.tagCreateInput>,
     ) {
         const data: Prisma.tagCreateInput = {
             ...this.getFixtures().minimal,
@@ -216,7 +216,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             };
 
             if (config.withTranslations) {
-                const languages = config.languages || ['en'];
+                const languages = config.languages || ["en"];
                 baseData.translations = {
                     create: languages.map(lang => ({
                         id: generatePK(),
@@ -260,7 +260,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
         
         if (JSON.stringify(actualLanguages) !== JSON.stringify(expectedSorted)) {
             throw new Error(
-                `Translation languages mismatch: expected ${expectedSorted.join(',')}, got ${actualLanguages.join(',')}`
+                `Translation languages mismatch: expected ${expectedSorted.join(",")}, got ${actualLanguages.join(",")}`,
             );
         }
         
@@ -270,7 +270,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create multiple tags with unique names
      */
-    async createMultipleTags(count: number, prefix = 'tag') {
+    async createMultipleTags(count: number, prefix = "tag") {
         const tags = [];
         
         for (let i = 0; i < count; i++) {

@@ -15,7 +15,7 @@ import type {
     GroupSpecification,
     GoalSpecification,
     MissionSpecification,
-    NormSpecification
+    NormSpecification,
 } from "./moiseTypes.js";
 import { TEST_IDS } from "../../testIdGenerator.js";
 
@@ -42,34 +42,34 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         "strategic_planning",
                         "regulatory_expertise",
                         "risk_assessment",
-                        "leadership"
+                        "leadership",
                     ],
                     responsibilities: [
                         {
                             id: "compliance_strategy",
                             description: "Define and maintain compliance strategy",
                             priority: "critical",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "board_reporting",
                             description: "Report compliance status to board",
                             priority: "high",
-                            frequency: "periodic"
-                        }
+                            frequency: "periodic",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "authority",
                             target: ["medical_officer", "privacy_officer", "lead_auditor"],
-                            bidirectional: false
+                            bidirectional: false,
                         },
                         {
                             type: "coordination",
                             target: ["external_auditor"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "medical_officer",
@@ -81,34 +81,34 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         "medical_expertise",
                         "clinical_standards",
                         "quality_assurance",
-                        "patient_safety"
+                        "patient_safety",
                     ],
                     responsibilities: [
                         {
                             id: "medical_standards",
                             description: "Ensure medical standards compliance",
                             priority: "critical",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "clinical_protocols",
                             description: "Develop and maintain clinical protocols",
                             priority: "high",
-                            frequency: "periodic"
-                        }
+                            frequency: "periodic",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "collaboration",
                             target: ["privacy_officer", "clinical_staff"],
-                            bidirectional: true
+                            bidirectional: true,
                         },
                         {
                             type: "information",
                             target: ["compliance_analyst"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "privacy_officer",
@@ -120,34 +120,34 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         "privacy_law",
                         "data_protection",
                         "hipaa_expertise",
-                        "incident_response"
+                        "incident_response",
                     ],
                     responsibilities: [
                         {
                             id: "privacy_compliance",
                             description: "Ensure HIPAA and privacy compliance",
                             priority: "critical",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "breach_response",
                             description: "Manage data breach incidents",
                             priority: "critical",
-                            frequency: "event-driven"
-                        }
+                            frequency: "event-driven",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "authority",
                             target: ["data_analyst", "security_team"],
-                            bidirectional: false
+                            bidirectional: false,
                         },
                         {
                             type: "collaboration",
                             target: ["medical_officer", "it_security"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "lead_auditor",
@@ -160,34 +160,34 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         "audit_methodology",
                         "risk_assessment",
                         "regulatory_knowledge",
-                        "reporting"
+                        "reporting",
                     ],
                     responsibilities: [
                         {
                             id: "audit_planning",
                             description: "Plan and schedule compliance audits",
                             priority: "high",
-                            frequency: "periodic"
+                            frequency: "periodic",
                         },
                         {
                             id: "audit_execution",
                             description: "Execute compliance audits",
                             priority: "high",
-                            frequency: "periodic"
-                        }
+                            frequency: "periodic",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "authority",
                             target: ["compliance_analyst"],
-                            bidirectional: false
+                            bidirectional: false,
                         },
                         {
                             type: "information",
                             target: ["compliance_director"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "compliance_analyst",
@@ -199,29 +199,29 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         "data_analysis",
                         "regulatory_knowledge",
                         "documentation",
-                        "monitoring_tools"
+                        "monitoring_tools",
                     ],
                     responsibilities: [
                         {
                             id: "continuous_monitoring",
                             description: "Monitor compliance metrics continuously",
                             priority: "high",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "incident_detection",
                             description: "Detect and report compliance incidents",
                             priority: "critical",
-                            frequency: "continuous"
-                        }
+                            frequency: "continuous",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "information",
                             target: ["lead_auditor", "privacy_officer"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "data_analyst",
@@ -233,30 +233,30 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         "data_analytics",
                         "phi_handling",
                         "statistical_analysis",
-                        "reporting_tools"
+                        "reporting_tools",
                     ],
                     responsibilities: [
                         {
                             id: "data_analysis",
                             description: "Analyze healthcare data patterns",
                             priority: "medium",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "anomaly_detection",
                             description: "Detect anomalies in data access",
                             priority: "high",
-                            frequency: "continuous"
-                        }
+                            frequency: "continuous",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "information",
                             target: ["privacy_officer", "compliance_analyst"],
-                            bidirectional: true
-                        }
-                    ]
-                }
+                            bidirectional: true,
+                        },
+                    ],
+                },
             ],
             
             groups: [
@@ -267,7 +267,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     roles: ["compliance_director", "medical_officer", "privacy_officer"],
                     minSize: 3,
                     maxSize: 5,
-                    subgroups: ["audit_team", "incident_response_team"]
+                    subgroups: ["audit_team", "incident_response_team"],
                 },
                 {
                     id: "audit_team",
@@ -276,7 +276,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     roles: ["lead_auditor", "compliance_analyst", "data_analyst"],
                     minSize: 3,
                     maxSize: 12,
-                    parentGroup: "compliance_board"
+                    parentGroup: "compliance_board",
                 },
                 {
                     id: "incident_response_team",
@@ -285,8 +285,8 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     roles: ["privacy_officer", "medical_officer", "compliance_analyst"],
                     minSize: 3,
                     maxSize: 8,
-                    parentGroup: "compliance_board"
-                }
+                    parentGroup: "compliance_board",
+                },
             ],
             
             links: [
@@ -294,14 +294,14 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     from: "compliance_board",
                     to: "audit_team",
                     type: "composition",
-                    cardinality: "1..1"
+                    cardinality: "1..1",
                 },
                 {
                     from: "compliance_board",
                     to: "incident_response_team",
                     type: "composition",
-                    cardinality: "1..1"
-                }
+                    cardinality: "1..1",
+                },
             ],
             
             compatibilities: [
@@ -309,29 +309,29 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     role1: "compliance_director",
                     role2: "lead_auditor",
                     type: "mutex",
-                    reason: "separation_of_duties"
+                    reason: "separation_of_duties",
                 },
                 {
                     role1: "medical_officer",
                     role2: "privacy_officer",
                     type: "compatible",
-                    reason: "complementary_expertise"
+                    reason: "complementary_expertise",
                 },
                 {
                     role1: "lead_auditor",
                     role2: "compliance_analyst",
                     type: "requires",
-                    reason: "auditor_needs_analyst_support"
-                }
+                    reason: "auditor_needs_analyst_support",
+                },
             ],
             
             inheritance: [
                 {
                     parent: "auditor",
                     child: "lead_auditor",
-                    inheritedProperties: ["capabilities", "responsibilities"]
-                }
-            ]
+                    inheritedProperties: ["capabilities", "responsibilities"],
+                },
+            ],
         },
         
         // Functional Specification - Goals and Missions
@@ -346,15 +346,15 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         "monitor_phi_access",
                         "audit_data_handling",
                         "incident_response",
-                        "training_compliance"
+                        "training_compliance",
                     ],
                     successCriteria: {
                         metric: "compliance_score",
                         threshold: 0.95,
                         operator: ">=",
-                        timeWindow: "monthly"
+                        timeWindow: "monthly",
                     },
-                    deadline: "continuous"
+                    deadline: "continuous",
                 },
                 {
                     id: "monitor_phi_access",
@@ -364,8 +364,8 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         metric: "monitoring_coverage",
                         threshold: 0.99,
                         operator: ">=",
-                        timeWindow: "daily"
-                    }
+                        timeWindow: "daily",
+                    },
                 },
                 {
                     id: "audit_data_handling",
@@ -375,9 +375,9 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         metric: "audit_completion",
                         threshold: 1.0,
                         operator: "==",
-                        timeWindow: "quarterly"
+                        timeWindow: "quarterly",
                     },
-                    deadline: "end_of_quarter"
+                    deadline: "end_of_quarter",
                 },
                 {
                     id: "incident_response",
@@ -387,8 +387,8 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         metric: "response_time_minutes",
                         threshold: 60,
                         operator: "<=",
-                        timeWindow: "per_incident"
-                    }
+                        timeWindow: "per_incident",
+                    },
                 },
                 {
                     id: "training_compliance",
@@ -398,9 +398,9 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                         metric: "training_completion_rate",
                         threshold: 1.0,
                         operator: "==",
-                        timeWindow: "annual"
-                    }
-                }
+                        timeWindow: "annual",
+                    },
+                },
             ],
             
             plans: [
@@ -414,39 +414,39 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                             action: "Create audit plan and schedule",
                             responsibleRole: "lead_auditor",
                             duration: "1_week",
-                            dependencies: []
+                            dependencies: [],
                         },
                         {
                             id: "notify_departments",
                             action: "Notify departments of audit schedule",
                             responsibleRole: "compliance_analyst",
                             duration: "2_days",
-                            dependencies: ["plan_audit"]
+                            dependencies: ["plan_audit"],
                         },
                         {
                             id: "conduct_audit",
                             action: "Execute audit procedures",
                             responsibleRole: "audit_team",
                             duration: "2_weeks",
-                            dependencies: ["notify_departments"]
+                            dependencies: ["notify_departments"],
                         },
                         {
                             id: "analyze_findings",
                             action: "Analyze audit findings",
                             responsibleRole: "data_analyst",
                             duration: "1_week",
-                            dependencies: ["conduct_audit"]
+                            dependencies: ["conduct_audit"],
                         },
                         {
                             id: "report_results",
                             action: "Prepare and present audit report",
                             responsibleRole: "lead_auditor",
                             duration: "3_days",
-                            dependencies: ["analyze_findings"]
-                        }
+                            dependencies: ["analyze_findings"],
+                        },
                     ],
                     preconditions: ["previous_audit_completed", "resources_available"],
-                    postconditions: ["audit_report_filed", "findings_addressed"]
+                    postconditions: ["audit_report_filed", "findings_addressed"],
                 },
                 {
                     id: "incident_response_plan",
@@ -458,40 +458,40 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                             action: "Detect and verify incident",
                             responsibleRole: "compliance_analyst",
                             duration: "15_minutes",
-                            dependencies: []
+                            dependencies: [],
                         },
                         {
                             id: "activate_team",
                             action: "Activate incident response team",
                             responsibleRole: "privacy_officer",
                             duration: "15_minutes",
-                            dependencies: ["detect_incident"]
+                            dependencies: ["detect_incident"],
                         },
                         {
                             id: "contain_breach",
                             action: "Contain and isolate breach",
                             responsibleRole: "incident_response_team",
                             duration: "30_minutes",
-                            dependencies: ["activate_team"]
+                            dependencies: ["activate_team"],
                         },
                         {
                             id: "assess_impact",
                             action: "Assess breach impact and scope",
                             responsibleRole: "data_analyst",
                             duration: "2_hours",
-                            dependencies: ["contain_breach"]
+                            dependencies: ["contain_breach"],
                         },
                         {
                             id: "notify_authorities",
                             action: "Notify regulatory authorities",
                             responsibleRole: "compliance_director",
                             duration: "4_hours",
-                            dependencies: ["assess_impact"]
-                        }
+                            dependencies: ["assess_impact"],
+                        },
                     ],
                     preconditions: ["incident_detected", "team_available"],
-                    postconditions: ["breach_contained", "authorities_notified", "patients_notified"]
-                }
+                    postconditions: ["breach_contained", "authorities_notified", "patients_notified"],
+                },
             ],
             
             missions: [
@@ -502,7 +502,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     minAgents: 2,
                     maxAgents: 5,
                     preferredRoles: ["compliance_analyst", "data_analyst"],
-                    deadline: "continuous"
+                    deadline: "continuous",
                 },
                 {
                     id: "quarterly_audit_mission",
@@ -511,7 +511,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     minAgents: 3,
                     maxAgents: 8,
                     preferredRoles: ["lead_auditor", "compliance_analyst", "data_analyst"],
-                    deadline: "end_of_quarter"
+                    deadline: "end_of_quarter",
                 },
                 {
                     id: "incident_response_mission",
@@ -520,8 +520,8 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     minAgents: 3,
                     maxAgents: 6,
                     preferredRoles: ["privacy_officer", "medical_officer", "compliance_analyst"],
-                    deadline: "immediate"
-                }
+                    deadline: "immediate",
+                },
             ],
             
             schemes: [
@@ -530,9 +530,9 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     name: "HIPAA Compliance Scheme",
                     rootGoal: "ensure_hipaa_compliance",
                     missions: ["continuous_monitoring_mission", "quarterly_audit_mission", "incident_response_mission"],
-                    monitoringScheme: "real_time_dashboard"
-                }
-            ]
+                    monitoringScheme: "real_time_dashboard",
+                },
+            ],
         },
         
         // Normative Specification - Rules and Constraints
@@ -546,7 +546,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     target: "report_to_compliance_board",
                     deadline: "15_minutes",
                     sanction: "performance_penalty",
-                    priority: "critical"
+                    priority: "critical",
                 },
                 {
                     id: "quarterly_audit_completion",
@@ -556,7 +556,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     target: "complete_quarterly_audit",
                     deadline: "last_day_of_quarter",
                     sanction: "escalation_to_director",
-                    priority: "high"
+                    priority: "high",
                 },
                 {
                     id: "data_access_logging",
@@ -566,8 +566,8 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     target: "log_access_with_reason",
                     deadline: "immediate",
                     sanction: "access_revocation",
-                    priority: "critical"
-                }
+                    priority: "critical",
+                },
             ],
             
             permissions: [
@@ -577,7 +577,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     scope: "medical_officer",
                     condition: "patient_care_need",
                     target: "access_patient_phi",
-                    exceptions: ["audit_in_progress", "access_suspended"]
+                    exceptions: ["audit_in_progress", "access_suspended"],
                 },
                 {
                     id: "audit_access_permission",
@@ -585,7 +585,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     scope: "lead_auditor",
                     condition: "audit_in_progress",
                     target: "access_all_phi_logs",
-                    exceptions: []
+                    exceptions: [],
                 },
                 {
                     id: "policy_modification_permission",
@@ -593,8 +593,8 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     scope: "compliance_director",
                     condition: "board_approval",
                     target: "modify_compliance_policies",
-                    exceptions: ["regulatory_freeze_period"]
-                }
+                    exceptions: ["regulatory_freeze_period"],
+                },
             ],
             
             obligations: [
@@ -607,7 +607,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     deadline: "friday_5pm",
                     sanction: "board_notification",
                     priority: "high",
-                    fulfillmentMonitoring: "periodic"
+                    fulfillmentMonitoring: "periodic",
                 },
                 {
                     id: "training_completion",
@@ -618,8 +618,8 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     deadline: "30_days",
                     sanction: "access_restriction",
                     priority: "medium",
-                    fulfillmentMonitoring: "continuous"
-                }
+                    fulfillmentMonitoring: "continuous",
+                },
             ],
             
             prohibitions: [
@@ -631,7 +631,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     target: "share_phi_externally",
                     sanction: "immediate_termination",
                     priority: "critical",
-                    violationDetection: "immediate"
+                    violationDetection: "immediate",
                 },
                 {
                     id: "audit_record_modification",
@@ -641,7 +641,7 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     target: "modify_audit_logs",
                     sanction: "criminal_prosecution",
                     priority: "critical",
-                    violationDetection: "immediate"
+                    violationDetection: "immediate",
                 },
                 {
                     id: "conflict_of_interest",
@@ -651,10 +651,10 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
                     target: "conduct_self_audit",
                     sanction: "audit_invalidation",
                     priority: "high",
-                    violationDetection: "periodic"
-                }
-            ]
-        }
+                    violationDetection: "periodic",
+                },
+            ],
+        },
     },
     
     performanceMetrics: {
@@ -662,8 +662,8 @@ export const HEALTHCARE_COMPLIANCE_ORG: MOISEPlusOrganization = {
         normComplianceRate: 0.98,
         averageMissionDuration: 14.5, // days
         resourceEfficiency: 0.87,
-        collaborationScore: 0.91
-    }
+        collaborationScore: 0.91,
+    },
 };
 
 /**
@@ -688,29 +688,29 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                         "risk_assessment",
                         "regulatory_expertise",
                         "financial_modeling",
-                        "crisis_management"
+                        "crisis_management",
                     ],
                     responsibilities: [
                         {
                             id: "risk_strategy",
                             description: "Define risk management strategy",
                             priority: "critical",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "regulatory_compliance",
                             description: "Ensure regulatory compliance",
                             priority: "critical",
-                            frequency: "continuous"
-                        }
+                            frequency: "continuous",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "authority",
                             target: ["trading_desk_manager", "compliance_officer", "risk_analyst"],
-                            bidirectional: false
-                        }
-                    ]
+                            bidirectional: false,
+                        },
+                    ],
                 },
                 {
                     id: "trading_desk_manager",
@@ -722,34 +722,34 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                         "trading_strategies",
                         "market_analysis",
                         "team_management",
-                        "risk_awareness"
+                        "risk_awareness",
                     ],
                     responsibilities: [
                         {
                             id: "trading_oversight",
                             description: "Oversee trading activities",
                             priority: "critical",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "position_management",
                             description: "Manage trading positions within limits",
                             priority: "critical",
-                            frequency: "continuous"
-                        }
+                            frequency: "continuous",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "authority",
                             target: ["trader", "junior_trader"],
-                            bidirectional: false
+                            bidirectional: false,
                         },
                         {
                             type: "coordination",
                             target: ["risk_analyst"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "trader",
@@ -761,29 +761,29 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                         "trade_execution",
                         "market_knowledge",
                         "risk_management",
-                        "decision_making"
+                        "decision_making",
                     ],
                     responsibilities: [
                         {
                             id: "execute_trades",
                             description: "Execute trades within limits",
                             priority: "high",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "monitor_positions",
                             description: "Monitor and report positions",
                             priority: "high",
-                            frequency: "continuous"
-                        }
+                            frequency: "continuous",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "information",
                             target: ["risk_analyst", "trading_desk_manager"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "compliance_officer",
@@ -795,34 +795,34 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                         "regulatory_knowledge",
                         "compliance_monitoring",
                         "investigation",
-                        "reporting"
+                        "reporting",
                     ],
                     responsibilities: [
                         {
                             id: "compliance_monitoring",
                             description: "Monitor trading compliance",
                             priority: "critical",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "regulatory_reporting",
                             description: "Submit regulatory reports",
                             priority: "high",
-                            frequency: "periodic"
-                        }
+                            frequency: "periodic",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "authority",
                             target: ["compliance_analyst"],
-                            bidirectional: false
+                            bidirectional: false,
                         },
                         {
                             type: "information",
                             target: ["chief_risk_officer", "external_auditor"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "risk_analyst",
@@ -834,30 +834,30 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                         "quantitative_analysis",
                         "risk_modeling",
                         "data_analytics",
-                        "reporting"
+                        "reporting",
                     ],
                     responsibilities: [
                         {
                             id: "risk_analysis",
                             description: "Analyze portfolio risks",
                             priority: "high",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "limit_monitoring",
                             description: "Monitor trading limits",
                             priority: "critical",
-                            frequency: "continuous"
-                        }
+                            frequency: "continuous",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "information",
                             target: ["chief_risk_officer", "trading_desk_manager"],
-                            bidirectional: true
-                        }
-                    ]
-                }
+                            bidirectional: true,
+                        },
+                    ],
+                },
             ],
             
             groups: [
@@ -868,7 +868,7 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     roles: ["chief_risk_officer", "compliance_officer", "trading_desk_manager"],
                     minSize: 3,
                     maxSize: 7,
-                    subgroups: ["trading_desk", "compliance_unit"]
+                    subgroups: ["trading_desk", "compliance_unit"],
                 },
                 {
                     id: "trading_desk",
@@ -877,7 +877,7 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     roles: ["trading_desk_manager", "trader", "junior_trader"],
                     minSize: 3,
                     maxSize: 25,
-                    parentGroup: "risk_committee"
+                    parentGroup: "risk_committee",
                 },
                 {
                     id: "compliance_unit",
@@ -886,8 +886,8 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     roles: ["compliance_officer", "compliance_analyst"],
                     minSize: 2,
                     maxSize: 5,
-                    parentGroup: "risk_committee"
-                }
+                    parentGroup: "risk_committee",
+                },
             ],
             
             links: [
@@ -895,14 +895,14 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     from: "risk_committee",
                     to: "trading_desk",
                     type: "aggregation",
-                    cardinality: "1..*"
+                    cardinality: "1..*",
                 },
                 {
                     from: "risk_committee",
                     to: "compliance_unit",
                     type: "composition",
-                    cardinality: "1..1"
-                }
+                    cardinality: "1..1",
+                },
             ],
             
             compatibilities: [
@@ -910,23 +910,23 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     role1: "trader",
                     role2: "compliance_officer",
                     type: "mutex",
-                    reason: "separation_of_duties"
+                    reason: "separation_of_duties",
                 },
                 {
                     role1: "trader",
                     role2: "risk_analyst",
                     type: "mutex",
-                    reason: "independent_risk_assessment"
+                    reason: "independent_risk_assessment",
                 },
                 {
                     role1: "chief_risk_officer",
                     role2: "trading_desk_manager",
                     type: "mutex",
-                    reason: "independent_oversight"
-                }
+                    reason: "independent_oversight",
+                },
             ],
             
-            inheritance: []
+            inheritance: [],
         },
         
         functional: {
@@ -940,14 +940,14 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                         "monitor_trade_compliance",
                         "enforce_position_limits",
                         "prevent_market_manipulation",
-                        "ensure_best_execution"
+                        "ensure_best_execution",
                     ],
                     successCriteria: {
                         metric: "compliance_violations",
                         threshold: 0,
                         operator: "==",
-                        timeWindow: "daily"
-                    }
+                        timeWindow: "daily",
+                    },
                 },
                 {
                     id: "manage_portfolio_risk",
@@ -957,15 +957,15 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     subgoals: [
                         "monitor_var_limits",
                         "diversify_positions",
-                        "hedge_exposures"
+                        "hedge_exposures",
                     ],
                     successCriteria: {
                         metric: "risk_adjusted_return",
                         threshold: 0.15,
                         operator: ">=",
-                        timeWindow: "monthly"
-                    }
-                }
+                        timeWindow: "monthly",
+                    },
+                },
             ],
             
             plans: [
@@ -979,40 +979,40 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                             action: "Calculate Value at Risk",
                             responsibleRole: "risk_analyst",
                             duration: "30_minutes",
-                            dependencies: []
+                            dependencies: [],
                         },
                         {
                             id: "stress_test",
                             action: "Run stress test scenarios",
                             responsibleRole: "risk_analyst",
                             duration: "1_hour",
-                            dependencies: ["calculate_var"]
+                            dependencies: ["calculate_var"],
                         },
                         {
                             id: "review_limits",
                             action: "Review limit utilization",
                             responsibleRole: "risk_analyst",
                             duration: "30_minutes",
-                            dependencies: []
+                            dependencies: [],
                         },
                         {
                             id: "prepare_report",
                             action: "Prepare risk report",
                             responsibleRole: "risk_analyst",
                             duration: "30_minutes",
-                            dependencies: ["calculate_var", "stress_test", "review_limits"]
+                            dependencies: ["calculate_var", "stress_test", "review_limits"],
                         },
                         {
                             id: "review_meeting",
                             action: "Conduct risk review meeting",
                             responsibleRole: "chief_risk_officer",
                             duration: "1_hour",
-                            dependencies: ["prepare_report"]
-                        }
+                            dependencies: ["prepare_report"],
+                        },
                     ],
                     preconditions: ["market_data_available", "positions_reconciled"],
-                    postconditions: ["risk_report_distributed", "action_items_assigned"]
-                }
+                    postconditions: ["risk_report_distributed", "action_items_assigned"],
+                },
             ],
             
             missions: [
@@ -1023,7 +1023,7 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     minAgents: 2,
                     maxAgents: 4,
                     preferredRoles: ["compliance_officer", "risk_analyst"],
-                    deadline: "continuous"
+                    deadline: "continuous",
                 },
                 {
                     id: "daily_risk_assessment",
@@ -1032,8 +1032,8 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     minAgents: 2,
                     maxAgents: 5,
                     preferredRoles: ["risk_analyst", "chief_risk_officer"],
-                    deadline: "daily_before_market_open"
-                }
+                    deadline: "daily_before_market_open",
+                },
             ],
             
             schemes: [
@@ -1042,9 +1042,9 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     name: "Trading Compliance and Risk Management",
                     rootGoal: "maintain_trading_compliance",
                     missions: ["real_time_monitoring", "daily_risk_assessment"],
-                    monitoringScheme: "real_time_surveillance_system"
-                }
-            ]
+                    monitoringScheme: "real_time_surveillance_system",
+                },
+            ],
         },
         
         normative: {
@@ -1057,7 +1057,7 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     target: "respect_position_limits",
                     deadline: "immediate",
                     sanction: "trading_suspension",
-                    priority: "critical"
+                    priority: "critical",
                 },
                 {
                     id: "report_violations",
@@ -1067,8 +1067,8 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     target: "report_to_compliance",
                     deadline: "immediate",
                     sanction: "disciplinary_action",
-                    priority: "critical"
-                }
+                    priority: "critical",
+                },
             ],
             
             permissions: [
@@ -1078,7 +1078,7 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     scope: "trader",
                     condition: "within_approved_limits",
                     target: "place_market_orders",
-                    exceptions: ["market_closed", "account_suspended"]
+                    exceptions: ["market_closed", "account_suspended"],
                 },
                 {
                     id: "override_limits",
@@ -1086,8 +1086,8 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     scope: "chief_risk_officer",
                     condition: "exceptional_circumstances",
                     target: "temporary_limit_override",
-                    exceptions: ["regulatory_restriction"]
-                }
+                    exceptions: ["regulatory_restriction"],
+                },
             ],
             
             obligations: [
@@ -1100,8 +1100,8 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     deadline: "market_close_plus_2_hours",
                     sanction: "escalation",
                     priority: "high",
-                    fulfillmentMonitoring: "continuous"
-                }
+                    fulfillmentMonitoring: "continuous",
+                },
             ],
             
             prohibitions: [
@@ -1113,7 +1113,7 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     target: "trade_on_inside_information",
                     sanction: "termination_and_prosecution",
                     priority: "critical",
-                    violationDetection: "immediate"
+                    violationDetection: "immediate",
                 },
                 {
                     id: "market_manipulation",
@@ -1123,7 +1123,7 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     target: "manipulate_market_prices",
                     sanction: "regulatory_action",
                     priority: "critical",
-                    violationDetection: "immediate"
+                    violationDetection: "immediate",
                 },
                 {
                     id: "front_running",
@@ -1133,10 +1133,10 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
                     target: "trade_ahead_of_client",
                     sanction: "license_revocation",
                     priority: "critical",
-                    violationDetection: "immediate"
-                }
-            ]
-        }
+                    violationDetection: "immediate",
+                },
+            ],
+        },
     },
     
     performanceMetrics: {
@@ -1144,8 +1144,8 @@ export const FINANCIAL_TRADING_ORG: MOISEPlusOrganization = {
         normComplianceRate: 0.99,
         averageMissionDuration: 1.2, // days
         resourceEfficiency: 0.93,
-        collaborationScore: 0.88
-    }
+        collaborationScore: 0.88,
+    },
 };
 
 /**
@@ -1170,34 +1170,34 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                         "research_leadership",
                         "strategic_planning",
                         "grant_writing",
-                        "publication_expertise"
+                        "publication_expertise",
                     ],
                     responsibilities: [
                         {
                             id: "research_strategy",
                             description: "Define research direction and priorities",
                             priority: "critical",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "resource_allocation",
                             description: "Allocate research resources",
                             priority: "high",
-                            frequency: "periodic"
-                        }
+                            frequency: "periodic",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "authority",
                             target: ["principal_investigator", "research_coordinator"],
-                            bidirectional: false
+                            bidirectional: false,
                         },
                         {
                             type: "coordination",
                             target: ["external_collaborator"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "principal_investigator",
@@ -1209,34 +1209,34 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                         "domain_expertise",
                         "project_management",
                         "mentoring",
-                        "publication_track_record"
+                        "publication_track_record",
                     ],
                     responsibilities: [
                         {
                             id: "project_leadership",
                             description: "Lead research project execution",
                             priority: "critical",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "student_mentoring",
                             description: "Mentor graduate students",
                             priority: "high",
-                            frequency: "continuous"
-                        }
+                            frequency: "continuous",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "authority",
                             target: ["postdoc_researcher", "graduate_student"],
-                            bidirectional: false
+                            bidirectional: false,
                         },
                         {
                             type: "collaboration",
                             target: ["principal_investigator"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "postdoc_researcher",
@@ -1248,34 +1248,34 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                         "research_expertise",
                         "independent_work",
                         "technical_skills",
-                        "writing_skills"
+                        "writing_skills",
                     ],
                     responsibilities: [
                         {
                             id: "conduct_research",
                             description: "Execute research experiments",
                             priority: "high",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "paper_writing",
                             description: "Write research papers",
                             priority: "high",
-                            frequency: "periodic"
-                        }
+                            frequency: "periodic",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "collaboration",
                             target: ["graduate_student", "postdoc_researcher"],
-                            bidirectional: true
+                            bidirectional: true,
                         },
                         {
                             type: "information",
                             target: ["principal_investigator"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "graduate_student",
@@ -1287,29 +1287,29 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                         "learning_ability",
                         "basic_research_skills",
                         "programming",
-                        "analytical_thinking"
+                        "analytical_thinking",
                     ],
                     responsibilities: [
                         {
                             id: "research_assistance",
                             description: "Assist in research tasks",
                             priority: "medium",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "thesis_work",
                             description: "Work on thesis research",
                             priority: "high",
-                            frequency: "continuous"
-                        }
+                            frequency: "continuous",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "information",
                             target: ["postdoc_researcher", "principal_investigator"],
-                            bidirectional: true
-                        }
-                    ]
+                            bidirectional: true,
+                        },
+                    ],
                 },
                 {
                     id: "research_coordinator",
@@ -1321,30 +1321,30 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                         "project_coordination",
                         "communication_skills",
                         "resource_management",
-                        "scheduling"
+                        "scheduling",
                     ],
                     responsibilities: [
                         {
                             id: "coordinate_activities",
                             description: "Coordinate research activities",
                             priority: "high",
-                            frequency: "continuous"
+                            frequency: "continuous",
                         },
                         {
                             id: "manage_resources",
                             description: "Manage lab resources and equipment",
                             priority: "medium",
-                            frequency: "continuous"
-                        }
+                            frequency: "continuous",
+                        },
                     ],
                     communicationLinks: [
                         {
                             type: "coordination",
                             target: ["all_roles"],
-                            bidirectional: true
-                        }
-                    ]
-                }
+                            bidirectional: true,
+                        },
+                    ],
+                },
             ],
             
             groups: [
@@ -1355,7 +1355,7 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     roles: ["research_director", "principal_investigator"],
                     minSize: 2,
                     maxSize: 6,
-                    subgroups: ["research_teams"]
+                    subgroups: ["research_teams"],
                 },
                 {
                     id: "research_team_alpha",
@@ -1364,7 +1364,7 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     roles: ["principal_investigator", "postdoc_researcher", "graduate_student"],
                     minSize: 2,
                     maxSize: 8,
-                    parentGroup: "research_council"
+                    parentGroup: "research_council",
                 },
                 {
                     id: "research_team_beta",
@@ -1373,8 +1373,8 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     roles: ["principal_investigator", "postdoc_researcher", "graduate_student"],
                     minSize: 2,
                     maxSize: 8,
-                    parentGroup: "research_council"
-                }
+                    parentGroup: "research_council",
+                },
             ],
             
             links: [
@@ -1382,14 +1382,14 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     from: "research_council",
                     to: "research_team_alpha",
                     type: "aggregation",
-                    cardinality: "1..*"
+                    cardinality: "1..*",
                 },
                 {
                     from: "research_council",
                     to: "research_team_beta",
                     type: "aggregation",
-                    cardinality: "1..*"
-                }
+                    cardinality: "1..*",
+                },
             ],
             
             compatibilities: [
@@ -1397,17 +1397,17 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     role1: "principal_investigator",
                     role2: "postdoc_researcher",
                     type: "compatible",
-                    reason: "mentoring_relationship"
+                    reason: "mentoring_relationship",
                 },
                 {
                     role1: "postdoc_researcher",
                     role2: "graduate_student",
                     type: "compatible",
-                    reason: "collaborative_learning"
-                }
+                    reason: "collaborative_learning",
+                },
             ],
             
-            inheritance: []
+            inheritance: [],
         },
         
         functional: {
@@ -1421,14 +1421,14 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                         "publish_papers",
                         "develop_algorithms",
                         "create_datasets",
-                        "build_systems"
+                        "build_systems",
                     ],
                     successCriteria: {
                         metric: "research_impact_score",
                         threshold: 50,
                         operator: ">=",
-                        timeWindow: "annual"
-                    }
+                        timeWindow: "annual",
+                    },
                 },
                 {
                     id: "publish_papers",
@@ -1438,8 +1438,8 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                         metric: "accepted_papers",
                         threshold: 5,
                         operator: ">=",
-                        timeWindow: "annual"
-                    }
+                        timeWindow: "annual",
+                    },
                 },
                 {
                     id: "train_researchers",
@@ -1449,9 +1449,9 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                         metric: "graduated_students",
                         threshold: 2,
                         operator: ">=",
-                        timeWindow: "annual"
-                    }
-                }
+                        timeWindow: "annual",
+                    },
+                },
             ],
             
             plans: [
@@ -1465,47 +1465,47 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                             action: "Design research experiments",
                             responsibleRole: "principal_investigator",
                             duration: "2_weeks",
-                            dependencies: []
+                            dependencies: [],
                         },
                         {
                             id: "run_experiments",
                             action: "Execute experiments",
                             responsibleRole: "postdoc_researcher",
                             duration: "8_weeks",
-                            dependencies: ["research_design"]
+                            dependencies: ["research_design"],
                         },
                         {
                             id: "analyze_results",
                             action: "Analyze experimental results",
                             responsibleRole: "graduate_student",
                             duration: "2_weeks",
-                            dependencies: ["run_experiments"]
+                            dependencies: ["run_experiments"],
                         },
                         {
                             id: "write_paper",
                             action: "Write research paper",
                             responsibleRole: "postdoc_researcher",
                             duration: "4_weeks",
-                            dependencies: ["analyze_results"]
+                            dependencies: ["analyze_results"],
                         },
                         {
                             id: "internal_review",
                             action: "Internal paper review",
                             responsibleRole: "principal_investigator",
                             duration: "1_week",
-                            dependencies: ["write_paper"]
+                            dependencies: ["write_paper"],
                         },
                         {
                             id: "submit_paper",
                             action: "Submit to conference/journal",
                             responsibleRole: "principal_investigator",
                             duration: "1_day",
-                            dependencies: ["internal_review"]
-                        }
+                            dependencies: ["internal_review"],
+                        },
                     ],
                     preconditions: ["research_idea_validated", "resources_available"],
-                    postconditions: ["paper_submitted", "preprint_posted"]
-                }
+                    postconditions: ["paper_submitted", "preprint_posted"],
+                },
             ],
             
             missions: [
@@ -1516,7 +1516,7 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     minAgents: 3,
                     maxAgents: 10,
                     preferredRoles: ["principal_investigator", "postdoc_researcher", "graduate_student"],
-                    deadline: "project_dependent"
+                    deadline: "project_dependent",
                 },
                 {
                     id: "mentoring_mission",
@@ -1525,8 +1525,8 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     minAgents: 2,
                     maxAgents: 6,
                     preferredRoles: ["principal_investigator", "postdoc_researcher"],
-                    deadline: "continuous"
-                }
+                    deadline: "continuous",
+                },
             ],
             
             schemes: [
@@ -1535,9 +1535,9 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     name: "Research Excellence Scheme",
                     rootGoal: "advance_ai_research",
                     missions: ["research_project_mission", "mentoring_mission"],
-                    monitoringScheme: "quarterly_progress_review"
-                }
-            ]
+                    monitoringScheme: "quarterly_progress_review",
+                },
+            ],
         },
         
         normative: {
@@ -1550,7 +1550,7 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     target: "follow_ethical_guidelines",
                     deadline: "always",
                     sanction: "research_suspension",
-                    priority: "critical"
+                    priority: "critical",
                 },
                 {
                     id: "weekly_progress_update",
@@ -1560,8 +1560,8 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     target: "present_progress",
                     deadline: "every_friday",
                     sanction: "advisor_notification",
-                    priority: "medium"
-                }
+                    priority: "medium",
+                },
             ],
             
             permissions: [
@@ -1571,7 +1571,7 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     scope: "all_roles",
                     condition: "approved_project",
                     target: "access_hpc_cluster",
-                    exceptions: ["maintenance_window", "quota_exceeded"]
+                    exceptions: ["maintenance_window", "quota_exceeded"],
                 },
                 {
                     id: "submit_papers",
@@ -1579,8 +1579,8 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     scope: "principal_investigator",
                     condition: "paper_reviewed",
                     target: "submit_to_venues",
-                    exceptions: ["embargo_period"]
-                }
+                    exceptions: ["embargo_period"],
+                },
             ],
             
             obligations: [
@@ -1593,8 +1593,8 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     deadline: "6_months",
                     sanction: "funding_review",
                     priority: "high",
-                    fulfillmentMonitoring: "periodic"
-                }
+                    fulfillmentMonitoring: "periodic",
+                },
             ],
             
             prohibitions: [
@@ -1606,7 +1606,7 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     target: "plagiarize_work",
                     sanction: "immediate_dismissal",
                     priority: "critical",
-                    violationDetection: "periodic"
+                    violationDetection: "periodic",
                 },
                 {
                     id: "data_falsification",
@@ -1616,10 +1616,10 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
                     target: "falsify_research_data",
                     sanction: "career_termination",
                     priority: "critical",
-                    violationDetection: "periodic"
-                }
-            ]
-        }
+                    violationDetection: "periodic",
+                },
+            ],
+        },
     },
     
     performanceMetrics: {
@@ -1627,8 +1627,8 @@ export const RESEARCH_TEAM_ORG: MOISEPlusOrganization = {
         normComplianceRate: 0.96,
         averageMissionDuration: 120, // days
         resourceEfficiency: 0.78,
-        collaborationScore: 0.92
-    }
+        collaborationScore: 0.92,
+    },
 };
 
 /**
@@ -1638,7 +1638,7 @@ export function getAllOrganizations(): MOISEPlusOrganization[] {
     return [
         HEALTHCARE_COMPLIANCE_ORG,
         FINANCIAL_TRADING_ORG,
-        RESEARCH_TEAM_ORG
+        RESEARCH_TEAM_ORG,
     ];
 }
 
@@ -1648,7 +1648,7 @@ export function getOrganizationById(id: string): MOISEPlusOrganization | undefin
 
 export function getOrganizationByName(name: string): MOISEPlusOrganization | undefined {
     return getAllOrganizations().find(org => 
-        org.name.toLowerCase().includes(name.toLowerCase())
+        org.name.toLowerCase().includes(name.toLowerCase()),
     );
 }
 

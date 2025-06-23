@@ -12,7 +12,6 @@ import type {
 } from "@vrooli/shared";
 import { ResourceSubType, InputType } from "@vrooli/shared";
 import type { RoutineFixture, RoutineFixtureCollection } from "./types.js";
-
 // Import sequential routines for reference in activity maps
 import { SECURITY_ROUTINES } from "./securityRoutines.js";
 import { MEDICAL_ROUTINES } from "./medicalRoutines.js";
@@ -150,35 +149,35 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         subroutineId: SECURITY_ROUTINES.API_SECURITY_SCAN.id,
                         inputMap: {
                             "apiLogs": "apiLogs",
-                            "timeRange": "timeRange"
+                            "timeRange": "timeRange",
                         },
                         outputMap: {
                             "threats": "threats",
-                            "anomalies": "anomalies"
-                        }
+                            "anomalies": "anomalies",
+                        },
                     },
                     "data_privacy_check": {
                         subroutineId: SECURITY_ROUTINES.GDPR_DATA_AUDIT.id,
                         inputMap: {
                             "processingRecords": "processingRecords",
-                            "retentionPolicies": "retentionPolicies"
+                            "retentionPolicies": "retentionPolicies",
                         },
                         outputMap: {
                             "complianceScore": "complianceScore",
-                            "violations": "violations"
-                        }
+                            "violations": "violations",
+                        },
                     },
                     "threat_analysis": {
                         subroutineId: SECURITY_ROUTINES.TRADING_PATTERN_ANALYSIS.id,
                         inputMap: {
                             "tradingData": "tradingData",
-                            "timeWindow": "timeWindow"
+                            "timeWindow": "timeWindow",
                         },
                         outputMap: {
                             "suspiciousPatterns": "suspiciousPatterns",
-                            "riskScore": "riskScore"
-                        }
-                    }
+                            "riskScore": "riskScore",
+                        },
+                    },
                 },
                 rootContext: {
                     inputMap: {
@@ -186,13 +185,13 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         "auditTimeRange": "auditTimeRange",
                         "dataProcessingRecords": "dataProcessingRecords",
                         "retentionPolicies": "retentionPolicies",
-                        "activityData": "activityData"
+                        "activityData": "activityData",
                     },
                     outputMap: {
-                        "auditReport": "auditReport"
-                    }
-                }
-            }
+                        "auditReport": "auditReport",
+                    },
+                },
+            },
         } as GraphBpmnConfigObject,
         formInput: {
             __version: "1.0",
@@ -205,7 +204,7 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         label: "System Logs",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "auditTimeRange",
@@ -214,7 +213,7 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         type: InputType.Text,
                         isRequired: true,
                         defaultValue: "24h",
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "dataProcessingRecords",
@@ -222,7 +221,7 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         label: "Data Processing Records",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "retentionPolicies",
@@ -230,7 +229,7 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         label: "Data Retention Policies",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "activityData",
@@ -238,10 +237,10 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         label: "User Activity Data",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
-                    }
-                ]
-            }
+                        props: {},
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -253,17 +252,17 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         id: "audit_report",
                         label: "Security Audit Report",
                         type: InputType.JSON,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "reasoning" as const,
         subroutineStrategies: {
             "api_security_check": "deterministic",
             "data_privacy_check": "reasoning",
-            "threat_analysis": "deterministic"
-        }
+            "threat_analysis": "deterministic",
+        },
     } as RoutineVersionConfigObject,
 };
 
@@ -364,34 +363,34 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         subroutineId: SECURITY_ROUTINES.HIPAA_COMPLIANCE_CHECK.id,
                         inputMap: {
                             "aiOutput": "aiOutput",
-                            "confidenceThreshold": "confidenceThreshold"
+                            "confidenceThreshold": "confidenceThreshold",
                         },
                         outputMap: {
                             "phiDetected": "phiDetected",
-                            "complianceStatus": "complianceStatus"
-                        }
+                            "complianceStatus": "complianceStatus",
+                        },
                     },
                     "clinical_validation": {
                         subroutineId: MEDICAL_ROUTINES.MEDICAL_DIAGNOSIS_VALIDATION.id,
                         inputMap: {
                             "diagnosis": "diagnosis",
                             "demographics": "demographics",
-                            "symptoms": "symptoms"
+                            "symptoms": "symptoms",
                         },
                         outputMap: {
-                            "validationReport": "response"
-                        }
+                            "validationReport": "response",
+                        },
                     },
                     "bias_check": {
                         subroutineId: PERFORMANCE_ROUTINES.OUTPUT_QUALITY_ASSESSMENT.id,
                         inputMap: {
                             "output": "output",
-                            "criteria": "criteria"
+                            "criteria": "criteria",
                         },
                         outputMap: {
-                            "biasReport": "response"
-                        }
-                    }
+                            "biasReport": "response",
+                        },
+                    },
                 },
                 rootContext: {
                     inputMap: {
@@ -400,14 +399,14 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         "diagnosis": "diagnosis",
                         "patientDemographics": "patientDemographics",
                         "symptoms": "symptoms",
-                        "biasCriteria": "biasCriteria"
+                        "biasCriteria": "biasCriteria",
                     },
                     outputMap: {
                         "clinicalValidation": "clinicalValidation",
-                        "biasAssessment": "biasAssessment"
-                    }
-                }
-            }
+                        "biasAssessment": "biasAssessment",
+                    },
+                },
+            },
         } as GraphBpmnConfigObject,
         formInput: {
             __version: "1.0",
@@ -420,7 +419,7 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         label: "AI Treatment Plan",
                         type: InputType.Text,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "complianceThreshold",
@@ -429,7 +428,7 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         type: InputType.Slider,
                         isRequired: true,
                         defaultValue: 0.9,
-                        props: { min: 0.5, max: 1.0, step: 0.05 }
+                        props: { min: 0.5, max: 1.0, step: 0.05 },
                     },
                     {
                         fieldName: "diagnosis",
@@ -437,7 +436,7 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         label: "Diagnosis",
                         type: InputType.Text,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "patientDemographics",
@@ -445,7 +444,7 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         label: "Patient Demographics",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "symptoms",
@@ -453,7 +452,7 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         label: "Symptoms",
                         type: InputType.Text,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "biasCriteria",
@@ -464,11 +463,11 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         defaultValue: {
                             biasThreshold: 0.15,
                             checkDemographic: true,
-                            checkCultural: true
-                        }
-                    }
-                ]
-            }
+                            checkCultural: true,
+                        },
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -480,25 +479,25 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         id: "clinical_validation",
                         label: "Clinical Validation Report",
                         type: InputType.Text,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "biasAssessment",
                         id: "bias_assessment",
                         label: "Bias Assessment Report",
                         type: InputType.Text,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "reasoning" as const,
         allowStrategyOverride: true,
         subroutineStrategies: {
             "hipaa_check": "deterministic",
             "clinical_validation": "reasoning",
-            "bias_check": "reasoning"
-        }
+            "bias_check": "reasoning",
+        },
     } as RoutineVersionConfigObject,
 };
 
@@ -580,26 +579,26 @@ Format as JSON with keys: patterns, correlations, rootCauses, predictions</vrool
                         inputMap: {
                             "searchPattern": "searchPattern",
                             "timeRange": "timeRange",
-                            "severity": "severity"
+                            "severity": "severity",
                         },
                         outputMap: {
-                            "logs": "logs"
-                        }
-                    }
+                            "logs": "logs",
+                        },
+                    },
                 },
                 rootContext: {
                     inputMap: {
                         "errorPattern": "errorPattern",
-                        "analysisWindow": "analysisWindow"
+                        "analysisWindow": "analysisWindow",
                     },
                     outputMap: {
                         "patterns": "patterns",
                         "correlations": "correlations",
                         "rootCauses": "rootCauses",
-                        "predictions": "predictions"
-                    }
-                }
-            }
+                        "predictions": "predictions",
+                    },
+                },
+            },
         } as GraphBpmnConfigObject,
         formInput: {
             __version: "1.0",
@@ -613,7 +612,7 @@ Format as JSON with keys: patterns, correlations, rootCauses, predictions</vrool
                         type: InputType.Text,
                         isRequired: false,
                         defaultValue: "error|failure|exception",
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "analysisWindow",
@@ -622,10 +621,10 @@ Format as JSON with keys: patterns, correlations, rootCauses, predictions</vrool
                         type: InputType.Text,
                         isRequired: true,
                         defaultValue: "24h",
-                        props: {}
-                    }
-                ]
-            }
+                        props: {},
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -637,31 +636,31 @@ Format as JSON with keys: patterns, correlations, rootCauses, predictions</vrool
                         id: "patterns",
                         label: "Detected Failure Patterns",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "correlations",
                         id: "correlations",
                         label: "Failure Correlations",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "rootCauses",
                         id: "root_causes",
                         label: "Likely Root Causes",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "predictions",
                         id: "predictions",
                         label: "Failure Predictions",
                         type: InputType.JSON,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "reasoning" as const,
     } as RoutineVersionConfigObject,
@@ -755,26 +754,26 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         subroutineId: "system_failure_analysis_workflow",
                         inputMap: {
                             "errorPattern": "errorPattern",
-                            "analysisWindow": "analysisWindow"
+                            "analysisWindow": "analysisWindow",
                         },
                         outputMap: {
                             "patterns": "patterns",
                             "correlations": "correlations",
-                            "predictions": "predictions"
-                        }
+                            "predictions": "predictions",
+                        },
                     },
                     "performance_analysis": {
                         subroutineId: PERFORMANCE_ROUTINES.PERFORMANCE_BOTTLENECK_DETECTION.id,
                         inputMap: {
                             "metrics": "metrics",
                             "config": "config",
-                            "threshold": "threshold"
+                            "threshold": "threshold",
                         },
                         outputMap: {
                             "bottlenecks": "bottlenecks",
-                            "recommendations": "recommendations"
-                        }
-                    }
+                            "recommendations": "recommendations",
+                        },
+                    },
                 },
                 rootContext: {
                     inputMap: {
@@ -782,13 +781,13 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         "analysisWindow": "analysisWindow",
                         "performanceMetrics": "performanceMetrics",
                         "systemConfig": "systemConfig",
-                        "performanceThreshold": "performanceThreshold"
+                        "performanceThreshold": "performanceThreshold",
                     },
                     outputMap: {
-                        "optimizationPlan": "optimizationPlan"
-                    }
-                }
-            }
+                        "optimizationPlan": "optimizationPlan",
+                    },
+                },
+            },
         } as GraphBpmnConfigObject,
         formInput: {
             __version: "1.0",
@@ -801,7 +800,7 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         label: "System Failure Logs",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "timeWindow",
@@ -810,7 +809,7 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         type: InputType.Text,
                         isRequired: true,
                         defaultValue: "24h",
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "performanceMetrics",
@@ -818,7 +817,7 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         label: "Performance Metrics",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "systemConfig",
@@ -826,7 +825,7 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         label: "System Configuration",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "performanceThreshold",
@@ -835,10 +834,10 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         type: InputType.IntegerInput,
                         isRequired: true,
                         defaultValue: 1000,
-                        props: {}
-                    }
-                ]
-            }
+                        props: {},
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -850,16 +849,16 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         id: "optimization_plan",
                         label: "Resilience Optimization Plan",
                         type: InputType.JSON,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "reasoning" as const,
         subroutineStrategies: {
             "failure_analysis": "reasoning",
-            "performance_analysis": "deterministic"
-        }
+            "performance_analysis": "deterministic",
+        },
     } as RoutineVersionConfigObject,
 };
 
@@ -937,8 +936,8 @@ export const MARKET_ANALYSIS_ROUTING_WORKFLOW: RoutineFixture = {
             </vrooli:aggregation>
         </bpmn:extensionElements>
     </bpmn:serviceTask>
-</bpmn:process>`
-            }
+</bpmn:process>`,
+            },
         } as GraphBpmnConfigObject,
         formInput: {
             __version: "1.0",
@@ -951,7 +950,7 @@ export const MARKET_ANALYSIS_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Market Data Feed",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "analysisTimeframe",
@@ -960,8 +959,8 @@ export const MARKET_ANALYSIS_ROUTING_WORKFLOW: RoutineFixture = {
                         type: InputType.Dropzone,
                         isRequired: true,
                         props: {
-                            options: ["1h", "4h", "1d", "1w", "1m"]
-                        }
+                            options: ["1h", "4h", "1d", "1w", "1m"],
+                        },
                     },
                     {
                         fieldName: "riskTolerance",
@@ -973,11 +972,11 @@ export const MARKET_ANALYSIS_ROUTING_WORKFLOW: RoutineFixture = {
                         props: {
                             min: 0,
                             max: 1,
-                            step: 0.1
-                        }
-                    }
-                ]
-            }
+                            step: 0.1,
+                        },
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -990,7 +989,7 @@ export const MARKET_ANALYSIS_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Comprehensive Market Analysis",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "tradingSignals",
@@ -998,7 +997,7 @@ export const MARKET_ANALYSIS_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Trading Signals",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "confidenceScore",
@@ -1008,13 +1007,13 @@ export const MARKET_ANALYSIS_ROUTING_WORKFLOW: RoutineFixture = {
                         isRequired: true,
                         props: {
                             min: 0,
-                            max: 1
-                        }
-                    }
-                ]
-            }
-        } as FormOutputConfigObject
-    } as RoutineVersionConfigObject
+                            max: 1,
+                        },
+                    },
+                ],
+            },
+        } as FormOutputConfigObject,
+    } as RoutineVersionConfigObject,
 };
 
 /**
@@ -1080,8 +1079,8 @@ export const CUSTOMER_SUPPORT_ROUTING_WORKFLOW: RoutineFixture = {
             </vrooli:contextMerge>
         </bpmn:extensionElements>
     </bpmn:serviceTask>
-</bpmn:process>`
-            }
+</bpmn:process>`,
+            },
         } as GraphBpmnConfigObject,
         formInput: {
             __version: "1.0",
@@ -1094,7 +1093,7 @@ export const CUSTOMER_SUPPORT_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Customer Inquiry",
                         type: InputType.TextArea,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "customerId",
@@ -1102,7 +1101,7 @@ export const CUSTOMER_SUPPORT_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Customer ID",
                         type: InputType.Text,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "inquiryHistory",
@@ -1110,10 +1109,10 @@ export const CUSTOMER_SUPPORT_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Previous Inquiries",
                         type: InputType.JSON,
                         isRequired: false,
-                        props: {}
-                    }
-                ]
-            }
+                        props: {},
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -1126,7 +1125,7 @@ export const CUSTOMER_SUPPORT_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Issue Resolution",
                         type: InputType.TextArea,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "nextSteps",
@@ -1134,7 +1133,7 @@ export const CUSTOMER_SUPPORT_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Recommended Next Steps",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "satisfactionPrediction",
@@ -1144,13 +1143,13 @@ export const CUSTOMER_SUPPORT_ROUTING_WORKFLOW: RoutineFixture = {
                         isRequired: true,
                         props: {
                             min: 0,
-                            max: 5
-                        }
-                    }
-                ]
-            }
-        } as FormOutputConfigObject
-    } as RoutineVersionConfigObject
+                            max: 5,
+                        },
+                    },
+                ],
+            },
+        } as FormOutputConfigObject,
+    } as RoutineVersionConfigObject,
 };
 
 /**
@@ -1226,8 +1225,8 @@ export const HEALTHCARE_TRIAGE_ROUTING_WORKFLOW: RoutineFixture = {
             </vrooli:compliance>
         </bpmn:extensionElements>
     </bpmn:serviceTask>
-</bpmn:process>`
-            }
+</bpmn:process>`,
+            },
         } as GraphBpmnConfigObject,
         formInput: {
             __version: "1.0",
@@ -1240,7 +1239,7 @@ export const HEALTHCARE_TRIAGE_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Patient Symptoms",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "vitalSigns",
@@ -1248,7 +1247,7 @@ export const HEALTHCARE_TRIAGE_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Vital Signs",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "medicalHistory",
@@ -1256,10 +1255,10 @@ export const HEALTHCARE_TRIAGE_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Medical History",
                         type: InputType.JSON,
                         isRequired: false,
-                        props: {}
-                    }
-                ]
-            }
+                        props: {},
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -1273,8 +1272,8 @@ export const HEALTHCARE_TRIAGE_ROUTING_WORKFLOW: RoutineFixture = {
                         type: InputType.Dropzone,
                         isRequired: true,
                         props: {
-                            options: ["critical", "urgent", "standard", "routine"]
-                        }
+                            options: ["critical", "urgent", "standard", "routine"],
+                        },
                     },
                     {
                         fieldName: "treatmentPlan",
@@ -1282,7 +1281,7 @@ export const HEALTHCARE_TRIAGE_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Recommended Treatment Plan",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "specialistReferrals",
@@ -1290,12 +1289,12 @@ export const HEALTHCARE_TRIAGE_ROUTING_WORKFLOW: RoutineFixture = {
                         label: "Specialist Referrals",
                         type: InputType.JSON,
                         isRequired: false,
-                        props: {}
-                    }
-                ]
-            }
-        } as FormOutputConfigObject
-    } as RoutineVersionConfigObject
+                        props: {},
+                    },
+                ],
+            },
+        } as FormOutputConfigObject,
+    } as RoutineVersionConfigObject,
 };
 
 export const BPMN_WORKFLOWS: RoutineFixtureCollection<"COMPREHENSIVE_SECURITY_AUDIT" | "MEDICAL_TREATMENT_VALIDATION" | "SYSTEM_FAILURE_ANALYSIS_WORKFLOW" | "RESILIENCE_OPTIMIZATION_WORKFLOW" | "MARKET_ANALYSIS_ROUTING_WORKFLOW" | "CUSTOMER_SUPPORT_ROUTING_WORKFLOW" | "HEALTHCARE_TRIAGE_ROUTING_WORKFLOW"> = {

@@ -74,7 +74,7 @@ export class ResourceVersionRelationDbFactory {
     static createMinimal(
         fromVersionId: string,
         toVersionId: string,
-        overrides?: Partial<Prisma.resource_version_relationCreateInput>
+        overrides?: Partial<Prisma.resource_version_relationCreateInput>,
     ): Prisma.resource_version_relationCreateInput {
         return {
             id: generatePK(),
@@ -92,9 +92,9 @@ export class ResourceVersionRelationDbFactory {
     static createComplete(
         fromVersionId: string,
         toVersionId: string,
-        relationType: string = "SUBROUTINE",
+        relationType = "SUBROUTINE",
         labels: string[] = ["dependency", "upgrade"],
-        overrides?: Partial<Prisma.resource_version_relationCreateInput>
+        overrides?: Partial<Prisma.resource_version_relationCreateInput>,
     ): Prisma.resource_version_relationCreateInput {
         return {
             id: generatePK(),
@@ -113,7 +113,7 @@ export class ResourceVersionRelationDbFactory {
         fromVersionId: string,
         toVersionId: string,
         labels: string[] = ["api", "external"],
-        overrides?: Partial<Prisma.resource_version_relationCreateInput>
+        overrides?: Partial<Prisma.resource_version_relationCreateInput>,
     ): Prisma.resource_version_relationCreateInput {
         return this.createComplete(fromVersionId, toVersionId, "API_CALL", labels, overrides);
     }
@@ -125,7 +125,7 @@ export class ResourceVersionRelationDbFactory {
         fromVersionId: string,
         toVersionId: string,
         labels: string[] = ["library", "import"],
-        overrides?: Partial<Prisma.resource_version_relationCreateInput>
+        overrides?: Partial<Prisma.resource_version_relationCreateInput>,
     ): Prisma.resource_version_relationCreateInput {
         return this.createComplete(fromVersionId, toVersionId, "CODE_CALL", labels, overrides);
     }
@@ -137,7 +137,7 @@ export class ResourceVersionRelationDbFactory {
         fromVersionId: string,
         toVersionId: string,
         labels: string[] = ["subroutine", "dependency"],
-        overrides?: Partial<Prisma.resource_version_relationCreateInput>
+        overrides?: Partial<Prisma.resource_version_relationCreateInput>,
     ): Prisma.resource_version_relationCreateInput {
         return this.createComplete(fromVersionId, toVersionId, "SUBROUTINE", labels, overrides);
     }
@@ -149,7 +149,7 @@ export class ResourceVersionRelationDbFactory {
         fromVersionId: string,
         toVersionId: string,
         labels: string[] = ["upgrade", "successor"],
-        overrides?: Partial<Prisma.resource_version_relationCreateInput>
+        overrides?: Partial<Prisma.resource_version_relationCreateInput>,
     ): Prisma.resource_version_relationCreateInput {
         return this.createComplete(fromVersionId, toVersionId, "UPGRADE", labels, overrides);
     }
@@ -161,7 +161,7 @@ export class ResourceVersionRelationDbFactory {
         fromVersionId: string,
         toVersionId: string,
         labels: string[] = ["replaces", "deprecated"],
-        overrides?: Partial<Prisma.resource_version_relationCreateInput>
+        overrides?: Partial<Prisma.resource_version_relationCreateInput>,
     ): Prisma.resource_version_relationCreateInput {
         return this.createComplete(fromVersionId, toVersionId, "REPLACES", labels, overrides);
     }
@@ -178,7 +178,7 @@ export async function seedResourceVersionRelations(
         relationType?: string;
         labels?: string[];
         count?: number;
-    }
+    },
 ) {
     const relations = [];
     const count = options.count || Math.min(options.fromVersionIds.length, options.toVersionIds.length);
@@ -191,7 +191,7 @@ export async function seedResourceVersionRelations(
             fromVersionId,
             toVersionId,
             options.relationType,
-            options.labels
+            options.labels,
         );
 
         const relation = await prisma.resource_version_relation.create({
@@ -214,8 +214,8 @@ export async function seedResourceVersionRelations(
 export async function createResourceVersionRelationChain(
     prisma: any,
     versionIds: string[],
-    relationType: string = "DEPENDENCY",
-    labels: string[] = ["dependency"]
+    relationType = "DEPENDENCY",
+    labels: string[] = ["dependency"],
 ) {
     const relations = [];
 
@@ -224,7 +224,7 @@ export async function createResourceVersionRelationChain(
             versionIds[i],
             versionIds[i + 1],
             relationType,
-            labels
+            labels,
         );
 
         const relation = await prisma.resource_version_relation.create({
@@ -248,17 +248,17 @@ export async function createBidirectionalRelations(
     prisma: any,
     versionId1: string,
     versionId2: string,
-    forwardRelationType: string = "DEPENDENCY",
-    backwardRelationType: string = "USED_BY",
+    forwardRelationType = "DEPENDENCY",
+    backwardRelationType = "USED_BY",
     forwardLabels: string[] = ["dependency"],
-    backwardLabels: string[] = ["used-by"]
+    backwardLabels: string[] = ["used-by"],
 ) {
     const forwardRelation = await prisma.resource_version_relation.create({
         data: ResourceVersionRelationDbFactory.createComplete(
             versionId1,
             versionId2,
             forwardRelationType,
-            forwardLabels
+            forwardLabels,
         ),
         include: {
             fromVersion: true,
@@ -271,7 +271,7 @@ export async function createBidirectionalRelations(
             versionId2,
             versionId1,
             backwardRelationType,
-            backwardLabels
+            backwardLabels,
         ),
         include: {
             fromVersion: true,

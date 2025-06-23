@@ -156,7 +156,7 @@ export async function createUserWithMultipleEmails(stripeCustomerId: string) {
 /**
  * Creates a user with a plan
  */
-export async function createUserWithPlan(stripeCustomerId: string, name: string = "userWithPlan") {
+export async function createUserWithPlan(stripeCustomerId: string, name = "userWithPlan") {
     const userId = generatePK();
     
     await DbProvider.get().user.create({
@@ -429,7 +429,7 @@ export async function createSourceExpiringTestUser() {
             emails: {
                 create: [
                     { id: generatePK(), emailAddress: "user1@example.com" }, 
-                    { id: generatePK(), emailAddress: "user2@example.com" }
+                    { id: generatePK(), emailAddress: "user2@example.com" },
                 ],
             },
         },

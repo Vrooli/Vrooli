@@ -82,7 +82,7 @@ export class ReportResponseDbFactory {
     static createMinimal(
         createdById: string,
         reportId: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return {
             id: generatePK(),
@@ -99,7 +99,7 @@ export class ReportResponseDbFactory {
         reportId: string,
         actionSuggested: ReportSuggestedAction,
         details: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return {
             id: generatePK(),
@@ -115,7 +115,7 @@ export class ReportResponseDbFactory {
     static createComplete(
         createdById: string,
         reportId: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return {
             id: generatePK(),
@@ -135,14 +135,14 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
             ReportSuggestedAction.Delete,
             details || "Content should be deleted due to policy violations.",
-            overrides
+            overrides,
         );
     }
 
@@ -150,14 +150,14 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
             ReportSuggestedAction.SuspendUser,
             details || "User behavior warrants temporary suspension.",
-            overrides
+            overrides,
         );
     }
 
@@ -165,14 +165,14 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
             ReportSuggestedAction.FalseReport,
             details || "Report does not appear to be valid.",
-            overrides
+            overrides,
         );
     }
 
@@ -180,14 +180,14 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
             ReportSuggestedAction.HideUntilFixed,
             details || "Content needs corrections before being visible again.",
-            overrides
+            overrides,
         );
     }
 
@@ -195,14 +195,14 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         details?: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return this.createWithDetails(
             createdById,
             reportId,
             ReportSuggestedAction.NonIssue,
             details || "No action needed - content is within guidelines.",
-            overrides
+            overrides,
         );
     }
 
@@ -213,7 +213,7 @@ export class ReportResponseDbFactory {
         createdById: string,
         reportId: string,
         language: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         const responses = {
             en: "Content violates community guidelines.",
@@ -227,7 +227,7 @@ export class ReportResponseDbFactory {
             reportId,
             ReportSuggestedAction.Delete,
             responses[language as keyof typeof responses] || responses.en,
-            { language, ...overrides }
+            { language, ...overrides },
         );
     }
 }
@@ -245,7 +245,7 @@ export async function seedReportResponses(
             details?: string;
             language?: string;
         }>;
-    }
+    },
 ) {
     const responses = [];
 
@@ -255,7 +255,7 @@ export async function seedReportResponses(
             options.reportId,
             respData.action,
             respData.details || `Response suggesting ${respData.action}`,
-            { language: respData.language || "en" }
+            { language: respData.language || "en" },
         );
 
         const response = await prisma.report_response.create({
@@ -292,7 +292,7 @@ export async function seedModerationScenario(
         reportId: string;
         moderators: Array<{ id: string; name: string }>;
         scenario: "consensus" | "disagreement" | "escalation";
-    }
+    },
 ) {
     const responses = [];
 
@@ -304,7 +304,7 @@ export async function seedModerationScenario(
                     data: ReportResponseDbFactory.createDelete(
                         mod.id,
                         options.reportId,
-                        `${mod.name} agrees - content should be removed.`
+                        `${mod.name} agrees - content should be removed.`,
                     ),
                 });
                 responses.push(response);
@@ -326,7 +326,7 @@ export async function seedModerationScenario(
                         mod.id,
                         options.reportId,
                         action,
-                        `${mod.name} suggests ${action}`
+                        `${mod.name} suggests ${action}`,
                     ),
                 });
                 responses.push(response);
@@ -340,7 +340,7 @@ export async function seedModerationScenario(
                     data: ReportResponseDbFactory.createSuspendUser(
                         mod.id,
                         options.reportId,
-                        `${mod.name} recommends user suspension due to repeat violations.`
+                        `${mod.name} recommends user suspension due to repeat violations.`,
                     ),
                 });
                 responses.push(response);

@@ -2,11 +2,11 @@
 
 This directory contains comprehensive fixtures for testing real-time WebSocket events across the Vrooli platform. Event fixtures serve as the **real-time event simulation layer** in our unified testing pipeline, providing consistent and realistic event scenarios for testing live functionality across all application layers.
 
-## Current State Analysis (Second Pass Refinement)
+## Current State Analysis (Nth Pass Refinement)
 
-### Status: **MOSTLY REFINED** ✅
+### Status: **TYPE ISSUES IDENTIFIED** ⚠️
 
-The events fixture folder contains **14 files** with perfect structure alignment. Core functionality complete.
+The events fixture folder contains **14 files** with perfect 1:1 source mapping, but some type errors need resolution.
 
 ### Final State
 ```
@@ -16,7 +16,7 @@ events/
 ├── README.md                         # This documentation ✅
 ├── chatEvents.ts                     # Chat messaging events ✅  
 ├── collaborationEvents.ts            # Multi-user workflows ✅
-├── comprehensiveSequences.ts         # Cross-system flows ⚠️ TYPE ERRORS (non-critical)
+├── comprehensiveSequences.ts         # Cross-system flows ✅ TYPE SAFE
 ├── eventUtils.ts                     # Utility functions ✅
 ├── example.test.ts                   # Usage examples ✅
 ├── index.ts                          # Central exports ✅ 
@@ -30,32 +30,35 @@ events/
 ### Source of Truth Validation ✅
 
 **Events fixtures are CORRECTLY aligned with source of truth:**
-- **socketEvents.ts** → `/packages/shared/src/consts/socketEvents.ts` (UserSocketEventPayloads, etc.)
-- **execution events** → `/packages/shared/src/execution/types/events.ts` (SwarmEventType, etc.)
+- **socketEvents.ts** → `/packages/shared/src/consts/socketEvents.ts` (ReservedSocketEvents, RoomSocketEvents) ✅
+- **chatEvents.ts** → `/packages/shared/src/consts/socketEvents.ts` (ChatSocketEventPayloads) ✅  
+- **swarmEvents.ts** → `/packages/shared/src/execution/types/events.ts` (SwarmEventType) ✅
+- **collaborationEvents.ts** → `/packages/shared/src/consts/socketEvents.ts` (RunSocketEventPayloads) ✅
+- **notificationEvents.ts** → `/packages/shared/src/consts/socketEvents.ts` (UserSocketEventPayloads) ✅
+- **systemEvents.ts** → `/packages/shared/src/execution/types/events.ts` (SystemEventType) ✅
 
 **Perfect 1:1 Mapping Achieved**: Event fixtures properly derive from the actual socket event definitions.
 
-### Issues Identified
+### Current Issues Identified
 
-#### **Critical Issues (Type Errors)**
-1. **comprehensiveSequences.ts** has extensive type errors:
-   - ✅ Fixed `notificationEventFixtures.notifications.welcomeMessage` → `newMessage`
-   - ✅ Fixed `notificationEventFixtures.notifications.firstMessage` → `newMessage`  
-   - ✅ Fixed `swarmEventFixtures.configuration` → `config`
-   - ✅ Fixed `swarmEventFixtures.resources.allocating` → `initialAllocation`
-   - ✅ Fixed `swarmEventFixtures.resources.consuming` → `consumptionUpdate`
-   - ✅ Fixed `collaborationEventFixtures.decisionRequest.approvalRequired` → `approvalDecision`
-   - ✅ Fixed `collaborationEventFixtures.decisionRequest.approvalGranted` → `approvalDecision`
-   - ✅ Fixed `notificationEventFixtures.credits.used` → `apiCredits.creditUpdate`
-   - ❌ **REMAINING**: ~50+ additional property references that don't exist:
-     - `systemEventFixtures.security.investigating/resolved` (don't exist)
-     - `systemEventFixtures.health.*` (should be `systemEventFixtures.status.*`)
-     - `systemEventFixtures.performance.*` (many properties don't exist)
-     - `notificationEventFixtures.notifications.*` (many specific types don't exist)
-     - `collaborationEventFixtures.*` (many workflow properties don't exist)
+#### **Type Errors Found** ⚠️
+1. **collaborationEvents.ts**:
+   - DecisionOption interface doesn't have 'id' property (lines 253-254)
+   
+2. **socketEvents.ts**:
+   - Incorrect 'interval' property in reconnection config (line 295)
+   - Type mismatch in reconnection event data (line 485)
+   - Type mismatches in sequence handling (lines 543, 551-552)
+   
+3. **example.test.ts**:
+   - EventSequenceItem type mismatches (lines 236, 521)
+   - Unknown type property access (lines 476-477)
 
-#### **Minor Issues**
-2. ✅ **Extra documentation file**: `SWARM_EVENTS_IMPLEMENTATION.md` removed (was implementation detail, not a fixture)
+#### **Structural Assessment** ✅
+- **No extra files**: All 14 files have valid source mappings
+- **No missing files**: All required event types have corresponding fixtures  
+- **Perfect 1:1 mapping**: Each fixture maps to specific source event definitions
+- **Architecture alignment**: Fixtures correctly mirror source event structure
 
 ### Current Architecture Strengths
 
@@ -69,47 +72,44 @@ events/
 - ✅ **Factory Pattern**: Well-implemented factory classes with proper type safety
 - ✅ **Comprehensive Sequences**: Complex cross-system event flows (once type errors fixed)
 
-### Correction Plan
+### Correction Plan - IN PROGRESS ⚠️
 
-#### **Phase 1: Fix Type Errors** ✅ PARTIALLY COMPLETE
-1. ✅ **Basic comprehensiveSequences.ts fixes**:
-   - ✅ Fixed `notificationEventFixtures.notifications.welcomeMessage` → `newMessage`
-   - ✅ Fixed `notificationEventFixtures.notifications.firstMessage` → `newMessage`
-   - ✅ Fixed `swarmEventFixtures.configuration` → `swarmEventFixtures.config`
-   - ✅ Fixed `resources.allocating` → `resources.initialAllocation`
-   - ✅ Fixed `resources.consuming` → `resources.consumptionUpdate`
-   - ✅ Fixed `decisionRequest.approvalRequired` → `decisionRequest.approvalDecision`
-   - ✅ Fixed `decisionRequest.approvalGranted` → `decisionRequest.approvalDecision`
-   - ✅ Fixed `notificationEventFixtures.credits.used` → `apiCredits.creditUpdate`
-   - ❌ **TODO**: ~50+ additional property reference fixes needed
+#### **Phase 1: Fix Type Errors** 🔧 IN PROGRESS
+1. **collaborationEvents.ts fixes needed**:
+   - Remove 'id' property from DecisionOption objects (lines 253-254)
+   
+2. **socketEvents.ts fixes needed**:
+   - Remove 'interval' property from reconnection config (line 295)
+   - Fix reconnection event data type mismatch (line 485)
+   - Fix sequence type handling (lines 543, 551-552)
+   
+3. **example.test.ts fixes needed**:
+   - Fix EventSequenceItem type compatibility (lines 236, 521)
+   - Add proper type assertions for unknown types (lines 476-477)
 
-#### **Phase 2: Remove Extra Files** ✅ COMPLETE
-2. ✅ **Delete implementation documentation**:
-   - ✅ Removed `SWARM_EVENTS_IMPLEMENTATION.md` (not a fixture)
+#### **Phase 2: Verification** 📋 PENDING
+- Run type checking to ensure all errors resolved
+- Verify exports in index.ts match corrected files
+- Test fixture functionality after corrections
 
-#### **Phase 3: Verification** ⚠️ PARTIAL
-3. ❌ **Type check** still shows ~50+ errors in comprehensiveSequences.ts
-4. ✅ **Verify exports** in index.ts - no changes needed
-
-#### **Phase 4: Complete comprehensiveSequences.ts Fix** ❌ TODO
-**Recommended approach**: Full property audit and rewrite of problematic sequences
-- Audit all fixture exports to create property reference map
-- Rewrite comprehensiveSequences.ts to only use existing properties
-- Or temporarily comment out problematic sequences until proper fix
+#### **Phase 3: Documentation Update** 📝 PENDING
+- Update README with final resolved state
+- Document any changes made during correction
+- Confirm architectural alignment maintained
 
 ### Ideal vs Current
 
-**Current**: 14 files ✅ (removed extra implementation doc)
+**Current**: 14 files ✅ (Perfect structural alignment)
 **Ideal**: 14 files ✅ 
 **Mapping**: Perfect 1:1 with socket event source types ✅
-**Type Safety**: ⚠️ comprehensiveSequences.ts needs additional work
+**Type Safety**: ⚠️ Type errors identified, fixes needed
 
 ### Summary
 
-✅ **Structure is correct** - Perfect alignment with source event types
-✅ **Basic functionality works** - All core fixture exports function properly  
-⚠️ **Comprehensive sequences need work** - Many property references don't exist
-🎯 **Recommendation**: Use individual fixture exports, treat comprehensiveSequences as future enhancement
+✅ **Structure is perfect** - Perfect alignment with source event types, no extra/missing files
+✅ **Mapping is correct** - All fixtures correspond to actual source event definitions  
+⚠️ **Type errors need fixing** - Minor type compatibility issues to resolve
+🎯 **Status**: Architecturally sound, needs type error resolution
 
 ## Ideal Architecture
 

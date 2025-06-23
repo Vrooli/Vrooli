@@ -37,7 +37,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     Prisma.issueUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('issue', prisma);
+        super("issue", prisma);
         this.initializeScenarios();
     }
 
@@ -184,8 +184,8 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                         create: [{
                             id: generatePK().toString(),
                             language: "en",
-                            name: 'a'.repeat(128), // Max length name
-                            description: 'b'.repeat(2048), // Max length description
+                            name: "a".repeat(128), // Max length name
+                            description: "b".repeat(2048), // Max length description
                         }],
                     },
                 },
@@ -534,7 +534,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
             translations: true,
             comments: {
                 take: 10,
-                orderBy: { createdAt: 'desc' },
+                orderBy: { createdAt: "desc" },
                 include: {
                     ownedByUser: true,
                     translations: true,
@@ -554,31 +554,31 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.issueCreateInput,
         config: IssueRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.issueCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle resource relationship
         if (config.withResource) {
-            const resourceId = typeof config.withResource === 'string' ? config.withResource : generatePK().toString();
+            const resourceId = typeof config.withResource === "string" ? config.withResource : generatePK().toString();
             data.resourceId = resourceId;
         }
 
         // Handle team relationship
         if (config.withTeam) {
-            const teamId = typeof config.withTeam === 'string' ? config.withTeam : generatePK().toString();
+            const teamId = typeof config.withTeam === "string" ? config.withTeam : generatePK().toString();
             data.teamId = teamId;
         }
 
         // Handle createdBy relationship
         if (config.withCreatedBy) {
-            const createdById = typeof config.withCreatedBy === 'string' ? config.withCreatedBy : generatePK().toString();
+            const createdById = typeof config.withCreatedBy === "string" ? config.withCreatedBy : generatePK().toString();
             data.createdById = createdById;
         }
 
         // Handle closedBy relationship
         if (config.withClosedBy) {
-            const closedById = typeof config.withClosedBy === 'string' ? config.withClosedBy : generatePK().toString();
+            const closedById = typeof config.withClosedBy === "string" ? config.withClosedBy : generatePK().toString();
             data.closedById = closedById;
             data.closedAt = new Date();
             if (data.status === IssueStatus.Open) {
@@ -597,7 +597,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Comments will be created after the issue is created
-        if (config.withComments && typeof config.withComments === 'number') {
+        if (config.withComments && typeof config.withComments === "number") {
             // This will be handled in post-creation
         }
 
@@ -609,26 +609,26 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         
         // Check publicId format
         if (record.publicId && record.publicId.length !== 12) {
-            violations.push('PublicId must be exactly 12 characters');
+            violations.push("PublicId must be exactly 12 characters");
         }
 
         // Check status validity
         const validStatuses = Object.values(IssueStatus);
         if (!validStatuses.includes(record.status as IssueStatus)) {
-            violations.push('Invalid issue status');
+            violations.push("Invalid issue status");
         }
 
         // Check closed status consistency
         if ((record.status === IssueStatus.Resolved || record.status === IssueStatus.Rejected)) {
             if (!record.closedAt) {
-                violations.push('Closed issues must have closedAt timestamp');
+                violations.push("Closed issues must have closedAt timestamp");
             }
             if (!record.closedById) {
-                violations.push('Closed issues must have closedById');
+                violations.push("Closed issues must have closedById");
             }
         } else {
             if (record.closedAt) {
-                violations.push('Open/InProgress issues should not have closedAt timestamp');
+                violations.push("Open/InProgress issues should not have closedAt timestamp");
             }
         }
 
@@ -638,12 +638,12 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (translations.length === 0) {
-            violations.push('Issue must have at least one translation');
+            violations.push("Issue must have at least one translation");
         }
 
         // Check required translation fields
         for (const translation of translations) {
-            if (!translation.name || translation.name.trim() === '') {
+            if (!translation.name || translation.name.trim() === "") {
                 violations.push(`Translation for ${translation.language} missing required name`);
             }
         }
@@ -668,14 +668,14 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.issue,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete comments (and their sub-relations)
-        if (shouldDelete('comments') && record.comments?.length) {
+        if (shouldDelete("comments") && record.comments?.length) {
             for (const comment of record.comments) {
                 // Comments have their own cascade delete logic
                 await tx.comment.delete({
@@ -685,49 +685,49 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.issue_translation.deleteMany({
                 where: { issueId: record.id },
             });
         }
 
         // Delete reactions
-        if (shouldDelete('reactions') && record.reactions?.length) {
+        if (shouldDelete("reactions") && record.reactions?.length) {
             await tx.reaction.deleteMany({
                 where: { issueId: record.id },
             });
         }
 
         // Delete reaction summaries
-        if (shouldDelete('reactionSummaries') && record.reactionSummaries?.length) {
+        if (shouldDelete("reactionSummaries") && record.reactionSummaries?.length) {
             await tx.reaction_summary.deleteMany({
                 where: { issueId: record.id },
             });
         }
 
         // Delete bookmarks
-        if (shouldDelete('bookmarkedBy') && record.bookmarkedBy?.length) {
+        if (shouldDelete("bookmarkedBy") && record.bookmarkedBy?.length) {
             await tx.bookmark.deleteMany({
                 where: { issueId: record.id },
             });
         }
 
         // Delete views
-        if (shouldDelete('viewedBy') && record.viewedBy?.length) {
+        if (shouldDelete("viewedBy") && record.viewedBy?.length) {
             await tx.view.deleteMany({
                 where: { issueId: record.id },
             });
         }
 
         // Delete reports
-        if (shouldDelete('reports') && record.reports?.length) {
+        if (shouldDelete("reports") && record.reports?.length) {
             await tx.report.deleteMany({
                 where: { issueId: record.id },
             });
         }
 
         // Delete notification subscriptions
-        if (shouldDelete('subscriptions') && record.subscriptions?.length) {
+        if (shouldDelete("subscriptions") && record.subscriptions?.length) {
             await tx.notification_subscription.deleteMany({
                 where: { issueId: record.id },
             });
@@ -737,11 +737,11 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get issues by status
      */
-    async getIssuesByStatus(status: IssueStatus, limit: number = 10): Promise<Prisma.issue[]> {
+    async getIssuesByStatus(status: IssueStatus, limit = 10): Promise<Prisma.issue[]> {
         return await this.prisma.issue.findMany({
             where: { status },
             include: this.getDefaultInclude(),
-            orderBy: { updatedAt: 'desc' },
+            orderBy: { updatedAt: "desc" },
             take: limit,
         });
     }
@@ -749,7 +749,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get issues for a resource
      */
-    async getResourceIssues(resourceId: string, includeResolved: boolean = false): Promise<Prisma.issue[]> {
+    async getResourceIssues(resourceId: string, includeResolved = false): Promise<Prisma.issue[]> {
         const whereClause: Prisma.issueWhereInput = { resourceId };
         
         if (!includeResolved) {
@@ -759,33 +759,33 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         return await this.prisma.issue.findMany({
             where: whereClause,
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
         });
     }
 
     /**
      * Get issues for a team
      */
-    async getTeamIssues(teamId: string, includeResolved: boolean = false): Promise<Prisma.issue[]> {
+    async getTeamIssues(teamId: string, includeResolved = false): Promise<Prisma.issue[]> {
         const whereClause: Prisma.issueWhereInput = { teamId };
         
         if (!includeResolved) {
             whereClause.status = { 
-                notIn: [IssueStatus.Resolved, IssueStatus.Rejected] 
+                notIn: [IssueStatus.Resolved, IssueStatus.Rejected], 
             };
         }
         
         return await this.prisma.issue.findMany({
             where: whereClause,
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
         });
     }
 }
 
 // Export factory creator function
 export const createIssueDbFactory = (prisma: PrismaClient) => 
-    IssueDbFactory.getInstance('issue', prisma);
+    IssueDbFactory.getInstance("issue", prisma);
 
 // Export the class for type usage
 export { IssueDbFactory as IssueDbFactoryClass };

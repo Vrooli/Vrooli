@@ -214,7 +214,7 @@ export interface DbEventFixtures {
 /**
  * Helper type for fixture categories
  */
-export type FixtureCategory = 'minimal' | 'complete' | 'invalid' | 'edgeCase' | 'error' | 'config' | 'event';
+export type FixtureCategory = "minimal" | "complete" | "invalid" | "edgeCase" | "error" | "config" | "event";
 
 /**
  * Utility type for extracting create input from Prisma models

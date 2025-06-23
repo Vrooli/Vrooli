@@ -30,7 +30,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
     Prisma.run_ioUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('RunIO', prisma);
+        super("RunIO", prisma);
         this.initializeScenarios();
     }
 
@@ -49,7 +49,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                 nodeName: "Node1",
                 data: JSON.stringify({ value: "test" }),
                 run: {
-                    connect: { id: "run_id" }
+                    connect: { id: "run_id" },
                 },
             },
             complete: {
@@ -75,7 +75,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 }),
                 run: {
-                    connect: { id: "run_id" }
+                    connect: { id: "run_id" },
                 },
             },
             invalid: {
@@ -96,7 +96,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "Node",
                     data: "{}",
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 tooLongNodeName: {
@@ -105,7 +105,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "a".repeat(129), // Exceeds 128 character limit
                     data: "{}",
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 tooLongData: {
@@ -114,7 +114,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "Node",
                     data: JSON.stringify({ value: "a".repeat(8193) }), // Exceeds 8192 character limit
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 invalidJson: {
@@ -123,7 +123,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "Node",
                     data: "not-json{", // Invalid JSON
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
             },
@@ -134,7 +134,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "EmptyNode",
                     data: "{}",
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 nullValueData: {
@@ -143,7 +143,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "NullNode",
                     data: JSON.stringify({ value: null }),
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 arrayData: {
@@ -152,7 +152,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "ArrayNode",
                     data: JSON.stringify([1, 2, 3, 4, 5]),
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 booleanData: {
@@ -161,7 +161,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "BooleanNode",
                     data: JSON.stringify(true),
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 numberData: {
@@ -170,7 +170,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "NumberNode",
                     data: JSON.stringify(3.14159),
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 stringData: {
@@ -179,7 +179,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     nodeName: "StringNode",
                     data: JSON.stringify("Simple string value"),
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 largeData: {
@@ -195,7 +195,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                         })),
                     }),
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 specialCharactersData: {
@@ -208,7 +208,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                         escaped: "Backslash: \\, Forward slash: /",
                     }),
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
             },
@@ -236,7 +236,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
             nodeName: `Node_${nanoid(6)}`,
             data: JSON.stringify({ value: "default" }),
             run: {
-                connect: { id: "default_run_id" }
+                connect: { id: "default_run_id" },
             },
             ...overrides,
         };
@@ -265,7 +265,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                 },
             }),
             run: {
-                connect: { id: "default_run_id" }
+                connect: { id: "default_run_id" },
             },
             ...overrides,
         };
@@ -414,14 +414,14 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.run_ioCreateInput,
         config: RunIORelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.run_ioCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle run relationship
         if (config.withRun) {
             data.run = {
-                connect: { id: config.withRun.runId }
+                connect: { id: config.withRun.runId },
             };
         }
 
@@ -433,28 +433,28 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
         
         // Check name lengths
         if (record.nodeInputName.length > 128) {
-            violations.push('Node input name exceeds 128 character limit');
+            violations.push("Node input name exceeds 128 character limit");
         }
 
         if (record.nodeName.length > 128) {
-            violations.push('Node name exceeds 128 character limit');
+            violations.push("Node name exceeds 128 character limit");
         }
 
         // Check data length
         if (record.data.length > 8192) {
-            violations.push('Data exceeds 8192 character limit');
+            violations.push("Data exceeds 8192 character limit");
         }
 
         // Check data validity
         try {
             JSON.parse(record.data);
         } catch {
-            violations.push('Data must be valid JSON');
+            violations.push("Data must be valid JSON");
         }
 
         // Check run association
         if (!record.runId) {
-            violations.push('RunIO must belong to a run');
+            violations.push("RunIO must belong to a run");
         }
 
         return violations;
@@ -468,7 +468,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
         record: Prisma.run_io,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // RunIO has no dependent records to delete
     }
@@ -478,7 +478,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
      */
     async createRunIOSet(
         runId: string,
-        ioData: Array<{ nodeInputName: string; nodeName: string; data: any }>
+        ioData: Array<{ nodeInputName: string; nodeName: string; data: any }>,
     ): Promise<Prisma.run_io[]> {
         return await this.createMany(
             ioData.map(io => ({
@@ -486,7 +486,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                 nodeInputName: io.nodeInputName,
                 nodeName: io.nodeName,
                 data: JSON.stringify(io.data),
-            }))
+            })),
         );
     }
 
@@ -497,7 +497,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
         runId: string,
         nodeName: string,
         input: any,
-        output: any
+        output: any,
     ): Promise<{ input: Prisma.run_io; output: Prisma.run_io }> {
         const [inputIO, outputIO] = await Promise.all([
             this.createInput(runId, nodeName, input),
@@ -510,7 +510,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRunIODbFactory = (prisma: PrismaClient) => 
-    RunIODbFactory.getInstance('RunIO', prisma);
+    RunIODbFactory.getInstance("RunIO", prisma);
 
 // Export the class for type usage
 export { RunIODbFactory as RunIODbFactoryClass };

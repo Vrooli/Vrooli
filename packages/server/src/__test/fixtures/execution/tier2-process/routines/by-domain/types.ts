@@ -6,7 +6,7 @@
 
 import type { 
     RoutineVersionConfigObject,
-    ResourceSubType 
+    ResourceSubType, 
 } from "@vrooli/shared";
 
 /**
@@ -47,17 +47,17 @@ export interface RoutineFixture {
  * Type guard to check if an object is a valid routine fixture
  */
 export function isRoutineFixture(obj: unknown): obj is RoutineFixture {
-    if (typeof obj !== 'object' || obj === null) return false;
+    if (typeof obj !== "object" || obj === null) return false;
     
     const fixture = obj as Record<string, unknown>;
     
     return (
-        typeof fixture.id === 'string' &&
-        typeof fixture.name === 'string' &&
-        typeof fixture.description === 'string' &&
-        typeof fixture.version === 'string' &&
-        typeof fixture.resourceSubType === 'string' &&
-        typeof fixture.config === 'object' &&
+        typeof fixture.id === "string" &&
+        typeof fixture.name === "string" &&
+        typeof fixture.description === "string" &&
+        typeof fixture.version === "string" &&
+        typeof fixture.resourceSubType === "string" &&
+        typeof fixture.config === "object" &&
         fixture.config !== null
     );
 }

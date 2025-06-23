@@ -46,6 +46,15 @@ export {
     waitForEvent,
 } from "./eventUtils.js";
 
+// Import the fixture collections that aren't automatically available
+import { chatEventFixtures } from "./chatEvents.js";
+import { collaborationEventFixtures } from "./collaborationEvents.js";
+import { comprehensiveScenarios, systemReliabilitySequences, userJourneySequences } from "./comprehensiveSequences.js";
+import { notificationEventFixtures } from "./notificationEvents.js";
+import { socketEventFixtures } from "./socketEvents.js";
+import { swarmEventFixtures } from "./swarmEvents.js";
+import { systemEventFixtures } from "./systemEvents.js";
+
 // Main fixture collection for easy access
 export const eventFixtures = {
     socket: socketEventFixtures,

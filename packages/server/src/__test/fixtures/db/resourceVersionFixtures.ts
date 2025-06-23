@@ -213,8 +213,8 @@ export class ResourceVersionDbFactory {
     }
 
     static createCode(
-        language: string = "javascript",
-        overrides?: Partial<Prisma.resource_versionCreateInput>
+        language = "javascript",
+        overrides?: Partial<Prisma.resource_versionCreateInput>,
     ): Prisma.resource_versionCreateInput {
         return {
             ...codeResourceVersionDb,
@@ -236,7 +236,7 @@ export class ResourceVersionDbFactory {
 
     static createWithRelations(
         relations: Array<{ toVersionId: string; relationType: string; labels: string[] }>,
-        overrides?: Partial<Prisma.resource_versionCreateInput>
+        overrides?: Partial<Prisma.resource_versionCreateInput>,
     ): Prisma.resource_versionCreateInput {
         return {
             ...this.createComplete(overrides),
@@ -253,7 +253,7 @@ export class ResourceVersionDbFactory {
 
     static createWithTranslations(
         translations: Array<{ language: string; name: string; description?: string }>,
-        overrides?: Partial<Prisma.resource_versionCreateInput>
+        overrides?: Partial<Prisma.resource_versionCreateInput>,
     ): Prisma.resource_versionCreateInput {
         return {
             ...this.createMinimal(overrides),
@@ -272,8 +272,8 @@ export class ResourceVersionDbFactory {
      * Create routine resource version
      */
     static createRoutine(
-        isAutomatable: boolean = true,
-        overrides?: Partial<Prisma.resource_versionCreateInput>
+        isAutomatable = true,
+        overrides?: Partial<Prisma.resource_versionCreateInput>,
     ): Prisma.resource_versionCreateInput {
         return {
             ...this.createComplete(overrides),
@@ -335,7 +335,7 @@ export async function seedResourceVersions(
         withRelations?: boolean;
         languages?: string[];
         resourceType?: "code" | "routine" | "api" | "standard";
-    }
+    },
 ) {
     const { rootId, count = 3, withTranslations = true, languages = ["en"] } = options;
     const versions = [];

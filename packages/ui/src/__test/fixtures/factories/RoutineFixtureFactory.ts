@@ -16,7 +16,6 @@ import type {
     Tag,
     Team,
     User,
-    RunStatus
 } from "@vrooli/shared";
 import { 
     resourceValidation,
@@ -24,11 +23,13 @@ import {
     ResourceType,
     ResourceSubType,
     McpToolName
+,
+    RunStatus,
 } from "@vrooli/shared";
 import type { 
     FixtureFactory, 
     ValidationResult, 
-    MSWHandlers
+    MSWHandlers,
 } from "../types.js";
 import { rest } from "msw";
 
@@ -106,13 +107,13 @@ export class RoutineFixtureFactory implements FixtureFactory<
     /**
      * Generate routine configuration based on type
      */
-    private generateRoutineConfig(routineType: string = "action") {
+    private generateRoutineConfig(routineType = "action") {
         const baseConfig = {
             __version: "1.0",
             formConfig: {
                 __version: "1.0",
-                sections: []
-            }
+                sections: [],
+            },
         };
 
         switch (routineType) {
@@ -124,15 +125,15 @@ export class RoutineFixtureFactory implements FixtureFactory<
                         schema: {
                             toolName: McpToolName.WebSearch,
                             inputTemplate: JSON.stringify({
-                                query: "{{input.searchQuery}}"
+                                query: "{{input.searchQuery}}",
                             }),
                             allowedContexts: ["user", "agent"],
                             outputMapping: {
                                 "result": "payload.data",
-                                "count": "payload.total"
-                            }
-                        }
-                    }
+                                "count": "payload.total",
+                            },
+                        },
+                    },
                 };
 
             case "generate":
@@ -144,12 +145,12 @@ export class RoutineFixtureFactory implements FixtureFactory<
                             style: "Casual",
                             creativity: 0.7,
                             verbosity: 0.5,
-                            model: "gpt-4" as any
+                            model: "gpt-4" as any,
                         },
                         inputOrder: ["context", "instructions"],
                         systemPrompt: "You are a helpful assistant that generates content based on user input.",
-                        userPrompt: "Generate {{input.contentType}} about {{input.topic}}"
-                    }
+                        userPrompt: "Generate {{input.contentType}} about {{input.topic}}",
+                    },
                 };
 
             case "informational":
@@ -159,8 +160,8 @@ export class RoutineFixtureFactory implements FixtureFactory<
                         __version: "1.0",
                         content: "This is an informational routine that provides static content.",
                         links: ["https://example.com/docs"],
-                        tags: ["information", "guide"]
-                    }
+                        tags: ["information", "guide"],
+                    },
                 };
 
             case "multiStep":
@@ -171,19 +172,19 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     nodeDataEnd: [{
                         id: this.generateId(),
                         name: "End",
-                        description: "End of routine"
+                        description: "End of routine",
                     }],
                     nodeDataRoutineList: [{
                         id: this.generateId(),
                         name: "Step 1",
                         description: "First step",
-                        routineVersionId: this.generateId()
+                        routineVersionId: this.generateId(),
                     }],
                     edgeData: [{
                         id: this.generateId(),
                         fromId: "Start",
-                        toId: "Step 1"
-                    }]
+                        toId: "Step 1",
+                    }],
                 };
 
             default:
@@ -202,7 +203,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     name: "Test Routine",
                     versionLabel: "1.0.0",
                     isPrivate: false,
-                    routineType: "action"
+                    routineType: "action",
                 };
 
             case "complete":
@@ -217,7 +218,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     routineType: "multiStep",
                     complexity: 5,
                     simplicity: 8,
-                    timeEstimate: 30
+                    timeEstimate: 30,
                 };
 
             case "invalid":
@@ -225,7 +226,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     handle: "", // Empty handle
                     name: "", // Empty name
                     versionLabel: "invalid version", // Invalid version format
-                    isPrivate: false
+                    isPrivate: false,
                 };
 
             case "actionRoutine":
@@ -237,7 +238,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     versionLabel: "1.0.0",
                     isPrivate: false,
                     routineType: "action",
-                    tags: ["action", "search"]
+                    tags: ["action", "search"],
                 };
 
             case "generateRoutine":
@@ -249,7 +250,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     versionLabel: "1.0.0",
                     isPrivate: false,
                     routineType: "generate",
-                    tags: ["ai", "generation"]
+                    tags: ["ai", "generation"],
                 };
 
             case "informationalRoutine":
@@ -260,7 +261,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     versionLabel: "1.0.0",
                     isPrivate: false,
                     routineType: "informational",
-                    tags: ["guide", "documentation"]
+                    tags: ["guide", "documentation"],
                 };
 
             case "multiStepRoutine":
@@ -275,7 +276,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     complexity: 8,
                     simplicity: 3,
                     timeEstimate: 45,
-                    tags: ["workflow", "complex", "automated"]
+                    tags: ["workflow", "complex", "automated"],
                 };
 
             case "complexRoutine":
@@ -288,7 +289,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     routineType: "multiStep",
                     complexity: 10,
                     simplicity: 1,
-                    timeEstimate: 120
+                    timeEstimate: 120,
                 };
 
             case "privateRoutine":
@@ -298,7 +299,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     description: "This routine is private and requires permission",
                     versionLabel: "1.0.0",
                     isPrivate: true,
-                    routineType: "action"
+                    routineType: "action",
                 };
 
             case "teamRoutine":
@@ -310,7 +311,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     isPrivate: false,
                     teamId: this.generateId(),
                     routineType: "multiStep",
-                    tags: ["team", "collaboration"]
+                    tags: ["team", "collaboration"],
                 };
 
             default:
@@ -330,7 +331,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
             name: formData.name,
             description: formData.description || null,
             details: null,
-            instructions: formData.instructions || null
+            instructions: formData.instructions || null,
         };
 
         // Create resource version with routine config
@@ -363,8 +364,8 @@ export class RoutineFixtureFactory implements FixtureFactory<
                 canReact: true,
                 isBookmarked: false,
                 isReacted: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         };
 
         // Create the resource shape that matches the expected API structure
@@ -380,8 +381,8 @@ export class RoutineFixtureFactory implements FixtureFactory<
             tags: formData.tags?.map(tag => ({
                 __typename: "Tag" as const,
                 id: this.generateId(),
-                tag
-            })) || null
+                tag,
+            })) || null,
         };
 
         // Use real shape function from @vrooli/shared
@@ -410,8 +411,8 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     language: "en",
                     name: updates.name,
                     description: updates.description,
-                    instructions: updates.instructions
-                }]
+                    instructions: updates.instructions,
+                }],
             }];
         }
 
@@ -471,15 +472,15 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             permissions: JSON.stringify({
                 canUpdate: true,
                 canDelete: true,
                 canTransfer: true,
-                canRun: true
+                canRun: true,
             }),
             resourceType: ResourceType.Routine,
             tags: [],
@@ -506,7 +507,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     name: "Test Routine",
                     description: "A test routine for development",
                     details: null,
-                    instructions: "Run this routine to test functionality"
+                    instructions: "Run this routine to test functionality",
                 }],
                 translationsCount: 1,
                 resources: [],
@@ -523,8 +524,8 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     canReact: true,
                     isBookmarked: false,
                     isReacted: false,
-                    reaction: null
-                }
+                    reaction: null,
+                },
             }],
             versionsCount: 1,
             stats: {
@@ -538,7 +539,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                 averageTimeToComplete: 0,
                 bookmarksCount: 0,
                 viewsCount: 0,
-                votesCount: 0
+                votesCount: 0,
             },
             you: {
                 __typename: "ResourceYou",
@@ -547,13 +548,13 @@ export class RoutineFixtureFactory implements FixtureFactory<
                 canReport: false,
                 isBookmarked: false,
                 isReacted: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         };
 
         return {
             ...defaultRoutine,
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -579,7 +580,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                         acc[err.path].push(err.message);
                     }
                     return acc;
-                }, {})
+                }, {}),
             };
         }
     }
@@ -588,7 +589,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
      * Create MSW handlers for different scenarios
      */
     createMSWHandlers(): MSWHandlers {
-        const baseUrl = process.env.VITE_SERVER_URL || 'http://localhost:3000';
+        const baseUrl = process.env.VITE_SERVER_URL || "http://localhost:3000";
 
         return {
             success: [
@@ -603,8 +604,8 @@ export class RoutineFixtureFactory implements FixtureFactory<
                             ctx.status(400),
                             ctx.json({ 
                                 errors: validation.errors,
-                                fieldErrors: validation.fieldErrors 
-                            })
+                                fieldErrors: validation.fieldErrors, 
+                            }),
                         );
                     }
 
@@ -617,14 +618,14 @@ export class RoutineFixtureFactory implements FixtureFactory<
                                 ...this.createMockResponse().versions[0].translations[0],
                                 name: body.name,
                                 description: body.description,
-                                instructions: body.instructions
-                            }]
-                        }]
+                                instructions: body.instructions,
+                            }],
+                        }],
                     });
 
                     return res(
                         ctx.status(201),
-                        ctx.json(mockRoutine)
+                        ctx.json(mockRoutine),
                     );
                 }),
 
@@ -635,12 +636,12 @@ export class RoutineFixtureFactory implements FixtureFactory<
 
                     const mockRoutine = this.createMockResponse({ 
                         id: id as string,
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date().toISOString(),
                     });
 
                     return res(
                         ctx.status(200),
-                        ctx.json(mockRoutine)
+                        ctx.json(mockRoutine),
                     );
                 }),
 
@@ -648,12 +649,12 @@ export class RoutineFixtureFactory implements FixtureFactory<
                 rest.get(`${baseUrl}/api/routine/:handle`, (req, res, ctx) => {
                     const { handle } = req.params;
                     const mockRoutine = this.createMockResponse({ 
-                        handle: handle as string 
+                        handle: handle as string, 
                     });
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(mockRoutine)
+                        ctx.json(mockRoutine),
                     );
                 }),
 
@@ -672,17 +673,17 @@ export class RoutineFixtureFactory implements FixtureFactory<
                             startedAt: new Date().toISOString(),
                             completedAt: null,
                             progress: 0,
-                            inputs: body.inputs || {}
-                        })
+                            inputs: body.inputs || {},
+                        }),
                     );
                 }),
 
                 // Delete routine
                 rest.delete(`${baseUrl}/api/routine/:id`, (req, res, ctx) => {
                     return res(
-                        ctx.status(204)
+                        ctx.status(204),
                     );
-                })
+                }),
             ],
 
             error: [
@@ -690,9 +691,9 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(409),
                         ctx.json({ 
-                            message: 'Routine handle already exists',
-                            code: 'HANDLE_EXISTS' 
-                        })
+                            message: "Routine handle already exists",
+                            code: "HANDLE_EXISTS", 
+                        }),
                     );
                 }),
 
@@ -700,9 +701,9 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(403),
                         ctx.json({ 
-                            message: 'You do not have permission to update this routine',
-                            code: 'PERMISSION_DENIED' 
-                        })
+                            message: "You do not have permission to update this routine",
+                            code: "PERMISSION_DENIED", 
+                        }),
                     );
                 }),
 
@@ -710,11 +711,11 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(400),
                         ctx.json({ 
-                            message: 'Invalid input parameters',
-                            code: 'INVALID_INPUTS' 
-                        })
+                            message: "Invalid input parameters",
+                            code: "INVALID_INPUTS", 
+                        }),
                     );
-                })
+                }),
             ],
 
             loading: [
@@ -722,7 +723,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.delay(2000), // 2 second delay
                         ctx.status(201),
-                        ctx.json(this.createMockResponse())
+                        ctx.json(this.createMockResponse()),
                     );
                 }),
 
@@ -732,17 +733,17 @@ export class RoutineFixtureFactory implements FixtureFactory<
                         ctx.status(201),
                         ctx.json({
                             id: this.generateId(),
-                            status: RunStatus.InProgress
-                        })
+                            status: RunStatus.InProgress,
+                        }),
                     );
-                })
+                }),
             ],
 
             networkError: [
                 rest.post(`${baseUrl}/api/routine`, (req, res, ctx) => {
-                    return res.networkError('Network connection failed');
-                })
-            ]
+                    return res.networkError("Network connection failed");
+                }),
+            ],
         };
     }
 
@@ -751,7 +752,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
      */
     createUIState(
         state: "loading" | "error" | "success" | "empty" | "running" | "ownerView" = "empty", 
-        data?: any
+        data?: any,
     ): RoutineUIState {
         switch (state) {
             case "loading":
@@ -763,7 +764,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     isOwner: false,
                     canEdit: false,
                     canDelete: false,
-                    canRun: false
+                    canRun: false,
                 };
 
             case "error":
@@ -775,7 +776,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     isOwner: false,
                     canEdit: false,
                     canDelete: false,
-                    canRun: false
+                    canRun: false,
                 };
 
             case "success":
@@ -788,7 +789,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     isOwner: false,
                     canEdit: false,
                     canDelete: false,
-                    canRun: true
+                    canRun: true,
                 };
 
             case "running":
@@ -803,7 +804,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     canDelete: false,
                     canRun: false,
                     runStatus: RunStatus.InProgress,
-                    executionProgress: data?.progress || 45
+                    executionProgress: data?.progress || 45,
                 };
 
             case "ownerView":
@@ -816,7 +817,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     isOwner: true,
                     canEdit: true,
                     canDelete: true,
-                    canRun: true
+                    canRun: true,
                 };
 
             case "empty":
@@ -829,7 +830,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
                     isOwner: false,
                     canEdit: false,
                     canDelete: false,
-                    canRun: false
+                    canRun: false,
                 };
         }
     }
@@ -853,7 +854,7 @@ export class RoutineFixtureFactory implements FixtureFactory<
         return routine;
     }
 
-    createMultiStepRoutine(stepCount: number = 3): Resource {
+    createMultiStepRoutine(stepCount = 3): Resource {
         const routine = this.createMockResponse();
         routine.versions[0].config = this.generateRoutineConfig("multiStep");
         routine.versions[0].translations[0].name = "Multi-Step Workflow";
@@ -872,35 +873,35 @@ export class RoutineFixtureFactory implements FixtureFactory<
             {
                 name: "Valid routine creation",
                 formData: this.createFormData("minimal"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Complete routine profile",
                 formData: this.createFormData("complete"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Empty handle",
                 formData: { ...this.createFormData("minimal"), handle: "" },
                 shouldSucceed: false,
-                expectedError: "handle is a required field"
+                expectedError: "handle is a required field",
             },
             {
                 name: "Empty name",
                 formData: { ...this.createFormData("minimal"), name: "" },
                 shouldSucceed: false,
-                expectedError: "name is a required field"
+                expectedError: "name is a required field",
             },
             {
                 name: "Action routine",
                 formData: this.createFormData("actionRoutine"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Multi-step routine",
                 formData: this.createFormData("multiStepRoutine"),
-                shouldSucceed: true
-            }
+                shouldSucceed: true,
+            },
         ];
     }
 }
@@ -947,5 +948,5 @@ export const routineTestScenarios = {
     successHandlers: () => routineFixtures.createMSWHandlers().success,
     errorHandlers: () => routineFixtures.createMSWHandlers().error,
     loadingHandlers: () => routineFixtures.createMSWHandlers().loading,
-    networkErrorHandlers: () => routineFixtures.createMSWHandlers().networkError
+    networkErrorHandlers: () => routineFixtures.createMSWHandlers().networkError,
 };

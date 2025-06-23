@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     ChatMessage, 
     ChatMessageCreateInput, 
@@ -18,12 +18,12 @@ import type {
     User,
     ChatMessageParent,
     ReactionSummary,
-    ChatMessageYou
-} from '@vrooli/shared';
+    ChatMessageYou,
+} from "@vrooli/shared";
 import { 
     chatMessageValidation,
-    type MessageConfigObject
-} from '@vrooli/shared';
+    type MessageConfigObject,
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -75,7 +75,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ChatMessageResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -102,18 +102,18 @@ export class ChatMessageResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/chatMessage/${chatMessage.id}`,
                     related: {
                         chat: `${this.baseUrl}/api/chat/${chatMessage.chat.id}`,
                         user: `${this.baseUrl}/api/user/${chatMessage.user.id}`,
                         ...(chatMessage.parent && {
-                            parent: `${this.baseUrl}/api/chatMessage/${chatMessage.parent.id}`
-                        })
-                    }
-                }
-            }
+                            parent: `${this.baseUrl}/api/chatMessage/${chatMessage.parent.id}`,
+                        }),
+                    },
+                },
+            },
         };
     }
     
@@ -128,7 +128,7 @@ export class ChatMessageResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: chatMessages.length,
-            totalCount: chatMessages.length
+            totalCount: chatMessages.length,
         };
         
         return {
@@ -136,48 +136,48 @@ export class ChatMessageResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/chatMessage?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/chatMessage?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
     /**
      * Create chat message search response
      */
-    createSearchResponse(chatMessages: ChatMessage[], hasNextPage: boolean = false): APIResponse<ChatMessageSearchResult> {
+    createSearchResponse(chatMessages: ChatMessage[], hasNextPage = false): APIResponse<ChatMessageSearchResult> {
         return {
             data: {
                 __typename: "ChatMessageSearchResult",
                 edges: chatMessages.map((message, index) => ({
                     __typename: "ChatMessageEdge" as const,
                     cursor: `cursor_${index}`,
-                    node: message
+                    node: message,
                 })),
                 pageInfo: {
                     __typename: "PageInfo",
                     hasNextPage,
                     hasPreviousPage: false,
                     startCursor: chatMessages.length > 0 ? "cursor_0" : null,
-                    endCursor: chatMessages.length > 0 ? `cursor_${chatMessages.length - 1}` : null
-                }
+                    endCursor: chatMessages.length > 0 ? `cursor_${chatMessages.length - 1}` : null,
+                },
             },
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/chatMessage/search`
-                }
-            }
+                    self: `${this.baseUrl}/api/chatMessage/search`,
+                },
+            },
         };
     }
     
@@ -186,24 +186,24 @@ export class ChatMessageResponseFactory {
      */
     createTreeResponse(
         chatMessages: ChatMessage[], 
-        hasMoreUp: boolean = false, 
-        hasMoreDown: boolean = false
+        hasMoreUp = false, 
+        hasMoreDown = false,
     ): APIResponse<ChatMessageSearchTreeResult> {
         return {
             data: {
                 __typename: "ChatMessageSearchTreeResult",
                 messages: chatMessages,
                 hasMoreUp,
-                hasMoreDown
+                hasMoreDown,
             },
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/chatMessageTree`
-                }
-            }
+                    self: `${this.baseUrl}/api/chatMessageTree`,
+                },
+            },
         };
     }
     
@@ -213,16 +213,16 @@ export class ChatMessageResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatMessage'
-            }
+                path: "/api/chatMessage",
+            },
         };
     }
     
@@ -232,16 +232,16 @@ export class ChatMessageResponseFactory {
     createNotFoundErrorResponse(messageId: string): APIErrorResponse {
         return {
             error: {
-                code: 'CHAT_MESSAGE_NOT_FOUND',
+                code: "CHAT_MESSAGE_NOT_FOUND",
                 message: `Chat message with ID '${messageId}' was not found`,
                 details: {
                     messageId,
-                    searchCriteria: { id: messageId }
+                    searchCriteria: { id: messageId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/chatMessage/${messageId}`
-            }
+                path: `/api/chatMessage/${messageId}`,
+            },
         };
     }
     
@@ -251,17 +251,17 @@ export class ChatMessageResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this chat message`,
                 details: {
                     operation,
-                    requiredPermissions: ['chat:write'],
-                    userPermissions: ['chat:read']
+                    requiredPermissions: ["chat:write"],
+                    userPermissions: ["chat:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatMessage'
-            }
+                path: "/api/chatMessage",
+            },
         };
     }
     
@@ -271,17 +271,17 @@ export class ChatMessageResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatMessage'
-            }
+                path: "/api/chatMessage",
+            },
         };
     }
     
@@ -291,17 +291,17 @@ export class ChatMessageResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatMessage'
-            }
+                path: "/api/chatMessage",
+            },
         };
     }
     
@@ -311,17 +311,17 @@ export class ChatMessageResponseFactory {
     createRateLimitErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'RATE_LIMIT_EXCEEDED',
-                message: 'Too many messages sent. Please wait before sending another message.',
+                code: "RATE_LIMIT_EXCEEDED",
+                message: "Too many messages sent. Please wait before sending another message.",
                 details: {
                     retryAfter: 60000,
                     limit: 100,
-                    window: '1 hour'
+                    window: "1 hour",
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatMessage'
-            }
+                path: "/api/chatMessage",
+            },
         };
     }
     
@@ -361,10 +361,10 @@ export class ChatMessageResponseFactory {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
+                    count: 0,
+                },
             },
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -395,9 +395,9 @@ export class ChatMessageResponseFactory {
                 __typename: "ChatYou",
                 canDelete: true,
                 canInvite: true,
-                canUpdate: true
+                canUpdate: true,
             },
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -409,7 +409,7 @@ export class ChatMessageResponseFactory {
             __version: "1.0.0",
             resources: [],
             role: "user",
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -446,13 +446,13 @@ export class ChatMessageResponseFactory {
                 canReply: true,
                 canReport: false,
                 canUpdate: true,
-                reaction: null
-            }
+                reaction: null,
+            },
         };
         
         return {
             ...defaultMessage,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -475,7 +475,7 @@ export class ChatMessageResponseFactory {
             message.parent = {
                 __typename: "ChatMessageParent",
                 id: input.parentConnect,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
             };
         }
         
@@ -491,7 +491,7 @@ export class ChatMessageResponseFactory {
             this.createMockChatMessage({
                 text: "Hello, how can I help you today?",
                 config: this.createMockConfig({ role: "user" }),
-                sequence: 1
+                sequence: 1,
             }),
             
             // Bot/Assistant response
@@ -499,14 +499,14 @@ export class ChatMessageResponseFactory {
                 text: "I'm here to assist you with any questions you might have.",
                 config: this.createMockConfig({ 
                     role: "assistant",
-                    respondingBots: ["@all"]
+                    respondingBots: ["@all"],
                 }),
                 sequence: 2,
                 user: this.createMockUser({ 
                     isBot: true, 
                     handle: "assistant",
-                    name: "AI Assistant" 
-                })
+                    name: "AI Assistant", 
+                }),
             }),
             
             // System message
@@ -517,8 +517,8 @@ export class ChatMessageResponseFactory {
                 user: this.createMockUser({ 
                     isBot: true, 
                     handle: "system",
-                    name: "System" 
-                })
+                    name: "System", 
+                }),
             }),
             
             // Message with parent (threaded)
@@ -529,8 +529,8 @@ export class ChatMessageResponseFactory {
                 parent: {
                     __typename: "ChatMessageParent",
                     id: "parent_message_id",
-                    createdAt: new Date().toISOString()
-                }
+                    createdAt: new Date().toISOString(),
+                },
             }),
             
             // Message with tool calls
@@ -542,16 +542,16 @@ export class ChatMessageResponseFactory {
                         id: "tool_call_1",
                         function: {
                             name: "search_web",
-                            arguments: JSON.stringify({ query: "user question" })
+                            arguments: JSON.stringify({ query: "user question" }),
                         },
                         result: {
                             success: true,
-                            output: "Search results found"
-                        }
-                    }]
+                            output: "Search results found",
+                        },
+                    }],
                 }),
-                sequence: 5
-            })
+                sequence: 5,
+            }),
         ];
     }
     
@@ -561,7 +561,7 @@ export class ChatMessageResponseFactory {
     createThreadMessages(): ChatMessage[] {
         const parentMessage = this.createMockChatMessage({
             text: "What's the weather like today?",
-            sequence: 1
+            sequence: 1,
         });
         
         const reply1 = this.createMockChatMessage({
@@ -570,8 +570,8 @@ export class ChatMessageResponseFactory {
             parent: {
                 __typename: "ChatMessageParent",
                 id: parentMessage.id,
-                createdAt: parentMessage.createdAt
-            }
+                createdAt: parentMessage.createdAt,
+            },
         });
         
         const reply2 = this.createMockChatMessage({
@@ -580,8 +580,8 @@ export class ChatMessageResponseFactory {
             parent: {
                 __typename: "ChatMessageParent",
                 id: parentMessage.id,
-                createdAt: parentMessage.createdAt
-            }
+                createdAt: parentMessage.createdAt,
+            },
         });
         
         return [parentMessage, reply1, reply2];
@@ -612,7 +612,7 @@ export class ChatMessageResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -634,7 +634,7 @@ export class ChatMessageMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create chat message
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatMessage`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async (req, res, ctx) => {
                 const body = await req.json() as ChatMessageCreateInput;
                 
                 // Validate input
@@ -642,7 +642,7 @@ export class ChatMessageMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -652,12 +652,12 @@ export class ChatMessageMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get message by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatMessage/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const message = this.responseFactory.createMockChatMessage({ id: id as string });
@@ -665,12 +665,12 @@ export class ChatMessageMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update message
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatMessage/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ChatMessageUpdateInput;
                 
@@ -678,28 +678,28 @@ export class ChatMessageMSWHandlers {
                     id: id as string,
                     text: body.text || "Updated message text",
                     config: body.config || this.responseFactory.createMockChatMessage().config,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(message);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete message
-            rest.delete(`${this.responseFactory['baseUrl']}/api/chatMessage/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // Search messages
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatMessage`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const chatId = url.searchParams.get('chatId');
-                const take = parseInt(url.searchParams.get('take') || '10');
-                const searchString = url.searchParams.get('searchString');
+                const chatId = url.searchParams.get("chatId");
+                const take = parseInt(url.searchParams.get("take") || "10");
+                const searchString = url.searchParams.get("searchString");
                 
                 let messages = this.responseFactory.createChatMessagesForScenarios();
                 
@@ -711,7 +711,7 @@ export class ChatMessageMSWHandlers {
                 // Filter by search string if specified
                 if (searchString) {
                     messages = messages.filter(m => 
-                        m.text.toLowerCase().includes(searchString.toLowerCase())
+                        m.text.toLowerCase().includes(searchString.toLowerCase()),
                     );
                 }
                 
@@ -722,16 +722,16 @@ export class ChatMessageMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get message tree
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatMessageTree`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const chatId = url.searchParams.get('chatId');
-                const startId = url.searchParams.get('startId');
-                const take = parseInt(url.searchParams.get('take') || '10');
+                const chatId = url.searchParams.get("chatId");
+                const startId = url.searchParams.get("startId");
+                const take = parseInt(url.searchParams.get("take") || "10");
                 
                 let messages = this.responseFactory.createThreadMessages();
                 
@@ -746,33 +746,33 @@ export class ChatMessageMSWHandlers {
                 const response = this.responseFactory.createTreeResponse(
                     messages, 
                     false, // hasMoreUp
-                    messages.length === take // hasMoreDown
+                    messages.length === take, // hasMoreDown
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Regenerate response
-            rest.post(`${this.responseFactory['baseUrl']}/api/regenerateResponse`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/regenerateResponse`, async (req, res, ctx) => {
                 const body = await req.json();
                 
                 // Create a new assistant response
                 const message = this.responseFactory.createMockChatMessage({
                     text: "This is a regenerated response.",
                     config: this.responseFactory.createMockConfig({ role: "assistant" }),
-                    user: this.responseFactory.createMockChatMessage().user // Reset user to default
+                    user: this.responseFactory.createMockChatMessage().user, // Reset user to default
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(message);
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -782,58 +782,58 @@ export class ChatMessageMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatMessage`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        text: 'Message text is required',
-                        chatConnect: 'Chat ID must be specified',
-                        userConnect: 'User ID must be specified'
-                    }))
+                        text: "Message text is required",
+                        chatConnect: "Chat ID must be specified",
+                        userConnect: "User ID must be specified",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatMessage/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatMessage`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Rate limit error
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatMessage`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 return res(
                     ctx.status(429),
-                    ctx.json(this.responseFactory.createRateLimitErrorResponse())
+                    ctx.json(this.responseFactory.createRateLimitErrorResponse()),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatMessage`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatMessage`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async (req, res, ctx) => {
                 const body = await req.json() as ChatMessageCreateInput;
                 const message = this.responseFactory.createChatMessageFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(message);
@@ -841,20 +841,20 @@ export class ChatMessageMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatMessageTree`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
                 const messages = this.responseFactory.createThreadMessages();
                 const response = this.responseFactory.createTreeResponse(messages);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -863,17 +863,17 @@ export class ChatMessageMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatMessage`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatMessage/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatMessageTree`, (req, res, ctx) => {
-                return res.networkError('Failed to load message tree');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
+                return res.networkError("Failed to load message tree");
+            }),
         ];
     }
     
@@ -882,13 +882,13 @@ export class ChatMessageMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -910,21 +910,21 @@ export const chatMessageResponseScenarios = {
     createSuccess: (message?: ChatMessage) => {
         const factory = new ChatMessageResponseFactory();
         return factory.createSuccessResponse(
-            message || factory.createMockChatMessage()
+            message || factory.createMockChatMessage(),
         );
     },
     
     searchSuccess: (messages?: ChatMessage[]) => {
         const factory = new ChatMessageResponseFactory();
         return factory.createSearchResponse(
-            messages || factory.createChatMessagesForScenarios()
+            messages || factory.createChatMessagesForScenarios(),
         );
     },
     
     treeSuccess: (messages?: ChatMessage[]) => {
         const factory = new ChatMessageResponseFactory();
         return factory.createTreeResponse(
-            messages || factory.createThreadMessages()
+            messages || factory.createThreadMessages(),
         );
     },
     
@@ -933,24 +933,24 @@ export const chatMessageResponseScenarios = {
         const factory = new ChatMessageResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                text: 'Message text is required',
-                chatConnect: 'Chat ID is required',
-                userConnect: 'User ID is required'
-            }
+                text: "Message text is required",
+                chatConnect: "Chat ID is required",
+                userConnect: "User ID is required",
+            },
         );
     },
     
     notFoundError: (messageId?: string) => {
         const factory = new ChatMessageResponseFactory();
         return factory.createNotFoundErrorResponse(
-            messageId || 'non-existent-message-id'
+            messageId || "non-existent-message-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ChatMessageResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -968,7 +968,7 @@ export const chatMessageResponseScenarios = {
     successHandlers: () => new ChatMessageMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ChatMessageMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ChatMessageMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ChatMessageMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ChatMessageMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

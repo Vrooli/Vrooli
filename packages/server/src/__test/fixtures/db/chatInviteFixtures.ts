@@ -194,7 +194,7 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.chat_inviteCre
         if (!data.userId) errors.push("ChatInvite userId is required");
 
         // Check message content
-        if (data.message && typeof data.message === 'string') {
+        if (data.message && typeof data.message === "string") {
             if (data.message.length > 4096) {
                 errors.push("Message exceeds maximum length of 4096 characters");
             }
@@ -204,7 +204,7 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.chat_inviteCre
         }
 
         // Check status
-        if (data.status && !['Pending', 'Accepted', 'Declined'].includes(data.status)) {
+        if (data.status && !["Pending", "Accepted", "Declined"].includes(data.status)) {
             errors.push("Invalid status value");
         }
 
@@ -215,7 +215,7 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.chat_inviteCre
     static createMinimal(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.chat_inviteCreateInput>
+        overrides?: Partial<Prisma.chat_inviteCreateInput>,
     ): Prisma.chat_inviteCreateInput {
         const factory = new ChatInviteDbFactory();
         return factory.createMinimal({
@@ -231,7 +231,7 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.chat_inviteCre
         chatId: string,
         userId: string,
         message: string,
-        overrides?: Partial<Prisma.chat_inviteCreateInput>
+        overrides?: Partial<Prisma.chat_inviteCreateInput>,
     ): Prisma.chat_inviteCreateInput {
         return this.createMinimal(chatId, userId, {
             message,
@@ -242,7 +242,7 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.chat_inviteCre
     static createAccepted(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.chat_inviteCreateInput>
+        overrides?: Partial<Prisma.chat_inviteCreateInput>,
     ): Prisma.chat_inviteCreateInput {
         return this.createMinimal(chatId, userId, {
             status: "Accepted",
@@ -253,7 +253,7 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.chat_inviteCre
     static createDeclined(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.chat_inviteCreateInput>
+        overrides?: Partial<Prisma.chat_inviteCreateInput>,
     ): Prisma.chat_inviteCreateInput {
         return this.createMinimal(chatId, userId, {
             status: "Declined",
@@ -268,7 +268,7 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.chat_inviteCre
         chatId: string,
         userId: string,
         message: string,
-        overrides?: Partial<Prisma.chat_inviteCreateInput>
+        overrides?: Partial<Prisma.chat_inviteCreateInput>,
     ): Prisma.chat_inviteCreateInput {
         return this.createMinimal(chatId, userId, {
             message,
@@ -287,7 +287,7 @@ export async function seedChatInvites(
         userIds: string[];
         status?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const invites = [];
     let pendingCount = 0;
@@ -308,7 +308,7 @@ export async function seedChatInvites(
             inviteData = ChatInviteDbFactory.createWithCustomMessage(
                 options.chatId,
                 userId,
-                `Custom invite message for user ${i + 1}`
+                `Custom invite message for user ${i + 1}`,
             );
             pendingCount++;
         } else {
@@ -343,7 +343,7 @@ export async function seedBulkInvites(
         chatId: string;
         creatorId: string;
         messages: string[];
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const invites = [];
 
@@ -351,7 +351,7 @@ export async function seedBulkInvites(
         const inviteData = ChatInviteDbFactory.createWithMessage(
             options.chatId,
             options.creatorId,
-            message
+            message,
         );
 
         const invite = await prisma.chat_invite.create({ data: inviteData });
@@ -375,7 +375,7 @@ export async function seedBulkInvites(
 export async function useInvite(
     prisma: any,
     inviteId: string,
-    userId: string
+    userId: string,
 ): Promise<{ success: boolean; message?: string; chatId?: string }> {
     const invite = await prisma.chatInvite.findUnique({
         where: { id: BigInt(inviteId) },
@@ -410,7 +410,7 @@ export async function useInvite(
     return { 
         success: true, 
         chatId: invite.chatId.toString(),
-        message: "Successfully joined chat" 
+        message: "Successfully joined chat", 
     };
 }
 
@@ -419,7 +419,7 @@ export async function useInvite(
  */
 export async function declineInvite(
     prisma: any,
-    inviteId: string
+    inviteId: string,
 ): Promise<{ success: boolean; message?: string }> {
     const invite = await prisma.chat_invite.findUnique({
         where: { id: BigInt(inviteId) },
@@ -441,6 +441,6 @@ export async function declineInvite(
 
     return { 
         success: true, 
-        message: "Invite declined" 
+        message: "Invite declined", 
     };
 }

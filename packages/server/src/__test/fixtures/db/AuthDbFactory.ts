@@ -31,7 +31,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
     Prisma.user_authUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('user_auth', prisma);
+        super("user_auth", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -95,7 +95,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
                     granted_scopes: ["email", "profile", "openid"],
                     last_used_at: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 passwordWithResetCode: {
@@ -105,7 +105,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
                     resetPasswordCode: `reset_${Math.random().toString(36).substring(2, 66)}`,
                     lastResetPasswordRequestAttempt: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 expiredOauth: {
@@ -118,7 +118,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
                     granted_scopes: ["read:user", "user:email"],
                     last_used_at: new Date(Date.now() - 86400000), // 1 day ago
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },

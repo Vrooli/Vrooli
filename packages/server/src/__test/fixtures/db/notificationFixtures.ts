@@ -216,8 +216,8 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.Notification
 
         // Check business logic
         if (data.fromUser && data.user && 
-            typeof data.fromUser === 'object' && 'connect' in data.fromUser &&
-            typeof data.user === 'object' && 'connect' in data.user &&
+            typeof data.fromUser === "object" && "connect" in data.fromUser &&
+            typeof data.user === "object" && "connect" in data.user &&
             data.fromUser.connect?.id === data.user.connect?.id) {
             warnings.push("Notification sender and recipient are the same user");
         }
@@ -251,7 +251,7 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.Notification
     static createMinimal(
         userId: string,
         category: string,
-        overrides?: Partial<Prisma.NotificationCreateInput>
+        overrides?: Partial<Prisma.NotificationCreateInput>,
     ): Prisma.NotificationCreateInput {
         const factory = new NotificationDbFactory();
         return factory.createMinimal({
@@ -266,10 +266,10 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.Notification
         category: string,
         objectId: string,
         objectType: string,
-        overrides?: Partial<Prisma.NotificationCreateInput>
+        overrides?: Partial<Prisma.NotificationCreateInput>,
     ): Prisma.NotificationCreateInput {
         const factory = new NotificationDbFactory();
-        let data = factory.createMinimal({
+        const data = factory.createMinimal({
             category,
             user: { connect: { id: userId } },
             ...overrides,
@@ -280,7 +280,7 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.Notification
     static createRead(
         userId: string,
         category: string,
-        overrides?: Partial<Prisma.NotificationCreateInput>
+        overrides?: Partial<Prisma.NotificationCreateInput>,
     ): Prisma.NotificationCreateInput {
         const factory = new NotificationDbFactory();
         return factory.createMinimal({
@@ -469,7 +469,7 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
     static createMinimal(
         userId: string,
         category: string,
-        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>
+        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>,
     ): Prisma.NotificationSubscriptionCreateInput {
         const factory = new NotificationSubscriptionDbFactory();
         return factory.createMinimal({
@@ -483,10 +483,10 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
         userId: string,
         objectId: string,
         objectType: string,
-        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>
+        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>,
     ): Prisma.NotificationSubscriptionCreateInput {
         const factory = new NotificationSubscriptionDbFactory();
-        let data = factory.createMinimal({
+        const data = factory.createMinimal({
             category: `${objectType}Updates`,
             user: { connect: { id: userId } },
             ...overrides,
@@ -497,7 +497,7 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
     static createDisabled(
         userId: string,
         category: string,
-        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>
+        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>,
     ): Prisma.NotificationSubscriptionCreateInput {
         const factory = new NotificationSubscriptionDbFactory();
         return factory.createMinimal({
@@ -520,7 +520,7 @@ export async function seedNotifications(
         categories?: string[];
         withRead?: boolean;
         withSubscriptions?: boolean;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const notificationFactory = new NotificationDbFactory();
     const subscriptionFactory = new NotificationSubscriptionDbFactory();
@@ -543,7 +543,7 @@ export async function seedNotifications(
                     isRead,
                     title: `${category} Notification ${i + 1}`,
                     description: `Description for ${category.toLowerCase()} notification ${i + 1}`,
-                }
+                },
             ),
             include: {
                 user: true,
@@ -563,7 +563,7 @@ export async function seedNotifications(
             const subscription = await prisma.notificationSubscription.create({
                 data: NotificationSubscriptionDbFactory.createMinimal(
                     options.userId,
-                    category
+                    category,
                 ),
                 include: {
                     user: true,

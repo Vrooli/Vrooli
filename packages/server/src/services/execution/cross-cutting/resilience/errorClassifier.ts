@@ -98,7 +98,7 @@ export class ErrorClassifier {
         const systemFunctional = !features.isInfrastructureError;
         const multipleComponentsAffected = context.attemptCount > 1;
         const dataRisk = features.isDatabaseError;
-        const securityRisk = features.errorMessage.toLowerCase().includes('security');
+        const securityRisk = features.errorMessage.toLowerCase().includes("security");
         
         const classification = {
             severity,

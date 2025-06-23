@@ -34,7 +34,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     Prisma.TeamUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Team', prisma);
+        super("Team", prisma);
         this.initializeScenarios();
     }
 
@@ -126,7 +126,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Max Length Handle Team",
-                    handle: 'team_' + 'a'.repeat(45), // Max length handle
+                    handle: "team_" + "a".repeat(45), // Max length handle
                     isPrivate: false,
                     isOpenToNewMembers: true,
                 },
@@ -165,7 +165,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
                             id: generatePK(),
-                            language: ['en', 'es', 'fr', 'de', 'ja'][i],
+                            language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Team Name ${i}`,
                             bio: `Team bio in language ${i}`,
                         })),
@@ -373,9 +373,9 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.TeamCreateInput,
         config: TeamRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.TeamCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle owner (first member with Owner role)
         if (config.owner) {
@@ -428,7 +428,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
      */
     async createWithOwnerAndMembers(
         ownerId: string,
-        memberIds: string[] = []
+        memberIds: string[] = [],
     ): Promise<Prisma.Team> {
         const members = [
             { userId: ownerId, role: "Owner" },
@@ -453,11 +453,11 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     }
 
     async createOpenCommunity(): Promise<Prisma.Team> {
-        return await this.seedScenario('openCommunity');
+        return await this.seedScenario("openCommunity");
     }
 
     async createOrganizationTeam(): Promise<Prisma.Team> {
-        return await this.seedScenario('organizationTeam');
+        return await this.seedScenario("organizationTeam");
     }
 
     protected async checkModelConstraints(record: Prisma.Team): Promise<string[]> {
@@ -472,13 +472,13 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 },
             });
             if (duplicate) {
-                violations.push('Handle must be unique');
+                violations.push("Handle must be unique");
             }
         }
 
         // Check handle format
         if (record.handle && !/^[a-zA-Z0-9_]+$/.test(record.handle)) {
-            violations.push('Handle contains invalid characters');
+            violations.push("Handle contains invalid characters");
         }
 
         // Check that team has at least one owner
@@ -490,12 +490,12 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (owners === 0) {
-            violations.push('Team must have at least one owner');
+            violations.push("Team must have at least one owner");
         }
 
         // Check private team constraints
         if (record.isPrivate && record.isOpenToNewMembers) {
-            violations.push('Private teams should not be open to new members');
+            violations.push("Private teams should not be open to new members");
         }
 
         return violations;
@@ -518,7 +518,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.Team,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
@@ -527,35 +527,35 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
         
         // Delete chats
-        if (shouldDelete('chats') && record.chats?.length) {
+        if (shouldDelete("chats") && record.chats?.length) {
             await tx.chat.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
         // Delete meetings
-        if (shouldDelete('meetings') && record.meetings?.length) {
+        if (shouldDelete("meetings") && record.meetings?.length) {
             await tx.meeting.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
         // Delete schedules
-        if (shouldDelete('schedules') && record.schedules?.length) {
+        if (shouldDelete("schedules") && record.schedules?.length) {
             await tx.schedule.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
         // Delete bookmark lists
-        if (shouldDelete('bookmarkLists') && record.bookmarkLists?.length) {
+        if (shouldDelete("bookmarkLists") && record.bookmarkLists?.length) {
             await tx.bookmarkList.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
         // Delete projects (if they're team-owned)
-        if (shouldDelete('projects') && record.projects?.length) {
+        if (shouldDelete("projects") && record.projects?.length) {
             // First remove team association
             await tx.project.updateMany({
                 where: { teamId: record.id },
@@ -564,21 +564,21 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Delete resource lists
-        if (shouldDelete('resourceLists') && record.resourceLists?.length) {
+        if (shouldDelete("resourceLists") && record.resourceLists?.length) {
             await tx.resourceList.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
         // Delete members
-        if (shouldDelete('members') && record.members?.length) {
+        if (shouldDelete("members") && record.members?.length) {
             await tx.member.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.teamTranslation.deleteMany({
                 where: { teamId: record.id },
             });
@@ -591,7 +591,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     async seedTeamsWithMembers(
         teamCount: number,
         membersPerTeam: number,
-        userIds: string[]
+        userIds: string[],
     ): Promise<Prisma.Team[]> {
         const teams: Prisma.Team[] = [];
         
@@ -606,7 +606,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             
             const team = await this.createWithOwnerAndMembers(
                 memberIds[0], // First member is owner
-                memberIds.slice(1) // Rest are members
+                memberIds.slice(1), // Rest are members
             );
             
             teams.push(team);
@@ -619,7 +619,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
      * Create a team hierarchy (teams with sub-teams)
      * Note: This would require a parent-child relationship in the schema
      */
-    async createTeamHierarchy(levels: number = 3): Promise<Prisma.Team[]> {
+    async createTeamHierarchy(levels = 3): Promise<Prisma.Team[]> {
         const teams: Prisma.Team[] = [];
         
         // Create root team
@@ -669,7 +669,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createTeamDbFactory = (prisma: PrismaClient) => 
-    TeamDbFactory.getInstance('Team', prisma);
+    TeamDbFactory.getInstance("Team", prisma);
 
 // Export the class for type usage
 export { TeamDbFactory as TeamDbFactoryClass };

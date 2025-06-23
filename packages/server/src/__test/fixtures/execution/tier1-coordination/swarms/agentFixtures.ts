@@ -309,7 +309,7 @@ export class AgentFactory {
      */
     static createMinimal(
         role?: AgentRole,
-        overrides?: Partial<SwarmAgent>
+        overrides?: Partial<SwarmAgent>,
     ): SwarmAgent {
         return {
             ...minimalAgent,
@@ -325,7 +325,7 @@ export class AgentFactory {
      */
     static createWithRole(
         roleName: keyof typeof agentRoles,
-        overrides?: Partial<SwarmAgent>
+        overrides?: Partial<SwarmAgent>,
     ): SwarmAgent {
         const role = agentRoles[roleName];
         return {
@@ -343,8 +343,8 @@ export class AgentFactory {
      * Create active agent with performance history
      */
     static createActive(
-        tasksCompleted: number = 10,
-        overrides?: Partial<SwarmAgent>
+        tasksCompleted = 10,
+        overrides?: Partial<SwarmAgent>,
     ): SwarmAgent {
         const tasksFailled = Math.floor(tasksCompleted * 0.05); // 5% failure rate
         const successRate = tasksCompleted / (tasksCompleted + tasksFailled);
@@ -370,7 +370,7 @@ export class AgentFactory {
      */
     static createWithCapabilities(
         capabilities: AgentCapability[],
-        overrides?: Partial<SwarmAgent>
+        overrides?: Partial<SwarmAgent>,
     ): SwarmAgent {
         // Find best matching role
         let bestRole = agentRoles.executor;
@@ -378,7 +378,7 @@ export class AgentFactory {
         
         for (const [_, role] of Object.entries(agentRoles)) {
             const match = capabilities.filter(cap => 
-                role.capabilities.includes(cap)
+                role.capabilities.includes(cap),
             ).length;
             if (match > maxMatch) {
                 maxMatch = match;
@@ -431,8 +431,8 @@ export class TeamFactory {
      */
     static createWithStructure(
         structure: "flat" | "hierarchical" | "matrix",
-        agentCount: number = 3,
-        overrides?: Partial<SwarmTeam>
+        agentCount = 3,
+        overrides?: Partial<SwarmTeam>,
     ): SwarmTeam {
         const agents: SwarmAgent[] = [];
         const relationships: TeamHierarchy["relationships"] = [];
@@ -451,7 +451,7 @@ export class TeamFactory {
         for (let i = 0; i < remainingCount; i++) {
             const agent = AgentFactory.createWithRole(
                 i % 2 === 0 ? "executor" : "analyzer",
-                { state: i === 0 ? "active" : "idle" }
+                { state: i === 0 ? "active" : "idle" },
             );
             agents.push(agent);
 
@@ -502,7 +502,7 @@ export class TeamFactory {
      */
     static createSpecialized(
         specialization: "analysis" | "execution" | "monitoring" | "learning",
-        overrides?: Partial<SwarmTeam>
+        overrides?: Partial<SwarmTeam>,
     ): SwarmTeam {
         const roleMap = {
             analysis: ["coordinator", "analyzer", "analyzer"],
@@ -518,8 +518,8 @@ export class TeamFactory {
                 {
                     state: index === 0 ? "active" : "idle",
                     name: `${roleName} ${index + 1}`,
-                }
-            )
+                },
+            ),
         );
 
         return {
@@ -547,7 +547,7 @@ export class TeamFactory {
      */
     static createFormation(
         constraints?: TeamConstraints,
-        overrides?: Partial<TeamFormation>
+        overrides?: Partial<TeamFormation>,
     ): TeamFormation {
         const requiredCaps = constraints?.requiredCapabilities || ["execution"];
         const minSize = constraints?.minSize || 1;
@@ -562,7 +562,7 @@ export class TeamFactory {
                 agents.push(
                     AgentFactory.createWithCapabilities([cap], {
                         state: agents.length === 0 ? "active" : "idle",
-                    })
+                    }),
                 );
             }
         }
@@ -590,7 +590,7 @@ export class TeamFactory {
 export function createCustomRole(
     name: string,
     capabilities: AgentCapability[],
-    overrides?: Partial<AgentRole>
+    overrides?: Partial<AgentRole>,
 ): AgentRole {
     return {
         id: generatePK(),
@@ -638,7 +638,7 @@ export async function seedTestAgentsAndTeams(
         agentCount?: number;
         teamCount?: number;
         includeSpecialized?: boolean;
-    }
+    },
 ) {
     const agents = [];
     const teams = [];
@@ -662,7 +662,7 @@ export async function seedTestAgentsAndTeams(
         teams.push(TeamFactory.createWithStructure(
             structures[i % structures.length],
             3,
-            { name: `Test Team ${i + 1}` }
+            { name: `Test Team ${i + 1}` },
         ));
     }
 
@@ -671,7 +671,7 @@ export async function seedTestAgentsAndTeams(
         teams.push(
             TeamFactory.createSpecialized("analysis", { name: "Analysis Team" }),
             TeamFactory.createSpecialized("execution", { name: "Execution Team" }),
-            TeamFactory.createSpecialized("learning", { name: "Learning Team" })
+            TeamFactory.createSpecialized("learning", { name: "Learning Team" }),
         );
     }
 

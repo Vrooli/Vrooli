@@ -362,7 +362,7 @@ describe("yupObj", () => {
             await assertInvalid(schema, { 
                 title: "Article", 
                 authorCreate: { name: "John" }, 
-                editorCreate: { name: "Jane" } 
+                editorCreate: { name: "Jane" }, 
             });
             
             // Should reject neither when one is required
@@ -399,7 +399,7 @@ describe("yupObj", () => {
             await assertInvalid(schema, { 
                 title: "Article", 
                 authorCreate: { name: "John" }, 
-                authorUpdate: { name: "John Updated" } 
+                authorUpdate: { name: "John Updated" }, 
             });
             
             // Should accept neither when both are optional
@@ -594,7 +594,7 @@ describe("yupObj", () => {
 
         // Console warning should be emitted
         expect(consoleSpy).toHaveBeenCalledWith(
-            "[yupObj] One of the following fields is marked as required, so this require-one test will always fail: field1, field2"
+            "[yupObj] One of the following fields is marked as required, so this require-one test will always fail: field1, field2",
         );
         
         // The schema configuration is contradictory - field1 is required but requireOneGroup 
@@ -618,7 +618,7 @@ describe("yupObj", () => {
         await assertValid(
             schema,
             { someOtherField: "test" },
-            { someOtherField: "test" }
+            { someOtherField: "test" },
         );
     });
 
@@ -638,7 +638,7 @@ describe("yupObj", () => {
         await assertValid(
             schema,
             { field1: "test" },
-            { field1: "test" }
+            { field1: "test" },
         );
     });
 
@@ -864,11 +864,11 @@ describe("yupObj", () => {
             schema,
             { 
                 rel1Create: { field1: "test1", field2: "test1" },
-                rel2Create: { field1: "test2", field2: "test2" }
+                rel2Create: { field1: "test2", field2: "test2" },
             },
             { 
                 rel1Create: { field2: "test1" },
-                rel2Create: { field2: "test2" }
+                rel2Create: { field2: "test2" },
             },
         );
     });
@@ -891,7 +891,7 @@ describe("yupObj", () => {
             schema,
             { 
                 relCreate: { dummyField: "test" },
-                relUpdate: { dummyField: "test" }
+                relUpdate: { dummyField: "test" },
             },
         );
 

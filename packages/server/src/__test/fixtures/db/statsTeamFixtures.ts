@@ -1,4 +1,4 @@
-import { generatePK, StatPeriodType } from "@vrooli/shared";
+import { generatePK, type StatPeriodType } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 
 /**
@@ -124,7 +124,7 @@ export class StatsTeamDbFactory {
         periodType: StatPeriodType,
         periodStart: Date,
         periodEnd: Date,
-        overrides?: Partial<Prisma.stats_teamCreateInput>
+        overrides?: Partial<Prisma.stats_teamCreateInput>,
     ): Prisma.stats_teamCreateInput {
         return {
             ...minimalStatsTeamDb,
@@ -153,7 +153,7 @@ export class StatsTeamDbFactory {
             runCompletionTimeAverage?: number;
             runContextSwitchesAverage?: number;
         },
-        overrides?: Partial<Prisma.stats_teamCreateInput>
+        overrides?: Partial<Prisma.stats_teamCreateInput>,
     ): Prisma.stats_teamCreateInput {
         return {
             ...minimalStatsTeamDb,
@@ -201,7 +201,7 @@ export function createStatsTeamTimeSeries(
     teamId: string,
     periodType: StatPeriodType,
     count: number,
-    startDate: Date = new Date("2024-01-01T00:00:00Z")
+    startDate: Date = new Date("2024-01-01T00:00:00Z"),
 ): Prisma.stats_teamCreateInput[] {
     const stats = [];
     const msPerPeriod = getPeriodMs(periodType);
@@ -226,8 +226,8 @@ export function createStatsTeamTimeSeries(
                 periodType,
                 periodStart,
                 periodEnd,
-                baseMetrics
-            )
+                baseMetrics,
+            ),
         );
     }
 
@@ -244,7 +244,7 @@ export async function seedStatsTeams(
         periodType?: StatPeriodType;
         periodsPerTeam?: number;
         withTimeSeries?: boolean;
-    }
+    },
 ) {
     const statsTeams = [];
     const periodType = options?.periodType || "Monthly";

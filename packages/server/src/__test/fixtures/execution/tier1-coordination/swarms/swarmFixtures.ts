@@ -264,8 +264,8 @@ export class SwarmFactory {
     }
 
     static createWithTeam(
-        agentCount: number = 2,
-        overrides?: Partial<Swarm>
+        agentCount = 2,
+        overrides?: Partial<Swarm>,
     ): Partial<Swarm> {
         const agents: SwarmAgent[] = [];
         
@@ -333,7 +333,7 @@ export class SwarmFactory {
      */
     static createInState(
         state: SwarmState,
-        overrides?: Partial<Swarm>
+        overrides?: Partial<Swarm>,
     ): Partial<Swarm> {
         const baseSwarm = state === ExecutionStates.UNINITIALIZED
             ? this.createMinimal()
@@ -351,7 +351,7 @@ export class SwarmFactory {
      */
     static createWithChatConfig(
         chatConfig: Partial<ChatConfigObject>,
-        overrides?: Partial<Swarm>
+        overrides?: Partial<Swarm>,
     ): Partial<Swarm> {
         const swarm = this.createWithTeam(2, overrides);
         
@@ -371,7 +371,7 @@ export class SwarmFactory {
      * Create a swarm with resources and subtasks
      */
     static createWithGoalDecomposition(
-        overrides?: Partial<Swarm>
+        overrides?: Partial<Swarm>,
     ): Partial<Swarm> {
         const resources: SwarmResource[] = [
             {
@@ -441,7 +441,7 @@ export class SwarmFactory {
                     timeout: 300000,
                 },
             },
-            overrides
+            overrides,
         );
     }
 }
@@ -455,7 +455,7 @@ export function createSwarmTeam(
         agentCount?: number;
         hierarchy?: "flat" | "hierarchical" | "matrix";
         includeBot?: boolean;
-    }
+    },
 ): SwarmTeam {
     const agentCount = options?.agentCount || 3;
     const hierarchy = options?.hierarchy || "flat";
@@ -568,12 +568,12 @@ export function createSwarmTeam(
  */
 export async function seedTestSwarms(
     prisma: any,
-    count: number = 3,
+    count = 3,
     options?: {
         withTeams?: boolean;
         states?: SwarmState[];
         userId?: string;
-    }
+    },
 ) {
     const swarms = [];
     const states = options?.states || [

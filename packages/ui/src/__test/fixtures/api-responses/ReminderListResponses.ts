@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { http, HttpResponse, type HttpHandler } from 'msw';
+import { http, HttpResponse, type HttpHandler } from "msw";
 import { 
     reminderListValidation,
     type ReminderList, 
@@ -14,8 +14,8 @@ import {
     type Reminder,
     type ReminderItem,
     type ReminderCreateInput,
-    type ReminderItemCreateInput
-} from '@vrooli/shared';
+    type ReminderItemCreateInput,
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -67,7 +67,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ReminderListResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -94,14 +94,14 @@ export class ReminderListResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/reminder-list/${reminderList.id}`,
                     related: {
-                        reminders: `${this.baseUrl}/api/reminder-list/${reminderList.id}/reminders`
-                    }
-                }
-            }
+                        reminders: `${this.baseUrl}/api/reminder-list/${reminderList.id}/reminders`,
+                    },
+                },
+            },
         };
     }
     
@@ -116,7 +116,7 @@ export class ReminderListResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: reminderLists.length,
-            totalCount: reminderLists.length
+            totalCount: reminderLists.length,
         };
         
         return {
@@ -124,17 +124,17 @@ export class ReminderListResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/reminder-list?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/reminder-list?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -144,16 +144,16 @@ export class ReminderListResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/reminder-list'
-            }
+                path: "/api/reminder-list",
+            },
         };
     }
     
@@ -163,16 +163,16 @@ export class ReminderListResponseFactory {
     createNotFoundErrorResponse(reminderListId: string): APIErrorResponse {
         return {
             error: {
-                code: 'REMINDER_LIST_NOT_FOUND',
+                code: "REMINDER_LIST_NOT_FOUND",
                 message: `Reminder list with ID '${reminderListId}' was not found`,
                 details: {
                     reminderListId,
-                    searchCriteria: { id: reminderListId }
+                    searchCriteria: { id: reminderListId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/reminder-list/${reminderListId}`
-            }
+                path: `/api/reminder-list/${reminderListId}`,
+            },
         };
     }
     
@@ -182,17 +182,17 @@ export class ReminderListResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this reminder list`,
                 details: {
                     operation,
-                    requiredPermissions: ['reminder-list:write'],
-                    userPermissions: ['reminder-list:read']
+                    requiredPermissions: ["reminder-list:write"],
+                    userPermissions: ["reminder-list:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/reminder-list'
-            }
+                path: "/api/reminder-list",
+            },
         };
     }
     
@@ -202,17 +202,17 @@ export class ReminderListResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/reminder-list'
-            }
+                path: "/api/reminder-list",
+            },
         };
     }
     
@@ -222,17 +222,17 @@ export class ReminderListResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/reminder-list'
-            }
+                path: "/api/reminder-list",
+            },
         };
     }
     
@@ -253,12 +253,12 @@ export class ReminderListResponseFactory {
             dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
             index: 0,
             isComplete: false,
-            reminder: {} as Reminder // Will be populated by parent
+            reminder: {} as Reminder, // Will be populated by parent
         };
         
         return {
             ...defaultItem,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -272,7 +272,7 @@ export class ReminderListResponseFactory {
         const reminderItems = [
             this.createMockReminderItem({ index: 0, name: "First task" }),
             this.createMockReminderItem({ index: 1, name: "Second task", isComplete: true }),
-            this.createMockReminderItem({ index: 2, name: "Third task" })
+            this.createMockReminderItem({ index: 2, name: "Third task" }),
         ];
         
         const defaultReminder: Reminder = {
@@ -286,7 +286,7 @@ export class ReminderListResponseFactory {
             index: 0,
             isComplete: false,
             reminderItems,
-            reminderList: {} as ReminderList // Will be populated by parent
+            reminderList: {} as ReminderList, // Will be populated by parent
         };
         
         // Set parent reference in items
@@ -296,7 +296,7 @@ export class ReminderListResponseFactory {
         
         return {
             ...defaultReminder,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -310,7 +310,7 @@ export class ReminderListResponseFactory {
         const reminders = [
             this.createMockReminder({ index: 0, name: "Daily tasks" }),
             this.createMockReminder({ index: 1, name: "Weekly goals" }),
-            this.createMockReminder({ index: 2, name: "Project milestones", isComplete: true })
+            this.createMockReminder({ index: 2, name: "Project milestones", isComplete: true }),
         ];
         
         const defaultReminderList: ReminderList = {
@@ -318,7 +318,7 @@ export class ReminderListResponseFactory {
             id,
             createdAt: now,
             updatedAt: now,
-            reminders
+            reminders,
         };
         
         // Set parent reference in reminders
@@ -328,7 +328,7 @@ export class ReminderListResponseFactory {
         
         return {
             ...defaultReminderList,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -342,7 +342,7 @@ export class ReminderListResponseFactory {
         // Handle reminder creation
         if (input.remindersCreate && input.remindersCreate.length > 0) {
             reminderList.reminders = input.remindersCreate.map((reminderInput, index) => 
-                this.createReminderFromInput(reminderInput, index)
+                this.createReminderFromInput(reminderInput, index),
             );
             
             // Set parent references
@@ -364,13 +364,13 @@ export class ReminderListResponseFactory {
             description: input.description || undefined,
             dueDate: input.dueDate || undefined,
             index: input.index ?? index,
-            isComplete: false
+            isComplete: false,
         });
         
         // Handle reminder items creation
         if (input.reminderItemsCreate && input.reminderItemsCreate.length > 0) {
             reminder.reminderItems = input.reminderItemsCreate.map((itemInput, itemIndex) => 
-                this.createReminderItemFromInput(itemInput, itemIndex, reminder)
+                this.createReminderItemFromInput(itemInput, itemIndex, reminder),
             );
         }
         
@@ -388,7 +388,7 @@ export class ReminderListResponseFactory {
             dueDate: input.dueDate || undefined,
             index: input.index ?? index,
             isComplete: input.isComplete ?? false,
-            reminder: parentReminder
+            reminder: parentReminder,
         });
     }
     
@@ -399,7 +399,7 @@ export class ReminderListResponseFactory {
         return [
             // Empty list
             this.createMockReminderList({
-                reminders: []
+                reminders: [],
             }),
             
             // Personal to-do list
@@ -410,10 +410,10 @@ export class ReminderListResponseFactory {
                         reminderItems: [
                             this.createMockReminderItem({ name: "Exercise", index: 0 }),
                             this.createMockReminderItem({ name: "Breakfast", index: 1 }),
-                            this.createMockReminderItem({ name: "Review schedule", index: 2 })
-                        ]
-                    })
-                ]
+                            this.createMockReminderItem({ name: "Review schedule", index: 2 }),
+                        ],
+                    }),
+                ],
             }),
             
             // Project task list
@@ -426,14 +426,14 @@ export class ReminderListResponseFactory {
                             this.createMockReminderItem({ name: "Design API", isComplete: true }),
                             this.createMockReminderItem({ name: "Implement backend", isComplete: true }),
                             this.createMockReminderItem({ name: "Write tests" }),
-                            this.createMockReminderItem({ name: "Documentation" })
-                        ]
+                            this.createMockReminderItem({ name: "Documentation" }),
+                        ],
                     }),
                     this.createMockReminder({
                         name: "Sprint 2 planning",
-                        reminderItems: []
-                    })
-                ]
+                        reminderItems: [],
+                    }),
+                ],
             }),
             
             // Shopping list
@@ -445,11 +445,11 @@ export class ReminderListResponseFactory {
                             this.createMockReminderItem({ name: "Milk", isComplete: true }),
                             this.createMockReminderItem({ name: "Bread", isComplete: true }),
                             this.createMockReminderItem({ name: "Eggs" }),
-                            this.createMockReminderItem({ name: "Vegetables" })
-                        ]
-                    })
-                ]
-            })
+                            this.createMockReminderItem({ name: "Vegetables" }),
+                        ],
+                    }),
+                ],
+            }),
         ];
     }
     
@@ -466,7 +466,7 @@ export class ReminderListResponseFactory {
         } catch (error: unknown) {
             const fieldErrors: Record<string, string> = {};
             
-            if (error && typeof error === 'object' && 'inner' in error) {
+            if (error && typeof error === "object" && "inner" in error) {
                 const validationError = error as { inner?: Array<{ path?: string; message: string }> };
                 if (validationError.inner) {
                     validationError.inner.forEach((err) => {
@@ -475,13 +475,13 @@ export class ReminderListResponseFactory {
                         }
                     });
                 }
-            } else if (error && typeof error === 'object' && 'message' in error) {
+            } else if (error && typeof error === "object" && "message" in error) {
                 fieldErrors.general = String(error.message);
             }
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -503,7 +503,7 @@ export class ReminderListMSWHandlers {
     createSuccessHandlers(): HttpHandler[] {
         return [
             // Create reminder list
-            http.post(`${this.responseFactory['baseUrl']}/api/reminder-list`, async ({ request }) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-list`, async ({ request }) => {
                 const body = await request.json() as ReminderListCreateInput;
                 
                 // Validate input
@@ -511,7 +511,7 @@ export class ReminderListMSWHandlers {
                 if (!validation.valid) {
                     return HttpResponse.json(
                         this.responseFactory.createValidationErrorResponse(validation.errors || {}),
-                        { status: 400 }
+                        { status: 400 },
                     );
                 }
                 
@@ -523,7 +523,7 @@ export class ReminderListMSWHandlers {
             }),
             
             // Get reminder list by ID
-            http.get(`${this.responseFactory['baseUrl']}/api/reminder-list/:id`, ({ params }) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-list/:id`, ({ params }) => {
                 const { id } = params;
                 
                 const reminderList = this.responseFactory.createMockReminderList({ id: id as string });
@@ -533,19 +533,19 @@ export class ReminderListMSWHandlers {
             }),
             
             // Update reminder list
-            http.put(`${this.responseFactory['baseUrl']}/api/reminder-list/:id`, async ({ params, request }) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-list/:id`, async ({ params, request }) => {
                 const { id } = params;
                 const body = await request.json() as ReminderListUpdateInput;
                 
                 const reminderList = this.responseFactory.createMockReminderList({ 
                     id: id as string,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 // Handle updates
                 if (body.remindersCreate) {
                     const newReminders = body.remindersCreate.map((r, i) => 
-                        this.responseFactory['createReminderFromInput'](r, reminderList.reminders.length + i)
+                        this.responseFactory["createReminderFromInput"](r, reminderList.reminders.length + i),
                     );
                     reminderList.reminders.push(...newReminders);
                 }
@@ -556,15 +556,15 @@ export class ReminderListMSWHandlers {
             }),
             
             // Delete reminder list
-            http.delete(`${this.responseFactory['baseUrl']}/api/reminder-list/:id`, () => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/reminder-list/:id`, () => {
                 return new HttpResponse(null, { status: 204 });
             }),
             
             // List reminder lists
-            http.get(`${this.responseFactory['baseUrl']}/api/reminder-list`, ({ request }) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-list`, ({ request }) => {
                 const url = new URL(request.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 const reminderLists = this.responseFactory.createReminderListScenarios();
                 
@@ -577,12 +577,12 @@ export class ReminderListMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: reminderLists.length
-                    }
+                        totalCount: reminderLists.length,
+                    },
                 );
                 
                 return HttpResponse.json(response, { status: 200 });
-            })
+            }),
         ];
     }
     
@@ -592,49 +592,49 @@ export class ReminderListMSWHandlers {
     createErrorHandlers(): HttpHandler[] {
         return [
             // Validation error
-            http.post(`${this.responseFactory['baseUrl']}/api/reminder-list`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-list`, () => {
                 return HttpResponse.json(
                     this.responseFactory.createValidationErrorResponse({
-                        id: 'ID is required',
-                        reminders: 'At least one reminder is required'
+                        id: "ID is required",
+                        reminders: "At least one reminder is required",
                     }),
-                    { status: 400 }
+                    { status: 400 },
                 );
             }),
             
             // Not found error
-            http.get(`${this.responseFactory['baseUrl']}/api/reminder-list/:id`, ({ params }) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-list/:id`, ({ params }) => {
                 const { id } = params;
                 return HttpResponse.json(
                     this.responseFactory.createNotFoundErrorResponse(id as string),
-                    { status: 404 }
+                    { status: 404 },
                 );
             }),
             
             // Permission error
-            http.post(`${this.responseFactory['baseUrl']}/api/reminder-list`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-list`, () => {
                 return HttpResponse.json(
-                    this.responseFactory.createPermissionErrorResponse('create'),
-                    { status: 403 }
+                    this.responseFactory.createPermissionErrorResponse("create"),
+                    { status: 403 },
                 );
             }),
             
             // Server error
-            http.post(`${this.responseFactory['baseUrl']}/api/reminder-list`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-list`, () => {
                 return HttpResponse.json(
                     this.responseFactory.createServerErrorResponse(),
-                    { status: 500 }
+                    { status: 500 },
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): HttpHandler[] {
+    createLoadingHandlers(delay = 2000): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory['baseUrl']}/api/reminder-list`, async ({ request }) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-list`, async ({ request }) => {
                 const body = await request.json() as ReminderListCreateInput;
                 const reminderList = this.responseFactory.createReminderListFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(reminderList);
@@ -643,7 +643,7 @@ export class ReminderListMSWHandlers {
                 await new Promise(resolve => setTimeout(resolve, delay));
                 
                 return HttpResponse.json(response, { status: 201 });
-            })
+            }),
         ];
     }
     
@@ -652,13 +652,13 @@ export class ReminderListMSWHandlers {
      */
     createNetworkErrorHandlers(): HttpHandler[] {
         return [
-            http.post(`${this.responseFactory['baseUrl']}/api/reminder-list`, () => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-list`, () => {
                 return HttpResponse.error();
             }),
             
-            http.get(`${this.responseFactory['baseUrl']}/api/reminder-list/:id`, () => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-list/:id`, () => {
                 return HttpResponse.error();
-            })
+            }),
         ];
     }
     
@@ -667,13 +667,13 @@ export class ReminderListMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: unknown;
         delay?: number;
     }): HttpHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         const handler = http[method.toLowerCase() as keyof typeof http];
         
@@ -695,14 +695,14 @@ export const reminderListResponseScenarios = {
     createSuccess: (reminderList?: ReminderList) => {
         const factory = new ReminderListResponseFactory();
         return factory.createSuccessResponse(
-            reminderList || factory.createMockReminderList()
+            reminderList || factory.createMockReminderList(),
         );
     },
     
     listSuccess: (reminderLists?: ReminderList[]) => {
         const factory = new ReminderListResponseFactory();
         return factory.createReminderListsResponse(
-            reminderLists || factory.createReminderListScenarios()
+            reminderLists || factory.createReminderListScenarios(),
         );
     },
     
@@ -711,23 +711,23 @@ export const reminderListResponseScenarios = {
         const factory = new ReminderListResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                id: 'ID is required',
-                reminders: 'Invalid reminder data'
-            }
+                id: "ID is required",
+                reminders: "Invalid reminder data",
+            },
         );
     },
     
     notFoundError: (reminderListId?: string) => {
         const factory = new ReminderListResponseFactory();
         return factory.createNotFoundErrorResponse(
-            reminderListId || 'non-existent-id'
+            reminderListId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ReminderListResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -740,7 +740,7 @@ export const reminderListResponseScenarios = {
     successHandlers: () => new ReminderListMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ReminderListMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ReminderListMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ReminderListMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ReminderListMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

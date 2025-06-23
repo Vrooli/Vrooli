@@ -31,7 +31,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
     Prisma.report_responseUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('report_response', prisma);
+        super("report_response", prisma);
         this.initializeScenarios();
     }
 
@@ -77,7 +77,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
                     reportId: generatePK().toString(),
                     createdById: generatePK().toString(),
                     actionSuggested: ReportSuggestedAction.Delete,
-                    details: 'a'.repeat(8193), // Exceeds 8192 character limit
+                    details: "a".repeat(8193), // Exceeds 8192 character limit
                 },
                 invalidLanguageCode: {
                     id: generatePK().toString(),
@@ -274,9 +274,9 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.report_responseCreateInput,
         config: ReportResponseRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.report_responseCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle report association
         if (config.reportId) {
@@ -298,7 +298,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
         reportId: string,
         createdById: string,
         actionSuggested: ReportSuggestedAction,
-        details?: string
+        details?: string,
     ): Promise<Prisma.report_response> {
         return await this.createWithRelations({
             overrides: {
@@ -319,7 +319,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
             createdById: string;
             actionSuggested: ReportSuggestedAction;
             details?: string;
-        }>
+        }>,
     ): Promise<Prisma.report_response[]> {
         const createdResponses: Prisma.report_response[] = [];
 
@@ -328,7 +328,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
                 reportId,
                 response.createdById,
                 response.actionSuggested,
-                response.details
+                response.details,
             );
             createdResponses.push(created);
         }
@@ -342,7 +342,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
     async createConsensusResponses(
         reportId: string,
         userIds: string[],
-        actionSuggested: ReportSuggestedAction
+        actionSuggested: ReportSuggestedAction,
     ): Promise<Prisma.report_response[]> {
         const responses = userIds.map((userId, index) => ({
             createdById: userId,
@@ -367,7 +367,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
         const responses = userIds.map((userId, index) => ({
             createdById: userId,
             actionSuggested: actions[index % actions.length],
-            details: `Different perspective on the reported content`,
+            details: "Different perspective on the reported content",
         }));
 
         return await this.createMultipleResponses(reportId, responses);
@@ -378,12 +378,12 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
         
         // Check details length
         if (record.details && record.details.length > 8192) {
-            violations.push('Response details exceed maximum length of 8192 characters');
+            violations.push("Response details exceed maximum length of 8192 characters");
         }
 
         // Check language code format if provided
         if (record.language && !/^[a-z]{2,3}$/.test(record.language)) {
-            violations.push('Invalid language code format');
+            violations.push("Invalid language code format");
         }
 
         // Check report exists
@@ -391,7 +391,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
             where: { id: record.reportId },
         });
         if (!report) {
-            violations.push('Report does not exist');
+            violations.push("Report does not exist");
         }
 
         // Check creator exists
@@ -399,7 +399,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
             where: { id: record.createdById },
         });
         if (!creator) {
-            violations.push('Response creator does not exist');
+            violations.push("Response creator does not exist");
         }
 
         // Check unique constraint (one response per user per report)
@@ -411,7 +411,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
             },
         });
         if (existingResponse) {
-            violations.push('User has already responded to this report');
+            violations.push("User has already responded to this report");
         }
 
         return violations;
@@ -427,7 +427,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.report_response,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Report responses don't have dependent records
     }
@@ -491,9 +491,9 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
         reportId: string,
         workflow: Array<{
             userId: string;
-            role: 'admin' | 'moderator' | 'community';
+            role: "admin" | "moderator" | "community";
             waitHours?: number;
-        }>
+        }>,
     ): Promise<Prisma.report_response[]> {
         const responses: Prisma.report_response[] = [];
 
@@ -503,15 +503,15 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
             let details: string;
 
             switch (step.role) {
-                case 'admin':
+                case "admin":
                     actionSuggested = ReportSuggestedAction.Delete;
                     details = "Admin review complete - content violates policies";
                     break;
-                case 'moderator':
+                case "moderator":
                     actionSuggested = ReportSuggestedAction.HideUntilFixed;
                     details = "Moderator review - needs content adjustment";
                     break;
-                case 'community':
+                case "community":
                     actionSuggested = ReportSuggestedAction.NonIssue;
                     details = "Community member review - no violation found";
                     break;
@@ -521,7 +521,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
                 reportId,
                 step.userId,
                 actionSuggested,
-                details
+                details,
             );
 
             // Simulate time delay if specified
@@ -542,7 +542,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createReportResponseDbFactory = (prisma: PrismaClient) => 
-    ReportResponseDbFactory.getInstance('report_response', prisma);
+    ReportResponseDbFactory.getInstance("report_response", prisma);
 
 // Export the class for type usage
 export { ReportResponseDbFactory as ReportResponseDbFactoryClass };

@@ -5,15 +5,15 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     StatsSite,
     StatsSiteSearchInput,
-    PeriodType
-} from '@vrooli/shared';
+    PeriodType,
+} from "@vrooli/shared";
 import { 
-    PeriodType as PeriodTypeEnum 
-} from '@vrooli/shared';
+    PeriodType as PeriodTypeEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -65,7 +65,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class StatsSiteResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -92,11 +92,11 @@ export class StatsSiteResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/stats/site/${stats.id}`
-                }
-            }
+                    self: `${this.baseUrl}/api/stats/site/${stats.id}`,
+                },
+            },
         };
     }
     
@@ -111,7 +111,7 @@ export class StatsSiteResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: statsList.length,
-            totalCount: statsList.length
+            totalCount: statsList.length,
         };
         
         return {
@@ -119,17 +119,17 @@ export class StatsSiteResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/stats/site?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/stats/site?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -139,16 +139,16 @@ export class StatsSiteResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/site'
-            }
+                path: "/api/stats/site",
+            },
         };
     }
     
@@ -158,16 +158,16 @@ export class StatsSiteResponseFactory {
     createNotFoundErrorResponse(period: string): APIErrorResponse {
         return {
             error: {
-                code: 'SITE_STATS_NOT_FOUND',
+                code: "SITE_STATS_NOT_FOUND",
                 message: `Site statistics for period '${period}' were not found`,
                 details: {
                     period,
-                    searchCriteria: { period }
+                    searchCriteria: { period },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/stats/site/${period}`
-            }
+                path: `/api/stats/site/${period}`,
+            },
         };
     }
     
@@ -177,17 +177,17 @@ export class StatsSiteResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} site statistics`,
                 details: {
                     operation,
-                    requiredPermissions: ['admin:stats:read'],
-                    userPermissions: ['user:read']
+                    requiredPermissions: ["admin:stats:read"],
+                    userPermissions: ["user:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/site'
-            }
+                path: "/api/stats/site",
+            },
         };
     }
     
@@ -197,17 +197,17 @@ export class StatsSiteResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/site'
-            }
+                path: "/api/stats/site",
+            },
         };
     }
     
@@ -217,17 +217,17 @@ export class StatsSiteResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/site'
-            }
+                path: "/api/stats/site",
+            },
         };
     }
     
@@ -278,12 +278,12 @@ export class StatsSiteResponseFactory {
             
             // Performance metrics
             averageResponseTime: Math.floor(Math.random() * 500) + 100, // milliseconds
-            uptime: 99.9 - Math.random() * 0.1 // percentage
+            uptime: 99.9 - Math.random() * 0.1, // percentage
         };
         
         return {
             ...defaultStats,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -304,7 +304,7 @@ export class StatsSiteResponseFactory {
                 pageViews: 2500,
                 uniqueVisitors: 400,
                 runsStarted: 45,
-                runsCompleted: 35
+                runsCompleted: 35,
             },
             [PeriodTypeEnum.Week]: {
                 ...baseStats,
@@ -316,7 +316,7 @@ export class StatsSiteResponseFactory {
                 pageViews: 18000,
                 uniqueVisitors: 2800,
                 runsStarted: 320,
-                runsCompleted: 280
+                runsCompleted: 280,
             },
             [PeriodTypeEnum.Month]: {
                 ...baseStats,
@@ -328,7 +328,7 @@ export class StatsSiteResponseFactory {
                 pageViews: 85000,
                 uniqueVisitors: 12000,
                 runsStarted: 1500,
-                runsCompleted: 1200
+                runsCompleted: 1200,
             },
             [PeriodTypeEnum.Year]: {
                 ...baseStats,
@@ -340,7 +340,7 @@ export class StatsSiteResponseFactory {
                 pageViews: 1200000,
                 uniqueVisitors: 180000,
                 runsStarted: 25000,
-                runsCompleted: 20000
+                runsCompleted: 20000,
             },
             [PeriodTypeEnum.AllTime]: {
                 ...baseStats,
@@ -352,15 +352,15 @@ export class StatsSiteResponseFactory {
                 pageViews: 5000000,
                 uniqueVisitors: 750000,
                 runsStarted: 100000,
-                runsCompleted: 80000
-            }
+                runsCompleted: 80000,
+            },
         };
     }
     
     /**
      * Create trending time series data
      */
-    createTimeSeriesStats(days: number = 30): StatsSite[] {
+    createTimeSeriesStats(days = 30): StatsSite[] {
         const oneDay = 24 * 60 * 60 * 1000;
         const baseTime = Date.now();
         
@@ -381,7 +381,7 @@ export class StatsSiteResponseFactory {
                 pageViews: Math.floor((1500 + Math.random() * 1000) * growthFactor),
                 uniqueVisitors: Math.floor((300 + Math.random() * 200) * growthFactor),
                 runsStarted: Math.floor((30 + Math.random() * 20) * growthFactor),
-                runsCompleted: Math.floor((25 + Math.random() * 15) * growthFactor)
+                runsCompleted: Math.floor((25 + Math.random() * 15) * growthFactor),
             });
         });
     }
@@ -414,7 +414,7 @@ export class StatsSiteResponseFactory {
             reports: 3,
             reportsActionTaken: 2,
             averageResponseTime: 180,
-            uptime: 99.95
+            uptime: 99.95,
         });
     }
     
@@ -431,7 +431,7 @@ export class StatsSiteResponseFactory {
             userGrowth: 12.5, // percentage
             contentGrowth: 18.3, // percentage
             engagementGrowth: 8.7, // percentage
-            performanceScore: 92.4 // percentage
+            performanceScore: 92.4, // percentage
         };
     }
 }
@@ -452,9 +452,9 @@ export class StatsSiteMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get current site statistics
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/current`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const period = url.searchParams.get('period') as PeriodType || PeriodTypeEnum.Week;
+                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Week;
                 
                 const statsByPeriod = this.responseFactory.createStatsByPeriod();
                 const stats = statsByPeriod[period];
@@ -462,12 +462,12 @@ export class StatsSiteMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get site statistics by period
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/:period`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, (req, res, ctx) => {
                 const { period } = req.params;
                 
                 const statsByPeriod = this.responseFactory.createStatsByPeriod();
@@ -476,16 +476,16 @@ export class StatsSiteMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Search site statistics
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/site/search`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, async (req, res, ctx) => {
                 const body = await req.json() as StatsSiteSearchInput;
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 let statsList: StatsSite[] = [];
                 
@@ -506,29 +506,29 @@ export class StatsSiteMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: statsList.length
-                    }
+                        totalCount: statsList.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get admin dashboard statistics
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
                 const stats = this.responseFactory.createAdminDashboardStats();
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get growth metrics
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/growth`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/growth`, (req, res, ctx) => {
                 const growthMetrics = this.responseFactory.createGrowthMetrics();
                 
                 return res(
@@ -537,26 +537,26 @@ export class StatsSiteMSWHandlers {
                         data: growthMetrics,
                         meta: {
                             timestamp: new Date().toISOString(),
-                            requestId: this.responseFactory['generateRequestId'](),
-                            version: '1.0'
-                        }
-                    })
+                            requestId: this.responseFactory["generateRequestId"](),
+                            version: "1.0",
+                        },
+                    }),
                 );
             }),
             
             // Get time series data
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/timeseries`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/timeseries`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const days = parseInt(url.searchParams.get('days') || '30');
+                const days = parseInt(url.searchParams.get("days") || "30");
                 
                 const timeSeriesData = this.responseFactory.createTimeSeriesStats(days);
                 const response = this.responseFactory.createStatsListResponse(timeSeriesData);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -566,47 +566,47 @@ export class StatsSiteMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/:period`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, (req, res, ctx) => {
                 const { period } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(period as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(period as string)),
                 );
             }),
             
             // Permission error (admin only)
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('view admin statistics'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("view admin statistics")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/site/search`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/current`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
                 const stats = this.responseFactory.createMockStats();
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -615,13 +615,13 @@ export class StatsSiteMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/current`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
+            }),
         ];
     }
     
@@ -630,13 +630,13 @@ export class StatsSiteMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -665,7 +665,7 @@ export const statsSiteResponseScenarios = {
     adminDashboard: () => {
         const factory = new StatsSiteResponseFactory();
         return factory.createSuccessResponse(
-            factory.createAdminDashboardStats()
+            factory.createAdminDashboardStats(),
         );
     },
     
@@ -675,16 +675,16 @@ export const statsSiteResponseScenarios = {
             data: factory.createGrowthMetrics(),
             meta: {
                 timestamp: new Date().toISOString(),
-                requestId: factory['generateRequestId'](),
-                version: '1.0'
-            }
+                requestId: factory["generateRequestId"](),
+                version: "1.0",
+            },
         };
     },
     
     timeSeriesData: (days?: number) => {
         const factory = new StatsSiteResponseFactory();
         return factory.createStatsListResponse(
-            factory.createTimeSeriesStats(days)
+            factory.createTimeSeriesStats(days),
         );
     },
     
@@ -698,14 +698,14 @@ export const statsSiteResponseScenarios = {
     notFoundError: (period?: string) => {
         const factory = new StatsSiteResponseFactory();
         return factory.createNotFoundErrorResponse(
-            period || 'invalid-period'
+            period || "invalid-period",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new StatsSiteResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'view admin statistics'
+            operation || "view admin statistics",
         );
     },
     
@@ -718,7 +718,7 @@ export const statsSiteResponseScenarios = {
     successHandlers: () => new StatsSiteMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new StatsSiteMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new StatsSiteMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new StatsSiteMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new StatsSiteMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

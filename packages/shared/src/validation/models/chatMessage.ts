@@ -24,7 +24,7 @@ const toolFunctionCallResultSchema = yup.object()
         name: "tool-result-consistency",
         exclusive: true,
         message: "Tool result must be consistent: if 'success' is true, 'output' must be defined and 'error' must be undefined. If 'success' is false, 'error' (with code and message) must be defined and 'output' must be undefined.",
-        test: (value: { success: boolean; output?: any; error?: { code?: string; message?: string } } | undefined | null) => {
+        test: (value: { success: boolean; output?: unknown; error?: { code?: string; message?: string } } | undefined | null) => {
             if (value == null) {
                 // This allows the entire 'result' field (which uses this schema) to be optional.
                 return true;

@@ -38,7 +38,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     Prisma.runUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Run', prisma);
+        super("Run", prisma);
         this.initializeScenarios();
     }
 
@@ -76,10 +76,10 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                 startedAt: twoHoursAgo,
                 timeElapsed: 3600000, // 1 hour in milliseconds
                 user: {
-                    connect: { id: "user_id" }
+                    connect: { id: "user_id" },
                 },
                 resourceVersion: {
-                    connect: { id: "resource_version_id" }
+                    connect: { id: "resource_version_id" },
                 },
                 steps: {
                     create: [
@@ -171,10 +171,10 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     contextSwitches: 0,
                     // Both user and team ownership
                     user: {
-                        connect: { id: "user_id" }
+                        connect: { id: "user_id" },
                     },
                     team: {
-                        connect: { id: "team_id" }
+                        connect: { id: "team_id" },
                     },
                 },
             },
@@ -188,7 +188,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     completedComplexity: 0,
                     contextSwitches: 0,
                     schedule: {
-                        connect: { id: "schedule_id" }
+                        connect: { id: "schedule_id" },
                     },
                 },
                 failedRun: {
@@ -225,7 +225,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                     completedComplexity: 0,
                     contextSwitches: 0,
                     user: {
-                        connect: { id: "user_id" }
+                        connect: { id: "user_id" },
                     },
                 },
                 complexDataRun: {
@@ -457,7 +457,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     async createCompletedRun(userId: string): Promise<Prisma.run> {
         const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
         
-        return await this.seedScenario('completedRun');
+        return await this.seedScenario("completedRun");
     }
 
     async createFailedRun(errorData: any = {}): Promise<Prisma.run> {
@@ -482,7 +482,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
                 },
             },
             steps: {
-                orderBy: { order: 'asc' },
+                orderBy: { order: "asc" },
             },
             io: true,
             _count: {
@@ -497,28 +497,28 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.runCreateInput,
         config: RunRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.runCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle user relationship
         if (config.withUser) {
             data.user = {
-                connect: { id: config.withUser.userId }
+                connect: { id: config.withUser.userId },
             };
         }
 
         // Handle team relationship
         if (config.withTeam) {
             data.team = {
-                connect: { id: config.withTeam.teamId }
+                connect: { id: config.withTeam.teamId },
             };
         }
 
         // Handle schedule relationship
         if (config.withSchedule) {
             data.schedule = {
-                connect: { id: config.withSchedule.scheduleId }
+                connect: { id: config.withSchedule.scheduleId },
             };
             data.wasRunAutomatically = true;
         }
@@ -526,13 +526,13 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         // Handle resource version relationship
         if (config.withResourceVersion) {
             data.resourceVersion = {
-                connect: { id: config.withResourceVersion.resourceVersionId }
+                connect: { id: config.withResourceVersion.resourceVersionId },
             };
         }
 
         // Handle steps
         if (config.withSteps) {
-            const stepCount = typeof config.withSteps === 'number' ? config.withSteps : 1;
+            const stepCount = typeof config.withSteps === "number" ? config.withSteps : 1;
             const startTime = data.startedAt || new Date(Date.now() - 60 * 60 * 1000);
             
             data.steps = {
@@ -552,16 +552,16 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
 
         // Handle IO
         if (config.withIO) {
-            const ioCount = typeof config.withIO === 'number' ? config.withIO : 1;
+            const ioCount = typeof config.withIO === "number" ? config.withIO : 1;
             
             data.io = {
                 create: Array.from({ length: ioCount }, (_, i) => ({
                     id: generatePK().toString(),
-                    nodeInputName: i % 2 === 0 ? `input${i/2}` : `output${Math.floor(i/2)}`,
-                    nodeName: `Node ${Math.floor(i/2)}`,
+                    nodeInputName: i % 2 === 0 ? `input${i / 2}` : `output${Math.floor(i / 2)}`,
+                    nodeName: `Node ${Math.floor(i / 2)}`,
                     data: JSON.stringify({ 
-                        type: i % 2 === 0 ? 'input' : 'output',
-                        value: `data_${i}` 
+                        type: i % 2 === 0 ? "input" : "output",
+                        value: `data_${i}`, 
                     }),
                 })),
             };
@@ -575,34 +575,34 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         
         // Check ownership (must have either user or team, not both)
         if (record.userId && record.teamId) {
-            violations.push('Run cannot belong to both user and team');
+            violations.push("Run cannot belong to both user and team");
         }
 
         // Check time constraints
         if (record.startedAt && record.completedAt && record.startedAt >= record.completedAt) {
-            violations.push('Start time must be before completion time');
+            violations.push("Start time must be before completion time");
         }
 
         // Check status consistency
         if (record.status === RunStatus.Scheduled && record.startedAt) {
-            violations.push('Scheduled runs should not have start time');
+            violations.push("Scheduled runs should not have start time");
         }
 
         if (record.status === RunStatus.Completed && !record.completedAt) {
-            violations.push('Completed runs must have completion time');
+            violations.push("Completed runs must have completion time");
         }
 
         if (record.status === RunStatus.InProgress && !record.startedAt) {
-            violations.push('In-progress runs must have start time');
+            violations.push("In-progress runs must have start time");
         }
 
         // Check complexity and context switches
         if (record.completedComplexity < 0) {
-            violations.push('Completed complexity cannot be negative');
+            violations.push("Completed complexity cannot be negative");
         }
 
         if (record.contextSwitches < 0) {
-            violations.push('Context switches cannot be negative');
+            violations.push("Context switches cannot be negative");
         }
 
         // Check data validity
@@ -610,7 +610,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             try {
                 JSON.parse(record.data);
             } catch {
-                violations.push('Run data must be valid JSON');
+                violations.push("Run data must be valid JSON");
             }
         }
 
@@ -619,16 +619,16 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             const orderSet = new Set<number>();
             for (const step of record.steps) {
                 if (orderSet.has(step.order)) {
-                    violations.push('Step orders must be unique within a run');
+                    violations.push("Step orders must be unique within a run");
                 }
                 orderSet.add(step.order);
 
                 if (step.startedAt && step.completedAt && step.startedAt >= step.completedAt) {
-                    violations.push('Step start time must be before completion time');
+                    violations.push("Step start time must be before completion time");
                 }
 
                 if (step.status === RunStepStatus.Completed && !step.completedAt) {
-                    violations.push('Completed steps must have completion time');
+                    violations.push("Completed steps must have completion time");
                 }
             }
         }
@@ -647,20 +647,20 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.run,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete steps
-        if (shouldDelete('steps') && record.steps?.length) {
+        if (shouldDelete("steps") && record.steps?.length) {
             await tx.run_step.deleteMany({
                 where: { runId: record.id },
             });
         }
 
         // Delete IO
-        if (shouldDelete('io') && record.io?.length) {
+        if (shouldDelete("io") && record.io?.length) {
             await tx.run_io.deleteMany({
                 where: { runId: record.id },
             });
@@ -676,7 +676,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             status: RunStepStatus;
             complexity?: number;
         }>,
-        userId?: string
+        userId?: string,
     ): Promise<Prisma.run> {
         const now = new Date();
         const steps = stepConfigs.map((config, i) => ({
@@ -717,7 +717,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             this.createInProgressRun(userId),
             this.createCompletedRun(userId),
             this.createFailedRun(),
-            this.seedScenario('automatedRun'),
+            this.seedScenario("automatedRun"),
         ]);
 
         return {
@@ -735,7 +735,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     async createRunWithIO(
         inputs: Record<string, any>,
         outputs: Record<string, any>,
-        userId: string
+        userId: string,
     ): Promise<Prisma.run> {
         const ioData = [
             ...Object.entries(inputs).map(([key, value]) => ({
@@ -761,7 +761,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRunDbFactory = (prisma: PrismaClient) => 
-    RunDbFactory.getInstance('Run', prisma);
+    RunDbFactory.getInstance("Run", prisma);
 
 // Export the class for type usage
 export { RunDbFactory as RunDbFactoryClass };

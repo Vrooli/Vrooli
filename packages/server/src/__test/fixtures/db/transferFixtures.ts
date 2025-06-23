@@ -104,7 +104,7 @@ export class TransferDbFactory {
         fromTeamId: string,
         toUserId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>
+        overrides?: Partial<Prisma.TransferCreateInput>,
     ): Prisma.TransferCreateInput {
         return {
             ...teamToUserTransferDb,
@@ -120,7 +120,7 @@ export class TransferDbFactory {
         fromUserId: string,
         toTeamId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>
+        overrides?: Partial<Prisma.TransferCreateInput>,
     ): Prisma.TransferCreateInput {
         return {
             ...userToTeamTransferDb,
@@ -136,7 +136,7 @@ export class TransferDbFactory {
         fromUserId: string,
         toUserId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>
+        overrides?: Partial<Prisma.TransferCreateInput>,
     ): Prisma.TransferCreateInput {
         return {
             ...minimalTransferDb,
@@ -156,11 +156,11 @@ export class TransferDbFactory {
         fromUserId: string,
         toUserId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>
+        overrides?: Partial<Prisma.TransferCreateInput>,
     ): Prisma.TransferCreateInput {
         const baseData = this.createUserToUser(fromUserId, toUserId, resourceId);
         
-        let statusSpecificData: Partial<Prisma.TransferCreateInput> = {};
+        const statusSpecificData: Partial<Prisma.TransferCreateInput> = {};
         
         if (status === TransferStatus.Accepted || status === TransferStatus.Denied) {
             statusSpecificData.closedAt = new Date();
@@ -185,7 +185,7 @@ export class TransferDbFactory {
         fromUserId: string,
         toUserId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.TransferCreateInput>
+        overrides?: Partial<Prisma.TransferCreateInput>,
     ): Prisma.TransferCreateInput {
         return {
             ...this.createUserToUser(fromUserId, toUserId, resourceId),
@@ -203,7 +203,7 @@ export class TransferDbFactory {
         toUserId: string,
         resourceId: string,
         denyReason: string,
-        overrides?: Partial<Prisma.TransferCreateInput>
+        overrides?: Partial<Prisma.TransferCreateInput>,
     ): Prisma.TransferCreateInput {
         return {
             ...this.createUserToUser(fromUserId, toUserId, resourceId),
@@ -228,7 +228,7 @@ export async function seedTransfers(
         resourceIds: string[];
         status?: TransferStatus;
         count?: number;
-    }
+    },
 ) {
     const transfers = [];
     const count = options.count || options.resourceIds.length;
@@ -243,19 +243,19 @@ export async function seedTransfers(
             transferData = TransferDbFactory.createTeamToUser(
                 options.fromTeamId,
                 options.toUserId,
-                resourceId
+                resourceId,
             );
         } else if (options.fromUserId && options.toTeamId) {
             transferData = TransferDbFactory.createUserToTeam(
                 options.fromUserId,
                 options.toTeamId,
-                resourceId
+                resourceId,
             );
         } else if (options.fromUserId && options.toUserId) {
             transferData = TransferDbFactory.createUserToUser(
                 options.fromUserId,
                 options.toUserId,
-                resourceId
+                resourceId,
             );
         } else {
             throw new Error("Must provide valid from/to combinations (user/team)");

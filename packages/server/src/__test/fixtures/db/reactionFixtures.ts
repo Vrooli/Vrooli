@@ -45,7 +45,7 @@ export class ReactionDbFactory {
      */
     static createMinimal(
         byId: string,
-        overrides?: Partial<Prisma.reactionCreateInput>
+        overrides?: Partial<Prisma.reactionCreateInput>,
     ): Prisma.reactionCreateInput {
         return {
             id: generatePK(),
@@ -62,8 +62,8 @@ export class ReactionDbFactory {
         byId: string,
         objectId: string,
         objectType: "resource" | "chatMessage" | "comment" | "issue",
-        emoji: string = "👍",
-        overrides?: Partial<Prisma.reactionCreateInput>
+        emoji = "👍",
+        overrides?: Partial<Prisma.reactionCreateInput>,
     ): Prisma.reactionCreateInput {
         const baseReaction = this.createMinimal(byId, overrides);
         
@@ -89,15 +89,15 @@ export class ReactionDbFactory {
         byIds: string[],
         objectId: string,
         objectType: "resource" | "chatMessage" | "comment" | "issue",
-        emojis: string[]
+        emojis: string[],
     ): Prisma.reactionCreateInput[] {
         return byIds.map((byId, index) => 
             this.createForObject(
                 byId,
                 objectId,
                 objectType,
-                emojis[index % emojis.length]
-            )
+                emojis[index % emojis.length],
+            ),
         );
     }
 
@@ -107,7 +107,7 @@ export class ReactionDbFactory {
     static createCommonReactions(
         objectId: string,
         objectType: "resource" | "chatMessage" | "comment" | "issue",
-        pattern: "liked" | "loved" | "mixed" | "controversial"
+        pattern: "liked" | "loved" | "mixed" | "controversial",
     ): Prisma.reactionCreateInput[] {
         const patterns = {
             liked: { emojis: ["👍", "👍", "👍"], count: 3 },
@@ -130,7 +130,7 @@ export class ReactionSummaryDbFactory {
     static createFromReactions(
         reactions: Prisma.reactionCreateInput[],
         objectId: string,
-        objectType: "resource" | "chatMessage" | "comment" | "issue"
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
     ): Prisma.reaction_summaryCreateInput[] {
         // Group reactions by emoji
         const emojiCounts = reactions.reduce((acc, reaction) => {
@@ -174,7 +174,7 @@ export async function seedReactions(
         objectType: "resource" | "chatMessage" | "comment" | "issue";
         pattern?: "liked" | "loved" | "mixed" | "controversial";
         customEmojis?: string[];
-    }
+    },
 ) {
     const reactions = [];
     
@@ -183,7 +183,7 @@ export async function seedReactions(
         const patternReactions = ReactionDbFactory.createCommonReactions(
             options.objectId,
             options.objectType,
-            options.pattern
+            options.pattern,
         );
         
         // Update with actual user IDs
@@ -197,7 +197,7 @@ export async function seedReactions(
             options.byUserIds,
             options.objectId,
             options.objectType,
-            options.customEmojis
+            options.customEmojis,
         );
         reactions.push(...customReactions);
     } else {
@@ -206,8 +206,8 @@ export async function seedReactions(
             ReactionDbFactory.createForObject(
                 options.byUserIds[0],
                 options.objectId,
-                options.objectType
-            )
+                options.objectType,
+            ),
         );
     }
 
@@ -222,7 +222,7 @@ export async function seedReactions(
     const summaries = ReactionSummaryDbFactory.createFromReactions(
         reactions,
         options.objectId,
-        options.objectType
+        options.objectType,
     );
 
     for (const summaryData of summaries) {
@@ -238,7 +238,7 @@ export async function seedReactions(
 export async function cleanupReactions(
     prisma: any,
     objectId: string,
-    objectType: "resource" | "chatMessage" | "comment" | "issue"
+    objectType: "resource" | "chatMessage" | "comment" | "issue",
 ) {
     const whereClause = {
         [`${objectType}Id`]: objectId,

@@ -1,5 +1,5 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { type email, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
 
@@ -15,13 +15,13 @@ interface EmailRelationConfig extends RelationConfig {
  * Handles email addresses for users and teams with verification support
  */
 export class EmailDbFactory extends DatabaseFixtureFactory<
-    Prisma.email,
+    email,
     Prisma.emailCreateInput,
     Prisma.emailInclude,
     Prisma.emailUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('email', prisma);
+        super("email", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -54,7 +54,7 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
     /**
      * Create verified email
      */
-    async createVerified(overrides?: Partial<Prisma.emailCreateInput>): Promise<Prisma.email> {
+    async createVerified(overrides?: Partial<Prisma.emailCreateInput>): Promise<email> {
         return this.createComplete({
             verifiedAt: new Date(),
             verificationCode: null,
@@ -65,7 +65,7 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
     /**
      * Create unverified email with pending verification
      */
-    async createUnverified(overrides?: Partial<Prisma.emailCreateInput>): Promise<Prisma.email> {
+    async createUnverified(overrides?: Partial<Prisma.emailCreateInput>): Promise<email> {
         return this.createMinimal({
             verificationCode: `verify_${nanoid(32)}`,
             lastVerificationCodeRequestAttempt: new Date(),
@@ -77,7 +77,7 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
     /**
      * Create email with expired verification code
      */
-    async createExpiredVerification(overrides?: Partial<Prisma.emailCreateInput>): Promise<Prisma.email> {
+    async createExpiredVerification(overrides?: Partial<Prisma.emailCreateInput>): Promise<email> {
         return this.createMinimal({
             verificationCode: `expired_${nanoid(32)}`,
             lastVerificationCodeRequestAttempt: new Date(Date.now() - 25 * 60 * 60 * 1000), // 25 hours ago
@@ -89,7 +89,7 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
     /**
      * Create team email
      */
-    async createTeamEmail(overrides?: Partial<Prisma.emailCreateInput>): Promise<Prisma.email> {
+    async createTeamEmail(overrides?: Partial<Prisma.emailCreateInput>): Promise<email> {
         const teamEmail = `team_${nanoid(8)}@company.com`.toLowerCase();
         
         return this.createVerified({
@@ -112,7 +112,6 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
                 select: {
                     id: true,
                     publicId: true,
-                    name: true,
                     handle: true,
                 },
             },
@@ -122,9 +121,9 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.emailCreateInput,
         config: EmailRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.emailCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle user connection
         if (config.withUser && !data.team) {
@@ -149,8 +148,8 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
                 data: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    name: "Email Test Team",
                     handle: `email_team_${nanoid(8)}`,
+                    name: "Email Test Team",
                     isPrivate: false,
                 },
             });
@@ -177,7 +176,7 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
     /**
      * Create test scenarios
      */
-    async createUserWithMultipleEmails(count: number = 3): Promise<Prisma.email[]> {
+    async createUserWithMultipleEmails(count = 3): Promise<email[]> {
         const user = await this.prisma.user.create({
             data: {
                 id: generatePK(),
@@ -197,10 +196,10 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
                 return this.createWithRelations({
                     overrides: {
                         emailAddress: email,
+                        user: { connect: { id: user.id } },
                     },
                     withUser: false, // We'll connect manually
                     verified: i === 0, // First email is verified
-                    user: { connect: { id: user.id } },
                 });
             }),
         );
@@ -208,8 +207,8 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
         return emails;
     }
 
-    async createProfessionalEmails(): Promise<Prisma.email[]> {
-        const domains = ['gmail.com', 'outlook.com', 'company.com', 'university.edu'];
+    async createProfessionalEmails(): Promise<email[]> {
+        const domains = ["gmail.com", "outlook.com", "company.com", "university.edu"];
         
         return Promise.all(
             domains.map(domain => {
@@ -221,13 +220,13 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
         );
     }
 
-    protected async checkModelConstraints(record: Prisma.email): Promise<string[]> {
+    protected async checkModelConstraints(record: email): Promise<string[]> {
         const violations: string[] = [];
         
         // Check email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(record.emailAddress)) {
-            violations.push('Invalid email format');
+            violations.push("Invalid email format");
         }
 
         // Check email uniqueness
@@ -238,30 +237,30 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
             },
         });
         if (duplicate) {
-            violations.push('Email address must be unique');
+            violations.push("Email address must be unique");
         }
 
         // Check that email belongs to either user or team, not both
         if (record.userId && record.teamId) {
-            violations.push('Email cannot belong to both user and team');
+            violations.push("Email cannot belong to both user and team");
         }
 
         // Check that email belongs to at least one entity
         if (!record.userId && !record.teamId) {
-            violations.push('Email must belong to either a user or team');
+            violations.push("Email must belong to either a user or team");
         }
 
         // Check verification code timing
         if (record.verificationCode && record.lastVerificationCodeRequestAttempt) {
             const hoursSinceRequest = (Date.now() - record.lastVerificationCodeRequestAttempt.getTime()) / (1000 * 60 * 60);
             if (hoursSinceRequest > 24) {
-                violations.push('Verification code may be expired (>24 hours old)');
+                violations.push("Verification code may be expired (>24 hours old)");
             }
         }
 
         // Check verified emails don't have verification codes
         if (record.verifiedAt && record.verificationCode) {
-            violations.push('Verified emails should not have verification codes');
+            violations.push("Verified emails should not have verification codes");
         }
 
         return violations;
@@ -314,7 +313,7 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
             maxLengthEmail: {
                 ...this.getMinimalData(),
                 // Max reasonable email length (320 chars total as per RFC)
-                emailAddress: `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(63)}.${'e'.repeat(61)}.com`.toLowerCase(),
+                emailAddress: `${"a".repeat(64)}@${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(63)}.${"e".repeat(61)}.com`.toLowerCase(),
             },
             specialCharsEmail: {
                 ...this.getMinimalData(),
@@ -357,9 +356,9 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.email,
+        record: email,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Emails don't have dependent records to delete
         // The user/team relationship is handled by the parent
@@ -369,7 +368,7 @@ export class EmailDbFactory extends DatabaseFixtureFactory<
      * Helper to generate various email formats
      */
     static generateEmailVariants(baseUser: string): string[] {
-        const domains = ['example.com', 'test.org', 'demo.net'];
+        const domains = ["example.com", "test.org", "demo.net"];
         const variants: string[] = [];
         
         domains.forEach(domain => {

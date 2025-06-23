@@ -25,6 +25,18 @@ const NODE_ID_TOO_LONG_LENGTH = 129;
 const RUN_DATA_MAX_LENGTH = 16384;
 const RUN_IO_DATA_MAX_LENGTH = 8192;
 const RUN_NAME_MAX_LENGTH = 128;
+const STEP_COMPLEXITY_BASE = 50;
+const STEP_COMPLEXITY_INCREMENT = 10;
+const COMPLEX_RUN_STEPS_COUNT = 10;
+const COMPLETED_STEPS_THRESHOLD = 8;
+const MILLISECONDS_PER_MINUTE = 60000;
+const MINUTES_PER_STEP = 10;
+const LOOP_ITERATIONS = 200;
+const PROGRESS_UPDATE_INTERVAL_MS = 7200000; // 2 hours
+const ONE_HOUR_MS = 3600000;
+const TOTAL_COMPLEXITY_SCALE = 200;
+const MULTI_STEP_COMPLEXITY_BASE = 20;
+const FORTY_EIGHT_HOURS_MS = 172800000;
 
 // ========================================
 // Test Data Constants
@@ -255,7 +267,7 @@ const runFixtureData = {
                 pullRequest: null,
                 resourceSubType: null,
                 versionNotes: null,
-                root: null as any,
+                root: null,
                 forks: [],
                 comments: [],
                 reports: [],
@@ -287,7 +299,7 @@ const runFixtureData = {
                 meetings: [],
                 recurrences: [],
                 runs: [],
-                user: null as any,
+                user: null,
             },
             team: null,
             user: null,
@@ -298,7 +310,7 @@ const runFixtureData = {
                     data: JSON.stringify({ type: "input", value: "test data", timestamp: testTimestamp }),
                     nodeInputName: "mainInput",
                     nodeName: "startNode",
-                    run: null as any,
+                    run: null,
                 },
                 {
                     __typename: "RunIO" as const,
@@ -306,7 +318,7 @@ const runFixtureData = {
                     data: JSON.stringify({ type: "output", result: "processed data", success: true }),
                     nodeInputName: "mainOutput",
                     nodeName: "processNode",
-                    run: null as any,
+                    run: null,
                 },
             ],
             ioCount: 2,
@@ -434,7 +446,7 @@ const runFixtureData = {
         validationErrors: {
             invalidStatus: {
                 id: validIds.run3,
-                status: "NotARealStatus" as any, // Invalid enum value
+                status: "NotARealStatus" as RunStatus, // Invalid enum value for testing
                 name: "Test Run",
                 isPrivate: false,
                 resourceVersionConnect: validIds.resourceVersion1,
@@ -572,16 +584,16 @@ const runFixtureData = {
                     nodeName: `node_${i}`,
                     runConnect: validIds.run5,
                 })),
-                stepsCreate: Array.from({ length: 10 }, (_, i) => ({
+                stepsCreate: Array.from({ length: COMPLEX_RUN_STEPS_COUNT }, (_, i) => ({
                     id: generatePK().toString(),
-                    complexity: 50 + i * 10,
+                    complexity: STEP_COMPLEXITY_BASE + i * STEP_COMPLEXITY_INCREMENT,
                     contextSwitches: i + 1,
                     name: `Step ${i + 1}: Complex Processing Phase`,
                     nodeId: `complex_node_${i}`,
                     order: i,
-                    status: i < 8 ? RunStepStatus.Completed : RunStepStatus.InProgress,
+                    status: i < COMPLETED_STEPS_THRESHOLD ? RunStepStatus.Completed : RunStepStatus.InProgress,
                     resourceInId: validIds.resourceVersion1,
-                    timeElapsed: i < 8 ? (i + 1) * 600000 : undefined, // 10 minutes per step
+                    timeElapsed: i < COMPLETED_STEPS_THRESHOLD ? (i + 1) * MILLISECONDS_PER_MINUTE * MINUTES_PER_STEP : undefined,
                     runConnect: validIds.run5,
                     resourceVersionConnect: i % 2 === 0 ? validIds.resourceVersion2 : undefined,
                 })),
@@ -592,11 +604,11 @@ const runFixtureData = {
                 completedComplexity: 1500000,
                 contextSwitches: 15000,
                 data: "x".repeat(RUN_DATA_MAX_LENGTH), // Maximum data length
-                timeElapsed: 172800000, // 48 hours
+                timeElapsed: FORTY_EIGHT_HOURS_MS,
                 isPrivate: false,
                 ioCreate: [{
                     id: generatePK().toString(),
-                    data: JSON.stringify({ final: "maximum complexity result", metrics: { total_time: 172800000 } }),
+                    data: JSON.stringify({ final: "maximum complexity result", metrics: { total_time: FORTY_EIGHT_HOURS_MS } }),
                     nodeInputName: "maximalOutput",
                     nodeName: "finalNode",
                     runConnect: validIds.run5,
@@ -605,10 +617,10 @@ const runFixtureData = {
                     id: generatePK().toString(),
                     data: "a".repeat(RUN_IO_DATA_MAX_LENGTH), // Maximum IO data length
                 }],
-                stepsUpdate: Array.from({ length: 2 }, (_, i) => ({
+                stepsUpdate: Array.from({ length: 2 }, (_i) => ({
                     id: generatePK().toString(),
                     status: RunStepStatus.Completed,
-                    timeElapsed: 600000,
+                    timeElapsed: MILLISECONDS_PER_MINUTE * MINUTES_PER_STEP,
                     contextSwitches: 5,
                 })),
                 scheduleUpdate: {
@@ -693,7 +705,7 @@ const runFixtureData = {
                 isPrivate: false,
                 resourceVersionConnect: validIds.resourceVersion1,
                 startedAt: status === RunStatus.Scheduled ? undefined : testTimestamp,
-                timeElapsed: status === RunStatus.Scheduled ? undefined : 3600000,
+                timeElapsed: status === RunStatus.Scheduled ? undefined : ONE_HOUR_MS,
             } satisfies RunCreateInput,
         })),
 
@@ -812,8 +824,8 @@ const runIntegration = {
                 try {
                     const result = await runValidation.create({}).validate(input);
                     return { isValid: true, data: result };
-                } catch (error: any) {
-                    return { isValid: false, errors: [error.message] };
+                } catch (error) {
+                    return { isValid: false, errors: [error instanceof Error ? error.message : String(error)] };
                 }
             },
         },
@@ -822,8 +834,8 @@ const runIntegration = {
                 try {
                     const result = await runValidation.update({}).validate(input);
                     return { isValid: true, data: result };
-                } catch (error: any) {
-                    return { isValid: false, errors: [error.message] };
+                } catch (error) {
+                    return { isValid: false, errors: [error instanceof Error ? error.message : String(error)] };
                 }
             },
         },
@@ -860,28 +872,28 @@ export class RunAPIFixtureFactory extends BaseAPIFixtureFactory<
         const result = { ...base };
 
         if (relations.resourceVersion) {
-            result.resourceVersion = relations.resourceVersion as any;
+            result.resourceVersion = relations.resourceVersion as Run["resourceVersion"];
         }
 
         if (relations.schedule) {
-            result.schedule = relations.schedule as any;
+            result.schedule = relations.schedule as Run["schedule"];
         }
 
         if (relations.team) {
-            result.team = relations.team as any;
+            result.team = relations.team as Run["team"];
         }
 
         if (relations.user) {
-            result.user = relations.user as any;
+            result.user = relations.user as Run["user"];
         }
 
         if (relations.io && Array.isArray(relations.io)) {
-            result.io = relations.io as any;
+            result.io = relations.io as Run["io"];
             result.ioCount = relations.io.length;
         }
 
         if (relations.steps && Array.isArray(relations.steps)) {
-            result.steps = relations.steps as any;
+            result.steps = relations.steps as Run["steps"];
             result.stepsCount = relations.steps.length;
         }
 
@@ -905,7 +917,7 @@ export class RunAPIFixtureFactory extends BaseAPIFixtureFactory<
     createRunningRun = (routineId: string, progress?: number, overrides?: Partial<RunCreateInput>): RunCreateInput => {
         const progressData = progress !== undefined ? {
             completedComplexity: Math.floor(progress * 100),
-            timeElapsed: Math.floor(progress * 3600000), // Scale to 1 hour max
+            timeElapsed: Math.floor(progress * ONE_HOUR_MS),
             data: JSON.stringify(runConfigFixtures.variants.withActiveBranches),
         } : {};
 
@@ -986,8 +998,8 @@ export class RunAPIFixtureFactory extends BaseAPIFixtureFactory<
     // ========================================
 
     updateRunProgress = (runId: string, currentStep: number, progress: number, overrides?: Partial<RunUpdateInput>): RunUpdateInput => {
-        const completedComplexity = Math.floor(progress * 200); // Scale to 200 total complexity
-        const timeElapsed = Math.floor(progress * 7200000); // Scale to 2 hours max
+        const completedComplexity = Math.floor(progress * TOTAL_COMPLEXITY_SCALE);
+        const timeElapsed = Math.floor(progress * PROGRESS_UPDATE_INTERVAL_MS);
 
         return this.updateFactory(runId, {
             completedComplexity,
@@ -1147,14 +1159,14 @@ export class RunAPIFixtureFactory extends BaseAPIFixtureFactory<
     createMultiStepRun = (routineId: string, stepCount: number, overrides?: Partial<RunCreateInput>): RunCreateInput => {
         const steps = Array.from({ length: stepCount }, (_, i) => ({
             id: generatePK().toString(),
-            complexity: 20 + i * 10,
+            complexity: MULTI_STEP_COMPLEXITY_BASE + i * STEP_COMPLEXITY_INCREMENT,
             contextSwitches: i + 1,
             name: `Step ${i + 1}`,
             nodeId: `node_${i}`,
             order: i,
             status: i === stepCount - 1 ? RunStepStatus.InProgress : RunStepStatus.Completed,
             resourceInId: routineId,
-            timeElapsed: i < stepCount - 1 ? (i + 1) * 600000 : undefined, // 10 minutes per completed step
+            timeElapsed: i < stepCount - 1 ? (i + 1) * MILLISECONDS_PER_MINUTE * MINUTES_PER_STEP : undefined,
             runConnect: overrides?.id || generatePK().toString(),
         }));
 

@@ -1,5 +1,5 @@
 import type { ReminderListCreateInput, ReminderListUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { reminderListValidation } from "../../../validation/models/reminderList.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
@@ -13,6 +13,9 @@ const validIds = {
     id7: "123456789012345684",
     id8: "123456789012345685",
 };
+
+// Magic number constants for testing
+const INVALID_ID_FOR_TESTING = 123;
 
 // Shared reminder list test fixtures
 export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, ReminderListUpdateInput> = {
@@ -148,7 +151,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
             update: {
                 id: validIds.id1,
                 // @ts-expect-error - Testing invalid type in array (number instead of string)
-                remindersDelete: ["not-a-valid-id", 123], // Should be valid IDs
+                remindersDelete: ["not-a-valid-id", INVALID_ID_FOR_TESTING], // Should be valid IDs
             } as unknown as ReminderListUpdateInput,
         },
     },

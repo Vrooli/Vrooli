@@ -980,7 +980,7 @@ export function getAllDocumentBootstrapRoutines(): RoutineFixture[] {
 
 export function getDocumentRoutineByType(type: string): RoutineFixture[] {
     return getAllDocumentBootstrapRoutines().filter(
-        routine => routine.name.toLowerCase().includes(type.toLowerCase())
+        routine => routine.name.toLowerCase().includes(type.toLowerCase()),
     );
 }
 

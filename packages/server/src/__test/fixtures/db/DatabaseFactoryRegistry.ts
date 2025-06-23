@@ -1,5 +1,5 @@
 import { type PrismaClient } from "@prisma/client";
-import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
+import { type EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 
 /**
  * Registry for managing database fixture factories
@@ -19,7 +19,7 @@ export class DatabaseFactoryRegistry {
      */
     register<T extends EnhancedDatabaseFactory<any, any>>(
         modelName: string,
-        factoryClass: new (modelName: string, prisma: PrismaClient) => T
+        factoryClass: new (modelName: string, prisma: PrismaClient) => T,
     ): T {
         const factory = factoryClass.getInstance(modelName, this.prisma);
         this.factories.set(modelName, factory);
@@ -56,7 +56,7 @@ export class DatabaseFactoryRegistry {
      */
     async cleanupAll(): Promise<void> {
         const cleanupPromises = Array.from(this.factories.values()).map(
-            factory => factory.cleanupAll()
+            factory => factory.cleanupAll(),
         );
         await Promise.all(cleanupPromises);
     }
@@ -123,17 +123,17 @@ export class DatabaseFactoryRegistry {
                 try {
                     const validation = await factory.verifyConstraints(id);
                     if (!validation.valid) {
-                        issues.push(`${modelName}#${id}: ${validation.violations.join(', ')}`);
+                        issues.push(`${modelName}#${id}: ${validation.violations.join(", ")}`);
                     }
                 } catch (error) {
-                    issues.push(`${modelName}#${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    issues.push(`${modelName}#${id}: ${error instanceof Error ? error.message : "Unknown error"}`);
                 }
             }
         }
 
         return {
             valid: issues.length === 0,
-            issues
+            issues,
         };
     }
 
@@ -141,7 +141,7 @@ export class DatabaseFactoryRegistry {
      * Execute a transaction with all factories having transaction-aware delegates
      */
     async transaction<T>(
-        callback: (tx: any, factories: Map<string, EnhancedDatabaseFactory<any, any>>) => Promise<T>
+        callback: (tx: any, factories: Map<string, EnhancedDatabaseFactory<any, any>>) => Promise<T>,
     ): Promise<T> {
         return await this.prisma.$transaction(async (tx) => {
             // Create transaction-aware factory map
@@ -151,11 +151,11 @@ export class DatabaseFactoryRegistry {
                 // Create a proxy that uses the transaction
                 const txFactory = new Proxy(factory, {
                     get(target, prop) {
-                        if (prop === 'prisma') {
+                        if (prop === "prisma") {
                             return tx;
                         }
                         return target[prop as keyof typeof target];
-                    }
+                    },
                 });
                 txFactories.set(modelName, txFactory as any);
             });
@@ -173,7 +173,7 @@ export class DatabaseFactoryRegistry {
             
             // Execute scenario steps in order
             for (const [step, stepConfig] of Object.entries(config)) {
-                const [modelName, action] = step.split('.');
+                const [modelName, action] = step.split(".");
                 const factory = factories.get(modelName);
                 
                 if (!factory) {
@@ -181,19 +181,19 @@ export class DatabaseFactoryRegistry {
                 }
 
                 switch (action) {
-                    case 'create':
+                    case "create":
                         result[step] = await factory.createMinimal(stepConfig);
                         break;
-                    case 'createComplete':
+                    case "createComplete":
                         result[step] = await factory.createComplete(stepConfig);
                         break;
-                    case 'createWithRelations':
+                    case "createWithRelations":
                         result[step] = await factory.createWithRelations(stepConfig);
                         break;
-                    case 'seedMultiple':
+                    case "seedMultiple":
                         result[step] = await factory.seedMultiple(
                             stepConfig.count || 1,
-                            stepConfig.template
+                            stepConfig.template,
                         );
                         break;
                     default:

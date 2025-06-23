@@ -2,8 +2,8 @@
  * Integration test for database factories
  * Tests that factories can be instantiated and basic operations work
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { PrismaClient } from "@prisma/client";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { type PrismaClient } from "@prisma/client";
 import { CreditAccountDbFactory } from "./CreditAccountDbFactory.js";
 import { MemberDbFactory } from "./MemberDbFactory.js";
 import { generatePK } from "./idHelpers.js";
@@ -34,18 +34,18 @@ const mockPrisma = {
     $transaction: vi.fn().mockImplementation((fn) => fn(mockPrisma)),
 } as unknown as PrismaClient;
 
-describe('Database Factory Integration Tests', () => {
+describe("Database Factory Integration Tests", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    describe('CreditAccountDbFactory', () => {
-        it('should instantiate correctly', () => {
+    describe("CreditAccountDbFactory", () => {
+        it("should instantiate correctly", () => {
             const factory = new CreditAccountDbFactory(mockPrisma);
             expect(factory).toBeInstanceOf(CreditAccountDbFactory);
         });
 
-        it('should create minimal account', async () => {
+        it("should create minimal account", async () => {
             const factory = new CreditAccountDbFactory(mockPrisma);
             const account = await factory.createMinimal();
             
@@ -57,11 +57,11 @@ describe('Database Factory Integration Tests', () => {
                 include: expect.anything(),
             });
             
-            expect(account).toHaveProperty('id');
-            expect(account).toHaveProperty('currentBalance', BigInt(1000));
+            expect(account).toHaveProperty("id");
+            expect(account).toHaveProperty("currentBalance", BigInt(1000));
         });
 
-        it('should create account with specific balance', async () => {
+        it("should create account with specific balance", async () => {
             const factory = new CreditAccountDbFactory(mockPrisma);
             const balance = BigInt(5000);
             const account = await factory.createWithBalance(balance);
@@ -74,7 +74,7 @@ describe('Database Factory Integration Tests', () => {
             });
         });
 
-        it('should create account for user', async () => {
+        it("should create account for user", async () => {
             const factory = new CreditAccountDbFactory(mockPrisma);
             const userId = generatePK();
             const account = await factory.createForUser(userId);
@@ -89,7 +89,7 @@ describe('Database Factory Integration Tests', () => {
             });
         });
 
-        it('should create account for team', async () => {
+        it("should create account for team", async () => {
             const factory = new CreditAccountDbFactory(mockPrisma);
             const teamId = generatePK();
             const account = await factory.createForTeam(teamId);
@@ -105,13 +105,13 @@ describe('Database Factory Integration Tests', () => {
         });
     });
 
-    describe('MemberDbFactory', () => {
-        it('should instantiate correctly', () => {
+    describe("MemberDbFactory", () => {
+        it("should instantiate correctly", () => {
             const factory = new MemberDbFactory(mockPrisma);
             expect(factory).toBeInstanceOf(MemberDbFactory);
         });
 
-        it('should create minimal member', async () => {
+        it("should create minimal member", async () => {
             const factory = new MemberDbFactory(mockPrisma);
             const member = await factory.createMinimal();
             
@@ -124,11 +124,11 @@ describe('Database Factory Integration Tests', () => {
                 include: expect.anything(),
             });
             
-            expect(member).toHaveProperty('id');
-            expect(member).toHaveProperty('role', 'Member');
+            expect(member).toHaveProperty("id");
+            expect(member).toHaveProperty("role", "Member");
         });
 
-        it('should create owner', async () => {
+        it("should create owner", async () => {
             const factory = new MemberDbFactory(mockPrisma);
             const userId = generatePK();
             const teamId = generatePK();
@@ -144,7 +144,7 @@ describe('Database Factory Integration Tests', () => {
             });
         });
 
-        it('should create admin', async () => {
+        it("should create admin", async () => {
             const factory = new MemberDbFactory(mockPrisma);
             const userId = generatePK();
             const teamId = generatePK();
@@ -160,7 +160,7 @@ describe('Database Factory Integration Tests', () => {
             });
         });
 
-        it('should verify role correctly', async () => {
+        it("should verify role correctly", async () => {
             const factory = new MemberDbFactory(mockPrisma);
             const memberId = generatePK();
             const expectedRole = "Admin";
@@ -176,7 +176,7 @@ describe('Database Factory Integration Tests', () => {
             expect(member.role).toBe(expectedRole);
         });
 
-        it('should throw error for role mismatch', async () => {
+        it("should throw error for role mismatch", async () => {
             const factory = new MemberDbFactory(mockPrisma);
             const memberId = generatePK();
             
@@ -188,10 +188,10 @@ describe('Database Factory Integration Tests', () => {
             });
             
             await expect(factory.verifyRole(memberId, "Owner"))
-                .rejects.toThrow('Role mismatch: expected Owner, got Member');
+                .rejects.toThrow("Role mismatch: expected Owner, got Member");
         });
 
-        it('should verify team member count', async () => {
+        it("should verify team member count", async () => {
             const factory = new MemberDbFactory(mockPrisma);
             const teamId = generatePK();
             const expectedCount = 5;
@@ -202,7 +202,7 @@ describe('Database Factory Integration Tests', () => {
             expect(count).toBe(expectedCount);
         });
 
-        it('should create multiple team members', async () => {
+        it("should create multiple team members", async () => {
             const factory = new MemberDbFactory(mockPrisma);
             const teamId = generatePK();
             const members = [
@@ -218,52 +218,52 @@ describe('Database Factory Integration Tests', () => {
         });
     });
 
-    describe('Factory Fixtures', () => {
-        it('should provide valid minimal fixtures', () => {
+    describe("Factory Fixtures", () => {
+        it("should provide valid minimal fixtures", () => {
             const creditFactory = new CreditAccountDbFactory(mockPrisma);
-            const creditFixtures = creditFactory['getFixtures']();
+            const creditFixtures = creditFactory["getFixtures"]();
             
-            expect(creditFixtures.minimal).toHaveProperty('currentBalance');
+            expect(creditFixtures.minimal).toHaveProperty("currentBalance");
             expect(creditFixtures.minimal.currentBalance).toBe(BigInt(1000));
             
             const memberFactory = new MemberDbFactory(mockPrisma);
-            const memberFixtures = memberFactory['getFixtures']();
+            const memberFixtures = memberFactory["getFixtures"]();
             
-            expect(memberFixtures.minimal).toHaveProperty('role');
-            expect(memberFixtures.minimal.role).toBe('Member');
+            expect(memberFixtures.minimal).toHaveProperty("role");
+            expect(memberFixtures.minimal.role).toBe("Member");
         });
 
-        it('should provide edge case fixtures', () => {
+        it("should provide edge case fixtures", () => {
             const creditFactory = new CreditAccountDbFactory(mockPrisma);
-            const creditFixtures = creditFactory['getFixtures']();
+            const creditFixtures = creditFactory["getFixtures"]();
             
-            expect(creditFixtures.edgeCases).toHaveProperty('zeroBalance');
+            expect(creditFixtures.edgeCases).toHaveProperty("zeroBalance");
             expect(creditFixtures.edgeCases.zeroBalance.currentBalance).toBe(BigInt(0));
-            expect(creditFixtures.edgeCases).toHaveProperty('highBalance');
+            expect(creditFixtures.edgeCases).toHaveProperty("highBalance");
             expect(creditFixtures.edgeCases.highBalance.currentBalance).toBe(BigInt(10000000));
             
             const memberFactory = new MemberDbFactory(mockPrisma);
-            const memberFixtures = memberFactory['getFixtures']();
+            const memberFixtures = memberFactory["getFixtures"]();
             
             // Member factory may still use variants - check what it actually provides
-            expect(memberFixtures).toHaveProperty('minimal');
-            expect(memberFixtures.minimal.role).toBe('Member');
+            expect(memberFixtures).toHaveProperty("minimal");
+            expect(memberFixtures.minimal.role).toBe("Member");
         });
 
-        it('should provide update fixtures', () => {
+        it("should provide update fixtures", () => {
             const creditFactory = new CreditAccountDbFactory(mockPrisma);
-            const creditFixtures = creditFactory['getFixtures']();
+            const creditFixtures = creditFactory["getFixtures"]();
             
-            expect(creditFixtures.updates).toHaveProperty('addCredits');
+            expect(creditFixtures.updates).toHaveProperty("addCredits");
             expect(creditFixtures.updates?.addCredits.currentBalance).toBe(BigInt(5000));
-            expect(creditFixtures.updates).toHaveProperty('zeroOut');
+            expect(creditFixtures.updates).toHaveProperty("zeroOut");
             expect(creditFixtures.updates?.zeroOut.currentBalance).toBe(BigInt(0));
             
             const memberFactory = new MemberDbFactory(mockPrisma);
-            const memberFixtures = memberFactory['getFixtures']();
+            const memberFixtures = memberFactory["getFixtures"]();
             
             // Member factory may still use different structure - will check separately
-            expect(memberFixtures).toHaveProperty('minimal');
+            expect(memberFixtures).toHaveProperty("minimal");
         });
     });
 });

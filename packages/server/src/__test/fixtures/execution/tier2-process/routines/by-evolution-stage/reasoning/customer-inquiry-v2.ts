@@ -25,8 +25,8 @@ export const customerInquiryV2: RoutineFixture = {
             approach: "Pattern matching with reasoning fallback",
             patterns: 12, // Number of identified common patterns
             templateCoverage: "60% of inquiries",
-            contextOptimization: "Selective context retrieval"
-        }
+            contextOptimization: "Selective context retrieval",
+        },
     },
     
     // Optimized execution flow
@@ -34,24 +34,24 @@ export const customerInquiryV2: RoutineFixture = {
         {
             name: "Pattern Classification",
             prompt: "Classify inquiry into: billing, technical, account, shipping, or custom.",
-            expectedTime: "2-3s"
+            expectedTime: "2-3s",
         },
         {
             name: "Template Selection",
             prompt: "If pattern matches (confidence > 0.8), select appropriate response template.",
-            expectedTime: "1s"
+            expectedTime: "1s",
         },
         {
             name: "Contextual Adaptation",
             prompt: "Adapt template with customer-specific details and current context.",
-            expectedTime: "5-10s"
+            expectedTime: "5-10s",
         },
         {
             name: "Fallback Reasoning",
             prompt: "For non-pattern inquiries, use focused reasoning on specific aspects.",
             expectedTime: "10-15s",
-            conditional: true
-        }
+            conditional: true,
+        },
     ],
     
     // Improved performance metrics
@@ -61,7 +61,7 @@ export const customerInquiryV2: RoutineFixture = {
         accuracy: "95%",
         customerSatisfaction: "88%",
         patternHitRate: "62%",
-        fallbackRate: "38%"
+        fallbackRate: "38%",
     },
     
     // Evolution insights
@@ -77,13 +77,13 @@ export const customerInquiryV2: RoutineFixture = {
             "Technical troubleshooting (8%)",
             "Account updates (7%)",
             "Shipping delays (5%)",
-            "Return requests (3%)"
+            "Return requests (3%)",
         ],
         
         nextOptimizations: [
             "Direct API calls for data retrieval",
             "Pre-computed responses for top patterns",
-            "Automated action execution"
-        ]
-    }
+            "Automated action execution",
+        ],
+    },
 };

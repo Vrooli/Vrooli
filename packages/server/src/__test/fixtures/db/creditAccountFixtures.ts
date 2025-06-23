@@ -153,7 +153,7 @@ export class CreditAccountDbFactory {
      */
     static createUserAccount(
         userId: bigint,
-        balance: bigint = 100000n,
+        balance = 100000n,
         overrides?: Partial<Prisma.CreditAccountCreateInput>,
     ): Prisma.CreditAccountCreateInput {
         return {
@@ -169,7 +169,7 @@ export class CreditAccountDbFactory {
      */
     static createTeamAccount(
         teamId: bigint,
-        balance: bigint = 1000000n,
+        balance = 1000000n,
         overrides?: Partial<Prisma.CreditAccountCreateInput>,
     ): Prisma.CreditAccountCreateInput {
         return {
@@ -260,7 +260,7 @@ export class CreditAccountDbFactory {
     static createForLimitTesting(
         entityId: bigint,
         entityType: "user" | "team",
-        lowBalance: boolean = false,
+        lowBalance = false,
         overrides?: Partial<Prisma.CreditAccountCreateInput>,
     ): Prisma.CreditAccountCreateInput {
         const balance = lowBalance ? 1000n : 100000n; // Low: 1K, Normal: 100K
@@ -281,7 +281,7 @@ export class CreditAccountDbFactory {
      */
     static createEnterprise(
         teamId: bigint,
-        balance: bigint = 100000000n, // 100M credits
+        balance = 100000000n, // 100M credits
         overrides?: Partial<Prisma.CreditAccountCreateInput>,
     ): Prisma.CreditAccountCreateInput {
         return {

@@ -508,7 +508,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
 
     static createWithCreator(
         creatorId: string,
-        overrides?: Partial<Prisma.teamCreateInput>
+        overrides?: Partial<Prisma.teamCreateInput>,
     ): Prisma.teamCreateInput {
         const factory = new TeamDbFactory();
         return factory.createMinimal({
@@ -532,7 +532,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
      */
     static createWithMembers(
         members: Array<{ userId: string; isAdmin?: boolean }>,
-        overrides?: Partial<Prisma.teamCreateInput>
+        overrides?: Partial<Prisma.teamCreateInput>,
     ): Prisma.teamCreateInput {
         const factory = new TeamDbFactory();
         return factory.createMinimal({
@@ -554,7 +554,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
      */
     static createWithParent(
         parentId: string,
-        overrides?: Partial<Prisma.teamCreateInput>
+        overrides?: Partial<Prisma.teamCreateInput>,
     ): Prisma.teamCreateInput {
         const factory = new TeamDbFactory();
         return factory.createMinimal({
@@ -576,7 +576,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
      */
     static createWithTags(
         tags: string[],
-        overrides?: Partial<Prisma.teamCreateInput>
+        overrides?: Partial<Prisma.teamCreateInput>,
     ): Prisma.teamCreateInput {
         const factory = new TeamDbFactory();
         return factory.createMinimal({
@@ -595,7 +595,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
      */
     static createWithTranslations(
         translations: Array<{ language: string; name: string; bio?: string }>,
-        overrides?: Partial<Prisma.teamCreateInput>
+        overrides?: Partial<Prisma.teamCreateInput>,
     ): Prisma.teamCreateInput {
         const factory = new TeamDbFactory();
         return factory.createMinimal({
@@ -632,19 +632,19 @@ export function createTestTeam(overrides?: Partial<Prisma.TeamCreateInput>) {
  */
 export async function seedTestTeams(
     prisma: any,
-    count: number = 3,
+    count = 3,
     options?: BulkSeedOptions & {
         withCreator?: boolean;
         creatorId?: string;
         withMembers?: boolean;
         memberIds?: string[];
         isPrivate?: boolean;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const factory = new TeamDbFactory();
     const teams = [];
     let authCount = 0;
-    let botCount = 0;
+    const botCount = 0;
     let teamCount = 0;
 
     for (let i = 0; i < count; i++) {
@@ -667,7 +667,7 @@ export async function seedTestTeams(
                     ...overrides,
                     isPrivate: options?.isPrivate ?? false,
                     ...(options?.creatorId && { createdBy: { connect: { id: options.creatorId } } }),
-                }
+                },
             }).data;
             authCount++;
         } else {
@@ -723,7 +723,7 @@ export async function createTeamWithFullMembership(
         memberIds?: string[];
         adminIds?: string[];
         teamData?: Partial<Prisma.TeamCreateInput>;
-    }
+    },
 ) {
     const memberIds = options.memberIds || [];
     const adminIds = options.adminIds || [];
@@ -762,7 +762,7 @@ export async function createTeamWithFullMembership(
         include: {
             translations: true,
             members: { 
-                include: { user: { select: { id: true, name: true, handle: true } } }
+                include: { user: { select: { id: true, name: true, handle: true } } },
             },
             createdBy: { select: { id: true, name: true, handle: true } },
         },

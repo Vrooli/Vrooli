@@ -9,7 +9,7 @@ import type {
 
 interface ReactionRelationConfig extends RelationConfig {
     userId?: string;
-    targetType?: 'resource' | 'chatMessage' | 'comment' | 'issue';
+    targetType?: "resource" | "chatMessage" | "comment" | "issue";
     targetId?: string;
 }
 
@@ -32,7 +32,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
     Prisma.reactionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('reaction', prisma);
+        super("reaction", prisma);
         this.initializeScenarios();
     }
 
@@ -174,7 +174,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         emoji: "👍",
                     },
-                    targetType: 'resource',
+                    targetType: "resource",
                 },
             },
             loveReaction: {
@@ -184,7 +184,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         emoji: "❤️",
                     },
-                    targetType: 'resource',
+                    targetType: "resource",
                 },
             },
             issueReaction: {
@@ -194,7 +194,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         emoji: "🐛",
                     },
-                    targetType: 'issue',
+                    targetType: "issue",
                 },
             },
             commentReaction: {
@@ -204,7 +204,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         emoji: "💬",
                     },
-                    targetType: 'comment',
+                    targetType: "comment",
                 },
             },
             chatReaction: {
@@ -214,7 +214,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         emoji: "👋",
                     },
-                    targetType: 'chatMessage',
+                    targetType: "chatMessage",
                 },
             },
             multipleReactions: {
@@ -269,9 +269,9 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.reactionCreateInput,
         config: ReactionRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.reactionCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle user association
         if (config.userId) {
@@ -288,16 +288,16 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
 
             // Set the appropriate target
             switch (config.targetType) {
-                case 'resource':
+                case "resource":
                     data.resourceId = config.targetId;
                     break;
-                case 'chatMessage':
+                case "chatMessage":
                     data.chatMessageId = config.targetId;
                     break;
-                case 'comment':
+                case "comment":
                     data.commentId = config.targetId;
                     break;
-                case 'issue':
+                case "issue":
                     data.issueId = config.targetId;
                     break;
             }
@@ -310,10 +310,10 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
      * Create a reaction to a specific target type
      */
     async createReactionTo(
-        targetType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: string,
         userId: string,
-        emoji: string = "👍"
+        emoji = "👍",
     ): Promise<Prisma.reaction> {
         return await this.createWithRelations({
             overrides: { emoji },
@@ -327,9 +327,9 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
      * Create multiple reactions to the same target
      */
     async createMultipleReactionsToTarget(
-        targetType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: string,
-        reactions: Array<{ userId: string; emoji: string }>
+        reactions: Array<{ userId: string; emoji: string }>,
     ): Promise<Prisma.reaction[]> {
         const createdReactions: Prisma.reaction[] = [];
 
@@ -345,15 +345,15 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
      * Create common reaction patterns
      */
     async createLikeReaction(targetId: string, userId: string): Promise<Prisma.reaction> {
-        return await this.createReactionTo('resource', targetId, userId, "👍");
+        return await this.createReactionTo("resource", targetId, userId, "👍");
     }
 
     async createLoveReaction(targetId: string, userId: string): Promise<Prisma.reaction> {
-        return await this.createReactionTo('resource', targetId, userId, "❤️");
+        return await this.createReactionTo("resource", targetId, userId, "❤️");
     }
 
     async createCelebrationReaction(targetId: string, userId: string): Promise<Prisma.reaction> {
-        return await this.createReactionTo('resource', targetId, userId, "🎉");
+        return await this.createReactionTo("resource", targetId, userId, "🎉");
     }
 
     protected async checkModelConstraints(record: Prisma.reaction): Promise<string[]> {
@@ -364,22 +364,22 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
             record.resourceId,
             record.chatMessageId,
             record.commentId,
-            record.issueId
+            record.issueId,
         ].filter(Boolean).length;
 
         if (targetCount === 0) {
-            violations.push('Reaction must have exactly one target');
+            violations.push("Reaction must have exactly one target");
         } else if (targetCount > 1) {
-            violations.push('Reaction cannot have multiple targets');
+            violations.push("Reaction cannot have multiple targets");
         }
 
         // Check emoji format (basic validation)
         if (!record.emoji || record.emoji.length === 0) {
-            violations.push('Emoji cannot be empty');
+            violations.push("Emoji cannot be empty");
         }
 
         if (record.emoji && record.emoji.length > 32) {
-            violations.push('Emoji exceeds maximum length of 32 characters');
+            violations.push("Emoji exceeds maximum length of 32 characters");
         }
 
         // Check user exists
@@ -387,7 +387,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
             where: { id: record.byId },
         });
         if (!user) {
-            violations.push('User does not exist');
+            violations.push("User does not exist");
         }
 
         // Check uniqueness (user can only have one reaction per target)
@@ -402,7 +402,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
             },
         });
         if (existingReaction) {
-            violations.push('User already has a reaction to this target');
+            violations.push("User already has a reaction to this target");
         }
 
         return violations;
@@ -418,7 +418,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.reaction,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Reactions don't have dependent records
         // The reaction summary should be updated when reactions are deleted
@@ -429,8 +429,8 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
      * Get reaction statistics for a target
      */
     async getReactionStats(
-        targetType: 'resource' | 'chatMessage' | 'comment' | 'issue',
-        targetId: string
+        targetType: "resource" | "chatMessage" | "comment" | "issue",
+        targetId: string,
     ): Promise<Record<string, number>> {
         const where: any = {};
         where[`${targetType}Id`] = targetId;
@@ -452,9 +452,9 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
      * Create a set of diverse reactions for testing
      */
     async createDiverseReactions(
-        targetType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: string,
-        userIds: string[]
+        userIds: string[],
     ): Promise<Prisma.reaction[]> {
         const emojis = ["👍", "❤️", "🎉", "🔥", "👏", "😊", "🚀", "💯"];
         const reactions: Array<{ userId: string; emoji: string }> = [];
@@ -473,7 +473,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createReactionDbFactory = (prisma: PrismaClient) => 
-    ReactionDbFactory.getInstance('reaction', prisma);
+    ReactionDbFactory.getInstance("reaction", prisma);
 
 // Export the class for type usage
 export { ReactionDbFactory as ReactionDbFactoryClass };

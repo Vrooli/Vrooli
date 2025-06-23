@@ -1,4 +1,4 @@
-import { generatePK, StatPeriodType } from "@vrooli/shared";
+import { generatePK, type StatPeriodType } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 
 /**
@@ -52,21 +52,21 @@ export const completeStatsUserDb: Prisma.stats_userCreateInput = {
         "PROJECT": 8, 
         "CODE": 15, 
         "API": 3,
-        "STANDARD": 2 
+        "STANDARD": 2, 
     }),
     resourcesCompletedByType: JSON.stringify({ 
         "ROUTINE": 22, 
         "PROJECT": 7, 
         "CODE": 13, 
         "API": 2,
-        "STANDARD": 1 
+        "STANDARD": 1, 
     }),
     resourceCompletionTimeAverageByType: JSON.stringify({ 
         "ROUTINE": 95.7, 
         "PROJECT": 250.0, 
         "CODE": 45.3,
         "API": 180.5,
-        "STANDARD": 420.0 
+        "STANDARD": 420.0, 
     }),
     runsStarted: 150,
     runsCompleted: 142,
@@ -93,7 +93,7 @@ export const highPerformanceStatsUserDb: Prisma.stats_userCreateInput = {
         "CODE": 30, 
         "API": 8,
         "STANDARD": 5,
-        "QUIZ": 10 
+        "QUIZ": 10, 
     }),
     resourcesCompletedByType: JSON.stringify({ 
         "ROUTINE": 48, 
@@ -101,7 +101,7 @@ export const highPerformanceStatsUserDb: Prisma.stats_userCreateInput = {
         "CODE": 29, 
         "API": 7,
         "STANDARD": 4,
-        "QUIZ": 9 
+        "QUIZ": 9, 
     }),
     resourceCompletionTimeAverageByType: JSON.stringify({ 
         "ROUTINE": 45.2, 
@@ -109,7 +109,7 @@ export const highPerformanceStatsUserDb: Prisma.stats_userCreateInput = {
         "CODE": 25.8,
         "API": 90.3,
         "STANDARD": 200.0,
-        "QUIZ": 15.5 
+        "QUIZ": 15.5, 
     }),
     runsStarted: 300,
     runsCompleted: 295,
@@ -169,7 +169,7 @@ export class StatsUserDbFactory {
         periodType: StatPeriodType,
         periodStart: Date,
         periodEnd: Date,
-        overrides?: Partial<Prisma.stats_userCreateInput>
+        overrides?: Partial<Prisma.stats_userCreateInput>,
     ): Prisma.stats_userCreateInput {
         return {
             ...minimalStatsUserDb,
@@ -200,7 +200,7 @@ export class StatsUserDbFactory {
             runContextSwitchesAverage?: number;
             teamsCreated?: number;
         },
-        overrides?: Partial<Prisma.stats_userCreateInput>
+        overrides?: Partial<Prisma.stats_userCreateInput>,
     ): Prisma.stats_userCreateInput {
         return {
             ...minimalStatsUserDb,
@@ -275,7 +275,7 @@ export function createStatsUserTimeSeries(
     userId: string,
     periodType: StatPeriodType,
     count: number,
-    startDate: Date = new Date("2024-01-01T00:00:00Z")
+    startDate: Date = new Date("2024-01-01T00:00:00Z"),
 ): Prisma.stats_userCreateInput[] {
     const stats = [];
     const msPerPeriod = getPeriodMs(periodType);
@@ -320,8 +320,8 @@ export function createStatsUserTimeSeries(
                 periodType,
                 periodStart,
                 periodEnd,
-                baseMetrics
-            )
+                baseMetrics,
+            ),
         );
     }
 
@@ -338,7 +338,7 @@ export async function seedStatsUsers(
         periodType?: StatPeriodType;
         periodsPerUser?: number;
         withTimeSeries?: boolean;
-    }
+    },
 ) {
     const statsUsers = [];
     const periodType = options?.periodType || "Monthly";

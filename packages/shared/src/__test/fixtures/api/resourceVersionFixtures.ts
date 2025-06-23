@@ -1,6 +1,7 @@
 import type { ResourceSubType, ResourceVersionCreateInput, ResourceVersionTranslationCreateInput, ResourceVersionTranslationUpdateInput, ResourceVersionUpdateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { resourceVersionValidation } from "../../../validation/models/resourceVersion.js";
+import { baseConfigFixtures } from "../config/baseConfigFixtures.js";
 
 // Magic number constants for testing
 const CODE_LANGUAGE_TOO_LONG_LENGTH = 129;
@@ -55,7 +56,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
             id: validIds.id1,
             publicId: validPublicIds.pub1,
             codeLanguage: "typescript",
-            config: { __version: "1.0", resources: [] },
+            config: baseConfigFixtures.minimal,
             isAutomatable: true,
             isComplete: true,
             // isInternal: false, // Not part of ResourceVersionCreateInput
@@ -101,7 +102,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
         update: {
             id: validIds.id1,
             codeLanguage: "javascript",
-            config: { __version: "1.0", resources: [] },
+            config: baseConfigFixtures.minimal,
             isAutomatable: false,
             isComplete: true,
             // isInternal: true, // Not part of ResourceVersionUpdateInput
@@ -454,22 +455,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
         withConfiguration: {
             create: {
                 id: validIds.id1,
-                config: {
-                    __version: "2.0",
-                    resources: [
-                        {
-                            link: "https://example.com/docs",
-                            usedFor: "Learning",
-                            translations: [
-                                {
-                                    language: "en",
-                                    name: "Documentation",
-                                    description: "API documentation",
-                                },
-                            ],
-                        },
-                    ],
-                },
+                config: baseConfigFixtures.complete,
                 versionLabel: "1.0.0",
                 isPrivate: false,
                 rootConnect: validIds.id2,
@@ -592,7 +578,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
         updateConfiguration: {
             update: {
                 id: validIds.id1,
-                config: { __version: "1.0", resources: [] },
+                config: baseConfigFixtures.minimal,
                 isComplete: true,
             },
         },

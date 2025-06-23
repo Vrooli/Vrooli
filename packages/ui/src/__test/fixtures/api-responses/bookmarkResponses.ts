@@ -5,18 +5,18 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     Bookmark, 
     BookmarkCreateInput, 
     BookmarkUpdateInput,
     BookmarkList,
-    BookmarkFor 
-} from '@vrooli/shared';
+    BookmarkFor, 
+} from "@vrooli/shared";
 import { 
     bookmarkValidation,
-    BookmarkFor as BookmarkForEnum 
-} from '@vrooli/shared';
+    BookmarkFor as BookmarkForEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -68,7 +68,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class BookmarkResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -95,16 +95,16 @@ export class BookmarkResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/bookmark/${bookmark.id}`,
                     related: {
                         list: `${this.baseUrl}/api/bookmark-list/${bookmark.list.id}`,
                         target: `${this.baseUrl}/api/${bookmark.to.__typename.toLowerCase()}/${bookmark.to.id}`,
-                        user: `${this.baseUrl}/api/user/${bookmark.by.id}`
-                    }
-                }
-            }
+                        user: `${this.baseUrl}/api/user/${bookmark.by.id}`,
+                    },
+                },
+            },
         };
     }
     
@@ -119,7 +119,7 @@ export class BookmarkResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: bookmarks.length,
-            totalCount: bookmarks.length
+            totalCount: bookmarks.length,
         };
         
         return {
@@ -127,17 +127,17 @@ export class BookmarkResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/bookmark?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/bookmark?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -147,16 +147,16 @@ export class BookmarkResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/bookmark'
-            }
+                path: "/api/bookmark",
+            },
         };
     }
     
@@ -166,16 +166,16 @@ export class BookmarkResponseFactory {
     createNotFoundErrorResponse(bookmarkId: string): APIErrorResponse {
         return {
             error: {
-                code: 'BOOKMARK_NOT_FOUND',
+                code: "BOOKMARK_NOT_FOUND",
                 message: `Bookmark with ID '${bookmarkId}' was not found`,
                 details: {
                     bookmarkId,
-                    searchCriteria: { id: bookmarkId }
+                    searchCriteria: { id: bookmarkId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/bookmark/${bookmarkId}`
-            }
+                path: `/api/bookmark/${bookmarkId}`,
+            },
         };
     }
     
@@ -185,17 +185,17 @@ export class BookmarkResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this bookmark`,
                 details: {
                     operation,
-                    requiredPermissions: ['bookmark:write'],
-                    userPermissions: ['bookmark:read']
+                    requiredPermissions: ["bookmark:write"],
+                    userPermissions: ["bookmark:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/bookmark'
-            }
+                path: "/api/bookmark",
+            },
         };
     }
     
@@ -205,17 +205,17 @@ export class BookmarkResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/bookmark'
-            }
+                path: "/api/bookmark",
+            },
         };
     }
     
@@ -225,17 +225,17 @@ export class BookmarkResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/bookmark'
-            }
+                path: "/api/bookmark",
+            },
         };
     }
     
@@ -280,9 +280,9 @@ export class BookmarkResponseFactory {
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             to: {
                 __typename: "Resource",
@@ -302,8 +302,8 @@ export class BookmarkResponseFactory {
                     canReport: false,
                     isBookmarked: true,
                     isReacted: false,
-                    reaction: null
-                }
+                    reaction: null,
+                },
             },
             list: {
                 __typename: "BookmarkList",
@@ -316,14 +316,14 @@ export class BookmarkResponseFactory {
                 you: {
                     __typename: "BookmarkListYou",
                     canDelete: true,
-                    canUpdate: true
-                }
-            }
+                    canUpdate: true,
+                },
+            },
         };
         
         return {
             ...defaultBookmark,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -356,9 +356,9 @@ export class BookmarkResponseFactory {
                 to: {
                     ...this.createMockBookmark().to,
                     __typename: bookmarkFor,
-                    id: `${bookmarkFor.toLowerCase()}_${this.generateId()}`
-                }
-            })
+                    id: `${bookmarkFor.toLowerCase()}_${this.generateId()}`,
+                },
+            }),
         );
     }
     
@@ -387,7 +387,7 @@ export class BookmarkResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -409,7 +409,7 @@ export class BookmarkMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create bookmark
-            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async (req, res, ctx) => {
                 const body = await req.json() as BookmarkCreateInput;
                 
                 // Validate input
@@ -417,7 +417,7 @@ export class BookmarkMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -427,12 +427,12 @@ export class BookmarkMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get bookmark by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const bookmark = this.responseFactory.createMockBookmark({ id: id as string });
@@ -440,39 +440,39 @@ export class BookmarkMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update bookmark
-            rest.put(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as BookmarkUpdateInput;
                 
                 const bookmark = this.responseFactory.createMockBookmark({ 
                     id: id as string,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(bookmark);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete bookmark
-            rest.delete(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List bookmarks
-            rest.get(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const bookmarkFor = url.searchParams.get('bookmarkFor') as BookmarkFor;
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const bookmarkFor = url.searchParams.get("bookmarkFor") as BookmarkFor;
                 
                 let bookmarks = this.responseFactory.createBookmarksForAllTypes();
                 
@@ -490,15 +490,15 @@ export class BookmarkMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: bookmarks.length
-                    }
+                        totalCount: bookmarks.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -508,49 +508,49 @@ export class BookmarkMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        forConnect: 'Target object ID is required',
-                        bookmarkFor: 'Bookmark type must be specified'
-                    }))
+                        forConnect: "Target object ID is required",
+                        bookmarkFor: "Bookmark type must be specified",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async (req, res, ctx) => {
                 const body = await req.json() as BookmarkCreateInput;
                 const bookmark = this.responseFactory.createBookmarkFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(bookmark);
@@ -558,9 +558,9 @@ export class BookmarkMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -569,13 +569,13 @@ export class BookmarkMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -584,13 +584,13 @@ export class BookmarkMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -612,14 +612,14 @@ export const bookmarkResponseScenarios = {
     createSuccess: (bookmark?: Bookmark) => {
         const factory = new BookmarkResponseFactory();
         return factory.createSuccessResponse(
-            bookmark || factory.createMockBookmark()
+            bookmark || factory.createMockBookmark(),
         );
     },
     
     listSuccess: (bookmarks?: Bookmark[]) => {
         const factory = new BookmarkResponseFactory();
         return factory.createBookmarkListResponse(
-            bookmarks || factory.createBookmarksForAllTypes()
+            bookmarks || factory.createBookmarksForAllTypes(),
         );
     },
     
@@ -628,23 +628,23 @@ export const bookmarkResponseScenarios = {
         const factory = new BookmarkResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                forConnect: 'Target object is required',
-                bookmarkFor: 'Bookmark type must be specified'
-            }
+                forConnect: "Target object is required",
+                bookmarkFor: "Bookmark type must be specified",
+            },
         );
     },
     
     notFoundError: (bookmarkId?: string) => {
         const factory = new BookmarkResponseFactory();
         return factory.createNotFoundErrorResponse(
-            bookmarkId || 'non-existent-id'
+            bookmarkId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new BookmarkResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -657,7 +657,7 @@ export const bookmarkResponseScenarios = {
     successHandlers: () => new BookmarkMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new BookmarkMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new BookmarkMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new BookmarkMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new BookmarkMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

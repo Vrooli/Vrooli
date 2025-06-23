@@ -4,7 +4,7 @@ import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
 
 interface ReactionRelationConfig extends RelationConfig {
-    objectType?: 'resource' | 'chatMessage' | 'comment' | 'issue';
+    objectType?: "resource" | "chatMessage" | "comment" | "issue";
     objectId?: string;
     emoji?: string;
 }
@@ -20,7 +20,7 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
     Prisma.reactionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('reaction', prisma);
+        super("reaction", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -52,10 +52,10 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
      */
     async createForObject(
         byId: string,
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
         objectId: string,
-        emoji: string = "👍",
-        overrides?: Partial<Prisma.reactionCreateInput>
+        emoji = "👍",
+        overrides?: Partial<Prisma.reactionCreateInput>,
     ): Promise<Prisma.reaction> {
         const data: Prisma.reactionCreateInput = {
             ...this.getMinimalData(),
@@ -75,9 +75,9 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
      */
     async createMultiple(
         byIds: string[],
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
         objectId: string,
-        emojis?: string[]
+        emojis?: string[],
     ): Promise<Prisma.reaction[]> {
         const defaultEmojis = ["👍", "❤️", "😄", "🎉", "🤔"];
         const emojiList = emojis || defaultEmojis;
@@ -88,7 +88,7 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
                 byIds[i],
                 objectType,
                 objectId,
-                emojiList[i % emojiList.length]
+                emojiList[i % emojiList.length],
             );
             reactions.push(reaction);
         }
@@ -100,10 +100,10 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
      * Create common reaction patterns
      */
     async createReactionPattern(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
         objectId: string,
-        pattern: 'liked' | 'loved' | 'mixed' | 'controversial' | 'viral',
-        userIds: string[]
+        pattern: "liked" | "loved" | "mixed" | "controversial" | "viral",
+        userIds: string[],
     ): Promise<Prisma.reaction[]> {
         const patterns = {
             liked: { emojis: ["👍", "👍", "👍"], minUsers: 3 },
@@ -140,9 +140,9 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.reactionCreateInput,
         config: ReactionRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.reactionCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Ensure user is set
         if (!data.by && config.byId) {
@@ -166,10 +166,10 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
      * Create test scenarios
      */
     async createLikeDislikeBattle(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
         objectId: string,
         likerIds: string[],
-        dislikerIds: string[]
+        dislikerIds: string[],
     ): Promise<{
         likes: Prisma.reaction[];
         dislikes: Prisma.reaction[];
@@ -181,9 +181,9 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
     }
 
     async createEmojiSpectrum(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
         objectId: string,
-        userId: string
+        userId: string,
     ): Promise<Prisma.reaction[]> {
         // Create reactions with a wide variety of emojis
         const diverseEmojis = [
@@ -198,10 +198,10 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
     }
 
     async createTimeBasedReactions(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
         objectId: string,
         userIds: string[],
-        hoursBack: number = 24
+        hoursBack = 24,
     ): Promise<Prisma.reaction[]> {
         const reactions: Prisma.reaction[] = [];
         const now = new Date();
@@ -218,7 +218,7 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
                 {
                     createdAt,
                     updatedAt: createdAt,
-                }
+                },
             );
             reactions.push(reaction);
         }
@@ -235,25 +235,25 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
                 where: { id: record.byId },
             });
             if (!user) {
-                violations.push('Reaction user must exist');
+                violations.push("Reaction user must exist");
             }
         }
 
         // Check exactly one reacted object
-        const reactableFields = ['resourceId', 'chatMessageId', 'commentId', 'issueId'];
+        const reactableFields = ["resourceId", "chatMessageId", "commentId", "issueId"];
         const connectedObjects = reactableFields.filter(field => 
-            record[field as keyof Prisma.reaction]
+            record[field as keyof Prisma.reaction],
         );
         
         if (connectedObjects.length === 0) {
-            violations.push('Reaction must reference exactly one object');
+            violations.push("Reaction must reference exactly one object");
         } else if (connectedObjects.length > 1) {
-            violations.push('Reaction cannot reference multiple objects');
+            violations.push("Reaction cannot reference multiple objects");
         }
 
         // Check emoji is valid
         if (!record.emoji || record.emoji.length === 0) {
-            violations.push('Reaction must have an emoji');
+            violations.push("Reaction must have an emoji");
         }
 
         // Check for duplicate reactions (same user, object, emoji)
@@ -271,7 +271,7 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
             });
             
             if (duplicate) {
-                violations.push('User has already reacted with this emoji to this object');
+                violations.push("User has already reacted with this emoji to this object");
             }
         }
 
@@ -384,7 +384,7 @@ export class ReactionDbFactory extends DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: Prisma.reaction,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Reactions don't have child records to delete
         // ReactionSummary should be updated separately when reactions change

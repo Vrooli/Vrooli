@@ -5,12 +5,14 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
+import {
+    NotificationSortBy, 
+} from "@vrooli/shared";
 import type { 
     Notification, 
-    NotificationSearchInput,
-    NotificationSortBy 
-} from '@vrooli/shared';
+    NotificationSearchInput, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -92,7 +94,7 @@ export enum NotificationCategory {
 export class NotificationResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -119,15 +121,15 @@ export class NotificationResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/notification/${notification.id}`,
                     related: {
                         markRead: `${this.baseUrl}/api/notification/${notification.id}/read`,
-                        markUnread: `${this.baseUrl}/api/notification/${notification.id}/unread`
-                    }
-                }
-            }
+                        markUnread: `${this.baseUrl}/api/notification/${notification.id}/unread`,
+                    },
+                },
+            },
         };
     }
     
@@ -142,7 +144,7 @@ export class NotificationResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: notifications.length,
-            totalCount: notifications.length
+            totalCount: notifications.length,
         };
         
         return {
@@ -150,17 +152,17 @@ export class NotificationResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/notification?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/notification?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -173,11 +175,11 @@ export class NotificationResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/notification/bulk-update`
-                }
-            }
+                    self: `${this.baseUrl}/api/notification/bulk-update`,
+                },
+            },
         };
     }
     
@@ -188,16 +190,16 @@ export class NotificationResponseFactory {
         return {
             data: {
                 unreadCount,
-                totalCount
+                totalCount,
             },
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/notification/count`
-                }
-            }
+                    self: `${this.baseUrl}/api/notification/count`,
+                },
+            },
         };
     }
     
@@ -207,16 +209,16 @@ export class NotificationResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/notification'
-            }
+                path: "/api/notification",
+            },
         };
     }
     
@@ -226,16 +228,16 @@ export class NotificationResponseFactory {
     createNotFoundErrorResponse(notificationId: string): APIErrorResponse {
         return {
             error: {
-                code: 'NOTIFICATION_NOT_FOUND',
+                code: "NOTIFICATION_NOT_FOUND",
                 message: `Notification with ID '${notificationId}' was not found`,
                 details: {
                     notificationId,
-                    searchCriteria: { id: notificationId }
+                    searchCriteria: { id: notificationId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/notification/${notificationId}`
-            }
+                path: `/api/notification/${notificationId}`,
+            },
         };
     }
     
@@ -245,17 +247,17 @@ export class NotificationResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this notification`,
                 details: {
                     operation,
-                    requiredPermissions: ['notification:read', 'notification:write'],
-                    userPermissions: ['notification:read']
+                    requiredPermissions: ["notification:read", "notification:write"],
+                    userPermissions: ["notification:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/notification'
-            }
+                path: "/api/notification",
+            },
         };
     }
     
@@ -265,17 +267,17 @@ export class NotificationResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/notification'
-            }
+                path: "/api/notification",
+            },
         };
     }
     
@@ -285,17 +287,17 @@ export class NotificationResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/notification'
-            }
+                path: "/api/notification",
+            },
         };
     }
     
@@ -305,18 +307,18 @@ export class NotificationResponseFactory {
     createRateLimitErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'RATE_LIMIT_EXCEEDED',
-                message: 'Too many notification requests in a short period',
+                code: "RATE_LIMIT_EXCEEDED",
+                message: "Too many notification requests in a short period",
                 details: {
                     limit: 100,
-                    window: '15min',
+                    window: "15min",
                     retryAfter: 900000, // 15 minutes in ms
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/notification'
-            }
+                path: "/api/notification",
+            },
         };
     }
     
@@ -336,12 +338,12 @@ export class NotificationResponseFactory {
             link: "/notifications",
             isRead: false,
             createdAt: now,
-            imgLink: null
+            imgLink: null,
         };
         
         return {
             ...defaultNotification,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -355,8 +357,8 @@ export class NotificationResponseFactory {
                 title: this.getTitleForCategory(category),
                 description: this.getDescriptionForCategory(category),
                 link: this.getLinkForCategory(category),
-                imgLink: this.getImageLinkForCategory(category)
-            })
+                imgLink: this.getImageLinkForCategory(category),
+            }),
         );
     }
     
@@ -368,18 +370,18 @@ export class NotificationResponseFactory {
             this.createMockNotification({
                 category: NotificationCategory.CHAT_MESSAGE,
                 title: "Unread chat message",
-                isRead: false
+                isRead: false,
             }),
             this.createMockNotification({
                 category: NotificationCategory.MENTION,
                 title: "Read mention",
-                isRead: true
+                isRead: true,
             }),
             this.createMockNotification({
                 category: NotificationCategory.SYSTEM,
                 title: "Unread system update",
-                isRead: false
-            })
+                isRead: false,
+            }),
         ];
     }
     
@@ -391,18 +393,18 @@ export class NotificationResponseFactory {
             this.createMockNotification({
                 category: NotificationCategory.SYSTEM,
                 title: "Low priority system message",
-                description: "Minor update available"
+                description: "Minor update available",
             }),
             this.createMockNotification({
                 category: NotificationCategory.REMINDER,
                 title: "Medium priority reminder",
-                description: "Meeting starting in 15 minutes"
+                description: "Meeting starting in 15 minutes",
             }),
             this.createMockNotification({
                 category: NotificationCategory.TEAM_INVITE,
                 title: "High priority team invitation",
-                description: "Urgent: You've been invited to join critical project team"
-            })
+                description: "Urgent: You've been invited to join critical project team",
+            }),
         ];
     }
     
@@ -414,8 +416,8 @@ export class NotificationResponseFactory {
             category: NotificationCategory.CHAT_MESSAGE,
             title: `New message from ${fromUser}`,
             description: message,
-            link: chatId ? `/chat/${chatId}` : '/chat',
-            isRead: false
+            link: chatId ? `/chat/${chatId}` : "/chat",
+            isRead: false,
         });
     }
     
@@ -427,8 +429,8 @@ export class NotificationResponseFactory {
             category: NotificationCategory.MENTION,
             title: "You were mentioned",
             description: content,
-            link: contextLink || '/notifications',
-            isRead: false
+            link: contextLink || "/notifications",
+            isRead: false,
         });
     }
     
@@ -440,9 +442,9 @@ export class NotificationResponseFactory {
             category: NotificationCategory.AWARD,
             title: "Achievement Unlocked!",
             description: `You earned the '${badgeName}' badge: ${description}`,
-            link: '/profile/awards',
-            imgLink: `/img/badges/${badgeName.toLowerCase().replace(/\s+/g, '-')}.png`,
-            isRead: false
+            link: "/profile/awards",
+            imgLink: `/img/badges/${badgeName.toLowerCase().replace(/\s+/g, "-")}.png`,
+            isRead: false,
         });
     }
     
@@ -454,8 +456,8 @@ export class NotificationResponseFactory {
             category: NotificationCategory.RUN_COMPLETE,
             title: "Task completed successfully",
             description: `Your routine '${taskName}' has finished`,
-            link: runId ? `/run/${runId}` : '/runs',
-            isRead: false
+            link: runId ? `/run/${runId}` : "/runs",
+            isRead: false,
         });
     }
     
@@ -467,8 +469,8 @@ export class NotificationResponseFactory {
             category: NotificationCategory.TEAM_INVITE,
             title: "Team invitation",
             description: `You've been invited to join '${teamName}'`,
-            link: inviteId ? `/teams/invitations/${inviteId}` : '/teams/invitations',
-            isRead: false
+            link: inviteId ? `/teams/invitations/${inviteId}` : "/teams/invitations",
+            isRead: false,
         });
     }
     
@@ -480,8 +482,8 @@ export class NotificationResponseFactory {
             category: NotificationCategory.REPORT_RESPONSE,
             title: "Report update",
             description: message,
-            link: reportId ? `/reports/${reportId}` : '/reports',
-            isRead: false
+            link: reportId ? `/reports/${reportId}` : "/reports",
+            isRead: false,
         });
     }
     
@@ -493,8 +495,8 @@ export class NotificationResponseFactory {
             category: NotificationCategory.REMINDER,
             title: "Reminder",
             description: message,
-            link: reminderId ? `/reminders/${reminderId}` : '/calendar',
-            isRead: false
+            link: reminderId ? `/reminders/${reminderId}` : "/calendar",
+            isRead: false,
         });
     }
     
@@ -506,8 +508,8 @@ export class NotificationResponseFactory {
             category: NotificationCategory.SYSTEM,
             title,
             description,
-            link: '/settings',
-            isRead: false
+            link: "/settings",
+            isRead: false,
         });
     }
     
@@ -522,27 +524,27 @@ export class NotificationResponseFactory {
         
         // Validate pagination
         if (input.take !== undefined && (input.take < 1 || input.take > 100)) {
-            errors.take = 'Take must be between 1 and 100';
+            errors.take = "Take must be between 1 and 100";
         }
         
         // Validate search string
-        if (input.searchString !== undefined && typeof input.searchString !== 'string') {
-            errors.searchString = 'Search string must be a string';
+        if (input.searchString !== undefined && typeof input.searchString !== "string") {
+            errors.searchString = "Search string must be a string";
         }
         
         // Validate user ID format
-        if (input.userId !== undefined && (typeof input.userId !== 'string' || input.userId.length === 0)) {
-            errors.userId = 'User ID must be a non-empty string';
+        if (input.userId !== undefined && (typeof input.userId !== "string" || input.userId.length === 0)) {
+            errors.userId = "User ID must be a non-empty string";
         }
         
         // Validate sort by
         if (input.sortBy !== undefined && !Object.values(NotificationSortBy).includes(input.sortBy)) {
-            errors.sortBy = 'Invalid sort option';
+            errors.sortBy = "Invalid sort option";
         }
         
         return {
             valid: Object.keys(errors).length === 0,
-            errors: Object.keys(errors).length > 0 ? errors : undefined
+            errors: Object.keys(errors).length > 0 ? errors : undefined,
         };
     }
     
@@ -556,31 +558,31 @@ export class NotificationResponseFactory {
         const errors: Record<string, string> = {};
         
         if (!input.operations || !Array.isArray(input.operations)) {
-            errors.operations = 'Operations array is required';
+            errors.operations = "Operations array is required";
             return { valid: false, errors };
         }
         
         if (input.operations.length === 0) {
-            errors.operations = 'At least one operation is required';
+            errors.operations = "At least one operation is required";
         }
         
         if (input.operations.length > 100) {
-            errors.operations = 'Cannot update more than 100 notifications at once';
+            errors.operations = "Cannot update more than 100 notifications at once";
         }
         
         input.operations.forEach((op, index) => {
-            if (!op.id || typeof op.id !== 'string') {
-                errors[`operations[${index}].id`] = 'Operation ID is required and must be a string';
+            if (!op.id || typeof op.id !== "string") {
+                errors[`operations[${index}].id`] = "Operation ID is required and must be a string";
             }
             
-            if (op.isRead !== undefined && typeof op.isRead !== 'boolean') {
-                errors[`operations[${index}].isRead`] = 'isRead must be a boolean';
+            if (op.isRead !== undefined && typeof op.isRead !== "boolean") {
+                errors[`operations[${index}].isRead`] = "isRead must be a boolean";
             }
         });
         
         return {
             valid: Object.keys(errors).length === 0,
-            errors: Object.keys(errors).length > 0 ? errors : undefined
+            errors: Object.keys(errors).length > 0 ? errors : undefined,
         };
     }
     
@@ -688,7 +690,7 @@ export class NotificationMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get notification by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/notification/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const notification = this.responseFactory.createMockNotification({ id: id as string });
@@ -696,74 +698,74 @@ export class NotificationMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update notification (mark as read/unread)
-            rest.put(`${this.responseFactory['baseUrl']}/api/notification/:id`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const notification = this.responseFactory.createMockNotification({ 
                     id: id as string,
-                    isRead: true
+                    isRead: true,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(notification);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Mark notification as read
-            rest.patch(`${this.responseFactory['baseUrl']}/api/notification/:id/read`, (req, res, ctx) => {
+            rest.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/read`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const notification = this.responseFactory.createMockNotification({ 
                     id: id as string,
-                    isRead: true
+                    isRead: true,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(notification);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Mark notification as unread
-            rest.patch(`${this.responseFactory['baseUrl']}/api/notification/:id/unread`, (req, res, ctx) => {
+            rest.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/unread`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const notification = this.responseFactory.createMockNotification({ 
                     id: id as string,
-                    isRead: false
+                    isRead: false,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(notification);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete notification
-            rest.delete(`${this.responseFactory['baseUrl']}/api/notification/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List notifications
-            rest.get(`${this.responseFactory['baseUrl']}/api/notification`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const searchString = url.searchParams.get('searchString');
-                const category = url.searchParams.get('category');
-                const isRead = url.searchParams.get('isRead');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const searchString = url.searchParams.get("searchString");
+                const category = url.searchParams.get("category");
+                const isRead = url.searchParams.get("isRead");
                 
                 let notifications = this.responseFactory.createNotificationsForAllCategories();
                 
@@ -774,7 +776,7 @@ export class NotificationMSWHandlers {
                 
                 // Filter by read status if specified
                 if (isRead !== null) {
-                    const readStatus = isRead === 'true';
+                    const readStatus = isRead === "true";
                     notifications = notifications.filter(n => n.isRead === readStatus);
                 }
                 
@@ -783,7 +785,7 @@ export class NotificationMSWHandlers {
                     const search = searchString.toLowerCase();
                     notifications = notifications.filter(n => 
                         n.title.toLowerCase().includes(search) ||
-                        (n.description && n.description.toLowerCase().includes(search))
+                        (n.description && n.description.toLowerCase().includes(search)),
                     );
                 }
                 
@@ -796,18 +798,18 @@ export class NotificationMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: notifications.length
-                    }
+                        totalCount: notifications.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Bulk update notifications
-            rest.post(`${this.responseFactory['baseUrl']}/api/notification/bulk-update`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async (req, res, ctx) => {
                 const body = await req.json() as NotificationBulkUpdateInput;
                 
                 // Validate input
@@ -815,7 +817,7 @@ export class NotificationMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -823,20 +825,20 @@ export class NotificationMSWHandlers {
                 const updatedNotifications = body.operations.map(op => 
                     this.responseFactory.createMockNotification({
                         id: op.id,
-                        isRead: op.isRead !== undefined ? op.isRead : false
-                    })
+                        isRead: op.isRead !== undefined ? op.isRead : false,
+                    }),
                 );
                 
                 const response = this.responseFactory.createBulkUpdateResponse(updatedNotifications);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Mark all as read
-            rest.post(`${this.responseFactory['baseUrl']}/api/notification/mark-all-read`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, (req, res, ctx) => {
                 const notifications = this.responseFactory.createNotificationsForAllCategories()
                     .map(n => ({ ...n, isRead: true }));
                 
@@ -844,12 +846,12 @@ export class NotificationMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get notification count
-            rest.get(`${this.responseFactory['baseUrl']}/api/notification/count`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/notification/count`, (req, res, ctx) => {
                 const totalCount = 25;
                 const unreadCount = 8;
                 
@@ -857,9 +859,9 @@ export class NotificationMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -869,74 +871,74 @@ export class NotificationMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error for bulk update
-            rest.post(`${this.responseFactory['baseUrl']}/api/notification/bulk-update`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        operations: 'Operations array is required',
-                        'operations[0].id': 'Operation ID is required'
-                    }))
+                        operations: "Operations array is required",
+                        "operations[0].id": "Operation ID is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/notification/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.put(`${this.responseFactory['baseUrl']}/api/notification/:id`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('update'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
                 );
             }),
             
             // Rate limit error
-            rest.get(`${this.responseFactory['baseUrl']}/api/notification`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
                 return res(
                     ctx.status(429),
-                    ctx.json(this.responseFactory.createRateLimitErrorResponse())
+                    ctx.json(this.responseFactory.createRateLimitErrorResponse()),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/notification/mark-all-read`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/notification`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
                 const notifications = this.responseFactory.createNotificationsForAllCategories();
                 const response = this.responseFactory.createNotificationListResponse(notifications);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
-            rest.post(`${this.responseFactory['baseUrl']}/api/notification/bulk-update`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async (req, res, ctx) => {
                 const body = await req.json() as NotificationBulkUpdateInput;
                 const updatedNotifications = body.operations.map(op => 
                     this.responseFactory.createMockNotification({
                         id: op.id,
-                        isRead: op.isRead !== undefined ? op.isRead : false
-                    })
+                        isRead: op.isRead !== undefined ? op.isRead : false,
+                    }),
                 );
                 
                 const response = this.responseFactory.createBulkUpdateResponse(updatedNotifications);
@@ -944,9 +946,9 @@ export class NotificationMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -955,17 +957,17 @@ export class NotificationMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/notification`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/notification/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory['baseUrl']}/api/notification/bulk-update`, (req, res, ctx) => {
-                return res.networkError('Request timeout');
-            })
+            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, (req, res, ctx) => {
+                return res.networkError("Request timeout");
+            }),
         ];
     }
     
@@ -974,13 +976,13 @@ export class NotificationMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         status: number;
         response: unknown;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -1002,14 +1004,14 @@ export const notificationResponseScenarios = {
     singleNotification: (notification?: Notification) => {
         const factory = new NotificationResponseFactory();
         return factory.createSuccessResponse(
-            notification || factory.createMockNotification()
+            notification || factory.createMockNotification(),
         );
     },
     
     notificationList: (notifications?: Notification[]) => {
         const factory = new NotificationResponseFactory();
         return factory.createNotificationListResponse(
-            notifications || factory.createNotificationsForAllCategories()
+            notifications || factory.createNotificationsForAllCategories(),
         );
     },
     
@@ -1023,7 +1025,7 @@ export const notificationResponseScenarios = {
     mixedReadStates: () => {
         const factory = new NotificationResponseFactory();
         return factory.createNotificationListResponse(
-            factory.createNotificationsWithReadStates()
+            factory.createNotificationsWithReadStates(),
         );
     },
     
@@ -1032,7 +1034,7 @@ export const notificationResponseScenarios = {
         const notifications = [
             factory.createChatMessageNotification("Alice", "Hey there!"),
             factory.createChatMessageNotification("Bob", "How's the project going?"),
-            factory.createMentionNotification("@you Check this out!")
+            factory.createMentionNotification("@you Check this out!"),
         ];
         return factory.createNotificationListResponse(notifications);
     },
@@ -1042,7 +1044,7 @@ export const notificationResponseScenarios = {
         const notifications = [
             factory.createSystemNotification("System Update", "New features available"),
             factory.createSystemNotification("Maintenance", "Scheduled maintenance tonight"),
-            factory.createSystemNotification("Security", "Password policy updated")
+            factory.createSystemNotification("Security", "Password policy updated"),
         ];
         return factory.createNotificationListResponse(notifications);
     },
@@ -1052,7 +1054,7 @@ export const notificationResponseScenarios = {
         const notifications = [
             factory.createAwardNotification("First Steps", "Welcome to the platform!"),
             factory.createAwardNotification("Contributor", "Thanks for helping others"),
-            factory.createAwardNotification("Power User", "You're mastering the features")
+            factory.createAwardNotification("Power User", "You're mastering the features"),
         ];
         return factory.createNotificationListResponse(notifications);
     },
@@ -1062,7 +1064,7 @@ export const notificationResponseScenarios = {
         const notifications = [
             factory.createTaskCompletionNotification("Data Analysis"),
             factory.createTaskCompletionNotification("Image Processing"),
-            factory.createTaskCompletionNotification("Report Generation")
+            factory.createTaskCompletionNotification("Report Generation"),
         ];
         return factory.createNotificationListResponse(notifications);
     },
@@ -1074,9 +1076,9 @@ export const notificationResponseScenarios = {
     
     bulkUpdateSuccess: (notificationIds?: string[]) => {
         const factory = new NotificationResponseFactory();
-        const ids = notificationIds || ['notif_1', 'notif_2', 'notif_3'];
+        const ids = notificationIds || ["notif_1", "notif_2", "notif_3"];
         const notifications = ids.map(id => 
-            factory.createMockNotification({ id, isRead: true })
+            factory.createMockNotification({ id, isRead: true }),
         );
         return factory.createBulkUpdateResponse(notifications);
     },
@@ -1086,23 +1088,23 @@ export const notificationResponseScenarios = {
         const factory = new NotificationResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                operations: 'Operations array is required',
-                'operations[0].id': 'Operation ID is required'
-            }
+                operations: "Operations array is required",
+                "operations[0].id": "Operation ID is required",
+            },
         );
     },
     
     notFoundError: (notificationId?: string) => {
         const factory = new NotificationResponseFactory();
         return factory.createNotFoundErrorResponse(
-            notificationId || 'non-existent-id'
+            notificationId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new NotificationResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'update'
+            operation || "update",
         );
     },
     
@@ -1120,7 +1122,7 @@ export const notificationResponseScenarios = {
     successHandlers: () => new NotificationMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new NotificationMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new NotificationMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new NotificationMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new NotificationMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

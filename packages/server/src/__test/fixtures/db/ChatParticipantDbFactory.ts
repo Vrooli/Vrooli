@@ -31,7 +31,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     Prisma.chat_participantsUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ChatParticipant', prisma);
+        super("ChatParticipant", prisma);
         this.initializeScenarios();
     }
 
@@ -228,9 +228,9 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.ChatParticipantCreateInput,
         config: ChatParticipantRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ChatParticipantCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle chat connection (required)
         if (config.chat) {
@@ -238,7 +238,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
                 connect: { id: config.chat.chatId },
             };
         } else {
-            throw new Error('ChatParticipant requires a chat connection');
+            throw new Error("ChatParticipant requires a chat connection");
         }
 
         // Handle user connection (required)
@@ -247,7 +247,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
                 connect: { id: config.user.userId },
             };
         } else {
-            throw new Error('ChatParticipant requires a user connection');
+            throw new Error("ChatParticipant requires a user connection");
         }
 
         return data;
@@ -259,7 +259,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     async addParticipant(
         chatId: string,
         userId: string,
-        hasUnread: boolean = true
+        hasUnread = true,
     ): Promise<Prisma.ChatParticipant> {
         return await this.createWithRelations({
             overrides: {
@@ -276,12 +276,12 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     async addBulkParticipants(
         chatId: string,
         userIds: string[],
-        hasUnread: boolean = true
+        hasUnread = true,
     ): Promise<Prisma.ChatParticipant[]> {
         const participants = await Promise.all(
             userIds.map(userId => 
-                this.addParticipant(chatId, userId, hasUnread)
-            )
+                this.addParticipant(chatId, userId, hasUnread),
+            ),
         );
         return participants;
     }
@@ -310,7 +310,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         });
 
         if (!participant) {
-            throw new Error('Participant not found');
+            throw new Error("Participant not found");
         }
 
         return await this.prisma.chatParticipant.update({
@@ -332,7 +332,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         });
 
         if (!participant) {
-            throw new Error('Participant not found');
+            throw new Error("Participant not found");
         }
 
         return await this.prisma.chatParticipant.update({
@@ -355,7 +355,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (duplicate) {
-            violations.push('User is already a participant in this chat');
+            violations.push("User is already a participant in this chat");
         }
 
         // Check if chat exists
@@ -364,7 +364,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (!chat) {
-            violations.push('Chat does not exist');
+            violations.push("Chat does not exist");
         }
 
         // Check if user exists
@@ -373,7 +373,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (!user) {
-            violations.push('User does not exist');
+            violations.push("User does not exist");
         }
 
         // Check if user has active invite (they shouldn't be participant if invite is pending)
@@ -386,7 +386,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (pendingInvite) {
-            violations.push('User has a pending invite to this chat');
+            violations.push("User has a pending invite to this chat");
         }
 
         return violations;
@@ -402,7 +402,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.ChatParticipant,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // ChatParticipant has no dependent records to delete
     }
@@ -445,7 +445,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         return await this.prisma.chatParticipant.findMany({
             where,
             include: this.getDefaultInclude(),
-            orderBy: { updatedAt: 'desc' },
+            orderBy: { updatedAt: "desc" },
         });
     }
 
@@ -454,16 +454,16 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
      */
     async createChatWithParticipants(
         chatId: string,
-        participantConfigs: Array<{ userId: string; hasUnread?: boolean }>
+        participantConfigs: Array<{ userId: string; hasUnread?: boolean }>,
     ): Promise<Prisma.ChatParticipant[]> {
         const participants = await Promise.all(
             participantConfigs.map(config => 
                 this.addParticipant(
                     chatId,
                     config.userId,
-                    config.hasUnread ?? true
-                )
-            )
+                    config.hasUnread ?? true,
+                ),
+            ),
         );
         return participants;
     }
@@ -473,7 +473,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
      */
     async bulkUpdateReadStatus(
         chatId: string,
-        updates: Array<{ userId: string; hasUnread: boolean }>
+        updates: Array<{ userId: string; hasUnread: boolean }>,
     ): Promise<void> {
         for (const update of updates) {
             if (update.hasUnread) {
@@ -493,19 +493,19 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         mixed: Prisma.ChatParticipant[];
     }> {
         if (userIds.length < 6) {
-            throw new Error('Need at least 6 user IDs for test scenarios');
+            throw new Error("Need at least 6 user IDs for test scenarios");
         }
 
         // All active participants (no unread)
         const active = await this.createChatWithParticipants(
             chatId,
-            userIds.slice(0, 2).map(userId => ({ userId, hasUnread: false }))
+            userIds.slice(0, 2).map(userId => ({ userId, hasUnread: false })),
         );
 
         // All inactive participants (with unread)
         const inactive = await this.createChatWithParticipants(
             chatId,
-            userIds.slice(2, 4).map(userId => ({ userId, hasUnread: true }))
+            userIds.slice(2, 4).map(userId => ({ userId, hasUnread: true })),
         );
 
         // Mixed read status
@@ -514,7 +514,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
             [
                 { userId: userIds[4], hasUnread: false },
                 { userId: userIds[5], hasUnread: true },
-            ]
+            ],
         );
 
         return {
@@ -527,7 +527,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createChatParticipantDbFactory = (prisma: PrismaClient) => 
-    ChatParticipantDbFactory.getInstance('ChatParticipant', prisma);
+    ChatParticipantDbFactory.getInstance("ChatParticipant", prisma);
 
 // Export the class for type usage
 export { ChatParticipantDbFactory as ChatParticipantDbFactoryClass };

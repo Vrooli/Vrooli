@@ -23,7 +23,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
     Prisma.ResourceVersionRelationUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ResourceVersionRelation', prisma);
+        super("ResourceVersionRelation", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -131,9 +131,9 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.ResourceVersionRelationCreateInput,
         config: ResourceVersionRelationRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ResourceVersionRelationCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle resource version connection
         if (config.resourceVersion) {
@@ -169,7 +169,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
     async createResourceToProject(
         resourceVersionId: string,
         projectVersionId: string,
-        index: number = 0
+        index = 0,
     ): Promise<Prisma.ResourceVersionRelation> {
         return this.createWithRelations({
             resourceVersion: { id: resourceVersionId },
@@ -184,7 +184,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
     async createResourceToRoutine(
         resourceVersionId: string,
         routineVersionId: string,
-        index: number = 0
+        index = 0,
     ): Promise<Prisma.ResourceVersionRelation> {
         return this.createWithRelations({
             resourceVersion: { id: resourceVersionId },
@@ -199,7 +199,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
     async createResourceToSmartContract(
         resourceVersionId: string,
         smartContractVersionId: string,
-        index: number = 0
+        index = 0,
     ): Promise<Prisma.ResourceVersionRelation> {
         return this.createWithRelations({
             resourceVersion: { id: resourceVersionId },
@@ -214,7 +214,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
     async createResourceToDataStructure(
         resourceVersionId: string,
         dataStructureVersionId: string,
-        index: number = 0
+        index = 0,
     ): Promise<Prisma.ResourceVersionRelation> {
         return this.createWithRelations({
             resourceVersion: { id: resourceVersionId },
@@ -228,7 +228,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
      */
     async createMultipleRelations(
         resourceVersionId: string,
-        targets: Array<{ id: string; type: "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "DataStructureVersion" }>
+        targets: Array<{ id: string; type: "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "DataStructureVersion" }>,
     ): Promise<Prisma.ResourceVersionRelation[]> {
         const relations: Prisma.ResourceVersionRelation[] = [];
 
@@ -251,7 +251,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
     async createOrderedRelations(
         resourceVersionId: string,
         targetIds: string[],
-        targetType: "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "DataStructureVersion"
+        targetType: "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "DataStructureVersion",
     ): Promise<Prisma.ResourceVersionRelation[]> {
         const relations: Prisma.ResourceVersionRelation[] = [];
 
@@ -279,12 +279,12 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
         ].filter(id => id !== null && id !== undefined).length;
 
         if (targetCount !== 1) {
-            violations.push('ResourceVersionRelation must connect to exactly one target type');
+            violations.push("ResourceVersionRelation must connect to exactly one target type");
         }
 
         // Check index is non-negative
         if (record.index < 0) {
-            violations.push('Index must be non-negative');
+            violations.push("Index must be non-negative");
         }
 
         // Check for duplicate index within the same resource version
@@ -298,7 +298,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
             });
             
             if (duplicateIndex > 0) {
-                violations.push('Index must be unique within the same resource version');
+                violations.push("Index must be unique within the same resource version");
             }
         }
 
@@ -370,7 +370,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: Prisma.ResourceVersionRelation,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Junction table - no cascading deletes needed
         // The relation itself will be deleted by the parent deleteRelatedRecords call
@@ -385,7 +385,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
             targetId: string;
             targetType: "ProjectVersion" | "RoutineVersion" | "SmartContractVersion" | "DataStructureVersion";
             index?: number;
-        }>
+        }>,
     ): Promise<Prisma.ResourceVersionRelation[]> {
         const results: Prisma.ResourceVersionRelation[] = [];
 
@@ -410,7 +410,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
     async getRelationsByResourceVersion(resourceVersionId: string): Promise<Prisma.ResourceVersionRelation[]> {
         return this.prisma.resourceVersionRelation.findMany({
             where: { resourceVersionId },
-            orderBy: { index: 'asc' },
+            orderBy: { index: "asc" },
             include: this.getDefaultInclude(),
         });
     }
@@ -420,7 +420,7 @@ export class ResourceVersionRelationDbFactory extends DatabaseFixtureFactory<
      */
     async reorderRelations(
         resourceVersionId: string,
-        newOrder: Array<{ relationId: string; newIndex: number }>
+        newOrder: Array<{ relationId: string; newIndex: number }>,
     ): Promise<void> {
         await this.prisma.$transaction(async (tx) => {
             for (const { relationId, newIndex } of newOrder) {

@@ -6,12 +6,16 @@ import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixt
 const RADIX_BASE_36 = 36;
 const RANDOM_ID_LENGTH = 9;
 
+// Counter for generating unique snowflake IDs in tests
+let snowflakeCounter = 623456789012345678n;
+
 /**
  * Message configuration fixtures for testing chat message metadata and tool usage
  */
 export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
     minimal: {
         __version: LATEST_CONFIG_VERSION,
+        resources: [], // Required field - empty array for minimal config
     },
 
     complete: {
@@ -26,7 +30,7 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
         turnId: 42,
         toolCalls: [
             {
-                id: "call_123",
+                id: "123456789012345678", // Valid Snowflake ID
                 function: {
                     name: "search_documents",
                     arguments: JSON.stringify({ query: "project requirements", limit: 5 }),
@@ -70,6 +74,7 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
         turnId: null,
         toolCalls: [],
         runs: [],
+        resources: [], // Required field
     },
 
     invalid: {
@@ -81,10 +86,12 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
         invalidVersion: {
             __version: "0.1", // Invalid version
             role: "assistant",
+            resources: [], // Still include required field to test version independently
         },
         malformedStructure: {
             __version: LATEST_CONFIG_VERSION,
             toolCalls: "string instead of array", // Wrong type
+            resources: [], // Still include required field to test toolCalls type independently
         },
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
@@ -92,10 +99,11 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
             turnId: "not a number", // Should be number or null
             // @ts-expect-error - Intentionally invalid type for testing
             role: "admin", // Invalid role
+            resources: [], // Still include required field to test other type errors independently
             toolCalls: [
                 {
                     // Missing required fields
-                    id: "missing_args",
+                    id: "523456789012345678", // Valid Snowflake ID
                     function: {
                         name: "test",
                         arguments: "", // Empty arguments for invalid test case
@@ -112,15 +120,17 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
             turnId: 1,
             contextHints: ["User is asking about API documentation"],
             respondingBots: ["@all"],
+            resources: [], // Required field
         },
 
         assistantWithTools: {
             __version: LATEST_CONFIG_VERSION,
             role: "assistant",
             turnId: 2,
+            resources: [], // Required field
             toolCalls: [
                 {
-                    id: "call_search_1",
+                    id: "223456789012345678", // Valid Snowflake ID
                     function: {
                         name: "web_search",
                         arguments: JSON.stringify({
@@ -138,7 +148,7 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                     },
                 },
                 {
-                    id: "call_calc_1",
+                    id: "323456789012345678", // Valid Snowflake ID
                     function: {
                         name: "calculator",
                         arguments: JSON.stringify({
@@ -161,15 +171,17 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                 "Increased rate limits applied",
             ],
             eventTopic: "system-notification",
+            resources: [], // Required field
         },
 
         toolErrorMessage: {
             __version: LATEST_CONFIG_VERSION,
             role: "tool",
             turnId: 3,
+            resources: [], // Required field
             toolCalls: [
                 {
-                    id: "call_failed_1",
+                    id: "423456789012345678", // Valid Snowflake ID
                     function: {
                         name: "database_query",
                         arguments: JSON.stringify({
@@ -192,6 +204,7 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
             __version: LATEST_CONFIG_VERSION,
             role: "assistant",
             turnId: 10,
+            resources: [], // Required field
             runs: [
                 {
                     runId: "run_parallel_1",
@@ -227,6 +240,7 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
             respondingBots: ["@all"],
             eventTopic: "broadcast-request",
             contextHints: ["Urgent request", "Requires all bots to respond"],
+            resources: [], // Required field
         },
 
         eventDrivenMessage: {
@@ -235,6 +249,7 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
             eventTopic: "payment-succeeded",
             contextHints: ["Payment of $99.99 processed", "Premium subscription activated"],
             respondingBots: ["billing-bot", "notification-bot"],
+            resources: [], // Required field
         },
     },
 };
@@ -261,8 +276,9 @@ export function createSuccessfulToolCall(
     args: Record<string, any>,
     output: unknown,
 ): ToolFunctionCall {
+    snowflakeCounter++;
     return {
-        id: `call_${Date.now()}_${Math.random().toString(RADIX_BASE_36).substr(2, RANDOM_ID_LENGTH)}`,
+        id: snowflakeCounter.toString(), // Valid Snowflake ID
         function: {
             name: functionName,
             arguments: JSON.stringify(args),
@@ -285,8 +301,9 @@ export function createFailedToolCall(
     errorCode: string,
     errorMessage: string,
 ): ToolFunctionCall {
+    snowflakeCounter++;
     return {
-        id: `call_${Date.now()}_${Math.random().toString(RADIX_BASE_36).substr(2, RANDOM_ID_LENGTH)}`,
+        id: snowflakeCounter.toString(), // Valid Snowflake ID
         function: {
             name: functionName,
             arguments: JSON.stringify(args),

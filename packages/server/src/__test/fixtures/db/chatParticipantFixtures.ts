@@ -137,7 +137,7 @@ export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.chat_part
         if (!data.userId) errors.push("ChatParticipant userId is required");
 
         // Check hasUnread field
-        if (data.hasUnread !== undefined && typeof data.hasUnread !== 'boolean') {
+        if (data.hasUnread !== undefined && typeof data.hasUnread !== "boolean") {
             errors.push("hasUnread must be a boolean");
         }
 
@@ -148,7 +148,7 @@ export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.chat_part
     static createMinimal(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.chat_participantsCreateInput>
+        overrides?: Partial<Prisma.chat_participantsCreateInput>,
     ): Prisma.chat_participantsCreateInput {
         const factory = new ChatParticipantDbFactory();
         return factory.createMinimal({
@@ -161,8 +161,8 @@ export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.chat_part
     static createWithUnread(
         chatId: string,
         userId: string,
-        hasUnread: boolean = true,
-        overrides?: Partial<Prisma.chat_participantsCreateInput>
+        hasUnread = true,
+        overrides?: Partial<Prisma.chat_participantsCreateInput>,
     ): Prisma.chat_participantsCreateInput {
         return this.createMinimal(chatId, userId, {
             hasUnread,
@@ -182,7 +182,7 @@ export async function seedChatParticipants(
             userId: string;
             hasUnread?: boolean;
         }>;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const createdParticipants = [];
     let withUnreadCount = 0;
@@ -192,7 +192,7 @@ export async function seedChatParticipants(
         const participantData = ChatParticipantDbFactory.createWithUnread(
             options.chatId,
             participant.userId,
-            participant.hasUnread ?? true
+            participant.hasUnread ?? true,
         );
 
         if (participant.hasUnread !== false) {
@@ -231,7 +231,7 @@ export async function addParticipantsToChat(
     prisma: any,
     chatId: string,
     userIds: string[],
-    hasUnread: boolean = true
+    hasUnread = true,
 ): Promise<BulkSeedResult<any>> {
     const participants = userIds.map(userId => ({
         userId,
@@ -249,7 +249,7 @@ export async function addParticipantsToChat(
  */
 export async function getChatParticipants(
     prisma: any,
-    chatId: string
+    chatId: string,
 ) {
     return prisma.chat_participants.findMany({
         where: { chatId },
@@ -266,7 +266,7 @@ export async function getChatParticipants(
 export async function markAsRead(
     prisma: any,
     chatId: string,
-    userId: string
+    userId: string,
 ): Promise<any> {
     return prisma.chat_participants.update({
         where: {
@@ -290,7 +290,7 @@ export async function seedParticipantStates(
     states: Array<{
         userId: string;
         hasUnread?: boolean;
-    }>
+    }>,
 ): Promise<any[]> {
     const updates = [];
 

@@ -22,7 +22,7 @@ import { PRISMA_TYPE_MAP } from "./PRISMA_TYPE_MAP.js";
  */
 
 // Get the correct Prisma types from our mapping
-const MODEL_TYPES = PRISMA_TYPE_MAP['MODEL_NAME'];
+const MODEL_TYPES = PRISMA_TYPE_MAP["MODEL_NAME"];
 
 export class ModelNameDbFactory extends EnhancedDatabaseFactory<
     Prisma.MODEL_NAME,                                     // Model type (from Prisma namespace)
@@ -31,7 +31,7 @@ export class ModelNameDbFactory extends EnhancedDatabaseFactory<
     Prisma[typeof MODEL_TYPES.updateInput]                 // Update input type
 > {
     constructor(prisma: PrismaClient) {
-        super('MODEL_NAME', prisma);
+        super("MODEL_NAME", prisma);
     }
 
     /**
@@ -128,7 +128,7 @@ export class ModelNameDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         data: Prisma[typeof MODEL_TYPES.createInput],
         config: any,
-        tx: any
+        tx: any,
     ): Promise<Prisma[typeof MODEL_TYPES.createInput]> {
         // TODO: Implement relationship handling specific to this model
         // Example for a model with a user relationship:

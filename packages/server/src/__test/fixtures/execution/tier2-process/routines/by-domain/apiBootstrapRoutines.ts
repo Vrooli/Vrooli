@@ -782,7 +782,7 @@ export function getAllAPIBootstrapRoutines(): RoutineFixture[] {
  */
 export function getBootstrapRoutineByProvider(provider: string): RoutineFixture | undefined {
     return Object.values(API_BOOTSTRAP_ROUTINES).find(
-        routine => routine.name.toLowerCase().includes(provider.toLowerCase())
+        routine => routine.name.toLowerCase().includes(provider.toLowerCase()),
     );
 }
 
@@ -791,7 +791,7 @@ export function getBootstrapRoutineByProvider(provider: string): RoutineFixture 
  */
 export function getRoutinesByConfidence(minConfidence: number): RoutineFixture[] {
     return Object.values(API_BOOTSTRAP_ROUTINES).filter(
-        routine => (routine.generatedFrom?.confidence || 0) >= minConfidence
+        routine => (routine.generatedFrom?.confidence || 0) >= minConfidence,
     );
 }
 

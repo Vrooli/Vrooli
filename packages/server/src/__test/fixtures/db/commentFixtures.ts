@@ -449,11 +449,11 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
         }
 
         // Check score and bookmark values
-        if (typeof data.score === 'number' && data.score < -1000000) {
+        if (typeof data.score === "number" && data.score < -1000000) {
             warnings.push("Extremely negative score may indicate data issues");
         }
 
-        if (typeof data.bookmarks === 'number' && data.bookmarks < 0) {
+        if (typeof data.bookmarks === "number" && data.bookmarks < 0) {
             errors.push("Bookmark count cannot be negative");
         }
 
@@ -468,7 +468,7 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
 
     static createWithTranslations(
         translations: Array<{ language: string; text: string }>,
-        overrides?: Partial<Prisma.commentUncheckedCreateInput>
+        overrides?: Partial<Prisma.commentUncheckedCreateInput>,
     ): Prisma.commentUncheckedCreateInput {
         const factory = new CommentDbFactory();
         return factory.createMinimal({
@@ -485,7 +485,7 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
 
     static createReply(
         parentId: string,
-        overrides?: Partial<Prisma.commentUncheckedCreateInput>
+        overrides?: Partial<Prisma.commentUncheckedCreateInput>,
     ): Prisma.commentUncheckedCreateInput {
         const factory = new CommentDbFactory();
         return factory.createMinimal({
@@ -497,7 +497,7 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
     static createThreaded(
         createdById: string,
         parentId?: string,
-        overrides?: Partial<Prisma.commentUncheckedCreateInput>
+        overrides?: Partial<Prisma.commentUncheckedCreateInput>,
     ): Prisma.commentUncheckedCreateInput {
         const factory = new CommentDbFactory();
         return factory.createMinimal({
@@ -521,11 +521,11 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
 
     static createWithOwner(
         ownerId: string,
-        ownerType: 'user' | 'team' = 'user',
-        overrides?: Partial<Prisma.commentUncheckedCreateInput>
+        ownerType: "user" | "team" = "user",
+        overrides?: Partial<Prisma.commentUncheckedCreateInput>,
     ): Prisma.commentUncheckedCreateInput {
         const factory = new CommentDbFactory();
-        const ownerRelation = ownerType === 'user' 
+        const ownerRelation = ownerType === "user" 
             ? { ownedByUserId: BigInt(ownerId) }
             : { ownedByTeamId: BigInt(ownerId) };
         
@@ -537,8 +537,8 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
 
     static createWithParentObject(
         objectId: string,
-        objectType: 'issue' | 'resourceVersion' | 'pullRequest',
-        overrides?: Partial<Prisma.commentUncheckedCreateInput>
+        objectType: "issue" | "resourceVersion" | "pullRequest",
+        overrides?: Partial<Prisma.commentUncheckedCreateInput>,
     ): Prisma.commentUncheckedCreateInput {
         const factory = new CommentDbFactory();
         const parentRelation = {
@@ -557,13 +557,13 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
     static createForObject(
         objectType: CommentFor,
         objectId: string,
-        overrides?: Partial<Prisma.commentUncheckedCreateInput>
+        overrides?: Partial<Prisma.commentUncheckedCreateInput>,
     ): Prisma.commentUncheckedCreateInput {
         const factory = new CommentDbFactory();
         const typeMapping = {
-            [CommentFor.Issue]: 'issueId',
-            [CommentFor.PullRequest]: 'pullRequestId',
-            [CommentFor.ResourceVersion]: 'resourceVersionId',
+            [CommentFor.Issue]: "issueId",
+            [CommentFor.PullRequest]: "pullRequestId",
+            [CommentFor.ResourceVersion]: "resourceVersionId",
         };
         
         const relationField = typeMapping[objectType];
@@ -581,7 +581,7 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
      * Create bulk comments for various object types
      */
     static createBulkForObjects(
-        objects: Array<{ type: CommentFor; id: string; userId: string; text?: string }>
+        objects: Array<{ type: CommentFor; id: string; userId: string; text?: string }>,
     ): Prisma.commentUncheckedCreateInput[] {
         return objects.map((obj, index) => 
             this.createForObject(obj.type, obj.id, {
@@ -593,7 +593,7 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
                         text: obj.text || `Comment ${index + 1} on ${obj.type}`,
                     }],
                 },
-            })
+            }),
         );
     }
 }
@@ -606,12 +606,12 @@ export async function seedCommentThread(
     options: {
         createdById: string;
         objectId: string;
-        objectType: 'issue' | 'resourceVersion' | 'pullRequest';
+        objectType: "issue" | "resourceVersion" | "pullRequest";
         commentCount?: number;
         withReplies?: boolean;
         withReactions?: boolean;
         withBookmarks?: boolean;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const factory = new CommentDbFactory();
     const comments = [];
@@ -693,14 +693,14 @@ export async function seedCommentThread(
  */
 export async function seedTestComments(
     prisma: any,
-    count: number = 5,
+    count = 5,
     options?: BulkSeedOptions & {
         parentObjectId?: string;
-        parentObjectType?: 'issue' | 'resourceVersion' | 'pullRequest';
+        parentObjectType?: "issue" | "resourceVersion" | "pullRequest";
         withReplies?: boolean;
         withReactions?: boolean;
         nestedLevel?: number;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const factory = new CommentDbFactory();
     const comments = [];

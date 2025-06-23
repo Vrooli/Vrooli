@@ -1,14 +1,13 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { type team, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
 
 interface TeamRelationConfig extends RelationConfig {
-    owner?: { userId: string };
-    members?: Array<{ userId: string; role: string }>;
-    translations?: Array<{ language: string; name: string; description?: string }>;
-    projects?: number;
-    resourceLists?: number;
+    owner?: { userId: string | bigint };
+    members?: Array<{ userId: string | bigint; isAdmin?: boolean }>;
+    translations?: Array<{ language: string; name: string; bio?: string }>;
+    resources?: number;
 }
 
 /**
@@ -16,41 +15,39 @@ interface TeamRelationConfig extends RelationConfig {
  * Handles team creation with members, projects, and other relationships
  */
 export class TeamDbFactory extends DatabaseFixtureFactory<
-    Prisma.Team,
-    Prisma.TeamCreateInput,
-    Prisma.TeamInclude,
-    Prisma.TeamUpdateInput
+    team,
+    Prisma.teamCreateInput,
+    Prisma.teamInclude,
+    Prisma.teamUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Team', prisma);
+        super("team", prisma);
     }
 
     protected getPrismaDelegate() {
         return this.prisma.team;
     }
 
-    protected getMinimalData(overrides?: Partial<Prisma.TeamCreateInput>): Prisma.TeamCreateInput {
+    protected getMinimalData(overrides?: Partial<Prisma.teamCreateInput>): Prisma.teamCreateInput {
         const uniqueHandle = `team_${nanoid(8)}`;
         
         return {
             id: generatePK(),
             publicId: generatePublicId(),
             handle: uniqueHandle,
-            name: "Test Team",
             isOpenToNewMembers: true,
             isPrivate: false,
             ...overrides,
         };
     }
 
-    protected getCompleteData(overrides?: Partial<Prisma.TeamCreateInput>): Prisma.TeamCreateInput {
+    protected getCompleteData(overrides?: Partial<Prisma.teamCreateInput>): Prisma.teamCreateInput {
         const uniqueHandle = `complete_team_${nanoid(8)}`;
         
         return {
             id: generatePK(),
             publicId: generatePublicId(),
             handle: uniqueHandle,
-            name: "Complete Test Team",
             isOpenToNewMembers: true,
             isPrivate: false,
             bannerImage: "https://example.com/team-banner.jpg",
@@ -75,31 +72,23 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
         };
     }
 
-    protected getDefaultInclude(): Prisma.TeamInclude {
+    protected getDefaultInclude(): Prisma.teamInclude {
         return {
             translations: true,
             members: {
                 select: {
                     id: true,
-                    role: true,
+                    isAdmin: true,
                     user: {
                         select: {
                             id: true,
                             publicId: true,
-                            name: true,
                             handle: true,
                         },
                     },
                 },
             },
-            projects: {
-                select: {
-                    id: true,
-                    publicId: true,
-                    name: true,
-                },
-            },
-            resourceLists: {
+            resources: {
                 select: {
                     id: true,
                     publicId: true,
@@ -108,8 +97,7 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
             _count: {
                 select: {
                     members: true,
-                    projects: true,
-                    resourceLists: true,
+                    resources: true,
                     chats: true,
                 },
             },
@@ -117,19 +105,20 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.TeamCreateInput,
+        baseData: Prisma.teamCreateInput,
         config: TeamRelationConfig,
-        tx: any
-    ): Promise<Prisma.TeamCreateInput> {
-        let data = { ...baseData };
+        tx: any,
+    ): Promise<Prisma.teamCreateInput> {
+        const data = { ...baseData };
 
         // Handle owner (first member with Owner role)
         if (config.owner) {
             data.members = {
                 create: [{
                     id: generatePK(),
-                    userId: config.owner.userId,
-                    role: "Owner",
+                    publicId: generatePublicId(),
+                    userId: BigInt(config.owner.userId),
+                    isAdmin: true,
                 }],
             };
         }
@@ -138,16 +127,17 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
         if (config.members && Array.isArray(config.members)) {
             const memberCreates = config.members.map(member => ({
                 id: generatePK(),
-                userId: member.userId,
-                role: member.role || "Member",
+                publicId: generatePublicId(),
+                userId: BigInt(member.userId),
+                isAdmin: member.isAdmin || false,
             }));
 
             if (data.members?.create) {
                 // Append to existing members (owner)
-                data.members.create = [
-                    ...(Array.isArray(data.members.create) ? data.members.create : [data.members.create]),
-                    ...memberCreates,
-                ];
+                const existingCreates = Array.isArray(data.members.create) ? data.members.create : [data.members.create];
+                data.members = {
+                    create: [...existingCreates, ...memberCreates],
+                };
             } else {
                 data.members = { create: memberCreates };
             }
@@ -170,12 +160,12 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
      * Create a team with owner and members
      */
     async createWithOwnerAndMembers(
-        ownerId: string,
-        memberIds: string[] = []
-    ): Promise<Prisma.Team> {
+        ownerId: string | bigint,
+        memberIds: (string | bigint)[] = [],
+    ): Promise<team> {
         const members = [
-            { userId: ownerId, role: "Owner" },
-            ...memberIds.map(userId => ({ userId, role: "Member" })),
+            { userId: ownerId, isAdmin: true },
+            ...memberIds.map(userId => ({ userId, isAdmin: false })),
         ];
 
         return this.createWithRelations({
@@ -186,28 +176,25 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
     /**
      * Create test scenarios
      */
-    async createPrivateTeam(): Promise<Prisma.Team> {
+    async createPrivateTeam(): Promise<team> {
         return this.createMinimal({
             isPrivate: true,
             isOpenToNewMembers: false,
             handle: `private_team_${nanoid(8)}`,
-            name: "Private Team",
         });
     }
 
-    async createOpenTeam(): Promise<Prisma.Team> {
+    async createOpenTeam(): Promise<team> {
         return this.createComplete({
             isPrivate: false,
             isOpenToNewMembers: true,
             handle: `open_team_${nanoid(8)}`,
-            name: "Open Community Team",
         });
     }
 
-    async createOrganizationTeam(): Promise<Prisma.Team> {
+    async createOrganizationTeam(): Promise<team> {
         return this.createWithRelations({
             overrides: {
-                name: "Organization Team",
                 handle: `org_team_${nanoid(8)}`,
                 isPrivate: true,
                 isOpenToNewMembers: false,
@@ -222,7 +209,7 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
         });
     }
 
-    protected async checkModelConstraints(record: Prisma.Team): Promise<string[]> {
+    protected async checkModelConstraints(record: team): Promise<string[]> {
         const violations: string[] = [];
         
         // Check handle uniqueness
@@ -234,30 +221,30 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
                 },
             });
             if (duplicate) {
-                violations.push('Handle must be unique');
+                violations.push("Handle must be unique");
             }
         }
 
         // Check handle format
         if (record.handle && !/^[a-zA-Z0-9_]+$/.test(record.handle)) {
-            violations.push('Handle contains invalid characters');
+            violations.push("Handle contains invalid characters");
         }
 
-        // Check that team has at least one owner
-        const owners = await this.prisma.member.count({
+        // Check that team has at least one admin
+        const admins = await this.prisma.member.count({
             where: {
                 teamId: record.id,
-                role: "Owner",
+                isAdmin: true,
             },
         });
         
-        if (owners === 0) {
-            violations.push('Team must have at least one owner');
+        if (admins === 0) {
+            violations.push("Team must have at least one admin");
         }
 
         // Check private team constraints
         if (record.isPrivate && record.isOpenToNewMembers) {
-            violations.push('Private teams should not be open to new members');
+            violations.push("Private teams should not be open to new members");
         }
 
         return violations;
@@ -284,7 +271,6 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
             duplicateHandle: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                name: "Duplicate Handle Team",
                 handle: "existing_team_handle", // Assumes this exists
                 isPrivate: false,
                 isOpenToNewMembers: true,
@@ -292,7 +278,6 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
             conflictingPrivacy: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                name: "Conflicting Team",
                 handle: `conflict_${nanoid(8)}`,
                 isPrivate: true,
                 isOpenToNewMembers: true, // Conflict with isPrivate
@@ -303,21 +288,19 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
     /**
      * Get edge case scenarios
      */
-    getEdgeCaseScenarios(): Record<string, Prisma.TeamCreateInput> {
+    getEdgeCaseScenarios(): Record<string, Prisma.teamCreateInput> {
         return {
             maxLengthHandle: {
                 ...this.getMinimalData(),
-                handle: 'team_' + 'a'.repeat(45), // Max length handle
+                handle: "team_" + "a".repeat(45), // Max length handle
             },
             unicodeNameTeam: {
                 ...this.getMinimalData(),
-                name: "チーム 🎌", // Unicode characters
                 handle: `unicode_team_${nanoid(8)}`,
             },
             largeTeam: {
                 ...this.getCompleteData(),
                 handle: `large_team_${nanoid(8)}`,
-                name: "Large Test Team",
                 // Would need to add many members after creation
             },
             multiLanguageTeam: {
@@ -326,7 +309,7 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
                 translations: {
                     create: Array.from({ length: 5 }, (_, i) => ({
                         id: generatePK(),
-                        language: ['en', 'es', 'fr', 'de', 'ja'][i],
+                        language: ["en", "es", "fr", "de", "ja"][i],
                         name: `Team Name ${i}`,
                         bio: `Team bio in language ${i}`,
                     })),
@@ -341,9 +324,9 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
     async seedTeamsWithMembers(
         teamCount: number,
         membersPerTeam: number,
-        userIds: string[]
-    ): Promise<Prisma.Team[]> {
-        const teams: Prisma.Team[] = [];
+        userIds: (string | bigint)[],
+    ): Promise<team[]> {
+        const teams: team[] = [];
         
         for (let i = 0; i < teamCount; i++) {
             const startIdx = (i * membersPerTeam) % userIds.length;
@@ -356,7 +339,7 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
             
             const team = await this.createWithOwnerAndMembers(
                 memberIds[0], // First member is owner
-                memberIds.slice(1) // Rest are members
+                memberIds.slice(1), // Rest are members
             );
             
             teams.push(team);
@@ -368,8 +351,7 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
     protected getCascadeInclude(): any {
         return {
             members: true,
-            projects: true,
-            resourceLists: true,
+            resources: true,
             chats: true,
             translations: true,
             // Add other relationships as needed
@@ -377,9 +359,14 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.Team,
+        record: team & {
+            chats?: any[];
+            resources?: any[];
+            members?: any[];
+            translations?: any[];
+        },
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete in order of dependencies
         
@@ -390,19 +377,11 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
             });
         }
 
-        // Delete projects (if they're team-owned)
-        if (record.projects?.length) {
-            // First remove team association
-            await tx.project.updateMany({
-                where: { teamId: record.id },
-                data: { teamId: null },
-            });
-        }
 
-        // Delete resource lists
-        if (record.resourceLists?.length) {
-            await tx.resourceList.deleteMany({
-                where: { teamId: record.id },
+        // Delete resources
+        if (record.resources?.length) {
+            await tx.resource.deleteMany({
+                where: { ownedByTeamId: record.id },
             });
         }
 
@@ -425,12 +404,11 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
      * Create a team hierarchy (teams with sub-teams)
      * Note: This would require a parent-child relationship in the schema
      */
-    async createTeamHierarchy(levels: number = 3): Promise<Prisma.Team[]> {
-        const teams: Prisma.Team[] = [];
+    async createTeamHierarchy(levels = 3): Promise<team[]> {
+        const teams: team[] = [];
         
         // Create root team
         const rootTeam = await this.createComplete({
-            name: "Root Organization",
             handle: `root_org_${nanoid(8)}`,
         });
         teams.push(rootTeam);
@@ -439,7 +417,6 @@ export class TeamDbFactory extends DatabaseFixtureFactory<
         // Note: This is a placeholder - actual implementation would depend on schema
         for (let i = 0; i < levels - 1; i++) {
             const subTeam = await this.createMinimal({
-                name: `Sub Team Level ${i + 1}`,
                 handle: `sub_team_${i}_${nanoid(8)}`,
             });
             teams.push(subTeam);

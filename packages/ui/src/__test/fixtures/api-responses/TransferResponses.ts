@@ -5,17 +5,17 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     Transfer, 
     TransferCreateInput, 
     TransferUpdateInput,
-    TransferStatus
-} from '@vrooli/shared';
+    TransferStatus,
+} from "@vrooli/shared";
 import { 
     transferValidation,
-    TransferStatus as TransferStatusEnum 
-} from '@vrooli/shared';
+    TransferStatus as TransferStatusEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -67,7 +67,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class TransferResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -94,16 +94,16 @@ export class TransferResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/transfer/${transfer.id}`,
                     related: {
                         from: `${this.baseUrl}/api/user/${transfer.from?.id}`,
                         to: `${this.baseUrl}/api/user/${transfer.to?.id}`,
-                        object: transfer.object ? `${this.baseUrl}/api/${transfer.object.__typename.toLowerCase()}/${transfer.object.id}` : undefined
-                    }
-                }
-            }
+                        object: transfer.object ? `${this.baseUrl}/api/${transfer.object.__typename.toLowerCase()}/${transfer.object.id}` : undefined,
+                    },
+                },
+            },
         };
     }
     
@@ -118,7 +118,7 @@ export class TransferResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: transfers.length,
-            totalCount: transfers.length
+            totalCount: transfers.length,
         };
         
         return {
@@ -126,17 +126,17 @@ export class TransferResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/transfer?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/transfer?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -146,16 +146,16 @@ export class TransferResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/transfer'
-            }
+                path: "/api/transfer",
+            },
         };
     }
     
@@ -165,16 +165,16 @@ export class TransferResponseFactory {
     createNotFoundErrorResponse(transferId: string): APIErrorResponse {
         return {
             error: {
-                code: 'TRANSFER_NOT_FOUND',
+                code: "TRANSFER_NOT_FOUND",
                 message: `Transfer with ID '${transferId}' was not found`,
                 details: {
                     transferId,
-                    searchCriteria: { id: transferId }
+                    searchCriteria: { id: transferId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/transfer/${transferId}`
-            }
+                path: `/api/transfer/${transferId}`,
+            },
         };
     }
     
@@ -184,17 +184,17 @@ export class TransferResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this transfer`,
                 details: {
                     operation,
-                    requiredPermissions: ['transfer:write'],
-                    userPermissions: ['transfer:read']
+                    requiredPermissions: ["transfer:write"],
+                    userPermissions: ["transfer:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/transfer'
-            }
+                path: "/api/transfer",
+            },
         };
     }
     
@@ -204,17 +204,17 @@ export class TransferResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/transfer'
-            }
+                path: "/api/transfer",
+            },
         };
     }
     
@@ -224,17 +224,17 @@ export class TransferResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/transfer'
-            }
+                path: "/api/transfer",
+            },
         };
     }
     
@@ -279,9 +279,9 @@ export class TransferResponseFactory {
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             to: {
                 __typename: "User",
@@ -312,9 +312,9 @@ export class TransferResponseFactory {
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             object: {
                 __typename: "Routine",
@@ -338,18 +338,18 @@ export class TransferResponseFactory {
                     canRead: true,
                     canReact: true,
                     isBookmarked: false,
-                    reaction: null
-                }
+                    reaction: null,
+                },
             },
             you: {
                 __typename: "TransferYou",
-                canUpdate: true
-            }
+                canUpdate: true,
+            },
         };
         
         return {
             ...defaultTransfer,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -383,8 +383,8 @@ export class TransferResponseFactory {
         return Object.values(TransferStatusEnum).map(status => 
             this.createMockTransfer({
                 status,
-                message: `Transfer with ${status.toLowerCase()} status`
-            })
+                message: `Transfer with ${status.toLowerCase()} status`,
+            }),
         );
     }
     
@@ -392,33 +392,33 @@ export class TransferResponseFactory {
      * Create transfers for different object types
      */
     createTransfersForDifferentObjects(): Transfer[] {
-        const objectTypes = ['Routine', 'Project', 'Api', 'Team'];
+        const objectTypes = ["Routine", "Project", "Api", "Team"];
         
         return objectTypes.map(objectType => 
             this.createMockTransfer({
                 object: {
                     ...this.createMockTransfer().object,
                     __typename: objectType as any,
-                    id: `${objectType.toLowerCase()}_${this.generateId()}`
+                    id: `${objectType.toLowerCase()}_${this.generateId()}`,
                 },
-                message: `Transfer ${objectType} ownership`
-            })
+                message: `Transfer ${objectType} ownership`,
+            }),
         );
     }
     
     /**
      * Create pending transfers for user
      */
-    createPendingTransfersForUser(userId: string, count: number = 3): Transfer[] {
+    createPendingTransfersForUser(userId: string, count = 3): Transfer[] {
         return Array.from({ length: count }, (_, index) => 
             this.createMockTransfer({
                 status: TransferStatusEnum.Pending,
                 to: {
                     ...this.createMockTransfer().to,
-                    id: userId
+                    id: userId,
                 },
-                message: `Pending transfer request ${index + 1}`
-            })
+                message: `Pending transfer request ${index + 1}`,
+            }),
         );
     }
     
@@ -447,7 +447,7 @@ export class TransferResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -469,7 +469,7 @@ export class TransferMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create transfer
-            rest.post(`${this.responseFactory['baseUrl']}/api/transfer`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, async (req, res, ctx) => {
                 const body = await req.json() as TransferCreateInput;
                 
                 // Validate input
@@ -477,7 +477,7 @@ export class TransferMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -487,12 +487,12 @@ export class TransferMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get transfer by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/transfer/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const transfer = this.responseFactory.createMockTransfer({ id: id as string });
@@ -500,12 +500,12 @@ export class TransferMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update transfer
-            rest.put(`${this.responseFactory['baseUrl']}/api/transfer/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as TransferUpdateInput;
                 
@@ -524,23 +524,23 @@ export class TransferMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete transfer
-            rest.delete(`${this.responseFactory['baseUrl']}/api/transfer/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List transfers
-            rest.get(`${this.responseFactory['baseUrl']}/api/transfer`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const status = url.searchParams.get('status') as TransferStatus;
-                const userId = url.searchParams.get('userId');
-                const objectType = url.searchParams.get('objectType');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as TransferStatus;
+                const userId = url.searchParams.get("userId");
+                const objectType = url.searchParams.get("objectType");
                 
                 let transfers: Transfer[] = [];
                 
@@ -567,66 +567,66 @@ export class TransferMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: transfers.length
-                    }
+                        totalCount: transfers.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Accept transfer
-            rest.post(`${this.responseFactory['baseUrl']}/api/transfer/:id/accept`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const transfer = this.responseFactory.createMockTransfer({ 
                     id: id as string,
-                    status: TransferStatusEnum.Approved
+                    status: TransferStatusEnum.Approved,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(transfer);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Reject transfer
-            rest.post(`${this.responseFactory['baseUrl']}/api/transfer/:id/reject`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer/:id/reject`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const transfer = this.responseFactory.createMockTransfer({ 
                     id: id as string,
-                    status: TransferStatusEnum.Rejected
+                    status: TransferStatusEnum.Rejected,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(transfer);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Cancel transfer
-            rest.post(`${this.responseFactory['baseUrl']}/api/transfer/:id/cancel`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer/:id/cancel`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const transfer = this.responseFactory.createMockTransfer({ 
                     id: id as string,
-                    status: TransferStatusEnum.Cancelled
+                    status: TransferStatusEnum.Cancelled,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(transfer);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -636,49 +636,49 @@ export class TransferMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/transfer`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        toConnect: 'Recipient is required',
-                        objectConnect: 'Object to transfer is required'
-                    }))
+                        toConnect: "Recipient is required",
+                        objectConnect: "Object to transfer is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/transfer/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/transfer`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/transfer`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/transfer`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, async (req, res, ctx) => {
                 const body = await req.json() as TransferCreateInput;
                 const transfer = this.responseFactory.createTransferFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(transfer);
@@ -686,9 +686,9 @@ export class TransferMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -697,13 +697,13 @@ export class TransferMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/transfer`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/transfer/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -712,13 +712,13 @@ export class TransferMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -740,21 +740,21 @@ export const transferResponseScenarios = {
     createSuccess: (transfer?: Transfer) => {
         const factory = new TransferResponseFactory();
         return factory.createSuccessResponse(
-            transfer || factory.createMockTransfer()
+            transfer || factory.createMockTransfer(),
         );
     },
     
     listSuccess: (transfers?: Transfer[]) => {
         const factory = new TransferResponseFactory();
         return factory.createTransferListResponse(
-            transfers || factory.createTransfersWithAllStatuses()
+            transfers || factory.createTransfersWithAllStatuses(),
         );
     },
     
     pendingTransfers: (userId?: string) => {
         const factory = new TransferResponseFactory();
         return factory.createTransferListResponse(
-            factory.createPendingTransfersForUser(userId || 'user-123')
+            factory.createPendingTransfersForUser(userId || "user-123"),
         );
     },
     
@@ -769,23 +769,23 @@ export const transferResponseScenarios = {
         const factory = new TransferResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                toConnect: 'Recipient is required',
-                objectConnect: 'Object to transfer is required'
-            }
+                toConnect: "Recipient is required",
+                objectConnect: "Object to transfer is required",
+            },
         );
     },
     
     notFoundError: (transferId?: string) => {
         const factory = new TransferResponseFactory();
         return factory.createNotFoundErrorResponse(
-            transferId || 'non-existent-id'
+            transferId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new TransferResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -798,7 +798,7 @@ export const transferResponseScenarios = {
     successHandlers: () => new TransferMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new TransferMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new TransferMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new TransferMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new TransferMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

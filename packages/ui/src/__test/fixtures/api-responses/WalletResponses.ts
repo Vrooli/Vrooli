@@ -5,16 +5,16 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     Wallet, 
     WalletCreateInput, 
     WalletUpdateInput,
-    WalletType
-} from '@vrooli/shared';
+    WalletType,
+} from "@vrooli/shared";
 import { 
-    walletValidation 
-} from '@vrooli/shared';
+    walletValidation, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -66,7 +66,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class WalletResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -93,15 +93,15 @@ export class WalletResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/wallet/${wallet.id}`,
                     related: {
                         user: `${this.baseUrl}/api/user/${wallet.user?.id}`,
-                        team: wallet.team ? `${this.baseUrl}/api/team/${wallet.team.id}` : undefined
-                    }
-                }
-            }
+                        team: wallet.team ? `${this.baseUrl}/api/team/${wallet.team.id}` : undefined,
+                    },
+                },
+            },
         };
     }
     
@@ -116,7 +116,7 @@ export class WalletResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: wallets.length,
-            totalCount: wallets.length
+            totalCount: wallets.length,
         };
         
         return {
@@ -124,17 +124,17 @@ export class WalletResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/wallet?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/wallet?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -144,16 +144,16 @@ export class WalletResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/wallet'
-            }
+                path: "/api/wallet",
+            },
         };
     }
     
@@ -163,16 +163,16 @@ export class WalletResponseFactory {
     createNotFoundErrorResponse(walletId: string): APIErrorResponse {
         return {
             error: {
-                code: 'WALLET_NOT_FOUND',
+                code: "WALLET_NOT_FOUND",
                 message: `Wallet with ID '${walletId}' was not found`,
                 details: {
                     walletId,
-                    searchCriteria: { id: walletId }
+                    searchCriteria: { id: walletId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/wallet/${walletId}`
-            }
+                path: `/api/wallet/${walletId}`,
+            },
         };
     }
     
@@ -182,17 +182,17 @@ export class WalletResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this wallet`,
                 details: {
                     operation,
-                    requiredPermissions: ['wallet:write'],
-                    userPermissions: ['wallet:read']
+                    requiredPermissions: ["wallet:write"],
+                    userPermissions: ["wallet:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/wallet'
-            }
+                path: "/api/wallet",
+            },
         };
     }
     
@@ -202,17 +202,17 @@ export class WalletResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/wallet'
-            }
+                path: "/api/wallet",
+            },
         };
     }
     
@@ -222,17 +222,17 @@ export class WalletResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/wallet'
-            }
+                path: "/api/wallet",
+            },
         };
     }
     
@@ -282,21 +282,21 @@ export class WalletResponseFactory {
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             team: null,
             you: {
                 __typename: "WalletYou",
                 canDelete: true,
-                canUpdate: true
-            }
+                canUpdate: true,
+            },
         };
         
         return {
             ...defaultWallet,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -353,8 +353,8 @@ export class WalletResponseFactory {
                     canRead: true,
                     isBookmarked: false,
                     isViewed: false,
-                    yourMembership: null
-                }
+                    yourMembership: null,
+                },
             };
             wallet.user = null as any; // Team wallet doesn't have user
         }
@@ -373,7 +373,7 @@ export class WalletResponseFactory {
                 handle: "primary_wallet",
                 verified: true,
                 publicAddress: "0xa0b86991c431e59b79c1d2f01e81b0d7b4a39e5c7",
-                stakingAddress: "stake1ux3kcqc8xljgdw85xgzz7w7pcf6j8z3z2z9g3z3z3z3z3z"
+                stakingAddress: "stake1ux3kcqc8xljgdw85xgzz7w7pcf6j8z3z2z9g3z3z3z3z3z",
             }),
             
             // Personal unverified wallet
@@ -382,7 +382,7 @@ export class WalletResponseFactory {
                 handle: "secondary_wallet",
                 verified: false,
                 publicAddress: "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce",
-                stakingAddress: null
+                stakingAddress: null,
             }),
             
             // Team wallet
@@ -412,28 +412,28 @@ export class WalletResponseFactory {
                         canRead: true,
                         isBookmarked: false,
                         isViewed: false,
-                        yourMembership: null
-                    }
-                }
-            })
+                        yourMembership: null,
+                    },
+                },
+            }),
         ];
     }
     
     /**
      * Create wallets for a specific user
      */
-    createWalletsForUser(userId: string, count: number = 3): Wallet[] {
+    createWalletsForUser(userId: string, count = 3): Wallet[] {
         return Array.from({ length: count }, (_, index) => 
             this.createMockWallet({
                 user: {
                     ...this.createMockWallet().user,
-                    id: userId
+                    id: userId,
                 },
                 name: `Wallet ${index + 1}`,
                 handle: `wallet_${index + 1}_${userId}`,
                 verified: index === 0, // First wallet is verified
-                publicAddress: `0x${Math.random().toString(16).substring(2, 42)}`
-            })
+                publicAddress: `0x${Math.random().toString(16).substring(2, 42)}`,
+            }),
         );
     }
     
@@ -445,12 +445,12 @@ export class WalletResponseFactory {
             ethereum: `0x${Math.random().toString(16).substring(2, 42)}`,
             bitcoin: this.generateBitcoinAddress(),
             cardano: this.generateCardanoAddress(),
-            solana: this.generateSolanaAddress()
+            solana: this.generateSolanaAddress(),
         };
     }
     
     private generateBitcoinAddress(): string {
-        const prefixes = ['1', '3', 'bc1'];
+        const prefixes = ["1", "3", "bc1"];
         const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
         const address = Math.random().toString(36).substring(2, 35);
         return `${prefix}${address}`;
@@ -489,7 +489,7 @@ export class WalletResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -511,7 +511,7 @@ export class WalletMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create wallet
-            rest.post(`${this.responseFactory['baseUrl']}/api/wallet`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async (req, res, ctx) => {
                 const body = await req.json() as WalletCreateInput;
                 
                 // Validate input
@@ -519,7 +519,7 @@ export class WalletMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -529,12 +529,12 @@ export class WalletMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get wallet by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/wallet/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const wallet = this.responseFactory.createMockWallet({ id: id as string });
@@ -542,18 +542,18 @@ export class WalletMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update wallet
-            rest.put(`${this.responseFactory['baseUrl']}/api/wallet/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as WalletUpdateInput;
                 
                 const wallet = this.responseFactory.createMockWallet({ 
                     id: id as string,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 });
                 
                 // Apply updates from body
@@ -573,23 +573,23 @@ export class WalletMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete wallet
-            rest.delete(`${this.responseFactory['baseUrl']}/api/wallet/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List wallets
-            rest.get(`${this.responseFactory['baseUrl']}/api/wallet`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const userId = url.searchParams.get('userId');
-                const teamId = url.searchParams.get('teamId');
-                const verified = url.searchParams.get('verified') === 'true';
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const userId = url.searchParams.get("userId");
+                const teamId = url.searchParams.get("teamId");
+                const verified = url.searchParams.get("verified") === "true";
                 
                 let wallets: Wallet[] = [];
                 
@@ -599,9 +599,9 @@ export class WalletMSWHandlers {
                     wallets = [this.responseFactory.createMockWallet({
                         team: {
                             ...this.responseFactory.createMockWallet().team!,
-                            id: teamId
+                            id: teamId,
                         },
-                        user: null
+                        user: null,
                     })];
                 } else {
                     wallets = this.responseFactory.createWalletTypes();
@@ -621,36 +621,36 @@ export class WalletMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: wallets.length
-                    }
+                        totalCount: wallets.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Verify wallet
-            rest.post(`${this.responseFactory['baseUrl']}/api/wallet/:id/verify`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verify`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const wallet = this.responseFactory.createMockWallet({ 
                     id: id as string,
                     verified: true,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(wallet);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Check wallet verification status
-            rest.get(`${this.responseFactory['baseUrl']}/api/wallet/:id/verification-status`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verification-status`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 // Simulate verification status check
@@ -658,7 +658,7 @@ export class WalletMSWHandlers {
                     id: id as string,
                     verified: Math.random() > 0.5,
                     verificationPending: Math.random() > 0.7,
-                    lastVerificationAttempt: new Date().toISOString()
+                    lastVerificationAttempt: new Date().toISOString(),
                 };
                 
                 return res(
@@ -667,12 +667,12 @@ export class WalletMSWHandlers {
                         data: verificationStatus,
                         meta: {
                             timestamp: new Date().toISOString(),
-                            requestId: this.responseFactory['generateRequestId'](),
-                            version: '1.0'
-                        }
-                    })
+                            requestId: this.responseFactory["generateRequestId"](),
+                            version: "1.0",
+                        },
+                    }),
                 );
-            })
+            }),
         ];
     }
     
@@ -682,49 +682,49 @@ export class WalletMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/wallet`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        publicAddress: 'Invalid wallet address format',
-                        name: 'Wallet name is required'
-                    }))
+                        publicAddress: "Invalid wallet address format",
+                        name: "Wallet name is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/wallet/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/wallet`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/wallet`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/wallet`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async (req, res, ctx) => {
                 const body = await req.json() as WalletCreateInput;
                 const wallet = this.responseFactory.createWalletFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(wallet);
@@ -732,9 +732,9 @@ export class WalletMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -743,13 +743,13 @@ export class WalletMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/wallet`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/wallet/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -758,13 +758,13 @@ export class WalletMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -786,14 +786,14 @@ export const walletResponseScenarios = {
     createSuccess: (wallet?: Wallet) => {
         const factory = new WalletResponseFactory();
         return factory.createSuccessResponse(
-            wallet || factory.createMockWallet()
+            wallet || factory.createMockWallet(),
         );
     },
     
     listSuccess: (wallets?: Wallet[]) => {
         const factory = new WalletResponseFactory();
         return factory.createWalletListResponse(
-            wallets || factory.createWalletTypes()
+            wallets || factory.createWalletTypes(),
         );
     },
     
@@ -802,7 +802,7 @@ export const walletResponseScenarios = {
         const wallet = factory.createMockWallet({
             verified: true,
             name: "Verified Wallet",
-            publicAddress: "0xa0b86991c431e59b79c1d2f01e81b0d7b4a39e5c7"
+            publicAddress: "0xa0b86991c431e59b79c1d2f01e81b0d7b4a39e5c7",
         });
         return factory.createSuccessResponse(wallet);
     },
@@ -810,7 +810,7 @@ export const walletResponseScenarios = {
     userWallets: (userId?: string) => {
         const factory = new WalletResponseFactory();
         return factory.createWalletListResponse(
-            factory.createWalletsForUser(userId || 'user-123')
+            factory.createWalletsForUser(userId || "user-123"),
         );
     },
     
@@ -819,11 +819,11 @@ export const walletResponseScenarios = {
         const wallet = factory.createMockWallet({
             team: {
                 ...factory.createMockWallet().team!,
-                id: teamId || 'team-456'
+                id: teamId || "team-456",
             },
             user: null,
             name: "Team Treasury Wallet",
-            verified: true
+            verified: true,
         });
         return factory.createSuccessResponse(wallet);
     },
@@ -833,23 +833,23 @@ export const walletResponseScenarios = {
         const factory = new WalletResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                publicAddress: 'Invalid wallet address format',
-                name: 'Wallet name is required'
-            }
+                publicAddress: "Invalid wallet address format",
+                name: "Wallet name is required",
+            },
         );
     },
     
     notFoundError: (walletId?: string) => {
         const factory = new WalletResponseFactory();
         return factory.createNotFoundErrorResponse(
-            walletId || 'non-existent-id'
+            walletId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new WalletResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -862,7 +862,7 @@ export const walletResponseScenarios = {
     successHandlers: () => new WalletMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new WalletMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new WalletMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new WalletMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new WalletMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

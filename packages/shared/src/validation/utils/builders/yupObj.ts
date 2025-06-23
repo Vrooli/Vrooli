@@ -26,7 +26,7 @@ export function yupObj<AllFields extends { [key: string]: yup.AnySchema }>(
 ) {
     // Find fields which should be omitted from the top level object
     // Only include fields that don't contain dots (i.e., true top-level fields)
-    const topLevelOmitFields = (data.omitFields ?? []).filter(field => !field.includes('.'));
+    const topLevelOmitFields = (data.omitFields ?? []).filter(field => !field.includes("."));
     const [topFields] = splitDotNotation(topLevelOmitFields);
     // Convert every relationship into yup fields
     let relFields: Partial<AllFields> = {};

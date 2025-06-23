@@ -1,5 +1,14 @@
-import { generatePK, nanoid, CommentFor } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+
+// TODO: Update this when CommentFor is available
+const CommentFor = {
+    Issue: "Issue",
+    PullRequest: "PullRequest", 
+    ResourceVersion: "ResourceVersion",
+} as const;
+
+type CommentFor = typeof CommentFor[keyof typeof CommentFor];
+import { type comment, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
 
@@ -19,13 +28,13 @@ interface CommentRelationConfig extends RelationConfig {
  * Handles polymorphic comments on any object with threaded replies and reactions
  */
 export class CommentDbFactory extends DatabaseFixtureFactory<
-    Prisma.comment,
+    comment,
     Prisma.commentCreateInput,
     Prisma.commentInclude,
     Prisma.commentUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('comment', prisma);
+        super("comment", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -77,14 +86,14 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
      */
     async createForObject(
         objectType: CommentFor,
-        objectId: string,
-        ownerId: string,
-        overrides?: Partial<Prisma.commentCreateInput>
-    ): Promise<Prisma.comment> {
+        objectId: string | bigint,
+        ownerId: string | bigint,
+        overrides?: Partial<Prisma.commentCreateInput>,
+    ): Promise<comment> {
         const typeMapping: Record<CommentFor, string> = {
-            [CommentFor.Issue]: 'issue',
-            [CommentFor.PullRequest]: 'pullRequest',
-            [CommentFor.ResourceVersion]: 'resourceVersion',
+            [CommentFor.Issue]: "issue",
+            [CommentFor.PullRequest]: "pullRequest",
+            [CommentFor.ResourceVersion]: "resourceVersion",
         };
         
         const fieldName = typeMapping[objectType];
@@ -94,13 +103,13 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
         
         const data: Prisma.commentCreateInput = {
             ...this.getMinimalData(),
-            ownedByUser: { connect: { id: ownerId } },
-            [fieldName]: { connect: { id: objectId } },
+            ownedByUser: { connect: { id: BigInt(ownerId) } },
+            [fieldName]: { connect: { id: BigInt(objectId) } },
             ...overrides,
         };
         
         const result = await this.prisma.comment.create({ data });
-        this.trackCreatedId(result.id);
+        this.trackCreatedId(result.id.toString());
         return result;
     }
 
@@ -108,26 +117,26 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
      * Create a threaded reply
      */
     async createReply(
-        parentId: string,
-        ownerId: string,
-        overrides?: Partial<Prisma.commentCreateInput>
-    ): Promise<Prisma.comment> {
+        parentId: string | bigint,
+        ownerId: string | bigint,
+        overrides?: Partial<Prisma.commentCreateInput>,
+    ): Promise<comment> {
         const data: Prisma.commentCreateInput = {
             ...this.getMinimalData(),
-            parent: { connect: { id: parentId } },
-            ownedByUser: { connect: { id: ownerId } },
+            parent: { connect: { id: BigInt(parentId) } },
+            ownedByUser: { connect: { id: BigInt(ownerId) } },
             translations: {
                 create: [{
                     id: generatePK(),
                     language: "en",
-                    text: overrides?.translations?.create?.[0]?.text || "Reply comment",
+                    text: "Reply comment",
                 }],
             },
             ...overrides,
         };
         
         const result = await this.prisma.comment.create({ data });
-        this.trackCreatedId(result.id);
+        this.trackCreatedId(result.id.toString());
         return result;
     }
 
@@ -135,22 +144,22 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
      * Create a team-owned comment
      */
     async createTeamComment(
-        teamId: string,
+        teamId: string | bigint,
         objectType: CommentFor,
-        objectId: string,
-        overrides?: Partial<Prisma.commentCreateInput>
-    ): Promise<Prisma.comment> {
+        objectId: string | bigint,
+        overrides?: Partial<Prisma.commentCreateInput>,
+    ): Promise<comment> {
         const typeMapping: Record<CommentFor, string> = {
-            [CommentFor.Issue]: 'issue',
-            [CommentFor.PullRequest]: 'pullRequest',
-            [CommentFor.ResourceVersion]: 'resourceVersion',
+            [CommentFor.Issue]: "issue",
+            [CommentFor.PullRequest]: "pullRequest",
+            [CommentFor.ResourceVersion]: "resourceVersion",
         };
         
         const fieldName = typeMapping[objectType];
         const data: Prisma.commentCreateInput = {
             ...this.getMinimalData(),
-            ownedByTeam: { connect: { id: teamId } },
-            [fieldName]: { connect: { id: objectId } },
+            ownedByTeam: { connect: { id: BigInt(teamId) } },
+            [fieldName]: { connect: { id: BigInt(objectId) } },
             translations: {
                 create: [{
                     id: generatePK(),
@@ -162,7 +171,7 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
         };
         
         const result = await this.prisma.comment.create({ data });
-        this.trackCreatedId(result.id);
+        this.trackCreatedId(result.id.toString());
         return result;
     }
 
@@ -188,54 +197,14 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
                 select: {
                     id: true,
                     translations: {
-                        where: { language: 'en' },
+                        where: { language: "en" },
                         take: 1,
-                    },
-                },
-            },
-            replies: {
-                take: 5,
-                include: {
-                    translations: true,
-                    ownedByUser: {
-                        select: {
-                            id: true,
-                            name: true,
-                            handle: true,
-                        },
-                    },
-                },
-            },
-            reactions: {
-                take: 10,
-                select: {
-                    id: true,
-                    emoji: true,
-                    by: {
-                        select: {
-                            id: true,
-                            name: true,
-                        },
-                    },
-                },
-            },
-            bookmarkedBy: {
-                take: 5,
-                select: {
-                    id: true,
-                    by: {
-                        select: {
-                            id: true,
-                            name: true,
-                        },
                     },
                 },
             },
             _count: {
                 select: {
-                    replies: true,
-                    reactions: true,
-                    bookmarkedBy: true,
+                    parents: true,
                 },
             },
         };
@@ -244,21 +213,21 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.commentCreateInput,
         config: CommentRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.commentCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle ownership
         if (config.ownedByTeam && config.teamId) {
-            data.ownedByTeam = { connect: { id: config.teamId } };
+            data.ownedByTeam = { connect: { id: BigInt(config.teamId) } };
             delete data.ownedByUser;
         } else if (config.ownerId) {
-            data.ownedByUser = { connect: { id: config.ownerId } };
+            data.ownedByUser = { connect: { id: BigInt(config.ownerId) } };
         }
 
         // Handle parent comment
         if (config.parentId) {
-            data.parent = { connect: { id: config.parentId } };
+            data.parent = { connect: { id: BigInt(config.parentId) } };
         }
 
         // Handle translations
@@ -273,7 +242,7 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
 
         // Handle reactions
         if (config.withReactions && config.reactionUserIds && config.reactionUserIds.length > 0) {
-            const reactionCount = typeof config.withReactions === 'number' 
+            const reactionCount = typeof config.withReactions === "number" 
                 ? Math.min(config.withReactions, config.reactionUserIds.length)
                 : config.reactionUserIds.length;
             
@@ -283,7 +252,7 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
                 create: config.reactionUserIds.slice(0, reactionCount).map((userId, i) => ({
                     id: generatePK(),
                     emoji: emojis[i % emojis.length],
-                    by: { connect: { id: userId } },
+                    by: { connect: { id: BigInt(userId) } },
                 })),
             };
         }
@@ -293,8 +262,7 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
             data.bookmarkedBy = {
                 create: config.bookmarkUserIds.map(userId => ({
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    by: { connect: { id: userId } },
+                    user: { connect: { id: BigInt(userId) } },
                 })),
             };
         }
@@ -307,11 +275,11 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
      */
     async createDiscussionThread(
         rootObjectType: CommentFor,
-        rootObjectId: string,
-        participants: string[],
-        depth: number = 3
-    ): Promise<Prisma.comment[]> {
-        const comments: Prisma.comment[] = [];
+        rootObjectId: string | bigint,
+        participants: (string | bigint)[],
+        depth = 3,
+    ): Promise<comment[]> {
+        const comments: comment[] = [];
         
         // Create root comment
         const rootComment = await this.createForObject(
@@ -326,7 +294,7 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
                         text: "Starting a discussion about this topic...",
                     }],
                 },
-            }
+            },
         );
         comments.push(rootComment);
 
@@ -344,7 +312,7 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
                             text: `Reply ${i}: Adding to the discussion...`,
                         }],
                     },
-                }
+                },
             );
             comments.push(reply);
             parentComment = reply;
@@ -357,8 +325,8 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
         objectType: CommentFor,
         objectId: string,
         authorId: string,
-        reactionUserIds: string[]
-    ): Promise<Prisma.comment> {
+        reactionUserIds: string[],
+    ): Promise<comment> {
         return this.createWithRelations({
             overrides: {
                 score: -50, // Negative score
@@ -381,8 +349,8 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
         objectType: CommentFor,
         objectId: string,
         authorId: string,
-        reactionUserIds: string[]
-    ): Promise<Prisma.comment> {
+        reactionUserIds: string[],
+    ): Promise<comment> {
         return this.createWithRelations({
             overrides: {
                 score: 150,
@@ -404,25 +372,25 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
         });
     }
 
-    protected async checkModelConstraints(record: Prisma.comment): Promise<string[]> {
+    protected async checkModelConstraints(record: any): Promise<string[]> {
         const violations: string[] = [];
         
         // Check has at least one translation
-        const translations = await this.prisma.commentTranslation.findMany({
+        const translations = await this.prisma.comment_translation.findMany({
             where: { commentId: record.id },
         });
         
         if (translations.length === 0) {
-            violations.push('Comment must have at least one translation');
+            violations.push("Comment must have at least one translation");
         }
 
         // Check ownership
         if (!record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Comment must be owned by either a user or team');
+            violations.push("Comment must be owned by either a user or team");
         }
 
         if (record.ownedByUserId && record.ownedByTeamId) {
-            violations.push('Comment cannot be owned by both user and team');
+            violations.push("Comment cannot be owned by both user and team");
         }
 
         // Check parent object or parent comment
@@ -433,16 +401,16 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
         ].filter(Boolean);
 
         if (parentObjects.length === 0 && !record.parentId) {
-            violations.push('Comment must be associated with a parent object or be a reply');
+            violations.push("Comment must be associated with a parent object or be a reply");
         }
 
         if (parentObjects.length > 1) {
-            violations.push('Comment cannot be associated with multiple parent objects');
+            violations.push("Comment cannot be associated with multiple parent objects");
         }
 
         // Check self-reference
         if (record.parentId && record.parentId === record.id) {
-            violations.push('Comment cannot be its own parent');
+            violations.push("Comment cannot be its own parent");
         }
 
         return violations;
@@ -580,20 +548,20 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
     protected getCascadeInclude(): any {
         return {
             translations: true,
-            replies: true,
+            parents: true,
             reactions: true,
             bookmarkedBy: true,
         };
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.comment,
+        record: any,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete replies recursively
-        if (record.replies?.length) {
-            for (const reply of record.replies) {
+        if (record.parents?.length) {
+            for (const reply of record.parents) {
                 await this.cascadeDelete(reply.id, remainingDepth, tx);
             }
         }
@@ -614,7 +582,7 @@ export class CommentDbFactory extends DatabaseFixtureFactory<
 
         // Delete translations
         if (record.translations?.length) {
-            await tx.commentTranslation.deleteMany({
+            await tx.comment_translation.deleteMany({
                 where: { commentId: record.id },
             });
         }

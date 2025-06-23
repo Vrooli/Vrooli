@@ -60,7 +60,7 @@ describe("TeamAPIFixtures", () => {
             const input2 = teamAPIFixtures.createFactory();
 
             expect(input1.id).not.toBe(input2.id);
-            expect(input1.translationsCreate![0].id).not.toBe(input2.translationsCreate![0].id);
+            expect(input1.translationsCreate?.[0]?.id).not.toBe(input2.translationsCreate?.[0]?.id);
         });
 
         it("should generate update inputs with proper id", () => {
@@ -91,7 +91,7 @@ describe("TeamAPIFixtures", () => {
             expect(team.isPrivate).toBe(false);
             expect(team.isOpenToNewMembers).toBe(true);
             expect(team.handle).toBe("test_team"); // Cleaned handle
-            expect(team.translationsCreate![0].name).toBe("Test Team");
+            expect(team.translationsCreate?.[0]?.name).toBe("Test Team");
         });
 
         it("should create private teams correctly", () => {
@@ -100,8 +100,8 @@ describe("TeamAPIFixtures", () => {
             expect(team.isPrivate).toBe(true);
             expect(team.isOpenToNewMembers).toBe(false);
             expect(team.handle).toBe("secret_team");
-            expect(team.translationsCreate![0].name).toBe("Secret Team");
-            expect(team.translationsCreate![0].bio).toBe("This is a private team.");
+            expect(team.translationsCreate?.[0]?.name).toBe("Secret Team");
+            expect(team.translationsCreate?.[0]?.bio).toBe("This is a private team.");
         });
 
         it("should create teams with member invites", () => {
@@ -109,10 +109,10 @@ describe("TeamAPIFixtures", () => {
             const team = teamAPIFixtures.createTeamWithMembers(memberIds, "Collaborative Team");
 
             expect(team.memberInvitesCreate).toHaveLength(3);
-            expect(team.memberInvitesCreate![0].userConnect).toBe("user1");
-            expect(team.memberInvitesCreate![1].userConnect).toBe("user2");
-            expect(team.memberInvitesCreate![2].userConnect).toBe("user3");
-            expect(team.translationsCreate![0].name).toBe("Collaborative Team");
+            expect(team.memberInvitesCreate?.[0]?.userConnect).toBe("user1");
+            expect(team.memberInvitesCreate?.[1]?.userConnect).toBe("user2");
+            expect(team.memberInvitesCreate?.[2]?.userConnect).toBe("user3");
+            expect(team.translationsCreate?.[0]?.name).toBe("Collaborative Team");
         });
 
         it("should add member invites to existing teams", () => {
@@ -124,9 +124,9 @@ describe("TeamAPIFixtures", () => {
 
             expect(update.id).toBe(teamId);
             expect(update.memberInvitesCreate).toHaveLength(1);
-            expect(update.memberInvitesCreate![0].userConnect).toBe(userId);
-            expect(update.memberInvitesCreate![0].message).toBe(customMessage);
-            expect(update.memberInvitesCreate![0].teamConnect).toBe(teamId);
+            expect(update.memberInvitesCreate?.[0]?.userConnect).toBe(userId);
+            expect(update.memberInvitesCreate?.[0]?.message).toBe(customMessage);
+            expect(update.memberInvitesCreate?.[0]?.teamConnect).toBe(teamId);
         });
 
         it("should remove members from teams", () => {
@@ -153,8 +153,8 @@ describe("TeamAPIFixtures", () => {
             expect(update.tagsConnect).toEqual(["existing-tag-1"]);
             expect(update.tagsDisconnect).toEqual(["old-tag-2"]);
             expect(update.tagsCreate).toHaveLength(2);
-            expect(update.tagsCreate![0].tag).toBe("new-tag");
-            expect(update.tagsCreate![1].tag).toBe("another-tag");
+            expect(update.tagsCreate?.[0]?.tag).toBe("new-tag");
+            expect(update.tagsCreate?.[1]?.tag).toBe("another-tag");
         });
 
         it("should add team translations correctly", () => {
@@ -168,9 +168,9 @@ describe("TeamAPIFixtures", () => {
 
             expect(update.id).toBe(teamId);
             expect(update.translationsCreate).toHaveLength(1);
-            expect(update.translationsCreate![0].language).toBe("de");
-            expect(update.translationsCreate![0].name).toBe("Deutsches Team");
-            expect(update.translationsCreate![0].bio).toBe("Ein Team für deutsche Nutzer");
+            expect(update.translationsCreate?.[0]?.language).toBe("de");
+            expect(update.translationsCreate?.[0]?.name).toBe("Deutsches Team");
+            expect(update.translationsCreate?.[0]?.bio).toBe("Ein Team für deutsche Nutzer");
         });
 
         it("should create teams with organizational structure", () => {
@@ -180,7 +180,7 @@ describe("TeamAPIFixtures", () => {
                 "structure MyTeam { group dev { role lead cardinality 1..1 } }",
             );
 
-            expect(team.translationsCreate![0].name).toBe("Structured Team");
+            expect(team.translationsCreate?.[0]?.name).toBe("Structured Team");
             expect(team.config?.structure?.type).toBe("MOISE+");
             expect(team.config?.structure?.content).toContain("MyTeam");
         });
@@ -228,11 +228,11 @@ describe("TeamAPIFixtures", () => {
             expect(scenario.createInput.handle).toBe("integration");
             expect(scenario.createInput.memberInvitesCreate).toHaveLength(3);
             expect(scenario.createInput.tagsCreate).toHaveLength(3);
-            expect(scenario.createInput.translationsCreate![0].name).toBe("Integration Team");
+            expect(scenario.createInput.translationsCreate?.[0]?.name).toBe("Integration Team");
 
             expect(scenario.updateInput.bannerImage).toBe("Integration-banner.jpg");
             expect(scenario.updateInput.profileImage).toBe("Integration-profile.png");
-            expect(scenario.updateInput.translationsUpdate![0].name).toBe("Updated Integration Team");
+            expect(scenario.updateInput.translationsUpdate?.[0]?.name).toBe("Updated Integration Team");
 
             expect(scenario.expectedResult.handle).toBe("integration");
             expect(scenario.expectedResult.bannerImage).toBe("Integration-banner.jpg");
@@ -252,14 +252,14 @@ describe("TeamAPIFixtures", () => {
             expect(typeof invalidTypes.create.handle).toBe("number");
 
             // Business logic errors
-            expect(businessLogicErrors!.invalidId).toBeDefined();
-            expect(businessLogicErrors!.duplicateHandle).toBeDefined();
-            expect(businessLogicErrors!.circularMemberInvite).toBeDefined();
+            expect(businessLogicErrors?.invalidId).toBeDefined();
+            expect(businessLogicErrors?.duplicateHandle).toBeDefined();
+            expect(businessLogicErrors?.circularMemberInvite).toBeDefined();
 
             // Validation errors
-            expect(validationErrors!.invalidHandle).toBeDefined();
-            expect(validationErrors!.longHandle).toBeDefined();
-            expect(validationErrors!.invalidHandleChars).toBeDefined();
+            expect(validationErrors?.invalidHandle).toBeDefined();
+            expect(validationErrors?.longHandle).toBeDefined();
+            expect(validationErrors?.invalidHandleChars).toBeDefined();
         });
 
         it("should have proper edge cases", () => {
@@ -267,21 +267,21 @@ describe("TeamAPIFixtures", () => {
 
             // Minimal valid should have minimum requirements
             expect(minimalValid.create.handle).toBe("abc"); // 3 chars
-            expect(minimalValid.create.translationsCreate![0].name).toBe("Min"); // 3 chars
+            expect(minimalValid.create.translationsCreate?.[0]?.name).toBe("Min"); // 3 chars
 
             // Maximal valid should have maximum lengths
             expect(maximalValid.create.handle).toBe("max_length_16ch"); // 16 chars
-            expect(maximalValid.create.translationsCreate![0].name).toHaveLength(50); // Max name length
+            expect(maximalValid.create.translationsCreate?.[0]?.name).toHaveLength(50); // Max name length
 
             // Boundary values
-            expect(boundaryValues!.privateTeam).toBeDefined();
-            expect(boundaryValues!.publicOpenTeam).toBeDefined();
-            expect(boundaryValues!.multipleLanguages).toBeDefined();
+            expect(boundaryValues?.privateTeam).toBeDefined();
+            expect(boundaryValues?.publicOpenTeam).toBeDefined();
+            expect(boundaryValues?.multipleLanguages).toBeDefined();
 
             // Permission scenarios
-            expect(permissionScenarios!.ownerTeam).toBeDefined();
-            expect(permissionScenarios!.memberTeam).toBeDefined();
-            expect(permissionScenarios!.viewerTeam).toBeDefined();
+            expect(permissionScenarios?.ownerTeam).toBeDefined();
+            expect(permissionScenarios?.memberTeam).toBeDefined();
+            expect(permissionScenarios?.viewerTeam).toBeDefined();
         });
     });
 });

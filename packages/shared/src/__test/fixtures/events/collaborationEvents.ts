@@ -49,7 +49,17 @@ export class RunTaskEventFactory extends BaseEventFactory<CollaborationEvent<Run
     }
 
     get single(): CollaborationEvent<RunTaskInfo> {
-        return this.create();
+        return {
+            event: "runTask" as keyof RunSocketEventPayloads,
+            data: {
+                runId: testValues.snowflakeId(),
+                runStatus: RunStatus.InProgress,
+                percentComplete: 0,
+                activeBranches: [],
+                subcontextUpdates: {},
+                ...this.options.defaults,
+            },
+        };
     }
 
     get sequence(): CollaborationEvent<RunTaskInfo>[] {
@@ -234,7 +244,22 @@ export class DecisionRequestEventFactory extends BaseEventFactory<CollaborationE
     }
 
     get single(): CollaborationEvent<DeferredDecisionData> {
-        return this.createBooleanDecision();
+        return {
+            event: "decisionRequest" as keyof RunSocketEventPayloads,
+            data: {
+                key: `decision_${++this.decisionCounter}`,
+                message: "Do you want to proceed?",
+                options: [
+                    { nodeId: "yes_node", nodeLabel: "Yes", nodeData: { value: true } },
+                    { nodeId: "no_node", nodeLabel: "No", nodeData: { value: false } },
+                ],
+                type: "boolean",
+                timeout: 300000,
+                requester: testValues.snowflakeId(),
+                context: {},
+                ...this.options.defaults,
+            },
+        };
     }
 
     get sequence(): CollaborationEvent<DeferredDecisionData>[] {

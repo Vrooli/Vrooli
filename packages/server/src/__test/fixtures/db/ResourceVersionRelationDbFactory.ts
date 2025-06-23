@@ -31,7 +31,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
     Prisma.ResourceVersionRelationUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ResourceVersionRelation', prisma);
+        super("ResourceVersionRelation", prisma);
         this.initializeScenarios();
     }
 
@@ -250,9 +250,9 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.ResourceVersionRelationCreateInput,
         config: ResourceVersionRelationRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ResourceVersionRelationCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle from connection
         if (config.from?.resourceVersionId) {
@@ -273,7 +273,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
     async createDependency(
         fromVersionId: string,
         toVersionId: string,
-        sequence: number = 1
+        sequence = 1,
     ): Promise<Prisma.ResourceVersionRelation> {
         return this.createWithRelations({
             from: { resourceVersionId: fromVersionId },
@@ -292,7 +292,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
      */
     async createPrerequisite(
         fromVersionId: string,
-        toVersionId: string
+        toVersionId: string,
     ): Promise<Prisma.ResourceVersionRelation> {
         return this.createWithRelations({
             from: { resourceVersionId: fromVersionId },
@@ -312,7 +312,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
     async createManualRelation(
         fromVersionId: string,
         toVersionId: string,
-        relationshipType: string = "RelatedTo"
+        relationshipType = "RelatedTo",
     ): Promise<Prisma.ResourceVersionRelation> {
         return this.createWithRelations({
             from: { resourceVersionId: fromVersionId },
@@ -335,7 +335,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
             const relation = await this.createDependency(
                 versionIds[i],
                 versionIds[i + 1],
-                i + 1
+                i + 1,
             );
             relations.push(relation);
         }
@@ -349,7 +349,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
     async createBidirectionalRelation(
         versionId1: string,
         versionId2: string,
-        relationshipType: string = "RelatedTo"
+        relationshipType = "RelatedTo",
     ): Promise<[Prisma.ResourceVersionRelation, Prisma.ResourceVersionRelation]> {
         const relation1 = await this.createWithRelations({
             from: { resourceVersionId: versionId1 },
@@ -376,23 +376,23 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
         const violations: string[] = [];
 
         // Check that relationship type is not empty
-        if (!record.relationshipType || record.relationshipType.trim() === '') {
-            violations.push('Relationship type cannot be empty');
+        if (!record.relationshipType || record.relationshipType.trim() === "") {
+            violations.push("Relationship type cannot be empty");
         }
 
         // Check that relation has both from and to
         if (!record.fromId || !record.toId) {
-            violations.push('Relation must have both from and to resource versions');
+            violations.push("Relation must have both from and to resource versions");
         }
 
         // Check for self-reference (circular dependency)
         if (record.fromId && record.toId && record.fromId === record.toId) {
-            violations.push('Resource version cannot have a relation to itself');
+            violations.push("Resource version cannot have a relation to itself");
         }
 
         // Check sequence is positive if provided
         if (record.sequence !== null && record.sequence < 0) {
-            violations.push('Sequence must be non-negative');
+            violations.push("Sequence must be non-negative");
         }
 
         // Check for duplicate relations
@@ -406,7 +406,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
                 },
             });
             if (duplicate) {
-                violations.push('Duplicate relation already exists');
+                violations.push("Duplicate relation already exists");
             }
         }
 
@@ -421,7 +421,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.ResourceVersionRelation,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // ResourceVersionRelation has no dependent records to cascade delete
     }
@@ -436,7 +436,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
                 relationshipType: "DependsOn",
             },
             include: this.getDefaultInclude(),
-            orderBy: { sequence: 'asc' },
+            orderBy: { sequence: "asc" },
         });
     }
 
@@ -450,14 +450,14 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
                 relationshipType: "DependsOn",
             },
             include: this.getDefaultInclude(),
-            orderBy: { sequence: 'asc' },
+            orderBy: { sequence: "asc" },
         });
     }
 }
 
 // Export factory creator function
 export const createResourceVersionRelationDbFactory = (prisma: PrismaClient) => 
-    ResourceVersionRelationDbFactory.getInstance('ResourceVersionRelation', prisma);
+    ResourceVersionRelationDbFactory.getInstance("ResourceVersionRelation", prisma);
 
 // Export the class for type usage
 export { ResourceVersionRelationDbFactory as ResourceVersionRelationDbFactoryClass };

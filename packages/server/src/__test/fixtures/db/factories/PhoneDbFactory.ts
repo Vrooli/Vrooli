@@ -1,5 +1,5 @@
-import { generatePK, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { type phone, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
 
@@ -16,20 +16,20 @@ interface PhoneRelationConfig extends RelationConfig {
  * Handles phone verification for both users and teams
  */
 export class PhoneDbFactory extends DatabaseFixtureFactory<
-    Prisma.Phone,
-    Prisma.PhoneCreateInput,
-    Prisma.PhoneInclude,
-    Prisma.PhoneUpdateInput
+    phone,
+    Prisma.phoneCreateInput,
+    Prisma.phoneInclude,
+    Prisma.phoneUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Phone', prisma);
+        super("phone", prisma);
     }
 
     protected getPrismaDelegate() {
         return this.prisma.phone;
     }
 
-    protected getMinimalData(overrides?: Partial<Prisma.PhoneCreateInput>): Prisma.PhoneCreateInput {
+    protected getMinimalData(overrides?: Partial<Prisma.phoneCreateInput>): Prisma.phoneCreateInput {
         const uniquePhone = this.generateUniquePhoneNumber();
         
         return {
@@ -39,7 +39,7 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
         };
     }
 
-    protected getCompleteData(overrides?: Partial<Prisma.PhoneCreateInput>): Prisma.PhoneCreateInput {
+    protected getCompleteData(overrides?: Partial<Prisma.phoneCreateInput>): Prisma.phoneCreateInput {
         return {
             id: generatePK(),
             phoneNumber: this.generateUniquePhoneNumber(),
@@ -50,7 +50,7 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
         };
     }
 
-    protected getDefaultInclude(): Prisma.PhoneInclude {
+    protected getDefaultInclude(): Prisma.phoneInclude {
         return {
             user: {
                 select: {
@@ -62,7 +62,7 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
             team: {
                 select: {
                     id: true,
-                    name: true,
+                    publicId: true,
                     handle: true,
                 },
             },
@@ -70,29 +70,29 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.PhoneCreateInput,
+        baseData: Prisma.phoneCreateInput,
         config: PhoneRelationConfig,
-        tx: any
-    ): Promise<Prisma.PhoneCreateInput> {
-        let data = { ...baseData };
+        tx: any,
+    ): Promise<Prisma.phoneCreateInput> {
+        const data = { ...baseData };
 
         // Handle user relationship
         if (config.withUser || config.userId) {
             const userId = config.userId 
-                ? (typeof config.userId === 'string' ? BigInt(config.userId) : config.userId)
+                ? (typeof config.userId === "string" ? BigInt(config.userId) : config.userId)
                 : generatePK();
             data.user = {
-                connect: { id: userId }
+                connect: { id: userId },
             };
         }
 
         // Handle team relationship
         if (config.withTeam || config.teamId) {
             const teamId = config.teamId
-                ? (typeof config.teamId === 'string' ? BigInt(config.teamId) : config.teamId)
+                ? (typeof config.teamId === "string" ? BigInt(config.teamId) : config.teamId)
                 : generatePK();
             data.team = {
-                connect: { id: teamId }
+                connect: { id: teamId },
             };
         }
 
@@ -109,12 +109,12 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.Phone): Promise<string[]> {
+    protected async checkModelConstraints(record: phone): Promise<string[]> {
         const violations: string[] = [];
         
         // Check phone number format
         if (!this.isValidPhoneNumber(record.phoneNumber)) {
-            violations.push('Phone number format is invalid');
+            violations.push("Phone number format is invalid");
         }
 
         // Check phone number uniqueness
@@ -125,27 +125,27 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
             },
         });
         if (duplicate) {
-            violations.push('Phone number must be unique');
+            violations.push("Phone number must be unique");
         }
 
         // Check that phone belongs to either user or team, not both
         if (record.userId && record.teamId) {
-            violations.push('Phone cannot belong to both user and team');
+            violations.push("Phone cannot belong to both user and team");
         }
 
         // Check that phone belongs to someone
         if (!record.userId && !record.teamId) {
-            violations.push('Phone must belong to either a user or team');
+            violations.push("Phone must belong to either a user or team");
         }
 
         // Check verification code constraints
         if (record.verificationCode && record.verificationCode.length !== 6) {
-            violations.push('Verification code must be 6 digits');
+            violations.push("Verification code must be 6 digits");
         }
 
         // Check that verified phones don't have verification codes
         if (record.verifiedAt && record.verificationCode) {
-            violations.push('Verified phones should not have pending verification codes');
+            violations.push("Verified phones should not have pending verification codes");
         }
 
         return violations;
@@ -154,7 +154,7 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a verified phone for a user
      */
-    async createVerifiedUserPhone(userId: string | bigint): Promise<Prisma.Phone> {
+    async createVerifiedUserPhone(userId: string | bigint): Promise<phone> {
         return this.createWithRelations({
             userId,
             verified: true,
@@ -164,7 +164,7 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a verified phone for a team
      */
-    async createVerifiedTeamPhone(teamId: string | bigint): Promise<Prisma.Phone> {
+    async createVerifiedTeamPhone(teamId: string | bigint): Promise<phone> {
         return this.createWithRelations({
             teamId,
             verified: true,
@@ -174,9 +174,9 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
     /**
      * Create an unverified phone with pending verification
      */
-    async createUnverifiedPhone(ownerId: string | bigint, isTeam: boolean = false): Promise<Prisma.Phone> {
+    async createUnverifiedPhone(ownerId: string | bigint, isTeam = false): Promise<phone> {
         return this.createWithRelations({
-            [isTeam ? 'teamId' : 'userId']: ownerId,
+            [isTeam ? "teamId" : "userId"]: ownerId,
             verified: false,
         });
     }
@@ -184,9 +184,9 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a phone with expired verification attempt
      */
-    async createExpiredVerificationPhone(userId: string | bigint): Promise<Prisma.Phone> {
+    async createExpiredVerificationPhone(userId: string | bigint): Promise<phone> {
         return this.createMinimal({
-            user: { connect: { id: typeof userId === 'string' ? BigInt(userId) : userId } },
+            user: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
             verificationCode: this.generateVerificationCode(),
             lastVerificationCodeRequestAttempt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24 hours ago
         });
@@ -239,7 +239,7 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
     /**
      * Get edge case scenarios
      */
-    getEdgeCaseScenarios(): Record<string, Prisma.PhoneCreateInput> {
+    getEdgeCaseScenarios(): Record<string, Prisma.phoneCreateInput> {
         return {
             internationalPhone: {
                 ...this.getMinimalData(),
@@ -293,7 +293,7 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
     private isValidPhoneNumber(phoneNumber: string): boolean {
         // Basic international phone number validation
         const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-        return phoneRegex.test(phoneNumber.replace(/[-\s()]/g, ''));
+        return phoneRegex.test(phoneNumber.replace(/[-\s()]/g, ""));
     }
 
     protected getCascadeInclude(): any {
@@ -304,9 +304,9 @@ export class PhoneDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.Phone,
+        record: phone,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Phone has no dependent records to delete
         // The phone record itself will be deleted by the caller

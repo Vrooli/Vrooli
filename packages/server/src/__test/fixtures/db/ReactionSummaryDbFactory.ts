@@ -8,7 +8,7 @@ import type {
 } from "./types.js";
 
 interface ReactionSummaryRelationConfig extends RelationConfig {
-    targetType?: 'resource' | 'chatMessage' | 'comment' | 'issue';
+    targetType?: "resource" | "chatMessage" | "comment" | "issue";
     targetId?: string;
     reactionCounts?: Array<{ emoji: string; count: number }>;
 }
@@ -32,7 +32,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
     Prisma.reaction_summaryUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('reaction_summary', prisma);
+        super("reaction_summary", prisma);
         this.initializeScenarios();
     }
 
@@ -188,7 +188,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                         { emoji: "❤️", count: 50 },
                         { emoji: "🎉", count: 25 },
                     ],
-                    targetType: 'resource',
+                    targetType: "resource",
                 },
             },
             controversialIssue: {
@@ -200,7 +200,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                         { emoji: "👎", count: 25 },
                         { emoji: "😕", count: 15 },
                     ],
-                    targetType: 'issue',
+                    targetType: "issue",
                 },
             },
             viralComment: {
@@ -212,7 +212,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                         { emoji: "🔥", count: 200 },
                         { emoji: "💯", count: 150 },
                     ],
-                    targetType: 'comment',
+                    targetType: "comment",
                 },
             },
             newContent: {
@@ -223,7 +223,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                         { emoji: "👍", count: 1 },
                         { emoji: "❤️", count: 2 },
                     ],
-                    targetType: 'resource',
+                    targetType: "resource",
                 },
             },
             diverseReactions: {
@@ -239,7 +239,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                         { emoji: "😊", count: 2 },
                         { emoji: "💡", count: 1 },
                     ],
-                    targetType: 'resource',
+                    targetType: "resource",
                 },
             },
         };
@@ -277,9 +277,9 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.reaction_summaryCreateInput,
         config: ReactionSummaryRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.reaction_summaryCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle target type
         if (config.targetType && config.targetId) {
@@ -291,16 +291,16 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
 
             // Set the appropriate target
             switch (config.targetType) {
-                case 'resource':
+                case "resource":
                     data.resourceId = config.targetId;
                     break;
-                case 'chatMessage':
+                case "chatMessage":
                     data.chatMessageId = config.targetId;
                     break;
-                case 'comment':
+                case "comment":
                     data.commentId = config.targetId;
                     break;
-                case 'issue':
+                case "issue":
                     data.issueId = config.targetId;
                     break;
             }
@@ -313,10 +313,10 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      * Create a reaction summary for a specific target
      */
     async createSummaryFor(
-        targetType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: string,
         emoji: string,
-        count: number
+        count: number,
     ): Promise<Prisma.reaction_summary> {
         return await this.createWithRelations({
             overrides: { emoji, count },
@@ -329,9 +329,9 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      * Create multiple reaction summaries for a target
      */
     async createMultipleSummariesForTarget(
-        targetType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: string,
-        reactionCounts: Array<{ emoji: string; count: number }>
+        reactionCounts: Array<{ emoji: string; count: number }>,
     ): Promise<Prisma.reaction_summary[]> {
         const summaries: Prisma.reaction_summary[] = [];
 
@@ -347,8 +347,8 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      * Create a complete reaction summary set for testing
      */
     async createCompleteSummarySet(
-        targetType: 'resource' | 'chatMessage' | 'comment' | 'issue',
-        targetId: string
+        targetType: "resource" | "chatMessage" | "comment" | "issue",
+        targetId: string,
     ): Promise<Prisma.reaction_summary[]> {
         const defaultCounts = [
             { emoji: "👍", count: 25 },
@@ -366,14 +366,14 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      */
     async updateReactionCount(
         summaryId: string,
-        delta: number
+        delta: number,
     ): Promise<Prisma.reaction_summary> {
         const summary = await this.prisma.reaction_summary.findUnique({
             where: { id: summaryId },
         });
 
         if (!summary) {
-            throw new Error('Reaction summary not found');
+            throw new Error("Reaction summary not found");
         }
 
         return await this.prisma.reaction_summary.update({
@@ -391,27 +391,27 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
             record.resourceId,
             record.chatMessageId,
             record.commentId,
-            record.issueId
+            record.issueId,
         ].filter(Boolean).length;
 
         if (targetCount === 0) {
-            violations.push('Reaction summary must have exactly one target');
+            violations.push("Reaction summary must have exactly one target");
         } else if (targetCount > 1) {
-            violations.push('Reaction summary cannot have multiple targets');
+            violations.push("Reaction summary cannot have multiple targets");
         }
 
         // Check emoji format
         if (!record.emoji || record.emoji.length === 0) {
-            violations.push('Emoji cannot be empty');
+            violations.push("Emoji cannot be empty");
         }
 
         if (record.emoji && record.emoji.length > 32) {
-            violations.push('Emoji exceeds maximum length of 32 characters');
+            violations.push("Emoji exceeds maximum length of 32 characters");
         }
 
         // Check count is non-negative
         if (record.count < 0) {
-            violations.push('Count cannot be negative');
+            violations.push("Count cannot be negative");
         }
 
         // Check uniqueness (one summary per emoji per target)
@@ -426,7 +426,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
             },
         });
         if (existingSummary) {
-            violations.push('Reaction summary already exists for this emoji and target');
+            violations.push("Reaction summary already exists for this emoji and target");
         }
 
         return violations;
@@ -442,7 +442,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.reaction_summary,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Reaction summaries don't have dependent records
     }
@@ -451,9 +451,9 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      * Synchronize summary with actual reaction counts
      */
     async synchronizeWithReactions(
-        targetType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: string,
-        emoji: string
+        emoji: string,
     ): Promise<Prisma.reaction_summary | null> {
         const where: any = {};
         where[`${targetType}Id`] = targetId;
@@ -502,8 +502,8 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      * Get total reaction count for a target
      */
     async getTotalReactionCount(
-        targetType: 'resource' | 'chatMessage' | 'comment' | 'issue',
-        targetId: string
+        targetType: "resource" | "chatMessage" | "comment" | "issue",
+        targetId: string,
     ): Promise<number> {
         const where: any = {};
         where[`${targetType}Id`] = targetId;
@@ -519,7 +519,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createReactionSummaryDbFactory = (prisma: PrismaClient) => 
-    ReactionSummaryDbFactory.getInstance('reaction_summary', prisma);
+    ReactionSummaryDbFactory.getInstance("reaction_summary", prisma);
 
 // Export the class for type usage
 export { ReactionSummaryDbFactory as ReactionSummaryDbFactoryClass };

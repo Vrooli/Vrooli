@@ -34,7 +34,7 @@ export const PERFORMANCE_BOTTLENECK_DETECTION: RoutineFixture = {
                 inputTemplate: {
                     executionMetrics: "{{input.metrics}}",
                     routineConfig: "{{input.config}}",
-                    threshold: "{{input.threshold}}"
+                    threshold: "{{input.threshold}}",
                 },
                 outputMappings: [
                     {
@@ -43,11 +43,11 @@ export const PERFORMANCE_BOTTLENECK_DETECTION: RoutineFixture = {
                             bottlenecks: "bottlenecks",
                             optimizationOpportunities: "opportunities",
                             performanceScore: "score",
-                            recommendations: "recommendations"
-                        }
-                    }
-                ]
-            }
+                            recommendations: "recommendations",
+                        },
+                    },
+                ],
+            },
         } as CallDataCodeConfigObject,
         formInput: {
             __version: "1.0",
@@ -60,7 +60,7 @@ export const PERFORMANCE_BOTTLENECK_DETECTION: RoutineFixture = {
                         label: "Execution Metrics",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "config",
@@ -68,7 +68,7 @@ export const PERFORMANCE_BOTTLENECK_DETECTION: RoutineFixture = {
                         label: "Routine Configuration",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "threshold",
@@ -76,10 +76,10 @@ export const PERFORMANCE_BOTTLENECK_DETECTION: RoutineFixture = {
                         label: "Performance Threshold (ms)",
                         type: InputType.IntegerInput,
                         isRequired: true,
-                        defaultValue: 1000
-                    }
-                ]
-            }
+                        defaultValue: 1000,
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -91,31 +91,31 @@ export const PERFORMANCE_BOTTLENECK_DETECTION: RoutineFixture = {
                         id: "bottlenecks",
                         label: "Detected Bottlenecks",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "optimizationOpportunities",
                         id: "optimization_opportunities",
                         label: "Optimization Opportunities",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "performanceScore",
                         id: "performance_score",
                         label: "Performance Score",
                         type: InputType.IntegerInput,
-                        props: { disabled: true, min: 0, max: 100 }
+                        props: { disabled: true, min: 0, max: 100 },
                     },
                     {
                         fieldName: "recommendations",
                         id: "recommendations",
                         label: "Recommendations",
                         type: InputType.Text,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "deterministic" as const,
     } as RoutineVersionConfigObject,
@@ -144,17 +144,17 @@ export const COST_ANALYSIS: RoutineFixture = {
                     filters: {
                         billingData: "{{input.billingData}}",
                         resourceUsage: "{{input.resourceUsage}}",
-                        timeframe: "{{input.timeframe}}"
+                        timeframe: "{{input.timeframe}}",
                     },
-                    limit: 1000
+                    limit: 1000,
                 }),
                 outputMapping: {
                     currentCost: "totalCost",
                     breakdown: "costBreakdown",
                     savingsOpportunities: "opportunities",
-                    recommendations: "recommendations"
-                }
-            }
+                    recommendations: "recommendations",
+                },
+            },
         } as CallDataActionConfigObject,
         formInput: {
             __version: "1.0",
@@ -167,7 +167,7 @@ export const COST_ANALYSIS: RoutineFixture = {
                         label: "Billing Data",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "resourceUsage",
@@ -175,7 +175,7 @@ export const COST_ANALYSIS: RoutineFixture = {
                         label: "Resource Usage Data",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "timeframe",
@@ -188,12 +188,12 @@ export const COST_ANALYSIS: RoutineFixture = {
                             options: [
                                 { label: "Last 7 days", value: "7d" },
                                 { label: "Last 30 days", value: "30d" },
-                                { label: "Last 90 days", value: "90d" }
-                            ]
-                        }
-                    }
-                ]
-            }
+                                { label: "Last 90 days", value: "90d" },
+                            ],
+                        },
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -205,31 +205,31 @@ export const COST_ANALYSIS: RoutineFixture = {
                         id: "current_cost",
                         label: "Total Cost",
                         type: InputType.IntegerInput,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "breakdown",
                         id: "breakdown",
                         label: "Cost Breakdown",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "savingsOpportunities",
                         id: "savings_opportunities",
                         label: "Savings Opportunities",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "recommendations",
                         id: "recommendations",
                         label: "Cost Reduction Recommendations",
                         type: InputType.Text,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "reasoning" as const,
     } as RoutineVersionConfigObject,
@@ -255,8 +255,8 @@ export const OUTPUT_QUALITY_ASSESSMENT: RoutineFixture = {
                 maxTokens: 800,
                 model: null,
                 prompt: "Assess the quality of the following output:\n\nOutput: {{input.output}}\nExpected Criteria: {{input.criteria}}\n\nEvaluate:\n1. Accuracy score (0-100)\n2. Completeness score (0-100)\n3. Consistency score (0-100)\n4. Bias detection (demographic, cultural, linguistic)\n5. Overall quality score\n\nProvide detailed assessment with specific examples.",
-                respondingBot: null
-            }
+                respondingBot: null,
+            },
         } as CallDataGenerateConfigObject,
         formInput: {
             __version: "1.0",
@@ -269,7 +269,7 @@ export const OUTPUT_QUALITY_ASSESSMENT: RoutineFixture = {
                         label: "Output to Assess",
                         type: InputType.Text,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "criteria",
@@ -280,11 +280,11 @@ export const OUTPUT_QUALITY_ASSESSMENT: RoutineFixture = {
                         defaultValue: {
                             accuracyTarget: 0.85,
                             completenessTarget: 0.90,
-                            biasThreshold: 0.15
-                        }
-                    }
-                ]
-            }
+                            biasThreshold: 0.15,
+                        },
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -296,10 +296,10 @@ export const OUTPUT_QUALITY_ASSESSMENT: RoutineFixture = {
                         id: "response",
                         label: "Quality Assessment Report",
                         type: InputType.Text,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "reasoning" as const,
     } as RoutineVersionConfigObject,

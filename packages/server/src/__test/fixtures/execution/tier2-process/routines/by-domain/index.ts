@@ -11,7 +11,7 @@ import type {
     RoutineCategory, 
     ExecutionStrategy,
     RoutineStats,
-    AgentRoutineMapping
+    AgentRoutineMapping,
 } from "./types.js";
 import { SECURITY_ROUTINES } from "./securityRoutines.js";
 import { MEDICAL_ROUTINES } from "./medicalRoutines.js";
@@ -66,7 +66,7 @@ export function getAllRoutines(): RoutineFixture[] {
     return [
         ...Object.values(SEQUENTIAL_ROUTINES),
         ...Object.values(BPMN_ROUTINES),
-        ...Object.values(BOOTSTRAP_ROUTINES)
+        ...Object.values(BOOTSTRAP_ROUTINES),
     ];
 }
 
@@ -82,7 +82,7 @@ export function getRoutineById(routineId: string): RoutineFixture | undefined {
  */
 export function getRoutinesByStrategy(strategy: ExecutionStrategy): RoutineFixture[] {
     return getAllRoutines().filter(routine => 
-        routine.config.executionStrategy === strategy
+        routine.config.executionStrategy === strategy,
     );
 }
 
@@ -91,7 +91,7 @@ export function getRoutinesByStrategy(strategy: ExecutionStrategy): RoutineFixtu
  */
 export function getRoutinesByResourceSubType(subType: ResourceSubType): RoutineFixture[] {
     return getAllRoutines().filter(routine => 
-        routine.resourceSubType === subType
+        routine.resourceSubType === subType,
     );
 }
 
@@ -203,6 +203,6 @@ export function getRoutineStats(): RoutineStats {
             code: getRoutinesByResourceSubType(ResourceSubType.RoutineCode).length,
             web: getRoutinesByResourceSubType(ResourceSubType.RoutineWeb).length,
             multiStep: getRoutinesByResourceSubType(ResourceSubType.RoutineMultiStep).length,
-        }
+        },
     };
 }

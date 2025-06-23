@@ -17,9 +17,9 @@
 
 import { type Logger } from "winston";
 import { type EventBus } from "../events/eventBus.js";
-import { MinimalCircuitBreaker, MinimalCircuitBreakerConfig } from "./minimalCircuitBreaker.js";
-import { ExecutionEventEmitter, ComponentEventEmitter } from "../monitoring/ExecutionEventEmitter.js";
-import { ErrorHandler, ComponentErrorHandler } from "../../shared/ErrorHandler.js";
+import { MinimalCircuitBreaker, type MinimalCircuitBreakerConfig } from "./minimalCircuitBreaker.js";
+import { ExecutionEventEmitter, type ComponentEventEmitter } from "../monitoring/ExecutionEventEmitter.js";
+import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 
 /**
  * Minimal Circuit Breaker Manager
@@ -40,7 +40,7 @@ export class MinimalCircuitBreakerManager {
         const executionEmitter = new ExecutionEventEmitter(logger, eventBus);
         this.eventEmitter = executionEmitter.createComponentEmitter(
             "cross-cutting", 
-            "circuit-breaker-manager"
+            "circuit-breaker-manager",
         );
         
         const errorHandler = new ErrorHandler(logger, executionEmitter.eventPublisher);
@@ -54,7 +54,7 @@ export class MinimalCircuitBreakerManager {
     async getCircuitBreaker(
         service: string,
         operation: string,
-        config?: Partial<MinimalCircuitBreakerConfig>
+        config?: Partial<MinimalCircuitBreakerConfig>,
     ): Promise<MinimalCircuitBreaker> {
         const key = `${service}:${operation}`;
         
@@ -146,7 +146,7 @@ export class MinimalCircuitBreakerManager {
     private async emitCreationEvent(
         service: string,
         operation: string,
-        config: MinimalCircuitBreakerConfig
+        config: MinimalCircuitBreakerConfig,
     ): Promise<void> {
         await this.eventEmitter.emitMetric(
             "safety",
@@ -157,7 +157,7 @@ export class MinimalCircuitBreakerManager {
                 service,
                 operation,
                 config: JSON.stringify(config),
-            }
+            },
         );
     }
     
@@ -167,7 +167,7 @@ export class MinimalCircuitBreakerManager {
     private async emitAccessEvent(
         service: string,
         operation: string,
-        type: "existing" | "new"
+        type: "existing" | "new",
     ): Promise<void> {
         await this.eventEmitter.emitMetric(
             "safety",
@@ -178,7 +178,7 @@ export class MinimalCircuitBreakerManager {
                 service,
                 operation,
                 type,
-            }
+            },
         );
     }
     
@@ -187,7 +187,7 @@ export class MinimalCircuitBreakerManager {
      */
     private async emitRemovalEvent(
         service: string,
-        operation: string
+        operation: string,
     ): Promise<void> {
         await this.eventEmitter.emitMetric(
             "safety",
@@ -197,7 +197,7 @@ export class MinimalCircuitBreakerManager {
             {
                 service,
                 operation,
-            }
+            },
         );
     }
     
@@ -212,7 +212,7 @@ export class MinimalCircuitBreakerManager {
             "event",
             {
                 totalCircuitBreakers: this.circuitBreakers.size,
-            }
+            },
         );
     }
 }

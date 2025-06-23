@@ -318,7 +318,7 @@ export class EventFactory {
     static createEvent(
         type: string,
         source: EventSource,
-        overrides?: Partial<BaseEvent>
+        overrides?: Partial<BaseEvent>,
     ): BaseEvent {
         return {
             id: generatePK().toString(),
@@ -336,7 +336,7 @@ export class EventFactory {
      */
     static createCoordinationEvent(
         eventType: "swarm" | "team" | "goal" | "resource",
-        overrides?: Partial<ExecutionEvent>
+        overrides?: Partial<ExecutionEvent>,
     ): ExecutionEvent {
         const payloads = {
             swarm: {
@@ -382,7 +382,7 @@ export class EventFactory {
      */
     static createProcessEvent(
         eventType: "run" | "step" | "navigation" | "optimization",
-        overrides?: Partial<ExecutionEvent>
+        overrides?: Partial<ExecutionEvent>,
     ): ExecutionEvent {
         const payloads = {
             run: {
@@ -431,7 +431,7 @@ export class EventFactory {
      */
     static createExecutionEvent(
         eventType: "strategy" | "tool" | "adaptation" | "learning",
-        overrides?: Partial<ExecutionEvent>
+        overrides?: Partial<ExecutionEvent>,
     ): ExecutionEvent {
         const payloads = {
             strategy: {
@@ -485,7 +485,7 @@ export class EventFactory {
     static createSystemEvent(
         eventType: "security" | "monitoring" | "resource" | "error",
         severity: "low" | "medium" | "high" | "critical" = "medium",
-        overrides?: Partial<ExecutionEvent>
+        overrides?: Partial<ExecutionEvent>,
     ): ExecutionEvent {
         const payloads = {
             security: {
@@ -538,8 +538,8 @@ export class EventFactory {
      * Create event chain (related events)
      */
     static createEventChain(
-        count: number = 3,
-        correlationId?: string
+        count = 3,
+        correlationId?: string,
     ): BaseEvent[] {
         const events: BaseEvent[] = [];
         const correlation = correlationId || generatePublicId();
@@ -558,7 +558,7 @@ export class EventFactory {
                         ...defaultEventMetadata,
                         tags: ["chain", `step-${i}`],
                     },
-                }
+                },
             );
             
             events.push(event);
@@ -573,7 +573,7 @@ export class EventFactory {
      */
     static createSubscription(
         pattern: string,
-        overrides?: Partial<EventSubscription>
+        overrides?: Partial<EventSubscription>,
     ): EventSubscription {
         return {
             pattern,
@@ -601,7 +601,7 @@ export function createEventBatch(
         types?: Array<"coordination" | "process" | "execution" | "system">;
         correlationId?: string;
         timeSpan?: number; // milliseconds
-    } = {}
+    } = {},
 ): BaseEvent[] {
     const count = options.count || 10;
     const types = options.types || ["coordination", "process", "execution", "system"];
@@ -621,7 +621,7 @@ export function createEventBatch(
                     {
                         correlationId,
                         timestamp: new Date(startTime + (i * timeSpan / count)),
-                    }
+                    },
                 );
                 break;
             case "process":
@@ -630,7 +630,7 @@ export function createEventBatch(
                     {
                         correlationId,
                         timestamp: new Date(startTime + (i * timeSpan / count)),
-                    }
+                    },
                 );
                 break;
             case "execution":
@@ -639,7 +639,7 @@ export function createEventBatch(
                     {
                         correlationId,
                         timestamp: new Date(startTime + (i * timeSpan / count)),
-                    }
+                    },
                 );
                 break;
             case "system":
@@ -649,7 +649,7 @@ export function createEventBatch(
                     {
                         correlationId,
                         timestamp: new Date(startTime + (i * timeSpan / count)),
-                    }
+                    },
                 );
                 break;
         }
@@ -665,11 +665,11 @@ export function createEventBatch(
  */
 export async function seedTestEvents(
     eventBus: any,
-    count: number = 10,
+    count = 10,
     options?: {
         correlationId?: string;
         includeSubscriptions?: boolean;
-    }
+    },
 ) {
     const events = createEventBatch({ count, correlationId: options?.correlationId });
     

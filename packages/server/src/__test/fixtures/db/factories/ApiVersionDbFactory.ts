@@ -1,71 +1,80 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { 
+    type Prisma, 
+    type PrismaClient,
+    type resource_version,
+    type resource_versionCreateInput
+} from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
-import { apiConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
 
 interface ApiVersionRelationConfig extends RelationConfig {
-    api?: { apiId: string };
-    parent?: { parentId: string };
-    endpoints?: Array<{
-        path: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-        description?: string;
-        parameters?: any[];
-        responses?: any[];
+    root?: { rootId: string };
+    fromRelations?: Array<{
+        toVersionId: string;
+        relationType: string;
+        labels?: string[];
     }>;
-    resourceLists?: Array<{
-        name: string;
-        description?: string;
-        isPrivate?: boolean;
+    toRelations?: Array<{
+        fromVersionId: string;
+        relationType: string;
+        labels?: string[];
     }>;
-    translations?: Array<{ language: string; name: string; description?: string; summary?: string; details?: string }>;
+    translations?: Array<{ 
+        language: string; 
+        name: string; 
+        description?: string; 
+        summary?: string; 
+        details?: string;
+        instructions?: string;
+    }>;
 }
 
 /**
- * Database fixture factory for ApiVersion model
- * Handles versioned API content with endpoints, schemas, and documentation
+ * Database fixture factory for resource_version model (API versions)
+ * Handles versioned API content with config, schemas, and documentation
  */
 export class ApiVersionDbFactory extends DatabaseFixtureFactory<
-    Prisma.ApiVersion,
-    Prisma.ApiVersionCreateInput,
-    Prisma.ApiVersionInclude,
-    Prisma.ApiVersionUpdateInput
+    resource_version,
+    resource_versionCreateInput,
+    Prisma.resource_versionInclude,
+    Prisma.resource_versionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ApiVersion', prisma);
+        super("resource_version", prisma);
     }
 
     protected getPrismaDelegate() {
-        return this.prisma.apiVersion;
+        return this.prisma.resource_version;
     }
 
-    protected getMinimalData(overrides?: Partial<Prisma.ApiVersionCreateInput>): Prisma.ApiVersionCreateInput {
+    protected getMinimalData(overrides?: Partial<resource_versionCreateInput>): resource_versionCreateInput {
         return {
             id: generatePK(),
             publicId: generatePublicId(),
+            rootId: generatePK(),
             versionLabel: "1.0.0",
             versionIndex: 1,
             isLatest: true,
             isComplete: true,
             isPrivate: false,
-            apiType: 'REST',
+            config: { apiType: "REST" },
             ...overrides,
         };
     }
 
-    protected getCompleteData(overrides?: Partial<Prisma.ApiVersionCreateInput>): Prisma.ApiVersionCreateInput {
+    protected getCompleteData(overrides?: Partial<resource_versionCreateInput>): resource_versionCreateInput {
         return {
             id: generatePK(),
             publicId: generatePublicId(),
+            rootId: generatePK(),
             versionLabel: "1.0.0",
             versionIndex: 1,
             isLatest: true,
             isComplete: true,
             isPrivate: false,
-            apiType: 'REST',
-            config: apiConfigFixtures.complete,
-            schema: {
+            config: {
+                apiType: "REST",
                 openapi: "3.0.0",
                 info: {
                     title: "Complete Test API",
@@ -102,6 +111,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                         description: "A comprehensive API version with all features",
                         summary: "Complete API documentation",
                         details: "Detailed API specifications and usage examples",
+                        instructions: "Follow the API documentation for proper usage",
                     },
                     {
                         id: generatePK(),
@@ -110,6 +120,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                         description: "Una versión de API integral con todas las funcionalidades",
                         summary: "Documentación completa de API",
                         details: "Especificaciones detalladas de API y ejemplos de uso",
+                        instructions: "Siga la documentación de API para el uso adecuado",
                     },
                 ],
             },
@@ -117,14 +128,14 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
         };
     }
 
-    protected getDefaultInclude(): Prisma.ApiVersionInclude {
+    protected getDefaultInclude(): Prisma.resource_versionInclude {
         return {
             translations: true,
-            api: {
+            root: {
                 select: {
                     id: true,
                     publicId: true,
-                    handle: true,
+                    resourceType: true,
                     isPrivate: true,
                     translations: {
                         select: {
@@ -134,119 +145,79 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                     },
                 },
             },
-            parent: {
+            relatedVersions: {
                 select: {
                     id: true,
-                    publicId: true,
-                    versionLabel: true,
-                },
-            },
-            children: {
-                select: {
-                    id: true,
-                    publicId: true,
-                    versionLabel: true,
-                    versionIndex: true,
-                },
-                orderBy: {
-                    versionIndex: 'asc',
-                },
-            },
-            endpoints: {
-                select: {
-                    id: true,
-                    path: true,
-                    method: true,
-                    description: true,
-                    parameters: true,
-                    responses: true,
-                },
-                orderBy: {
-                    path: 'asc',
-                },
-            },
-            resourceLists: {
-                select: {
-                    id: true,
-                    publicId: true,
-                    isPrivate: true,
-                    translations: {
+                    relationType: true,
+                    labels: true,
+                    toVersion: {
                         select: {
-                            language: true,
-                            name: true,
-                            description: true,
+                            id: true,
+                            publicId: true,
+                            versionLabel: true,
+                        },
+                    },
+                },
+            },
+            referencedBy: {
+                select: {
+                    id: true,
+                    relationType: true,
+                    labels: true,
+                    fromVersion: {
+                        select: {
+                            id: true,
+                            publicId: true,
+                            versionLabel: true,
                         },
                     },
                 },
             },
             _count: {
                 select: {
-                    children: true,
-                    endpoints: true,
-                    resourceLists: true,
-                    bookmarks: true,
-                    views: true,
-                    votes: true,
+                    relatedVersions: true,
+                    referencedBy: true,
+                    comments: true,
+                    reports: true,
                 },
             },
         };
     }
 
     protected async applyRelationships(
-        baseData: Prisma.ApiVersionCreateInput,
+        baseData: resource_versionCreateInput,
         config: ApiVersionRelationConfig,
-        tx: any
-    ): Promise<Prisma.ApiVersionCreateInput> {
+        tx: any,
+    ): Promise<resource_versionCreateInput> {
         let data = { ...baseData };
 
-        // Handle API connection
-        if (config.api) {
-            data.api = {
-                connect: { id: config.api.apiId },
+        // Handle root resource connection
+        if (config.root) {
+            data.root = {
+                connect: { id: config.root.rootId },
             };
         }
 
-        // Handle parent version
-        if (config.parent) {
-            data.parent = {
-                connect: { id: config.parent.parentId },
-            };
-        }
-
-        // Handle endpoints
-        if (config.endpoints && Array.isArray(config.endpoints)) {
-            data.endpoints = {
-                create: config.endpoints.map(endpoint => ({
+        // Handle related versions (outgoing relations)
+        if (config.fromRelations && Array.isArray(config.fromRelations)) {
+            data.relatedVersions = {
+                create: config.fromRelations.map(relation => ({
                     id: generatePK(),
-                    path: endpoint.path,
-                    method: endpoint.method,
-                    description: endpoint.description ?? `${endpoint.method} ${endpoint.path}`,
-                    parameters: endpoint.parameters ?? [],
-                    responses: endpoint.responses ?? [
-                        {
-                            status: 200,
-                            description: "Success",
-                        },
-                    ],
+                    toVersionId: relation.toVersionId,
+                    relationType: relation.relationType,
+                    labels: relation.labels ?? [],
                 })),
             };
         }
 
-        // Handle resource lists
-        if (config.resourceLists && Array.isArray(config.resourceLists)) {
-            data.resourceLists = {
-                create: config.resourceLists.map(resourceList => ({
+        // Handle referenced by (incoming relations)
+        if (config.toRelations && Array.isArray(config.toRelations)) {
+            data.referencedBy = {
+                create: config.toRelations.map(relation => ({
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    isPrivate: resourceList.isPrivate ?? false,
-                    translations: {
-                        create: [{
-                            id: generatePK(),
-                            language: "en",
-                            name: resourceList.name,
-                            description: resourceList.description ?? resourceList.name,
-                        }],
-                    },
+                    fromVersionId: relation.fromVersionId,
+                    relationType: relation.relationType,
+                    labels: relation.labels ?? [],
                 })),
             };
         }
@@ -267,13 +238,13 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a REST API version
      */
-    async createRestApiVersion(): Promise<Prisma.ApiVersion> {
+    async createRestApiVersion(): Promise<resource_version> {
         return this.createWithRelations({
             overrides: {
-                apiType: 'REST',
                 versionLabel: "1.0.0",
                 isComplete: true,
-                schema: {
+                config: {
+                    apiType: "REST",
                     openapi: "3.0.0",
                     info: {
                         title: "REST API",
@@ -292,57 +263,6 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                     },
                 },
             },
-            endpoints: [
-                {
-                    path: "/users",
-                    method: 'GET',
-                    description: "Retrieve a list of users",
-                    parameters: [
-                        { name: "limit", type: "integer", in: "query" },
-                        { name: "offset", type: "integer", in: "query" },
-                    ],
-                    responses: [
-                        { status: 200, description: "List of users" },
-                        { status: 400, description: "Bad request" },
-                    ],
-                },
-                {
-                    path: "/users",
-                    method: 'POST',
-                    description: "Create a new user",
-                    parameters: [
-                        { name: "user", type: "object", in: "body" },
-                    ],
-                    responses: [
-                        { status: 201, description: "User created" },
-                        { status: 400, description: "Invalid input" },
-                    ],
-                },
-                {
-                    path: "/users/{id}",
-                    method: 'GET',
-                    description: "Get a specific user",
-                    parameters: [
-                        { name: "id", type: "integer", in: "path", required: true },
-                    ],
-                    responses: [
-                        { status: 200, description: "User details" },
-                        { status: 404, description: "User not found" },
-                    ],
-                },
-            ],
-            resourceLists: [
-                {
-                    name: "API Documentation",
-                    description: "Complete API documentation and examples",
-                    isPrivate: false,
-                },
-                {
-                    name: "Code Examples",
-                    description: "Sample code in various programming languages",
-                    isPrivate: false,
-                },
-            ],
             translations: [
                 {
                     language: "en",
@@ -350,6 +270,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                     description: "RESTful API with standard HTTP methods",
                     summary: "Complete REST API for user management",
                     details: "Full CRUD operations with proper HTTP status codes",
+                    instructions: "Use standard HTTP methods for operations",
                 },
             ],
         });
@@ -358,13 +279,13 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a GraphQL API version
      */
-    async createGraphQLApiVersion(): Promise<Prisma.ApiVersion> {
+    async createGraphQLApiVersion(): Promise<resource_version> {
         return this.createWithRelations({
             overrides: {
-                apiType: 'GraphQL',
                 versionLabel: "1.0.0",
                 isComplete: true,
-                schema: {
+                config: {
+                    apiType: "GraphQL",
                     type: "graphql",
                     schema: `
                         type User {
@@ -391,33 +312,6 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                     `,
                 },
             },
-            endpoints: [
-                {
-                    path: "/graphql",
-                    method: 'POST',
-                    description: "GraphQL endpoint for queries and mutations",
-                    parameters: [
-                        { name: "query", type: "string", in: "body", required: true },
-                        { name: "variables", type: "object", in: "body" },
-                    ],
-                    responses: [
-                        { status: 200, description: "GraphQL response" },
-                        { status: 400, description: "GraphQL error" },
-                    ],
-                },
-            ],
-            resourceLists: [
-                {
-                    name: "GraphQL Schema",
-                    description: "Complete GraphQL schema definition",
-                    isPrivate: false,
-                },
-                {
-                    name: "Query Examples",
-                    description: "Example queries and mutations",
-                    isPrivate: false,
-                },
-            ],
             translations: [
                 {
                     language: "en",
@@ -425,6 +319,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                     description: "GraphQL API with flexible queries",
                     summary: "Modern GraphQL API with type safety",
                     details: "Strongly typed GraphQL schema with introspection",
+                    instructions: "Use GraphQL queries and mutations for data operations",
                 },
             ],
         });
@@ -433,14 +328,14 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a draft API version
      */
-    async createDraftApiVersion(): Promise<Prisma.ApiVersion> {
+    async createDraftApiVersion(): Promise<resource_version> {
         return this.createWithRelations({
             overrides: {
                 versionLabel: "0.1.0-draft",
                 isComplete: false,
                 isPrivate: true,
                 isLatest: false,
-                apiType: 'REST',
+                config: { apiType: "REST" },
             },
             translations: [
                 {
@@ -448,6 +343,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                     name: "Draft API Version",
                     description: "Work in progress API version",
                     summary: "This is a draft version under development",
+                    instructions: "This version is still being developed",
                 },
             ],
         });
@@ -456,7 +352,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a deprecated API version
      */
-    async createDeprecatedApiVersion(): Promise<Prisma.ApiVersion> {
+    async createDeprecatedApiVersion(): Promise<resource_version> {
         return this.createWithRelations({
             overrides: {
                 versionLabel: "0.9.0",
@@ -464,8 +360,10 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                 isPrivate: false,
                 isLatest: false,
                 versionIndex: 1,
-                apiType: 'REST',
-                deprecationNotice: "This version is deprecated. Please use v1.0.0 or later.",
+                config: { 
+                    apiType: "REST",
+                    deprecationNotice: "This version is deprecated. Please use v1.0.0 or later."
+                },
             },
             translations: [
                 {
@@ -473,93 +371,106 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                     name: "Deprecated API Version",
                     description: "This version is deprecated, use a newer version",
                     summary: "Please upgrade to the latest version",
+                    instructions: "Migration guide available in documentation",
                 },
             ],
         });
     }
 
     /**
-     * Create a child version (fork/branch)
+     * Create a version with relations to other versions
      */
-    async createChildApiVersion(parentId: string): Promise<Prisma.ApiVersion> {
-        return this.createWithRelations({
-            parent: { parentId },
+    async createRelatedApiVersion(rootId: string, relatedVersionId?: string): Promise<resource_version> {
+        const config: any = {
+            root: { rootId },
             overrides: {
-                versionLabel: "1.1.0-fork",
+                versionLabel: "1.1.0-related",
                 isComplete: false,
                 isPrivate: true,
                 isLatest: false,
                 versionIndex: 1,
-                apiType: 'REST',
+                config: { apiType: "REST" },
             },
             translations: [
                 {
                     language: "en",
-                    name: "Forked API Version",
-                    description: "A fork of the parent API version",
-                    summary: "Based on parent version with modifications",
+                    name: "Related API Version",
+                    description: "A version with relations to other versions",
+                    summary: "Based on related versions with modifications",
+                    instructions: "Check relations for dependencies",
                 },
             ],
-        });
+        };
+
+        if (relatedVersionId) {
+            config.fromRelations = [{
+                toVersionId: relatedVersionId,
+                relationType: "SUBROUTINE",
+                labels: ["dependency"]
+            }];
+        }
+
+        return this.createWithRelations(config);
     }
 
-    protected async checkModelConstraints(record: Prisma.ApiVersion): Promise<string[]> {
+    protected async checkModelConstraints(record: resource_version): Promise<string[]> {
         const violations: string[] = [];
         
-        // Check that apiId is valid
-        if (record.apiId) {
-            const api = await this.prisma.api.findUnique({
-                where: { id: record.apiId },
+        // Check that rootId is valid
+        if (record.rootId) {
+            const root = await this.prisma.resource.findUnique({
+                where: { id: record.rootId },
             });
-            if (!api) {
-                violations.push('ApiVersion must belong to a valid API');
+            if (!root) {
+                violations.push("resource_version must belong to a valid resource");
             }
         }
 
         // Check version label format
         if (record.versionLabel && !/^\d+\.\d+\.\d+(-[\w.-]+)?$/.test(record.versionLabel)) {
-            violations.push('Version label must follow semantic versioning format');
+            violations.push("Version label must follow semantic versioning format");
         }
 
-        // Check that only one version per API is marked as latest
-        if (record.isLatest && record.apiId) {
-            const otherLatestVersions = await this.prisma.apiVersion.count({
+        // Check that only one version per resource is marked as latest
+        if (record.isLatest && record.rootId) {
+            const otherLatestVersions = await this.prisma.resource_version.count({
                 where: {
-                    apiId: record.apiId,
+                    rootId: record.rootId,
                     isLatest: true,
                     id: { not: record.id },
                 },
             });
             
             if (otherLatestVersions > 0) {
-                violations.push('Only one version per API can be marked as latest');
+                violations.push("Only one version per resource can be marked as latest");
             }
         }
 
-        // Check that completed versions are not private if API is public
-        if (record.isComplete && !record.isPrivate && record.apiId) {
-            const api = await this.prisma.api.findUnique({
-                where: { id: record.apiId },
+        // Check that completed versions are not private if resource is public
+        if (record.isComplete && !record.isPrivate && record.rootId) {
+            const resource = await this.prisma.resource.findUnique({
+                where: { id: record.rootId },
                 select: { isPrivate: true },
             });
             
-            if (api && !api.isPrivate && record.isPrivate) {
-                violations.push('Complete versions of public APIs should not be private');
+            if (resource && !resource.isPrivate && record.isPrivate) {
+                violations.push("Complete versions of public resources should not be private");
             }
         }
 
-        // Check API type is valid
-        if (record.apiType && !['REST', 'GraphQL', 'WebSocket', 'gRPC'].includes(record.apiType)) {
-            violations.push('API type must be one of: REST, GraphQL, WebSocket, gRPC');
-        }
+        // Check config validity for API type
+        if (record.config && typeof record.config === "object") {
+            const config = record.config as any;
+            if (config.apiType && !["REST", "GraphQL", "WebSocket", "gRPC"].includes(config.apiType)) {
+                violations.push("API type must be one of: REST, GraphQL, WebSocket, gRPC");
+            }
 
-        // Check schema validity based on API type
-        if (record.schema && record.apiType === 'GraphQL') {
-            // Basic GraphQL schema validation
-            if (typeof record.schema === 'object' && record.schema.schema) {
-                const schema = record.schema.schema as string;
-                if (!schema.includes('type Query') && !schema.includes('type Mutation')) {
-                    violations.push('GraphQL schema must contain at least Query or Mutation types');
+            // Check schema validity based on API type
+            if (config.schema && config.apiType === "GraphQL") {
+                if (typeof config.schema === "string" && config.schema.includes("type")) {
+                    if (!config.schema.includes("type Query") && !config.schema.includes("type Mutation")) {
+                        violations.push("GraphQL schema must contain at least Query or Mutation types");
+                    }
                 }
             }
         }
@@ -577,7 +488,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                 isLatest: true,
                 isComplete: true,
                 isPrivate: false,
-                apiType: 'REST',
+                apiType: "REST",
             },
             invalidTypes: {
                 id: "not-a-snowflake",
@@ -597,7 +508,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                 isLatest: true,
                 isComplete: true,
                 isPrivate: false,
-                apiType: 'REST',
+                apiType: "REST",
             },
             invalidApiType: {
                 id: generatePK(),
@@ -607,7 +518,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                 isLatest: true,
                 isComplete: true,
                 isPrivate: false,
-                apiType: 'INVALID_TYPE', // Invalid API type
+                apiType: "INVALID_TYPE", // Invalid API type
             },
         };
     }
@@ -615,7 +526,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
     /**
      * Get edge case scenarios
      */
-    getEdgeCaseScenarios(): Record<string, Prisma.ApiVersionCreateInput> {
+    getEdgeCaseScenarios(): Record<string, resource_versionCreateInput> {
         return {
             prereleaseVersion: {
                 ...this.getMinimalData(),
@@ -631,8 +542,8 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
             },
             webSocketApiVersion: {
                 ...this.getMinimalData(),
-                apiType: 'WebSocket',
-                schema: {
+                config: {
+                    apiType: "WebSocket",
                     type: "websocket",
                     events: {
                         connect: { description: "Client connected" },
@@ -643,8 +554,8 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
             },
             grpcApiVersion: {
                 ...this.getMinimalData(),
-                apiType: 'gRPC',
-                schema: {
+                config: {
+                    apiType: "gRPC",
                     type: "protobuf",
                     proto: `
                         syntax = "proto3";
@@ -681,13 +592,14 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                         description: "使用Unicode字符的API版本",
                         summary: "详细说明如何使用这个API",
                         details: "API的详细信息和功能描述",
+                        instructions: "请查看详细文档",
                     }],
                 },
             },
             complexSchema: {
                 ...this.getMinimalData(),
-                apiType: 'REST',
-                schema: {
+                config: {
+                    apiType: "REST",
                     openapi: "3.0.0",
                     info: {
                         title: "Complex API",
@@ -701,7 +613,7 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                                 get: { summary: `Endpoint ${i}` },
                                 post: { summary: `Create ${i}` },
                             },
-                        ])
+                        ]),
                     ),
                 },
             },
@@ -711,96 +623,92 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
     protected getCascadeInclude(): any {
         return {
             translations: true,
-            endpoints: true,
-            resourceLists: {
+            fromRelations: {
                 include: {
-                    translations: true,
-                    resources: true,
+                    toVersion: true,
                 },
             },
-            children: true,
+            toRelations: {
+                include: {
+                    fromVersion: true,
+                },
+            },
             bookmarks: true,
             views: true,
-            votes: true,
+            reactions: true,
         };
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.ApiVersion,
+        record: resource_version,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete in order of dependencies
         
-        // Delete child versions first
-        if (record.children?.length) {
-            await tx.apiVersion.deleteMany({
-                where: { parentId: record.id },
+        // Delete version relations
+        if (record.fromRelations?.length) {
+            await tx.resource_version_relation.deleteMany({
+                where: { fromVersionId: record.id },
             });
         }
 
-        // Delete endpoints
-        if (record.endpoints?.length) {
-            await tx.apiEndpoint.deleteMany({
-                where: { apiVersionId: record.id },
-            });
-        }
-
-        // Delete resource lists (cascade will handle their resources)
-        if (record.resourceLists?.length) {
-            await tx.resourceList.deleteMany({
-                where: { apiVersionId: record.id },
+        if (record.toRelations?.length) {
+            await tx.resource_version_relation.deleteMany({
+                where: { toVersionId: record.id },
             });
         }
 
         // Delete bookmarks
         if (record.bookmarks?.length) {
             await tx.bookmark.deleteMany({
-                where: { apiVersionId: record.id },
+                where: { 
+                    resourceId: record.rootId,
+                },
             });
         }
 
         // Delete views
         if (record.views?.length) {
             await tx.view.deleteMany({
-                where: { apiVersionId: record.id },
+                where: { resourceId: record.rootId },
             });
         }
 
-        // Delete votes/reactions
-        if (record.votes?.length) {
+        // Delete reactions
+        if (record.reactions?.length) {
             await tx.reaction.deleteMany({
-                where: { apiVersionId: record.id },
+                where: { resourceId: record.rootId },
             });
         }
 
         // Delete translations
         if (record.translations?.length) {
-            await tx.apiVersionTranslation.deleteMany({
-                where: { apiVersionId: record.id },
+            await tx.resource_translation.deleteMany({
+                where: { resourceVersionId: record.id },
             });
         }
     }
 
     /**
-     * Create version sequence for an API
+     * Create version sequence for a resource
      */
     async createVersionSequence(
-        apiId: string,
-        versions: Array<{ label: string; isLatest?: boolean; isComplete?: boolean; apiType?: string }>
-    ): Promise<Prisma.ApiVersion[]> {
-        const createdVersions: Prisma.ApiVersion[] = [];
+        rootId: string,
+        versions: Array<{ label: string; isLatest?: boolean; isComplete?: boolean; apiType?: string }>,
+    ): Promise<resource_version[]> {
+        const createdVersions: resource_version[] = [];
         
         for (let i = 0; i < versions.length; i++) {
             const version = versions[i];
-            const apiVersion = await this.createWithRelations({
-                api: { apiId },
+            const resourceVersion = await this.createWithRelations({
+                root: { rootId },
                 overrides: {
                     versionLabel: version.label,
                     versionIndex: i + 1,
                     isLatest: version.isLatest ?? (i === versions.length - 1),
                     isComplete: version.isComplete ?? true,
-                    apiType: version.apiType ?? 'REST',
+                    config: { apiType: version.apiType ?? "REST" },
                 },
                 translations: [
                     {
@@ -808,10 +716,11 @@ export class ApiVersionDbFactory extends DatabaseFixtureFactory<
                         name: `API Version ${version.label}`,
                         description: `Version ${version.label} of the API`,
                         summary: `API v${version.label}`,
+                        instructions: `Implementation guide for v${version.label}`,
                     },
                 ],
             });
-            createdVersions.push(apiVersion);
+            createdVersions.push(resourceVersion);
         }
         
         return createdVersions;

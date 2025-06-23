@@ -17,7 +17,7 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../events/eventBus.js";
 import { EventPublisher } from "../../shared/EventPublisher.js";
-import { ErrorHandler, ComponentErrorHandler } from "../../shared/ErrorHandler.js";
+import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 
 /**
  * Raw metric event - no analysis, just data
@@ -59,7 +59,7 @@ export class ExecutionEventEmitter {
     constructor(
         private readonly logger: Logger,
         private readonly eventBus: EventBus,
-        componentName: string = "ExecutionEventEmitter"
+        componentName = "ExecutionEventEmitter",
     ) {
         this.eventPublisher = new EventPublisher(eventBus, logger, componentName);
         this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler(componentName);
@@ -87,7 +87,7 @@ export class ExecutionEventEmitter {
                 await this.eventPublisher.publish(typeChannel, eventData);
             },
             "emitMetric",
-            { metricName: metric.name, tier: metric.tier }
+            { metricName: metric.name, tier: metric.tier },
         );
     }
     
@@ -113,7 +113,7 @@ export class ExecutionEventEmitter {
                 await this.eventPublisher.publish(typeChannel, eventData);
             },
             "emitExecutionEvent",
-            { executionId: event.executionId, eventType: event.event }
+            { executionId: event.executionId, eventType: event.event },
         );
     }
     
@@ -159,7 +159,7 @@ export class ExecutionEventEmitter {
                             type: "batch",
                             metrics: channelMetrics,
                             count: channelMetrics.length,
-                        })
+                        }),
                     );
                 }
                 
@@ -169,14 +169,14 @@ export class ExecutionEventEmitter {
                             type: "batch",
                             metrics: channelMetrics,
                             count: channelMetrics.length,
-                        })
+                        }),
                     );
                 }
                 
                 await Promise.all(publishPromises);
             },
             "emitMetricsBatch",
-            { count: metrics.length }
+            { count: metrics.length },
         );
     }
     
@@ -197,7 +197,7 @@ export class ComponentEventEmitter {
     constructor(
         private readonly parent: ExecutionEventEmitter,
         private readonly tier: 1 | 2 | 3 | "cross-cutting",
-        private readonly component: string
+        private readonly component: string,
     ) {}
     
     async emitMetric(
@@ -205,7 +205,7 @@ export class ComponentEventEmitter {
         name: string,
         value: number,
         unit?: string,
-        tags?: Record<string, string>
+        tags?: Record<string, string>,
     ): Promise<void> {
         await this.parent.emitMetric({
             tier: this.tier,
@@ -221,7 +221,7 @@ export class ComponentEventEmitter {
     async emitExecutionEvent(
         executionId: string,
         event: RawExecutionEvent["event"],
-        data: Record<string, unknown>
+        data: Record<string, unknown>,
     ): Promise<void> {
         await this.parent.emitExecutionEvent({
             executionId,

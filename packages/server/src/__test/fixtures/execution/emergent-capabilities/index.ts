@@ -48,8 +48,8 @@ export const evolutionMetrics = {
         improvement: {
             speedGain: "22.5x",
             costReduction: "83%",
-            qualityIncrease: "8%"
-        }
+            qualityIncrease: "8%",
+        },
     },
     securityScanning: {
         v1_conversational: { duration: "120s", cost: "$0.45", coverage: "85%" },
@@ -58,7 +58,7 @@ export const evolutionMetrics = {
         improvement: {
             speedGain: "24x",
             costReduction: "93%",
-            coverageIncrease: "15%"
-        }
-    }
+            coverageIncrease: "15%",
+        },
+    },
 };

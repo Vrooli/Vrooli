@@ -218,7 +218,7 @@ export class StatsSiteDbFactory {
         periodType: "Hourly" | "Daily" | "Weekly" | "Monthly" | "Yearly",
         periodStart: Date,
         periodEnd: Date,
-        overrides?: Partial<Prisma.stats_siteCreateInput>
+        overrides?: Partial<Prisma.stats_siteCreateInput>,
     ): Prisma.stats_siteCreateInput {
         const baseStats = this.createComplete({
             periodType,
@@ -255,7 +255,7 @@ export class StatsSiteDbFactory {
             completed: Record<string, number>;
             averageCompletionTimes: Record<string, number>;
         },
-        overrides?: Partial<Prisma.stats_siteCreateInput>
+        overrides?: Partial<Prisma.stats_siteCreateInput>,
     ): Prisma.stats_siteCreateInput {
         return {
             ...this.createMinimal(overrides),
@@ -268,7 +268,7 @@ export class StatsSiteDbFactory {
     static createSequence(
         count: number,
         periodType: "Daily" | "Weekly" | "Monthly" = "Daily",
-        startDate: Date = new Date("2024-01-01T00:00:00Z")
+        startDate: Date = new Date("2024-01-01T00:00:00Z"),
     ): Prisma.stats_siteCreateInput[] {
         const sequence = [];
         const intervalMs = {
@@ -305,7 +305,7 @@ export async function seedStatsSite(
         }>;
         count?: number;
         withResourceStats?: boolean;
-    } = {}
+    } = {},
 ) {
     const stats = [];
 
@@ -321,7 +321,7 @@ export async function seedStatsSite(
                         resourcesCreatedByType: { "ROUTINE": 10, "CODE": 5 },
                         resourcesCompletedByType: { "ROUTINE": 8, "CODE": 4 },
                         resourceCompletionTimeAverageByType: { "ROUTINE": 120.5, "CODE": 60.2 },
-                    } : {}
+                    } : {},
                 ),
             });
             stats.push(stat);

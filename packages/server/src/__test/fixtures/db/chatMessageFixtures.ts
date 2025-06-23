@@ -266,7 +266,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         if (data.versionIndex === undefined) errors.push("ChatMessage versionIndex is required");
 
         // Check version index
-        if (typeof data.versionIndex === 'number') {
+        if (typeof data.versionIndex === "number") {
             if (data.versionIndex < 0) {
                 errors.push("Version index cannot be negative");
             }
@@ -276,7 +276,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         }
 
         // Check text content
-        if (data.text && typeof data.text === 'string') {
+        if (data.text && typeof data.text === "string") {
             if (data.text.length === 0) {
                 errors.push("Message text cannot be empty");
             }
@@ -300,7 +300,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
     static createMinimal(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.chat_messageCreateInput>
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
         const factory = new ChatMessageDbFactory();
         return factory.createMinimal({
@@ -318,7 +318,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         chatId: string,
         userId: string,
         parentId: string,
-        overrides?: Partial<Prisma.chat_messageCreateInput>
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
         return this.createMinimal(chatId, userId, {
             parentId: BigInt(parentId),
@@ -329,7 +329,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
     static createBotMessage(
         chatId: string,
         botId: string,
-        overrides?: Partial<Prisma.chat_messageCreateInput>
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
         return this.createMinimal(chatId, botId, {
             config: messageConfigFixtures.variants.assistantWithTools as any,
@@ -345,8 +345,8 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         chatId: string,
         userId: string,
         text: string,
-        score: number = 0,
-        overrides?: Partial<Prisma.chat_messageCreateInput>
+        score = 0,
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
         return this.createMinimal(chatId, userId, {
             config: messageConfigFixtures.variants.userMessage as any,
@@ -364,7 +364,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         botId: string,
         text: string,
         toolCalls?: any[],
-        overrides?: Partial<Prisma.chat_messageCreateInput>
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
         const config = toolCalls 
             ? {
@@ -388,7 +388,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         userId: string,
         parentId: string,
         text: string,
-        overrides?: Partial<Prisma.chat_messageCreateInput>
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
         return this.createWithParent(chatId, userId, parentId, {
             text,
@@ -400,7 +400,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         chatId: string,
         userId: string,
         count: number,
-        startIndex: number = 0
+        startIndex = 0,
     ): Prisma.chat_messageCreateInput[] {
         const messages = [];
         for (let i = 0; i < count; i++) {
@@ -426,7 +426,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
             text: string;
             score?: number;
             parentId?: string;
-        }>
+        }>,
     ): Prisma.chat_messageCreateInput[] {
         const messageData: Prisma.chat_messageCreateInput[] = [];
         const factory = new ChatMessageDbFactory();
@@ -465,7 +465,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
     static createTypingIndicator(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.chat_messageCreateInput>
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
         return this.createMinimal(chatId, userId, {
             config: {
@@ -493,7 +493,7 @@ export async function seedChatMessages(
             parentId?: string;
             versionIndex?: number;
         }>;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const createdMessages = [];
     let rootCount = 0;
@@ -519,7 +519,7 @@ export async function seedChatMessages(
         }
 
         // Check if this is a bot message (simplified check)
-        if (msg.userId.includes('bot') || (msg.text && msg.text.includes('bot'))) {
+        if (msg.userId.includes("bot") || (msg.text && msg.text.includes("bot"))) {
             botCount++;
         }
 
@@ -560,7 +560,7 @@ export async function seedConversationTree(
             parentId?: string;
             children?: any[];
         }>;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const createdMessages: Record<string, any> = {};
     let totalCreated = 0;
@@ -583,7 +583,7 @@ export async function seedConversationTree(
         }
 
         // Check if this is a bot message
-        if (node.userId.includes('bot') || node.text.includes('bot')) {
+        if (node.userId.includes("bot") || node.text.includes("bot")) {
             botCount++;
         }
 

@@ -11,6 +11,10 @@ const validIds = {
     id5: "123456789012345682",
 };
 
+// Magic number constants for testing
+const TAG_MAX_LENGTH_EXCEEDED = 150;
+const TRANSLATION_DESCRIPTION_MAX_LENGTH_EXCEEDED = 1000;
+
 // Shared tag test fixtures that can be imported by API tests, UI tests, etc.
 export const tagFixtures: ModelTestFixtures<TagCreateInput, TagUpdateInput> = {
     minimal: {
@@ -78,7 +82,7 @@ export const tagFixtures: ModelTestFixtures<TagCreateInput, TagUpdateInput> = {
         tooLongTag: {
             create: {
                 id: validIds.id1,
-                tag: testValues.longString(150), // Exceeds max length
+                tag: testValues.longString(TAG_MAX_LENGTH_EXCEEDED), // Exceeds max length
             },
         },
         invalidId: {
@@ -176,7 +180,7 @@ export const tagTranslationFixtures: ModelTestFixtures<TagTranslationCreateInput
             create: {
                 id: validIds.id4,
                 language: "en",
-                description: testValues.longString(1000),
+                description: testValues.longString(TRANSLATION_DESCRIPTION_MAX_LENGTH_EXCEEDED),
             },
         },
         multipleLanguages: {

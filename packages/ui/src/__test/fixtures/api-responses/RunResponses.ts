@@ -5,19 +5,19 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     Run, 
     RunCreateInput, 
     RunUpdateInput,
     RunStatus,
     RunStep,
-    RunRoutineOutput
-} from '@vrooli/shared';
+    RunRoutineOutput,
+} from "@vrooli/shared";
 import { 
     runValidation,
-    RunStatus as RunStatusEnum 
-} from '@vrooli/shared';
+    RunStatus as RunStatusEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -69,7 +69,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class RunResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -96,16 +96,16 @@ export class RunResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/run/${run.id}`,
                     related: {
                         routine: run.routineVersion ? `${this.baseUrl}/api/routine-version/${run.routineVersion.id}` : undefined,
                         steps: `${this.baseUrl}/api/run/${run.id}/steps`,
-                        outputs: `${this.baseUrl}/api/run/${run.id}/outputs`
-                    }
-                }
-            }
+                        outputs: `${this.baseUrl}/api/run/${run.id}/outputs`,
+                    },
+                },
+            },
         };
     }
     
@@ -120,7 +120,7 @@ export class RunResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: runs.length,
-            totalCount: runs.length
+            totalCount: runs.length,
         };
         
         return {
@@ -128,17 +128,17 @@ export class RunResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/run?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/run?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -148,16 +148,16 @@ export class RunResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/run'
-            }
+                path: "/api/run",
+            },
         };
     }
     
@@ -167,16 +167,16 @@ export class RunResponseFactory {
     createNotFoundErrorResponse(runId: string): APIErrorResponse {
         return {
             error: {
-                code: 'RUN_NOT_FOUND',
+                code: "RUN_NOT_FOUND",
                 message: `Run with ID '${runId}' was not found`,
                 details: {
                     runId,
-                    searchCriteria: { id: runId }
+                    searchCriteria: { id: runId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/run/${runId}`
-            }
+                path: `/api/run/${runId}`,
+            },
         };
     }
     
@@ -186,17 +186,17 @@ export class RunResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this run`,
                 details: {
                     operation,
-                    requiredPermissions: ['run:write'],
-                    userPermissions: ['run:read']
+                    requiredPermissions: ["run:write"],
+                    userPermissions: ["run:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/run'
-            }
+                path: "/api/run",
+            },
         };
     }
     
@@ -206,17 +206,17 @@ export class RunResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/run'
-            }
+                path: "/api/run",
+            },
         };
     }
     
@@ -226,17 +226,17 @@ export class RunResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/run'
-            }
+                path: "/api/run",
+            },
         };
     }
     
@@ -307,8 +307,8 @@ export class RunResponseFactory {
                         canRead: true,
                         canReact: true,
                         isBookmarked: false,
-                        reaction: null
-                    }
+                        reaction: null,
+                    },
                 },
                 you: {
                     __typename: "VersionYou",
@@ -316,20 +316,20 @@ export class RunResponseFactory {
                     canDelete: false,
                     canRead: true,
                     canReport: false,
-                    canUpdate: false
-                }
+                    canUpdate: false,
+                },
             },
             you: {
                 __typename: "RunYou",
                 canDelete: true,
                 canUpdate: true,
-                canRead: true
-            }
+                canRead: true,
+            },
         };
         
         return {
             ...defaultRun,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -374,8 +374,8 @@ export class RunResponseFactory {
                 timeElapsed: [RunStatusEnum.Completed, RunStatusEnum.Failed, RunStatusEnum.Cancelled].includes(status)
                     ? 3600
                     : null,
-                completedComplexity: status === RunStatusEnum.Completed ? 5 : 0
-            })
+                completedComplexity: status === RunStatusEnum.Completed ? 5 : 0,
+            }),
         );
     }
     
@@ -404,7 +404,7 @@ export class RunResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -426,7 +426,7 @@ export class RunMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create run
-            rest.post(`${this.responseFactory['baseUrl']}/api/run`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, async (req, res, ctx) => {
                 const body = await req.json() as RunCreateInput;
                 
                 // Validate input
@@ -434,7 +434,7 @@ export class RunMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -444,12 +444,12 @@ export class RunMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get run by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/run/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const run = this.responseFactory.createMockRun({ id: id as string });
@@ -457,18 +457,18 @@ export class RunMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update run
-            rest.put(`${this.responseFactory['baseUrl']}/api/run/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/run/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as RunUpdateInput;
                 
                 const run = this.responseFactory.createMockRun({ 
                     id: id as string,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 });
                 
                 // Apply updates from body
@@ -480,21 +480,21 @@ export class RunMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete run
-            rest.delete(`${this.responseFactory['baseUrl']}/api/run/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List runs
-            rest.get(`${this.responseFactory['baseUrl']}/api/run`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const status = url.searchParams.get('status') as RunStatus;
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as RunStatus;
                 
                 let runs = this.responseFactory.createRunsWithAllStatuses();
                 
@@ -512,36 +512,36 @@ export class RunMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: runs.length
-                    }
+                        totalCount: runs.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Start run
-            rest.post(`${this.responseFactory['baseUrl']}/api/run/:id/start`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run/:id/start`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const run = this.responseFactory.createMockRun({ 
                     id: id as string,
                     status: RunStatusEnum.InProgress,
-                    startedAt: new Date().toISOString()
+                    startedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(run);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Complete run
-            rest.post(`${this.responseFactory['baseUrl']}/api/run/:id/complete`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run/:id/complete`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const startedAt = new Date(Date.now() - 3600000).toISOString();
@@ -553,34 +553,34 @@ export class RunMSWHandlers {
                     startedAt,
                     completedAt,
                     timeElapsed: 3600,
-                    completedComplexity: 5
+                    completedComplexity: 5,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(run);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Cancel run
-            rest.post(`${this.responseFactory['baseUrl']}/api/run/:id/cancel`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run/:id/cancel`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const run = this.responseFactory.createMockRun({ 
                     id: id as string,
                     status: RunStatusEnum.Cancelled,
-                    completedAt: new Date().toISOString()
+                    completedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(run);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -590,48 +590,48 @@ export class RunMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/run`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        routineVersionConnect: 'Routine version is required'
-                    }))
+                        routineVersionConnect: "Routine version is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/run/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/run`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/run`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/run`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, async (req, res, ctx) => {
                 const body = await req.json() as RunCreateInput;
                 const run = this.responseFactory.createRunFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(run);
@@ -639,9 +639,9 @@ export class RunMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -650,13 +650,13 @@ export class RunMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/run`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/run/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -665,13 +665,13 @@ export class RunMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -693,14 +693,14 @@ export const runResponseScenarios = {
     createSuccess: (run?: Run) => {
         const factory = new RunResponseFactory();
         return factory.createSuccessResponse(
-            run || factory.createMockRun()
+            run || factory.createMockRun(),
         );
     },
     
     listSuccess: (runs?: Run[]) => {
         const factory = new RunResponseFactory();
         return factory.createRunListResponse(
-            runs || factory.createRunsWithAllStatuses()
+            runs || factory.createRunsWithAllStatuses(),
         );
     },
     
@@ -709,22 +709,22 @@ export const runResponseScenarios = {
         const factory = new RunResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                routineVersionConnect: 'Routine version is required'
-            }
+                routineVersionConnect: "Routine version is required",
+            },
         );
     },
     
     notFoundError: (runId?: string) => {
         const factory = new RunResponseFactory();
         return factory.createNotFoundErrorResponse(
-            runId || 'non-existent-id'
+            runId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new RunResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -737,7 +737,7 @@ export const runResponseScenarios = {
     successHandlers: () => new RunMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new RunMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new RunMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new RunMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new RunMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

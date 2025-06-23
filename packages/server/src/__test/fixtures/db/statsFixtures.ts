@@ -198,17 +198,17 @@ export const activeUserStatsDb: Prisma.StatsUserCreateInput = {
         "API": 8, 
         "NOTE": 89, 
         "STANDARD": 3, 
-        "SMART_CONTRACT": 2 
+        "SMART_CONTRACT": 2, 
     },
     resourcesCompletedByType: { 
         "ROUTINE": 198, 
         "PROJECT": 45, 
-        "CODE": 67 
+        "CODE": 67, 
     },
     resourceCompletionTimeAverageByType: { 
         "ROUTINE": 125.6, 
         "PROJECT": 890.3, 
-        "CODE": 45.8 
+        "CODE": 45.8, 
     },
     runsStarted: 234,
     runsCompleted: 198,
@@ -227,7 +227,7 @@ export class StatsDbFactory {
     static createResourceStats(
         resourceId: bigint,
         periodType: "Daily" | "Weekly" | "Monthly" | "Yearly" = "Daily",
-        daysAgo: number = 1,
+        daysAgo = 1,
         engagement: "low" | "medium" | "high" = "medium",
         overrides?: Partial<Prisma.StatsResourceCreateInput>,
     ): Prisma.StatsResourceCreateInput {
@@ -257,7 +257,7 @@ export class StatsDbFactory {
      */
     static createSiteStats(
         periodType: "Daily" | "Weekly" | "Monthly" | "Yearly" = "Daily",
-        daysAgo: number = 1,
+        daysAgo = 1,
         activity: "low" | "medium" | "high" = "medium",
         overrides?: Partial<Prisma.StatsSiteCreateInput>,
     ): Prisma.StatsSiteCreateInput {
@@ -297,7 +297,7 @@ export class StatsDbFactory {
     static createTeamStats(
         teamId: bigint,
         periodType: "Daily" | "Weekly" | "Monthly" | "Yearly" = "Daily",
-        daysAgo: number = 1,
+        daysAgo = 1,
         productivity: "low" | "medium" | "high" = "medium",
         overrides?: Partial<Prisma.StatsTeamCreateInput>,
     ): Prisma.StatsTeamCreateInput {
@@ -335,7 +335,7 @@ export class StatsDbFactory {
     static createUserStats(
         userId: bigint,
         periodType: "Daily" | "Weekly" | "Monthly" | "Yearly" = "Daily",
-        daysAgo: number = 1,
+        daysAgo = 1,
         activity: "low" | "medium" | "high" = "medium",
         overrides?: Partial<Prisma.StatsUserCreateInput>,
     ): Prisma.StatsUserCreateInput {
@@ -372,7 +372,7 @@ export class StatsDbFactory {
     static createTimeSeries(
         type: "resource" | "site" | "team" | "user",
         entityId: bigint | null,
-        days: number = 30,
+        days = 30,
         periodType: "Daily" | "Weekly" | "Monthly" = "Daily",
     ): Prisma.StatsResourceCreateInput[] | Prisma.StatsSiteCreateInput[] | Prisma.StatsTeamCreateInput[] | Prisma.StatsUserCreateInput[] {
         const stats: any[] = [];
@@ -482,7 +482,7 @@ export async function seedAnalyticsTimeSeries(db: any, entityId: bigint, entityT
     
     const modelName = `stats${entityType.charAt(0).toUpperCase() + entityType.slice(1)}`;
     const stats = await Promise.all(
-        timeSeries.map(stat => db[modelName].create({ data: stat }))
+        timeSeries.map(stat => db[modelName].create({ data: stat })),
     );
 
     return stats;

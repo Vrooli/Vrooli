@@ -1,8 +1,8 @@
-import { AccountStatus, generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { AccountStatus } from "@vrooli/shared";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
-import { botConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
 
 interface UserRelationConfig extends RelationConfig {
     withAuth?: boolean;
@@ -17,20 +17,20 @@ interface UserRelationConfig extends RelationConfig {
  * Handles both regular users and bots with comprehensive relationship support
  */
 export class UserDbFactory extends DatabaseFixtureFactory<
-    Prisma.User,
-    Prisma.UserCreateInput,
-    Prisma.UserInclude,
-    Prisma.UserUpdateInput
+    Prisma.user,
+    Prisma.userCreateInput,
+    Prisma.userInclude,
+    Prisma.userUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('User', prisma);
+        super("user", prisma);
     }
 
     protected getPrismaDelegate() {
         return this.prisma.user;
     }
 
-    protected getMinimalData(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
+    protected getMinimalData(overrides?: Partial<Prisma.userCreateInput>): Prisma.userCreateInput {
         const uniqueHandle = `user_${nanoid(8)}`;
         
         return {
@@ -46,7 +46,7 @@ export class UserDbFactory extends DatabaseFixtureFactory<
         };
     }
 
-    protected getCompleteData(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
+    protected getCompleteData(overrides?: Partial<Prisma.userCreateInput>): Prisma.userCreateInput {
         const uniqueHandle = `complete_${nanoid(8)}`;
         
         return {
@@ -82,15 +82,23 @@ export class UserDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a bot user with settings
      */
-    async createBot(overrides?: Partial<Prisma.UserCreateInput>): Promise<Prisma.User> {
+    async createBot(overrides?: Partial<Prisma.userCreateInput>): Promise<Prisma.user> {
         const botHandle = `bot_${nanoid(8)}`;
         
-        const data: Prisma.UserCreateInput = {
+        const data: Prisma.userCreateInput = {
             ...this.getMinimalData(),
             handle: botHandle,
             name: "Test Bot",
             isBot: true,
-            botSettings: botConfigFixtures.complete,
+            botSettings: {
+                model: "gpt-4",
+                creativity: 0.7,
+                verbosity: 0.5,
+                translations: [{
+                    language: "en",
+                    persona: "I am a helpful bot",
+                }],
+            },
             ...overrides,
         };
         
@@ -99,7 +107,7 @@ export class UserDbFactory extends DatabaseFixtureFactory<
         return result;
     }
 
-    protected getDefaultInclude(): Prisma.UserInclude {
+    protected getDefaultInclude(): Prisma.userInclude {
         return {
             emails: true,
             auths: true,
@@ -130,11 +138,11 @@ export class UserDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.UserCreateInput,
+        baseData: Prisma.userCreateInput,
         config: UserRelationConfig,
-        tx: any
-    ): Promise<Prisma.UserCreateInput> {
-        let data = { ...baseData };
+        tx: any,
+    ): Promise<Prisma.userCreateInput> {
+        const data = { ...baseData };
 
         // Handle authentication
         if (config.withAuth) {
@@ -149,7 +157,7 @@ export class UserDbFactory extends DatabaseFixtureFactory<
 
         // Handle emails
         if (config.withEmails) {
-            const emailCount = typeof config.withEmails === 'number' ? config.withEmails : 1;
+            const emailCount = typeof config.withEmails === "number" ? config.withEmails : 1;
             data.emails = {
                 create: Array.from({ length: emailCount }, (_, i) => ({
                     id: generatePK(),
@@ -166,7 +174,7 @@ export class UserDbFactory extends DatabaseFixtureFactory<
                 create: config.teams.map(team => ({
                     id: generatePK(),
                     teamId: team.teamId,
-                    role: team.role || 'Member',
+                    role: team.role || "Member",
                 })),
             };
         }
@@ -174,7 +182,15 @@ export class UserDbFactory extends DatabaseFixtureFactory<
         // Handle bot settings
         if (config.withBotSettings && !data.isBot) {
             data.isBot = true;
-            data.botSettings = botConfigFixtures.complete;
+            data.botSettings = {
+                model: "gpt-4",
+                creativity: 0.7,
+                verbosity: 0.5,
+                translations: [{
+                    language: "en",
+                    persona: "I am a helpful bot assistant",
+                }],
+            };
         }
 
         // Handle translations
@@ -193,7 +209,7 @@ export class UserDbFactory extends DatabaseFixtureFactory<
     /**
      * Create test scenarios
      */
-    async createAdminUser(): Promise<Prisma.User> {
+    async createAdminUser(): Promise<Prisma.user> {
         return this.createWithRelations({
             overrides: {
                 name: "Admin User",
@@ -208,21 +224,21 @@ export class UserDbFactory extends DatabaseFixtureFactory<
         });
     }
 
-    async createSuspendedUser(): Promise<Prisma.User> {
+    async createSuspendedUser(): Promise<Prisma.user> {
         return this.createMinimal({
             status: AccountStatus.SoftLocked,
             handle: `suspended_${nanoid(8)}`,
         });
     }
 
-    async createPrivateUser(): Promise<Prisma.User> {
+    async createPrivateUser(): Promise<Prisma.user> {
         return this.createMinimal({
             isPrivate: true,
             handle: `private_${nanoid(8)}`,
         });
     }
 
-    async createBotDepictingPerson(): Promise<Prisma.User> {
+    async createBotDepictingPerson(): Promise<Prisma.user> {
         return this.createBot({
             isBotDepictingPerson: true,
             handle: `bot_person_${nanoid(8)}`,
@@ -230,7 +246,7 @@ export class UserDbFactory extends DatabaseFixtureFactory<
         });
     }
 
-    protected async checkModelConstraints(record: Prisma.User): Promise<string[]> {
+    protected async checkModelConstraints(record: Prisma.user): Promise<string[]> {
         const violations: string[] = [];
         
         // Check handle uniqueness
@@ -242,18 +258,18 @@ export class UserDbFactory extends DatabaseFixtureFactory<
                 },
             });
             if (duplicate) {
-                violations.push('Handle must be unique');
+                violations.push("Handle must be unique");
             }
         }
 
         // Check handle format
         if (record.handle && !/^[a-zA-Z0-9_]+$/.test(record.handle)) {
-            violations.push('Handle contains invalid characters');
+            violations.push("Handle contains invalid characters");
         }
 
         // Check bot settings
         if (record.isBot && !record.botSettings) {
-            violations.push('Bot users must have botSettings');
+            violations.push("Bot users must have botSettings");
         }
 
         // Check email verification
@@ -262,7 +278,7 @@ export class UserDbFactory extends DatabaseFixtureFactory<
         });
         
         if (emails.length > 0 && !emails.some(e => e.verifiedAt !== null)) {
-            violations.push('User should have at least one verified email');
+            violations.push("User should have at least one verified email");
         }
 
         return violations;
@@ -313,11 +329,11 @@ export class UserDbFactory extends DatabaseFixtureFactory<
     /**
      * Get edge case scenarios
      */
-    getEdgeCaseScenarios(): Record<string, Prisma.UserCreateInput> {
+    getEdgeCaseScenarios(): Record<string, Prisma.userCreateInput> {
         return {
             maxLengthHandle: {
                 ...this.getMinimalData(),
-                handle: 'a'.repeat(50), // Max length handle
+                handle: "a".repeat(50), // Max length handle
             },
             unicodeNameUser: {
                 ...this.getMinimalData(),
@@ -330,7 +346,7 @@ export class UserDbFactory extends DatabaseFixtureFactory<
                 translations: {
                     create: Array.from({ length: 10 }, (_, i) => ({
                         id: generatePK(),
-                        language: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'zh', 'ar'][i],
+                        language: ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "zh", "ar"][i],
                         bio: `Bio in language ${i}`,
                     })),
                 },
@@ -340,13 +356,14 @@ export class UserDbFactory extends DatabaseFixtureFactory<
                 handle: `complex_bot_${nanoid(8)}`,
                 isBot: true,
                 botSettings: {
-                    ...botConfigFixtures.complete,
+                    model: "gpt-4",
+                    creativity: 0.9,
+                    verbosity: 0.1,
                     maxTokens: 4096,
-                    persona: {
-                        ...botConfigFixtures.complete.persona,
-                        creativity: 0.9,
-                        verbosity: 0.1,
-                    },
+                    translations: [{
+                        language: "en",
+                        persona: "I am a highly creative but concise bot",
+                    }],
                 },
             },
         };
@@ -366,9 +383,9 @@ export class UserDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.User,
+        record: Prisma.user,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete in order of dependencies
         

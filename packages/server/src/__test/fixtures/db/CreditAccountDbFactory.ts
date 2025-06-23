@@ -21,7 +21,7 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
     Prisma.credit_accountUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('credit_account', prisma);
+        super("credit_account", prisma);
     }
 
     protected getPrismaDelegate() {

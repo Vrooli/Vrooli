@@ -12,11 +12,11 @@ import {
     BILLING_SPECIALIST_V3,
     ACCOUNT_SPECIALIST_V3,
     ESCALATION_HANDLER_V2,
-    RESPONSE_SYNTHESIZER_V1
+    RESPONSE_SYNTHESIZER_V1,
 } from "./routines/evolutionFixtures.js";
 
 // Mock console.warn for cleaner test output
-const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
 describe("Execution Fixtures Validation", () => {
     describe("Routine Fixtures", () => {
@@ -102,7 +102,7 @@ describe("Execution Fixtures Validation", () => {
                 if (agent.subscriptions) {
                     agent.subscriptions.forEach(sub => {
                         // Extract pattern type from subscription
-                        const patternType = sub.split('/')[0];
+                        const patternType = sub.split("/")[0];
                         subscriptionPatterns.add(patternType);
                     });
                 }
@@ -124,7 +124,7 @@ describe("Execution Fixtures Validation", () => {
             });
             
             // Should have a good distribution of strategies
-            console.log('Strategy distribution:', strategyCount);
+            console.log("Strategy distribution:", strategyCount);
             expect(Object.keys(strategyCount).length).toBeGreaterThanOrEqual(2); // Adjusted to match actual data
         });
 
@@ -134,7 +134,7 @@ describe("Execution Fixtures Validation", () => {
                 BILLING_SPECIALIST_V3,
                 ACCOUNT_SPECIALIST_V3,
                 ESCALATION_HANDLER_V2,
-                RESPONSE_SYNTHESIZER_V1
+                RESPONSE_SYNTHESIZER_V1,
             ];
 
             evolutionStageRoutines.forEach(routine => {

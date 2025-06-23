@@ -9,7 +9,7 @@ import type {
 
 interface ReportRelationConfig extends RelationConfig {
     createdById?: string;
-    targetType?: 'resourceVersion' | 'chatMessage' | 'comment' | 'issue' | 'tag' | 'team' | 'user';
+    targetType?: "resourceVersion" | "chatMessage" | "comment" | "issue" | "tag" | "team" | "user";
     targetId?: string;
     withResponses?: Array<{
         createdById: string;
@@ -38,7 +38,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
     Prisma.reportUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('report', prisma);
+        super("report", prisma);
         this.initializeScenarios();
     }
 
@@ -107,7 +107,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                 reasonTooLong: {
                     id: generatePK().toString(),
                     publicId: generatePublicId(),
-                    reason: 'a'.repeat(129), // Exceeds 128 character limit
+                    reason: "a".repeat(129), // Exceeds 128 character limit
                     language: "en",
                     status: ReportStatus.Open,
                     createdById: generatePK().toString(),
@@ -117,7 +117,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                     id: generatePK().toString(),
                     publicId: generatePublicId(),
                     reason: "Valid reason",
-                    details: 'a'.repeat(8193), // Exceeds 8192 character limit
+                    details: "a".repeat(8193), // Exceeds 8192 character limit
                     language: "en",
                     status: ReportStatus.Open,
                     createdById: generatePK().toString(),
@@ -275,7 +275,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                         reason: "Copyright violation",
                         details: "Using copyrighted content without permission",
                     },
-                    targetType: 'resourceVersion',
+                    targetType: "resourceVersion",
                 },
             },
             impersonationReport: {
@@ -286,7 +286,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                         reason: "Impersonation",
                         details: "Pretending to be another person or organization",
                     },
-                    targetType: 'team',
+                    targetType: "team",
                 },
             },
             resolvedReport: {
@@ -416,9 +416,9 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.reportCreateInput,
         config: ReportRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.reportCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle creator association
         if (config.createdById) {
@@ -438,25 +438,25 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
 
             // Set the appropriate target
             switch (config.targetType) {
-                case 'resourceVersion':
+                case "resourceVersion":
                     data.resourceVersionId = config.targetId;
                     break;
-                case 'chatMessage':
+                case "chatMessage":
                     data.chatMessageId = config.targetId;
                     break;
-                case 'comment':
+                case "comment":
                     data.commentId = config.targetId;
                     break;
-                case 'issue':
+                case "issue":
                     data.issueId = config.targetId;
                     break;
-                case 'tag':
+                case "tag":
                     data.tagId = config.targetId;
                     break;
-                case 'team':
+                case "team":
                     data.teamId = config.targetId;
                     break;
-                case 'user':
+                case "user":
                     data.userId = config.targetId;
                     break;
             }
@@ -482,11 +482,11 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
      * Create a report for specific content
      */
     async createReportFor(
-        targetType: 'resourceVersion' | 'chatMessage' | 'comment' | 'issue' | 'tag' | 'team' | 'user',
+        targetType: "resourceVersion" | "chatMessage" | "comment" | "issue" | "tag" | "team" | "user",
         targetId: string,
         createdById: string,
         reason: string,
-        details?: string
+        details?: string,
     ): Promise<Prisma.report> {
         return await this.createWithRelations({
             overrides: { reason, details },
@@ -505,7 +505,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             targetId,
             createdById,
             "Spam",
-            "Repetitive promotional content"
+            "Repetitive promotional content",
         );
     }
 
@@ -515,7 +515,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             targetId,
             createdById,
             "Harassment",
-            "Targeted harassment or bullying"
+            "Targeted harassment or bullying",
         );
     }
 
@@ -525,7 +525,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             targetId,
             createdById,
             "Inappropriate content",
-            "Content violates community guidelines"
+            "Content violates community guidelines",
         );
     }
 
@@ -535,7 +535,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
     async closeReport(
         reportId: string,
         status: ReportStatus,
-        responseDetails?: string
+        responseDetails?: string,
     ): Promise<Prisma.report> {
         return await this.prisma.report.update({
             where: { id: reportId },
@@ -558,32 +558,32 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             record.issueId,
             record.tagId,
             record.teamId,
-            record.userId
+            record.userId,
         ].filter(Boolean).length;
 
         if (targetCount === 0) {
-            violations.push('Report must have exactly one target');
+            violations.push("Report must have exactly one target");
         } else if (targetCount > 1) {
-            violations.push('Report cannot have multiple targets');
+            violations.push("Report cannot have multiple targets");
         }
 
         // Check reason length
         if (!record.reason || record.reason.length === 0) {
-            violations.push('Report reason cannot be empty');
+            violations.push("Report reason cannot be empty");
         }
 
         if (record.reason && record.reason.length > 128) {
-            violations.push('Report reason exceeds maximum length of 128 characters');
+            violations.push("Report reason exceeds maximum length of 128 characters");
         }
 
         // Check details length
         if (record.details && record.details.length > 8192) {
-            violations.push('Report details exceed maximum length of 8192 characters');
+            violations.push("Report details exceed maximum length of 8192 characters");
         }
 
         // Check language code format
         if (!record.language || !/^[a-z]{2,3}$/.test(record.language)) {
-            violations.push('Invalid language code format');
+            violations.push("Invalid language code format");
         }
 
         // Check publicId uniqueness
@@ -594,7 +594,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             },
         });
         if (duplicate) {
-            violations.push('Public ID must be unique');
+            violations.push("Public ID must be unique");
         }
 
         // Check creator exists
@@ -603,7 +603,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                 where: { id: record.createdById },
             });
             if (!creator) {
-                violations.push('Report creator does not exist');
+                violations.push("Report creator does not exist");
             }
         }
 
@@ -621,21 +621,21 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.report,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete responses
-        if (shouldDelete('responses') && record.responses?.length) {
+        if (shouldDelete("responses") && record.responses?.length) {
             await tx.report_response.deleteMany({
                 where: { reportId: record.id },
             });
         }
 
         // Delete notification subscriptions
-        if (shouldDelete('subscriptions') && record.subscriptions?.length) {
+        if (shouldDelete("subscriptions") && record.subscriptions?.length) {
             await tx.notification_subscription.deleteMany({
                 where: { reportId: record.id },
             });
@@ -655,7 +655,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                 actionSuggested: ReportSuggestedAction;
                 details?: string;
             };
-        }>
+        }>,
     ): Promise<Prisma.report> {
         // Create initial report
         const report = await this.createReportFor(
@@ -663,7 +663,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             targetId,
             generatePK().toString(),
             "Test report for workflow",
-            "Testing report workflow progression"
+            "Testing report workflow progression",
         );
 
         // Apply workflow steps
@@ -747,14 +747,14 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             byReason[report.reason] = (byReason[report.reason] || 0) + 1;
 
             // Determine target type
-            let targetType = 'unknown';
-            if (report.resourceVersionId) targetType = 'resourceVersion';
-            else if (report.chatMessageId) targetType = 'chatMessage';
-            else if (report.commentId) targetType = 'comment';
-            else if (report.issueId) targetType = 'issue';
-            else if (report.tagId) targetType = 'tag';
-            else if (report.teamId) targetType = 'team';
-            else if (report.userId) targetType = 'user';
+            let targetType = "unknown";
+            if (report.resourceVersionId) targetType = "resourceVersion";
+            else if (report.chatMessageId) targetType = "chatMessage";
+            else if (report.commentId) targetType = "comment";
+            else if (report.issueId) targetType = "issue";
+            else if (report.tagId) targetType = "tag";
+            else if (report.teamId) targetType = "team";
+            else if (report.userId) targetType = "user";
 
             byTargetType[targetType] = (byTargetType[targetType] || 0) + 1;
         });
@@ -770,7 +770,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createReportDbFactory = (prisma: PrismaClient) => 
-    ReportDbFactory.getInstance('report', prisma);
+    ReportDbFactory.getInstance("report", prisma);
 
 // Export the class for type usage
 export { ReportDbFactory as ReportDbFactoryClass };

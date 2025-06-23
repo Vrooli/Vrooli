@@ -9,7 +9,6 @@ import { admin_userList } from "../generated/admin_userList.js";
 import { admin_userUpdateStatus } from "../generated/admin_userUpdateStatus.js";
 import { admin_userResetPassword } from "../generated/admin_userResetPassword.js";
 import { admin } from "./admin.js";
-
 // Import database fixtures for seeding
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
@@ -74,7 +73,7 @@ describe("EndpointsAdmin", () => {
             // Create session for regular user (should not have admin access)
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: regularUser.id.toString()
+                id: regularUser.id.toString(),
             });
 
             await expect(async () => {
@@ -104,7 +103,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             const response = await admin.siteStats({ input: undefined }, { req, res }, admin_siteStats);
 
@@ -126,7 +125,7 @@ describe("EndpointsAdmin", () => {
             // but we can still test the basic functionality
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             const response = await admin.siteStats({ input: undefined }, { req, res }, admin_siteStats);
 
@@ -145,7 +144,7 @@ describe("EndpointsAdmin", () => {
             
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: regularUser.id.toString()
+                id: regularUser.id.toString(),
             });
 
             await expect(async () => {
@@ -158,7 +157,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             
             const response = await admin.userList({
@@ -183,7 +182,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             
             const response = await admin.userList({
@@ -207,7 +206,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             
             const response = await admin.userList({
@@ -232,7 +231,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: regularUser.id.toString()
+                id: regularUser.id.toString(),
             });
             
             await expect(async () => {
@@ -250,7 +249,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             
             const response = await admin.userUpdateStatus({
@@ -277,7 +276,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             
             await expect(async () => {
@@ -295,7 +294,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             
             await expect(async () => {
@@ -346,7 +345,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: regularUser.id.toString()
+                id: regularUser.id.toString(),
             });
             
             await expect(async () => {
@@ -393,7 +392,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             
             const response = await admin.userResetPassword({
@@ -423,7 +422,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             
             await expect(async () => {
@@ -440,7 +439,7 @@ describe("EndpointsAdmin", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id.toString()
+                id: adminUser.id.toString(),
             });
             
             await expect(async () => {

@@ -357,7 +357,7 @@ describe("rel function", () => {
             "one",
             "req",
             mockModel,
-            undefined
+            undefined,
         );
         expect(Object.keys(result)).to.have.length(0);
         
@@ -375,7 +375,7 @@ describe("rel function", () => {
         try {
             await testSchema.validate({
                 testRelationConnect: "123456789012345678",
-                testRelationCreate: { mockField: "test" }
+                testRelationCreate: { mockField: "test" },
             });
             expect.fail("Validation should have failed but passed");
         } catch (error: any) {
@@ -384,12 +384,12 @@ describe("rel function", () => {
 
         // Should pass when only one field is provided
         const validConnectOnly = await testSchema.validate({
-            testRelationConnect: "123456789012345678"
+            testRelationConnect: "123456789012345678",
         });
         expect(validConnectOnly.testRelationConnect).toBe("123456789012345678");
 
         const validCreateOnly = await testSchema.validate({
-            testRelationCreate: { mockField: "test" }
+            testRelationCreate: { mockField: "test" },
         });
         expect(validCreateOnly.testRelationCreate).toEqual({ mockField: "test" });
     });
@@ -416,7 +416,7 @@ describe("rel function", () => {
         try {
             await testSchema.validate({
                 testRelationConnect: "123456789012345678",
-                testRelationUpdate: { mockField: "test" }
+                testRelationUpdate: { mockField: "test" },
             });
             expect.fail("Validation should have failed but passed");
         } catch (error: any) {
@@ -427,7 +427,7 @@ describe("rel function", () => {
         try {
             await testSchema.validate({
                 testRelationDelete: true,
-                testRelationDisconnect: true
+                testRelationDisconnect: true,
             });
             expect.fail("Validation should have failed but passed");
         } catch (error: any) {
@@ -438,7 +438,7 @@ describe("rel function", () => {
         try {
             await testSchema.validate({
                 testRelationCreate: { mockField: "test" },
-                testRelationDelete: true
+                testRelationDelete: true,
             });
             expect.fail("Validation should have failed but passed");
         } catch (error: any) {
@@ -456,7 +456,7 @@ describe("rel function", () => {
         // Should pass when both fields are provided for "many" relationships
         const validData = await testSchema.validate({
             testRelationConnect: ["123456789012345678"],
-            testRelationCreate: [{ mockField: "test" }]
+            testRelationCreate: [{ mockField: "test" }],
         });
         
         expect(validData.testRelationConnect).toEqual(["123456789012345678"]);
@@ -493,7 +493,7 @@ describe("rel function", () => {
             "one", 
             "req", 
             omitFieldsMockModel, 
-            ["field2", "field3"]
+            ["field2", "field3"],
         );
         
         // This tests that the deduplication is working - field2 should only be omitted once
@@ -556,7 +556,7 @@ describe("rel function", () => {
         // Test that empty arrays are preserved
         const emptyArrayData = {
             testRelationConnect: [],
-            testRelationDelete: []
+            testRelationDelete: [],
         };
         
         const validatedEmpty = await result.testRelationConnect!.validate(emptyArrayData.testRelationConnect);
@@ -569,7 +569,7 @@ describe("rel function", () => {
     it("should handle non-array omitFields in data parameter", () => {
         // Test the case where data.omitFields is a string rather than array
         const dataWithStringOmitFields = {
-            omitFields: "testRelation" // String instead of array
+            omitFields: "testRelation", // String instead of array
         };
         
         const result = rel(dataWithStringOmitFields, "testRelation", ["Create"], "one", "opt", mockModel);
@@ -616,7 +616,7 @@ describe("transRel function", () => {
             id: "123456789012345678",
             language: "en",
             name: "Test Name",
-            description: "Test Description"
+            description: "Test Description",
         };
         const result = await createSchema.validate(validData);
         expect(result).toEqual(validData);
@@ -625,7 +625,7 @@ describe("transRel function", () => {
         try {
             await createSchema.validate({
                 id: "123456789012345678",
-                language: "en"
+                language: "en",
                 // missing name
             });
             expect.fail("Validation should have failed");
@@ -640,7 +640,7 @@ describe("transRel function", () => {
 
         // Valid data with only id
         const minimalData = {
-            id: "123456789012345678"
+            id: "123456789012345678",
         };
         const result = await updateSchema.validate(minimalData);
         expect(result).toEqual(minimalData);
@@ -650,7 +650,7 @@ describe("transRel function", () => {
             id: "123456789012345678",
             language: "fr",
             name: "Updated Name",
-            description: "Updated Description"
+            description: "Updated Description",
         };
         const completeResult = await updateSchema.validate(completeData);
         expect(completeResult).toEqual(completeData);
@@ -659,7 +659,7 @@ describe("transRel function", () => {
         try {
             await updateSchema.validate({
                 language: "en",
-                name: "No ID"
+                name: "No ID",
             });
             expect.fail("Validation should have failed");
         } catch (error) {

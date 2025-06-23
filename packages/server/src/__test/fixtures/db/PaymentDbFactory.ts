@@ -36,7 +36,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                 paymentType: "Credits",
                 status: "Pending",
                 user: {
-                    connect: { id: userId }
+                    connect: { id: userId },
                 },
             },
             complete: {
@@ -52,7 +52,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                 receivedAt: new Date(),
                 refundedAt: null,
                 user: {
-                    connect: { id: userId }
+                    connect: { id: userId },
                 },
             },
             invalid: {
@@ -73,7 +73,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     paymentType: "Credits",
                     status: "Pending",
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },
@@ -88,7 +88,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     processingFee: 0, // No fee for credits
                     receivedAt: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 failedPayment: {
@@ -100,7 +100,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     stripePaymentIntentId: `pi_${nanoid(24)}`,
                     description: "Failed premium subscription",
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 donationPayment: {
@@ -114,7 +114,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     processingFee: 43, // Processing fee
                     receivedAt: new Date(Date.now() - 86400000), // 1 day ago
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 foreignCurrency: {
@@ -128,7 +128,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     processingFee: 65, // Different fee structure for EUR
                     receivedAt: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 yearlySubscription: {
@@ -141,7 +141,7 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     processingFee: 2900, // Higher processing fee for large amount
                     receivedAt: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },

@@ -1,5 +1,5 @@
 import { type PrismaClient } from "@prisma/client";
-import { DatabaseFixtureFactory } from "./DatabaseFixtureFactory.js";
+import { type DatabaseFixtureFactory } from "./DatabaseFixtureFactory.js";
 
 /**
  * Registry for managing all database fixture factories
@@ -29,7 +29,7 @@ export class FixtureFactoryRegistry {
      */
     register<T extends DatabaseFixtureFactory<any, any, any>>(
         modelName: string,
-        factoryClass: new (prisma: PrismaClient) => T
+        factoryClass: new (prisma: PrismaClient) => T,
     ): T {
         if (!this.factories.has(modelName)) {
             const factory = new factoryClass(this.prisma);
@@ -57,7 +57,7 @@ export class FixtureFactoryRegistry {
      */
     async cleanupAll(): Promise<void> {
         const cleanupPromises = Array.from(this.factories.values()).map(factory => 
-            factory.cleanupAll()
+            factory.cleanupAll(),
         );
         await Promise.all(cleanupPromises);
     }
@@ -119,7 +119,7 @@ export const fixtureUtils = {
             teams?: number;
             projects?: number;
             interconnect?: boolean;
-        }
+        },
     ): Promise<{
         users: any[];
         teams: any[];
@@ -128,12 +128,12 @@ export const fixtureUtils = {
         const result = {
             users: [] as any[],
             teams: [] as any[],
-            projects: [] as any[]
+            projects: [] as any[],
         };
 
         // Create users
         if (config.users) {
-            const userFactory = registry.get('User');
+            const userFactory = registry.get("User");
             if (userFactory) {
                 result.users = await userFactory.seedMultiple(config.users);
             }
@@ -141,7 +141,7 @@ export const fixtureUtils = {
 
         // Create teams
         if (config.teams) {
-            const teamFactory = registry.get('Team');
+            const teamFactory = registry.get("Team");
             if (teamFactory) {
                 result.teams = await teamFactory.seedMultiple(config.teams);
             }
@@ -149,7 +149,7 @@ export const fixtureUtils = {
 
         // Create projects
         if (config.projects) {
-            const projectFactory = registry.get('Project');
+            const projectFactory = registry.get("Project");
             if (projectFactory) {
                 result.projects = await projectFactory.seedMultiple(config.projects);
             }
@@ -172,7 +172,7 @@ export const fixtureUtils = {
             model: string;
             id: string;
             expectations: Record<string, any>;
-        }>
+        }>,
     ): Promise<{
         valid: boolean;
         errors: string[];
@@ -189,13 +189,13 @@ export const fixtureUtils = {
             try {
                 await factory.verifyState(check.id, check.expectations);
             } catch (error) {
-                errors.push(error instanceof Error ? error.message : 'Unknown error');
+                errors.push(error instanceof Error ? error.message : "Unknown error");
             }
         }
 
         return {
             valid: errors.length === 0,
-            errors
+            errors,
         };
     },
 
@@ -204,7 +204,7 @@ export const fixtureUtils = {
      */
     async cleanupInOrder(
         registry: FixtureFactoryRegistry,
-        order: string[]
+        order: string[],
     ): Promise<void> {
         for (const modelName of order) {
             const factory = registry.get(modelName);
@@ -212,7 +212,7 @@ export const fixtureUtils = {
                 await factory.cleanupAll();
             }
         }
-    }
+    },
 };
 
 /**
@@ -224,18 +224,18 @@ async function interconnectData(
         users: any[];
         teams: any[];
         projects: any[];
-    }
+    },
 ): Promise<void> {
     // Add users to teams
     if (data.users.length > 0 && data.teams.length > 0) {
-        const memberFactory = registry.get('Member');
+        const memberFactory = registry.get("Member");
         if (memberFactory) {
             for (let i = 0; i < data.users.length; i++) {
                 const teamIndex = i % data.teams.length;
                 await memberFactory.createMinimal({
                     userId: data.users[i].id,
                     teamId: data.teams[teamIndex].id,
-                    role: i === 0 ? 'Owner' : 'Member'
+                    role: i === 0 ? "Owner" : "Member",
                 });
             }
         }
@@ -243,13 +243,13 @@ async function interconnectData(
 
     // Assign projects to teams
     if (data.projects.length > 0 && data.teams.length > 0) {
-        const projectFactory = registry.get('Project');
+        const projectFactory = registry.get("Project");
         if (projectFactory) {
             for (let i = 0; i < data.projects.length; i++) {
                 const teamIndex = i % data.teams.length;
                 await projectFactory.connectExisting(
                     data.projects[i].id,
-                    { team: { id: data.teams[teamIndex].id } }
+                    { team: { id: data.teams[teamIndex].id } },
                 );
             }
         }

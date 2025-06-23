@@ -1,0 +1,39 @@
+{
+  "name": "@vrooli/integration",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Integration tests for Vrooli - round-trip and scenario testing",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test-watch": "vitest",
+    "test-coverage": "vitest run --coverage",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext .ts,.tsx --fix",
+    "clean": "rimraf dist coverage .turbo"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.0",
+    "@vrooli/server": "workspace:*",
+    "@vrooli/shared": "workspace:*",
+    "@vrooli/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^10.16.0",
+    "@testcontainers/redis": "^10.16.0",
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^5.59.0",
+    "@typescript-eslint/parser": "^5.59.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "dotenv": "^16.4.7",
+    "eslint": "^8.57.0",
+    "prettier": "^3.1.0",
+    "rimraf": "^6.0.1",
+    "testcontainers": "^10.16.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

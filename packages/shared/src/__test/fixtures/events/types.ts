@@ -61,27 +61,27 @@ export interface NetworkCondition {
 }
 
 export interface SimulationOptions {
-    network?: 'fast' | 'slow' | 'flaky' | 'offline' | NetworkCondition;
-    timing?: 'realtime' | 'fast' | 'instant';
+    network?: "fast" | "slow" | "flaky" | "offline" | NetworkCondition;
+    timing?: "realtime" | "fast" | "instant";
     errors?: ErrorSimulation[];
     state?: Record<string, unknown>;
 }
 
 export interface ErrorSimulation {
     event: string;
-    errorType: 'network' | 'timeout' | 'validation' | 'permission' | 'system';
+    errorType: "network" | "timeout" | "validation" | "permission" | "system";
     probability: number;        // 0-1 chance of error
     details?: unknown;
 }
 
 // Event patterns for factory creation
 export type EventPattern = 
-    | 'single'                  // One-time event
-    | 'burst'                   // Multiple events at once
-    | 'periodic'                // Regular intervals
-    | 'random'                  // Random timing
-    | 'escalating'              // Increasing frequency
-    | 'degrading';              // Decreasing frequency
+    | "single"                  // One-time event
+    | "burst"                   // Multiple events at once
+    | "periodic"                // Regular intervals
+    | "random"                  // Random timing
+    | "escalating"              // Increasing frequency
+    | "degrading";              // Decreasing frequency
 
 // Test result from simulation
 export interface TestResult {
@@ -104,7 +104,7 @@ export interface TestResult {
 
 // Event effect for assertion
 export interface EventEffect {
-    type: 'state' | 'event' | 'error' | 'timing';
+    type: "state" | "event" | "error" | "timing";
     property?: string;
     value?: unknown;
     event?: string;

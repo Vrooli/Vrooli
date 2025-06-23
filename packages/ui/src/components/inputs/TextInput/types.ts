@@ -58,7 +58,12 @@ export interface TailwindTextInputBaseProps extends CommonInputProps {
     ref?: RefObject<HTMLInputElement | HTMLTextAreaElement>;
 }
 
-export type TailwindTextInputProps = Omit<TailwindTextInputBaseProps, "ref"> & {
+export type TailwindTextInputProps = Omit<TailwindTextInputBaseProps, "ref" | "value" | "onChange" | "onBlur" | "error" | "helperText" | "name"> & {
+    /** Field name for Formik */
+    name: string;
+    /** Validation function for Formik */
+    validate?: (value: any) => string | undefined;
+    /** Ref for the input element */
     ref?: RefObject<HTMLElement>;
 }
 

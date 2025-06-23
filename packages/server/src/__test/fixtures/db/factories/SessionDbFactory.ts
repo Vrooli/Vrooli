@@ -1,5 +1,5 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { type session, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
 
@@ -16,17 +16,21 @@ interface SessionRelationConfig extends RelationConfig {
  * Handles user sessions with support for multiple devices and expiration
  */
 export class SessionDbFactory extends DatabaseFixtureFactory<
-    Prisma.session,
+    session,
     Prisma.sessionCreateInput,
     Prisma.sessionInclude,
     Prisma.sessionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('session', prisma);
+        super("session", prisma);
     }
 
     protected getPrismaDelegate() {
         return this.prisma.session;
+    }
+
+    protected trackCreatedId(id: string | bigint): void {
+        (this as any).createdIds.add(id.toString());
     }
 
     protected getMinimalData(overrides?: Partial<Prisma.sessionCreateInput>): Prisma.sessionCreateInput {
@@ -35,6 +39,8 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
             expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
             last_refresh_at: new Date(),
             ip_address: "127.0.0.1",
+            user: { connect: { id: generatePK() } },
+            auth: { connect: { id: generatePK() } },
             ...overrides,
         };
     }
@@ -55,6 +61,8 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
                 doNotTrack: false,
             }),
             ip_address: "192.168.1.100",
+            user: { connect: { id: generatePK() } },
+            auth: { connect: { id: generatePK() } },
             ...overrides,
         };
     }
@@ -63,9 +71,9 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
      * Create active session
      */
     async createActive(
-        daysUntilExpiry: number = 30,
-        overrides?: Partial<Prisma.sessionCreateInput>
-    ): Promise<Prisma.session> {
+        daysUntilExpiry = 30,
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Promise<session> {
         return this.createComplete({
             expires_at: new Date(Date.now() + daysUntilExpiry * 24 * 60 * 60 * 1000),
             last_refresh_at: new Date(),
@@ -78,9 +86,9 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
      * Create expired session
      */
     async createExpired(
-        daysExpiredAgo: number = 1,
-        overrides?: Partial<Prisma.sessionCreateInput>
-    ): Promise<Prisma.session> {
+        daysExpiredAgo = 1,
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Promise<session> {
         return this.createMinimal({
             expires_at: new Date(Date.now() - daysExpiredAgo * 24 * 60 * 60 * 1000),
             last_refresh_at: new Date(Date.now() - (daysExpiredAgo + 1) * 24 * 60 * 60 * 1000),
@@ -92,9 +100,9 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
      * Create revoked session
      */
     async createRevoked(
-        hoursRevokedAgo: number = 1,
-        overrides?: Partial<Prisma.sessionCreateInput>
-    ): Promise<Prisma.session> {
+        hoursRevokedAgo = 1,
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Promise<session> {
         return this.createComplete({
             expires_at: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000), // Would have been valid
             revokedAt: new Date(Date.now() - hoursRevokedAgo * 60 * 60 * 1000),
@@ -108,8 +116,8 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
      */
     async createMobile(
         deviceType: "iPhone" | "Android" = "iPhone",
-        overrides?: Partial<Prisma.sessionCreateInput>
-    ): Promise<Prisma.session> {
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Promise<session> {
         const deviceInfos = {
             iPhone: {
                 userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15",
@@ -139,8 +147,8 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
      */
     async createDesktop(
         browser: "Chrome" | "Firefox" | "Safari" = "Chrome",
-        overrides?: Partial<Prisma.sessionCreateInput>
-    ): Promise<Prisma.session> {
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Promise<session> {
         const browserInfos = {
             Chrome: {
                 userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -182,9 +190,9 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
      * Create session near expiry
      */
     async createNearExpiry(
-        hoursUntilExpiry: number = 2,
-        overrides?: Partial<Prisma.sessionCreateInput>
-    ): Promise<Prisma.session> {
+        hoursUntilExpiry = 2,
+        overrides?: Partial<Prisma.sessionCreateInput>,
+    ): Promise<session> {
         return this.createMinimal({
             expires_at: new Date(Date.now() + hoursUntilExpiry * 60 * 60 * 1000),
             last_refresh_at: new Date(Date.now() - 29 * 24 * 60 * 60 * 1000), // Old refresh
@@ -216,9 +224,9 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.sessionCreateInput,
         config: SessionRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.sessionCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle user connection (required)
         if (config.withUser || !data.user) {
@@ -291,7 +299,7 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
     /**
      * Create test scenarios
      */
-    async createMultipleForUser(userId: bigint, authId: bigint, count: number = 3): Promise<Prisma.session[]> {
+    async createMultipleForUser(userId: bigint, authId: bigint, count = 3): Promise<session[]> {
         const sessions = await Promise.all(
             Array.from({ length: count }, (_, i) => 
                 this.createActive(30 - i, {
@@ -300,14 +308,14 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
                     device_info: `Session ${i + 1} - Device`,
                     ip_address: `192.168.1.${100 + i}`,
                     last_refresh_at: new Date(Date.now() - i * 60 * 60 * 1000),
-                })
+                }),
             ),
         );
 
         return sessions;
     }
 
-    async createSessionHistory(): Promise<Prisma.session[]> {
+    async createSessionHistory(): Promise<session[]> {
         // Create a user with auth first
         const user = await this.prisma.user.create({
             data: {
@@ -358,7 +366,7 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
         return sessions;
     }
 
-    async createGeographicallyDistributed(): Promise<Prisma.session[]> {
+    async createGeographicallyDistributed(): Promise<session[]> {
         const locations = [
             { ip: "203.0.113.42", location: "US-West", timezone: "America/Los_Angeles" },
             { ip: "198.51.100.15", location: "US-East", timezone: "America/New_York" },
@@ -375,12 +383,12 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
                         location: loc.location,
                         timezone: loc.timezone,
                     }),
-                })
+                }),
             ),
         );
     }
 
-    protected async checkModelConstraints(record: Prisma.session): Promise<string[]> {
+    protected async checkModelConstraints(record: session): Promise<string[]> {
         const violations: string[] = [];
         
         // Check user exists
@@ -388,7 +396,7 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
             where: { id: record.user_id },
         });
         if (!user) {
-            violations.push('Associated user not found');
+            violations.push("Associated user not found");
         }
 
         // Check auth exists
@@ -396,12 +404,12 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
             where: { id: record.auth_id },
         });
         if (!auth) {
-            violations.push('Associated auth not found');
+            violations.push("Associated auth not found");
         }
 
         // Check auth belongs to user
         if (auth && user && auth.user_id !== user.id) {
-            violations.push('Auth does not belong to the session user');
+            violations.push("Auth does not belong to the session user");
         }
 
         // Check IP address format
@@ -410,7 +418,7 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
             const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
             const ipv6Regex = /^([\da-f]{1,4}:){7}[\da-f]{1,4}$/i;
             if (!ipv4Regex.test(record.ip_address) && !ipv6Regex.test(record.ip_address)) {
-                violations.push('Invalid IP address format');
+                violations.push("Invalid IP address format");
             }
         }
 
@@ -419,18 +427,18 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
             try {
                 JSON.parse(record.device_info);
             } catch {
-                violations.push('Device info is not valid JSON');
+                violations.push("Device info is not valid JSON");
             }
         }
 
         // Check expiry vs revoked logic
         if (record.revokedAt && record.expires_at < record.revokedAt) {
-            violations.push('Session was revoked after it expired');
+            violations.push("Session was revoked after it expired");
         }
 
         // Check refresh timing
         if (record.last_refresh_at > new Date()) {
-            violations.push('Last refresh is in the future');
+            violations.push("Last refresh is in the future");
         }
 
         return violations;
@@ -485,8 +493,8 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
             maxLengthDeviceInfo: {
                 ...this.getCompleteData(),
                 device_info: JSON.stringify({
-                    userAgent: 'A'.repeat(500),
-                    extraData: 'B'.repeat(400),
+                    userAgent: "A".repeat(500),
+                    extraData: "B".repeat(400),
                 }), // Near 1024 char limit
             },
             ipv6Address: {
@@ -548,9 +556,9 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.session,
+        record: session,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Sessions don't have dependent records
         // The user/auth relationships are handled by the parent

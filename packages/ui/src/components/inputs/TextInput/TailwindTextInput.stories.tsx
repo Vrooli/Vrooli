@@ -105,9 +105,12 @@ export const TextInputShowcase: Story = {
             if (!showEndAdornment) return undefined;
             if (endAdornmentType === "icon") {
                 return (
-                    <div className="hover:tw-text-primary-main tw-transition-colors tw-cursor-pointer">
+                    <button 
+                        type="button"
+                        className="tw-flex tw-items-center tw-justify-center hover:tw-text-primary-main tw-transition-colors tw-cursor-pointer tw-p-0 tw-m-0 tw-border-0 tw-bg-transparent tw-text-current"
+                    >
                         <EyeIcon />
-                    </div>
+                    </button>
                 );
             }
             return <span className="tw-text-sm tw-font-medium">.com</span>;
@@ -537,9 +540,12 @@ export const TextInputShowcase: Story = {
                                         type="password"
                                         placeholder="Enter password..."
                                         endAdornment={
-                                            <div className="hover:tw-text-primary-main tw-transition-colors tw-cursor-pointer">
+                                            <button 
+                                                type="button"
+                                                className="tw-flex tw-items-center tw-justify-center hover:tw-text-primary-main tw-transition-colors tw-cursor-pointer tw-p-0 tw-m-0 tw-border-0 tw-bg-transparent tw-text-current"
+                                            >
                                                 <EyeIcon />
-                                            </div>
+                                            </button>
                                         }
                                         fullWidth
                                     />
@@ -548,9 +554,12 @@ export const TextInputShowcase: Story = {
                                         label="Message"
                                         placeholder="Type your message..."
                                         endAdornment={
-                                            <div className="hover:tw-text-primary-main tw-transition-colors tw-cursor-pointer">
+                                            <button 
+                                                type="button"
+                                                className="tw-flex tw-items-center tw-justify-center hover:tw-text-primary-main tw-transition-colors tw-cursor-pointer tw-p-0 tw-m-0 tw-border-0 tw-bg-transparent tw-text-current"
+                                            >
                                                 <SendIcon />
-                                            </div>
+                                            </button>
                                         }
                                         fullWidth
                                     />

@@ -36,14 +36,14 @@ describe("Content & Interaction Factory Tests", () => {
         it("should create comment for specific object types", () => {
             const issueComment = CommentDbFactory.createForObject(
                 CommentFor.Issue,
-                testIds.issue1.toString()
+                testIds.issue1.toString(),
             );
             expect(issueComment.issueId).toBeDefined();
             expect(issueComment.issueId.toString()).toBe(testIds.issue1.toString());
 
             const prComment = CommentDbFactory.createForObject(
                 CommentFor.PullRequest,
-                testIds.pr1.toString()
+                testIds.pr1.toString(),
             );
             expect(prComment.pullRequestId).toBeDefined();
             expect(prComment.pullRequestId.toString()).toBe(testIds.pr1.toString());
@@ -106,7 +106,7 @@ describe("Content & Interaction Factory Tests", () => {
         it("should create hierarchical tags", () => {
             const tags = TagDbFactory.createHierarchical(
                 "programming",
-                ["javascript", "typescript", "python"]
+                ["javascript", "typescript", "python"],
             );
             
             expect(tags).toHaveLength(4); // 1 parent + 3 children
@@ -135,7 +135,7 @@ describe("Content & Interaction Factory Tests", () => {
                     en: "Technology and innovation",
                     es: "Tecnología e innovación",
                     fr: "Technologie et innovation",
-                }
+                },
             );
 
             expect(multilingualTag.tag).toBe("technology");
@@ -156,7 +156,7 @@ describe("Content & Interaction Factory Tests", () => {
             const commentBookmark = BookmarkDbFactory.createForObject(
                 testIds.user1.toString(),
                 testIds.issue1.toString(),
-                BookmarkFor.Comment
+                BookmarkFor.Comment,
             );
             expect(commentBookmark.comment.connect.id).toBe(testIds.issue1.toString());
 
@@ -164,7 +164,7 @@ describe("Content & Interaction Factory Tests", () => {
             const projectBookmark = BookmarkDbFactory.createForObject(
                 testIds.user1.toString(),
                 testIds.project1.toString(),
-                "Project"
+                "Project",
             );
             expect(projectBookmark.project.connect.id).toBe(testIds.project1.toString());
         });
@@ -174,7 +174,7 @@ describe("Content & Interaction Factory Tests", () => {
                 testIds.user1.toString(),
                 testIds.list1.toString(),
                 testIds.rv1.toString(),
-                "Routine"
+                "Routine",
             );
             
             expect(bookmark.list.connect.id).toBe(testIds.list1.toString());
@@ -212,7 +212,7 @@ describe("Content & Interaction Factory Tests", () => {
                     { objectId: testIds.project1.toString(), objectType: "Project" },
                     { objectId: testIds.user2.toString(), objectType: BookmarkFor.User },
                     { objectId: testIds.issue1.toString(), objectType: BookmarkFor.Tag },
-                ]
+                ],
             );
 
             expect(listWithBookmarks.bookmarks.create).toHaveLength(3);
@@ -222,7 +222,7 @@ describe("Content & Interaction Factory Tests", () => {
             const sharedList = BookmarkListDbFactory.createSharedList(
                 testIds.user1.toString(),
                 "Shared Resources",
-                [testIds.user2.toString(), testIds.user3.toString()]
+                [testIds.user2.toString(), testIds.user3.toString()],
             );
 
             expect(sharedList.isPrivate).toBe(false);
@@ -244,7 +244,7 @@ describe("Content & Interaction Factory Tests", () => {
             const resourceView = ViewDbFactory.createForObject(
                 testIds.user1.toString(),
                 testIds.resource1.toString(),
-                ViewFor.Resource
+                ViewFor.Resource,
             );
             expect(resourceView.resourceId.toString()).toBe(testIds.resource1.toString());
 
@@ -252,7 +252,7 @@ describe("Content & Interaction Factory Tests", () => {
             const issueView = ViewDbFactory.createForObject(
                 testIds.user1.toString(),
                 testIds.issue1.toString(),
-                "Issue"
+                "Issue",
             );
             expect(issueView.issueId.toString()).toBe(testIds.issue1.toString());
         });
@@ -261,7 +261,7 @@ describe("Content & Interaction Factory Tests", () => {
             const anonView = ViewDbFactory.createAnonymousView(
                 testIds.session1.toString(),
                 testIds.team1.toString(),
-                ViewFor.Team
+                ViewFor.Team,
             );
 
             expect(anonView.bySessionId.toString()).toBe(testIds.session1.toString());
@@ -304,14 +304,14 @@ describe("Content & Interaction Factory Tests", () => {
             const view = ViewDbFactory.createForObject(
                 testIds.user1.toString(),
                 testIds.resource1.toString(),
-                ViewFor.Resource
+                ViewFor.Resource,
             );
 
             // User bookmarks the resource
             const bookmark = BookmarkDbFactory.createForObject(
                 testIds.user1.toString(),
                 testIds.resource1.toString(),
-                BookmarkFor.Resource
+                BookmarkFor.Resource,
             );
 
             // User comments on the resource (if it were supported)
@@ -321,7 +321,7 @@ describe("Content & Interaction Factory Tests", () => {
                 testIds.rv1.toString(),
                 {
                     ownedByUserId: testIds.user1,
-                }
+                },
             );
 
             // Tag the resource
@@ -340,7 +340,7 @@ describe("Content & Interaction Factory Tests", () => {
             // Create some tags
             const tags = TagDbFactory.createHierarchical(
                 "programming",
-                ["javascript", "typescript"]
+                ["javascript", "typescript"],
             );
 
             // Create bookmarks for the tags
@@ -348,8 +348,8 @@ describe("Content & Interaction Factory Tests", () => {
                 BookmarkDbFactory.createForObject(
                     testIds.user1.toString(),
                     tag.id.toString(),
-                    BookmarkFor.Tag
-                )
+                    BookmarkFor.Tag,
+                ),
             );
 
             expect(tagBookmarks).toHaveLength(3);

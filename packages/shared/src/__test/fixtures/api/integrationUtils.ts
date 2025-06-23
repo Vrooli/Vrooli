@@ -32,13 +32,13 @@ export class YupValidationAdapter<TInput> {
                 isValid: true,
                 data: validatedData,
             };
-        } catch (error: any) {
+        } catch (error) {
             const errors: string[] = [];
             
-            if (error.inner && Array.isArray(error.inner)) {
+            if (error && typeof error === "object" && "inner" in error && Array.isArray(error.inner)) {
                 // Yup ValidationError with multiple errors
-                errors.push(...error.inner.map((e: any) => e.message));
-            } else if (error.message) {
+                errors.push(...error.inner.map((e) => e && typeof e === "object" && "message" in e ? String(e.message) : String(e)));
+            } else if (error instanceof Error) {
                 // Single error
                 errors.push(error.message);
             } else {

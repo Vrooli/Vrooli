@@ -73,7 +73,7 @@ export const completeScheduleRecurrenceDb: Prisma.schedule_recurrenceCreateInput
 export class ScheduleRecurrenceDbFactory {
     static createMinimal(
         scheduleId: string,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             id: generatePK(),
@@ -86,8 +86,8 @@ export class ScheduleRecurrenceDbFactory {
 
     static createDaily(
         scheduleId: string,
-        interval: number = 1,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        interval = 1,
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
@@ -99,8 +99,8 @@ export class ScheduleRecurrenceDbFactory {
     static createWeekly(
         scheduleId: string,
         dayOfWeek: number,
-        interval: number = 1,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        interval = 1,
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
@@ -113,8 +113,8 @@ export class ScheduleRecurrenceDbFactory {
     static createMonthly(
         scheduleId: string,
         dayOfMonth: number,
-        interval: number = 1,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        interval = 1,
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
@@ -128,8 +128,8 @@ export class ScheduleRecurrenceDbFactory {
         scheduleId: string,
         month: number,
         dayOfMonth: number,
-        interval: number = 1,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        interval = 1,
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
@@ -143,7 +143,7 @@ export class ScheduleRecurrenceDbFactory {
     static createWithEndDate(
         scheduleId: string,
         endDate: Date,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
@@ -154,7 +154,7 @@ export class ScheduleRecurrenceDbFactory {
     static createWithDuration(
         scheduleId: string,
         duration: number,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             ...this.createMinimal(scheduleId, overrides),
@@ -179,7 +179,7 @@ export async function seedScheduleRecurrences(
             duration?: number;
             endDate?: Date;
         }>;
-    }
+    },
 ) {
     const recurrences = [];
 
@@ -194,7 +194,7 @@ export async function seedScheduleRecurrences(
                     {
                         duration: recurrenceConfig.duration,
                         endDate: recurrenceConfig.endDate,
-                    }
+                    },
                 );
                 break;
             case "Weekly":
@@ -205,7 +205,7 @@ export async function seedScheduleRecurrences(
                     {
                         duration: recurrenceConfig.duration,
                         endDate: recurrenceConfig.endDate,
-                    }
+                    },
                 );
                 break;
             case "Monthly":
@@ -216,7 +216,7 @@ export async function seedScheduleRecurrences(
                     {
                         duration: recurrenceConfig.duration,
                         endDate: recurrenceConfig.endDate,
-                    }
+                    },
                 );
                 break;
             case "Yearly":
@@ -228,7 +228,7 @@ export async function seedScheduleRecurrences(
                     {
                         duration: recurrenceConfig.duration,
                         endDate: recurrenceConfig.endDate,
-                    }
+                    },
                 );
                 break;
         }

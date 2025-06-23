@@ -74,8 +74,8 @@ export class NativeNavigator implements Navigator {
                 {
                     keyPrefix: "navigator.native.definitions",
                     defaultTTL: 7200, // 2 hours
-                    publishEvents: false // Internal cache, no events needed
-                }
+                    publishEvents: false, // Internal cache, no events needed
+                },
             );
         }
         return this.definitionCache;
@@ -296,7 +296,7 @@ export class NativeNavigator implements Navigator {
         const routineId = def.steps[0].id; // TODO: Use proper routine ID
         // Fire and forget cache operation
         this.ensureCache().then(cache => cache.set(routineId, def)).catch(err => 
-            this.logger.warn("Failed to cache routine definition", { routineId, error: err })
+            this.logger.warn("Failed to cache routine definition", { routineId, error: err }),
         );
 
         return def;

@@ -10,7 +10,7 @@ export function toPosDouble(str: string | number) {
     }
     // First handle scientific notation by parsing as-is
     const scientificParsed = parseFloat(str);
-    if (!isNaN(scientificParsed) && str.toLowerCase().includes('e')) {
+    if (!isNaN(scientificParsed) && str.toLowerCase().includes("e")) {
         return Math.max(scientificParsed, 0);
     }
     // Otherwise strip non-numeric characters (except . for decimals)
@@ -28,12 +28,12 @@ export function toDouble(str: string | number) {
     }
     // First handle scientific notation by parsing as-is
     const scientificParsed = parseFloat(str);
-    if (!isNaN(scientificParsed) && str.toLowerCase().includes('e')) {
+    if (!isNaN(scientificParsed) && str.toLowerCase().includes("e")) {
         return scientificParsed;
     }
     // Otherwise strip non-numeric characters (except . for decimals and - for negatives)
     // But preserve the position of the negative sign
-    const isNegative = str.trim().startsWith('-');
+    const isNegative = str.trim().startsWith("-");
     const cleaned = str.replace(/[^0-9.]/g, "");
     const result = parseFloat(cleaned);
     if (isNaN(result)) return NaN;
@@ -46,12 +46,12 @@ export function toDouble(str: string | number) {
 export function toPosInt(str: string) {
     // First handle scientific notation by parsing and truncating
     const scientificParsed = parseFloat(str);
-    if (!isNaN(scientificParsed) && str.toLowerCase().includes('e')) {
+    if (!isNaN(scientificParsed) && str.toLowerCase().includes("e")) {
         return Math.max(Math.floor(Math.abs(scientificParsed)), 0);
     }
     // For decimal numbers, parse first then truncate
     const decimalParsed = parseFloat(str);
-    if (!isNaN(decimalParsed) && str.includes('.')) {
+    if (!isNaN(decimalParsed) && str.includes(".")) {
         return Math.max(Math.floor(Math.abs(decimalParsed)), 0);
     }
     // Otherwise strip non-numeric characters

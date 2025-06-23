@@ -32,7 +32,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     Prisma.run_stepUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('RunStep', prisma);
+        super("RunStep", prisma);
         this.initializeScenarios();
     }
 
@@ -60,7 +60,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                 complexity: 10,
                 contextSwitches: 0,
                 run: {
-                    connect: { id: "run_id" }
+                    connect: { id: "run_id" },
                 },
             },
             complete: {
@@ -76,10 +76,10 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                 completedAt: oneMinuteAgo,
                 timeElapsed: 240000, // 4 minutes in milliseconds
                 run: {
-                    connect: { id: "run_id" }
+                    connect: { id: "run_id" },
                 },
                 resourceVersion: {
-                    connect: { id: "resource_version_id" }
+                    connect: { id: "resource_version_id" },
                 },
             },
             invalid: {
@@ -109,7 +109,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 invalidTimeRange: {
@@ -124,7 +124,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     startedAt: now,
                     completedAt: oneMinuteAgo, // Completed before started
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 invalidUuid: {
@@ -137,7 +137,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 negativeOrder: {
@@ -150,7 +150,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
             },
@@ -165,7 +165,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 inProgressStep: {
@@ -179,7 +179,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     contextSwitches: 2,
                     startedAt: fiveMinutesAgo,
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 completedStep: {
@@ -195,7 +195,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     completedAt: fiveMinutesAgo,
                     timeElapsed: 300000, // 5 minutes
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 failedStep: {
@@ -211,7 +211,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     completedAt: fiveMinutesAgo,
                     timeElapsed: 300000,
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 skippedStep: {
@@ -224,7 +224,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 highComplexityStep: {
@@ -240,7 +240,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     completedAt: new Date(now.getTime() - 30 * 60 * 1000), // 30 minutes ago
                     timeElapsed: 1800000, // 30 minutes
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 quickStep: {
@@ -256,7 +256,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     completedAt: new Date(now.getTime() - 1000), // 1 second ago
                     timeElapsed: 4000, // 4 seconds
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
                 highOrderStep: {
@@ -269,7 +269,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" }
+                        connect: { id: "run_id" },
                     },
                 },
             },
@@ -300,7 +300,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
             complexity: 0,
             contextSwitches: 0,
             run: {
-                connect: { id: "default_run_id" }
+                connect: { id: "default_run_id" },
             },
             ...overrides,
         };
@@ -323,10 +323,10 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
             completedAt: now,
             timeElapsed: 300000, // 5 minutes
             run: {
-                connect: { id: "default_run_id" }
+                connect: { id: "default_run_id" },
             },
             resourceVersion: {
-                connect: { id: "default_resource_version_id" }
+                connect: { id: "default_resource_version_id" },
             },
             ...overrides,
         };
@@ -434,7 +434,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     async createCompletedStep(
         runId: string, 
         order: number, 
-        complexity: number = 10
+        complexity = 10,
     ): Promise<Prisma.run_step> {
         const now = new Date();
         const startTime = new Date(now.getTime() - complexity * 10000); // 10s per complexity point
@@ -486,21 +486,21 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.run_stepCreateInput,
         config: RunStepRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.run_stepCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle run relationship
         if (config.withRun) {
             data.run = {
-                connect: { id: config.withRun.runId }
+                connect: { id: config.withRun.runId },
             };
         }
 
         // Handle resource version relationship
         if (config.withResourceVersion) {
             data.resourceVersion = {
-                connect: { id: config.withResourceVersion.resourceVersionId }
+                connect: { id: config.withResourceVersion.resourceVersionId },
             };
         }
 
@@ -512,67 +512,67 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
         
         // Check name length
         if (record.name.length > 128) {
-            violations.push('Step name exceeds 128 character limit');
+            violations.push("Step name exceeds 128 character limit");
         }
 
         // Check order
         if (record.order < 0) {
-            violations.push('Step order must be non-negative');
+            violations.push("Step order must be non-negative");
         }
 
         // Check complexity
         if (record.complexity < 0) {
-            violations.push('Step complexity must be non-negative');
+            violations.push("Step complexity must be non-negative");
         }
 
         // Check context switches
         if (record.contextSwitches < 0) {
-            violations.push('Context switches must be non-negative');
+            violations.push("Context switches must be non-negative");
         }
 
         // Check time constraints
         if (record.startedAt && record.completedAt && record.startedAt >= record.completedAt) {
-            violations.push('Start time must be before completion time');
+            violations.push("Start time must be before completion time");
         }
 
         // Check status consistency
         if (record.status === RunStepStatus.Completed && !record.completedAt) {
-            violations.push('Completed steps must have completion time');
+            violations.push("Completed steps must have completion time");
         }
 
         if (record.status === RunStepStatus.Failed && !record.completedAt) {
-            violations.push('Failed steps must have completion time');
+            violations.push("Failed steps must have completion time");
         }
 
         if (record.status === RunStepStatus.InProgress && !record.startedAt) {
-            violations.push('In-progress steps must have start time');
+            violations.push("In-progress steps must have start time");
         }
 
         if (record.status === RunStepStatus.Pending && record.startedAt) {
-            violations.push('Pending steps should not have start time');
+            violations.push("Pending steps should not have start time");
         }
 
         // Check time elapsed consistency
         if (record.timeElapsed && record.startedAt && record.completedAt) {
             const calculatedElapsed = record.completedAt.getTime() - record.startedAt.getTime();
             if (Math.abs(record.timeElapsed - calculatedElapsed) > 1000) { // Allow 1s tolerance
-                violations.push('Time elapsed does not match start and completion times');
+                violations.push("Time elapsed does not match start and completion times");
             }
         }
 
         // Check UUID format
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(record.nodeId)) {
-            violations.push('Node ID must be a valid UUID');
+            violations.push("Node ID must be a valid UUID");
         }
 
         if (!uuidRegex.test(record.resourceInId)) {
-            violations.push('Resource In ID must be a valid UUID');
+            violations.push("Resource In ID must be a valid UUID");
         }
 
         // Check run association
         if (!record.runId) {
-            violations.push('RunStep must belong to a run');
+            violations.push("RunStep must belong to a run");
         }
 
         return violations;
@@ -586,7 +586,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.run_step,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // RunStep has no dependent records to delete
     }
@@ -601,7 +601,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
             status: RunStepStatus;
             complexity?: number;
             contextSwitches?: number;
-        }>
+        }>,
     ): Promise<Prisma.run_step[]> {
         const now = new Date();
         
@@ -625,7 +625,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     timeElapsed: endTime ? endTime.getTime() - startTime.getTime() : undefined,
                     run: { connect: { id: runId } },
                 };
-            })
+            }),
         );
     }
 
@@ -667,7 +667,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
         runId: string,
         order: number,
         duration: number, // in milliseconds
-        status: RunStepStatus = RunStepStatus.Completed
+        status: RunStepStatus = RunStepStatus.Completed,
     ): Promise<Prisma.run_step> {
         const endTime = new Date();
         const startTime = new Date(endTime.getTime() - duration);
@@ -685,7 +685,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRunStepDbFactory = (prisma: PrismaClient) => 
-    RunStepDbFactory.getInstance('RunStep', prisma);
+    RunStepDbFactory.getInstance("RunStep", prisma);
 
 // Export the class for type usage
 export { RunStepDbFactory as RunStepDbFactoryClass };

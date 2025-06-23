@@ -224,7 +224,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
             errors.push("Tag publicId is required");
         }
 
-        if (typeof data.bookmarks === 'number' && data.bookmarks < 0) {
+        if (typeof data.bookmarks === "number" && data.bookmarks < 0) {
             errors.push("Bookmark count cannot be negative");
         }
 
@@ -249,7 +249,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
 
     static createWithTranslations(
         translations: Array<{ language: string; description: string }>,
-        overrides?: Partial<Prisma.TagUncheckedCreateInput>
+        overrides?: Partial<Prisma.TagUncheckedCreateInput>,
     ): Prisma.TagUncheckedCreateInput {
         const factory = new TagDbFactory();
         return factory.createMinimal({
@@ -283,7 +283,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
     static createHierarchical(
         parentTag: string,
         childTags: string[],
-        overrides?: Partial<Prisma.TagUncheckedCreateInput>
+        overrides?: Partial<Prisma.TagUncheckedCreateInput>,
     ): Prisma.TagUncheckedCreateInput[] {
         const factory = new TagDbFactory();
         const parentId = generatePK();
@@ -299,7 +299,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
                 tag: childTag,
                 parentId: BigInt(parentId),
                 ...overrides,
-            })
+            }),
         );
         
         return [parent, ...children];
@@ -309,14 +309,14 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
      * Create tag cloud with varying popularity
      */
     static createTagCloud(
-        tags: Array<{ name: string; popularity?: number }>
+        tags: Array<{ name: string; popularity?: number }>,
     ): Prisma.TagUncheckedCreateInput[] {
         const factory = new TagDbFactory();
         return tags.map(t => 
             factory.createMinimal({
                 tag: t.name,
                 bookmarks: t.popularity || Math.floor(Math.random() * 100),
-            })
+            }),
         );
     }
 
@@ -326,7 +326,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.TagUncheckedCreateInp
     static createMultilingualTag(
         tag: string,
         descriptions: Record<string, string>,
-        overrides?: Partial<Prisma.TagUncheckedCreateInput>
+        overrides?: Partial<Prisma.TagUncheckedCreateInput>,
     ): Prisma.TagUncheckedCreateInput {
         const factory = new TagDbFactory();
         return factory.createMinimal({
@@ -352,7 +352,7 @@ export async function seedTags(
     options?: {
         withTranslations?: boolean;
         popular?: boolean;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const createdTags = [];
 
@@ -366,7 +366,7 @@ export async function seedTags(
                 { 
                     tag,
                     ...(options?.popular && { bookmarks: Math.floor(Math.random() * 200) + 50 }),
-                }
+                },
             )
             : TagDbFactory.createMinimal({ 
                 tag,
@@ -397,7 +397,7 @@ export async function seedTagHierarchy(
         parent: string;
         children: string[];
         withTranslations?: boolean;
-    }>
+    }>,
 ): Promise<BulkSeedResult<any>> {
     const allTags = [];
 
@@ -439,12 +439,12 @@ export async function seedTagHierarchy(
  */
 export async function seedPopularTags(
     prisma: any,
-    count: number = 10,
+    count = 10,
     options?: {
         minBookmarks?: number;
         maxBookmarks?: number;
         withTranslations?: boolean;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const tags = [];
     const { minBookmarks = 50, maxBookmarks = 500, withTranslations = false } = options || {};

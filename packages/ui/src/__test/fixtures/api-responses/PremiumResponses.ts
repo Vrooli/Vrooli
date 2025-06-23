@@ -6,10 +6,11 @@
  * Premium objects represent subscription plans, premium features, and tier management.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
+import {
+    PaymentType} from "@vrooli/shared";
 import type { 
     Premium,
-    PaymentType,
     CheckSubscriptionResponse,
     CheckCreditsPaymentResponse,
     SubscriptionPricesResponse,
@@ -17,8 +18,8 @@ import type {
     CreatePortalSessionResponse,
     CreateCheckoutSessionParams,
     CreatePortalSessionParams,
-    User
-} from '@vrooli/shared';
+    User,
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -54,23 +55,23 @@ export interface APIErrorResponse {
  * Premium subscription statuses
  */
 export enum PremiumStatus {
-    ACTIVE = 'active',
-    EXPIRED = 'expired',
-    CANCELLED = 'cancelled',
-    PENDING = 'pending',
-    TRIALING = 'trialing',
-    PAST_DUE = 'past_due',
-    UNPAID = 'unpaid'
+    ACTIVE = "active",
+    EXPIRED = "expired",
+    CANCELLED = "cancelled",
+    PENDING = "pending",
+    TRIALING = "trialing",
+    PAST_DUE = "past_due",
+    UNPAID = "unpaid"
 }
 
 /**
  * Premium feature access levels
  */
 export enum PremiumTier {
-    FREE = 'free',
-    PREMIUM_MONTHLY = 'premium_monthly',
-    PREMIUM_YEARLY = 'premium_yearly',
-    CUSTOM = 'custom'
+    FREE = "free",
+    PREMIUM_MONTHLY = "premium_monthly",
+    PREMIUM_YEARLY = "premium_yearly",
+    CUSTOM = "custom"
 }
 
 /**
@@ -79,7 +80,7 @@ export enum PremiumTier {
 export interface ExtendedPremium extends Premium {
     status: PremiumStatus;
     tier: PremiumTier;
-    billingCycle?: 'monthly' | 'yearly';
+    billingCycle?: "monthly" | "yearly";
     stripeCustomerId?: string;
     stripeSubscriptionId?: string;
     lastPaymentAt?: string;
@@ -110,7 +111,7 @@ export interface PremiumSubscriptionInput {
 export class PremiumResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -137,16 +138,16 @@ export class PremiumResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/premium/${premium.id}`,
                     related: {
                         pricing: `${this.baseUrl}/api/subscription-prices`,
                         portal: `${this.baseUrl}/api/create-portal-session`,
-                        checkout: `${this.baseUrl}/api/create-checkout-session`
-                    }
-                }
-            }
+                        checkout: `${this.baseUrl}/api/create-checkout-session`,
+                    },
+                },
+            },
         };
     }
     
@@ -159,11 +160,11 @@ export class PremiumResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/check-subscription`
-                }
-            }
+                    self: `${this.baseUrl}/api/check-subscription`,
+                },
+            },
         };
     }
     
@@ -176,11 +177,11 @@ export class PremiumResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/subscription-prices`
-                }
-            }
+                    self: `${this.baseUrl}/api/subscription-prices`,
+                },
+            },
         };
     }
     
@@ -193,8 +194,8 @@ export class PremiumResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0'
-            }
+                version: "1.0",
+            },
         };
     }
     
@@ -207,8 +208,8 @@ export class PremiumResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0'
-            }
+                version: "1.0",
+            },
         };
     }
     
@@ -218,16 +219,16 @@ export class PremiumResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/premium'
-            }
+                path: "/api/premium",
+            },
         };
     }
     
@@ -237,16 +238,16 @@ export class PremiumResponseFactory {
     createSubscriptionNotFoundErrorResponse(userId: string): APIErrorResponse {
         return {
             error: {
-                code: 'SUBSCRIPTION_NOT_FOUND',
+                code: "SUBSCRIPTION_NOT_FOUND",
                 message: `No active subscription found for user '${userId}'`,
                 details: {
                     userId,
-                    availablePlans: ['premium_monthly', 'premium_yearly']
+                    availablePlans: ["premium_monthly", "premium_yearly"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/premium/${userId}`
-            }
+                path: `/api/premium/${userId}`,
+            },
         };
     }
     
@@ -256,18 +257,18 @@ export class PremiumResponseFactory {
     createPaymentFailedErrorResponse(reason: string): APIErrorResponse {
         return {
             error: {
-                code: 'PAYMENT_FAILED',
+                code: "PAYMENT_FAILED",
                 message: `Payment processing failed: ${reason}`,
                 details: {
                     reason,
                     retryable: true,
-                    supportedMethods: ['card', 'bank_transfer'],
-                    retryAfter: 3600
+                    supportedMethods: ["card", "bank_transfer"],
+                    retryAfter: 3600,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/premium'
-            }
+                path: "/api/premium",
+            },
         };
     }
     
@@ -277,18 +278,18 @@ export class PremiumResponseFactory {
     createSubscriptionLimitErrorResponse(feature: string, limit: number): APIErrorResponse {
         return {
             error: {
-                code: 'SUBSCRIPTION_LIMIT_EXCEEDED',
+                code: "SUBSCRIPTION_LIMIT_EXCEEDED",
                 message: `Your current plan has reached the limit for ${feature}`,
                 details: {
                     feature,
                     currentLimit: limit,
                     upgradeRequired: true,
-                    availableUpgrades: ['premium_monthly', 'premium_yearly']
+                    availableUpgrades: ["premium_monthly", "premium_yearly"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/premium'
-            }
+                path: "/api/premium",
+            },
         };
     }
     
@@ -298,17 +299,17 @@ export class PremiumResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} premium subscriptions`,
                 details: {
                     operation,
-                    requiredPermissions: ['premium:manage'],
-                    userPermissions: ['user:read']
+                    requiredPermissions: ["premium:manage"],
+                    userPermissions: ["user:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/premium'
-            }
+                path: "/api/premium",
+            },
         };
     }
     
@@ -318,18 +319,18 @@ export class PremiumResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Payment service temporarily unavailable',
+                code: "NETWORK_ERROR",
+                message: "Payment service temporarily unavailable",
                 details: {
-                    reason: 'Stripe service timeout',
+                    reason: "Stripe service timeout",
                     retryable: true,
                     retryAfter: 30000,
-                    estimatedResolution: '5 minutes'
+                    estimatedResolution: "5 minutes",
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/premium'
-            }
+                path: "/api/premium",
+            },
         };
     }
     
@@ -339,18 +340,18 @@ export class PremiumResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected error occurred while processing subscription',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected error occurred while processing subscription",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
                     retryable: true,
-                    contactSupport: true
+                    contactSupport: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/premium'
-            }
+                path: "/api/premium",
+            },
         };
     }
     
@@ -371,7 +372,7 @@ export class PremiumResponseFactory {
             expiresAt: expiresAt.toISOString(),
             status: PremiumStatus.ACTIVE,
             tier: PremiumTier.PREMIUM_MONTHLY,
-            billingCycle: 'monthly',
+            billingCycle: "monthly",
             stripeCustomerId: `cus_${Math.random().toString(36).substr(2, 14)}`,
             stripeSubscriptionId: `sub_${Math.random().toString(36).substr(2, 14)}`,
             lastPaymentAt: now.toISOString(),
@@ -382,13 +383,13 @@ export class PremiumResponseFactory {
                 maxApiCalls: 10000,
                 advancedAnalytics: true,
                 prioritySupport: true,
-                customBranding: true
-            }
+                customBranding: true,
+            },
         };
         
         return {
             ...defaultPremium,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -401,12 +402,12 @@ export class PremiumResponseFactory {
         // Update premium based on input
         if (input.paymentType === PaymentType.PremiumMonthly) {
             premium.tier = PremiumTier.PREMIUM_MONTHLY;
-            premium.billingCycle = 'monthly';
+            premium.billingCycle = "monthly";
             premium.credits = 10000;
             premium.features.maxProjects = 100;
         } else if (input.paymentType === PaymentType.PremiumYearly) {
             premium.tier = PremiumTier.PREMIUM_YEARLY;
-            premium.billingCycle = 'yearly';
+            premium.billingCycle = "yearly";
             premium.credits = 120000;
             premium.features.maxProjects = 500;
         }
@@ -426,8 +427,8 @@ export class PremiumResponseFactory {
         return Object.values(PremiumStatus).map(status => 
             this.createMockPremium({
                 status,
-                id: `premium_${status}_${this.generateId()}`
-            })
+                id: `premium_${status}_${this.generateId()}`,
+            }),
         );
     }
     
@@ -437,7 +438,7 @@ export class PremiumResponseFactory {
     createMockPricing(): SubscriptionPricesResponse {
         return {
             monthly: 9.99,
-            yearly: 99.99
+            yearly: 99.99,
         };
     }
     
@@ -446,7 +447,7 @@ export class PremiumResponseFactory {
      */
     createMockCheckoutUrl(): CreateCheckoutSessionResponse {
         return {
-            url: `https://checkout.stripe.com/pay/cs_test_${Math.random().toString(36).substr(2, 32)}`
+            url: `https://checkout.stripe.com/pay/cs_test_${Math.random().toString(36).substr(2, 32)}`,
         };
     }
     
@@ -455,7 +456,7 @@ export class PremiumResponseFactory {
      */
     createMockPortalUrl(): CreatePortalSessionResponse {
         return {
-            url: `https://billing.stripe.com/p/session/${Math.random().toString(36).substr(2, 32)}`
+            url: `https://billing.stripe.com/p/session/${Math.random().toString(36).substr(2, 32)}`,
         };
     }
     
@@ -470,24 +471,24 @@ export class PremiumResponseFactory {
         
         // Validate payment type
         if (!input.paymentType) {
-            errors.paymentType = 'Payment type is required';
+            errors.paymentType = "Payment type is required";
         } else if (![PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(input.paymentType)) {
-            errors.paymentType = 'Invalid payment type for premium subscription';
+            errors.paymentType = "Invalid payment type for premium subscription";
         }
         
         // Validate custom plan if provided
         if (input.customPlan && input.customPlan.length > 100) {
-            errors.customPlan = 'Custom plan description too long';
+            errors.customPlan = "Custom plan description too long";
         }
         
         // Validate promo code if provided
         if (input.promoCode && !/^[A-Z0-9_-]{1,20}$/i.test(input.promoCode)) {
-            errors.promoCode = 'Invalid promo code format';
+            errors.promoCode = "Invalid promo code format";
         }
         
         return {
             valid: Object.keys(errors).length === 0,
-            errors: Object.keys(errors).length > 0 ? errors : undefined
+            errors: Object.keys(errors).length > 0 ? errors : undefined,
         };
     }
 }
@@ -508,42 +509,42 @@ export class PremiumMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get subscription status
-            rest.get(`${this.responseFactory['baseUrl']}/api/check-subscription`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/check-subscription`, (req, res, ctx) => {
                 const response: CheckSubscriptionResponse = {
                     paymentType: PaymentType.PremiumMonthly,
-                    status: 'already_subscribed'
+                    status: "already_subscribed",
                 };
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(this.responseFactory.createSubscriptionStatusResponse(response))
+                    ctx.json(this.responseFactory.createSubscriptionStatusResponse(response)),
                 );
             }),
             
             // Get subscription prices
-            rest.get(`${this.responseFactory['baseUrl']}/api/subscription-prices`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, (req, res, ctx) => {
                 const prices = this.responseFactory.createMockPricing();
                 const response = this.responseFactory.createPricingResponse(prices);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Create checkout session
-            rest.post(`${this.responseFactory['baseUrl']}/api/create-checkout-session`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async (req, res, ctx) => {
                 const body = await req.json() as CreateCheckoutSessionParams;
                 
                 // Basic validation
                 if (!body.variant || !body.userId) {
                     const validation = this.responseFactory.createValidationErrorResponse({
-                        variant: !body.variant ? 'Payment type is required' : '',
-                        userId: !body.userId ? 'User ID is required' : ''
+                        variant: !body.variant ? "Payment type is required" : "",
+                        userId: !body.userId ? "User ID is required" : "",
                     });
                     return res(
                         ctx.status(400),
-                        ctx.json(validation)
+                        ctx.json(validation),
                     );
                 }
                 
@@ -552,22 +553,22 @@ export class PremiumMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Create portal session
-            rest.post(`${this.responseFactory['baseUrl']}/api/create-portal-session`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/create-portal-session`, async (req, res, ctx) => {
                 const body = await req.json() as CreatePortalSessionParams;
                 
                 if (!body.userId || !body.returnUrl) {
                     const validation = this.responseFactory.createValidationErrorResponse({
-                        userId: !body.userId ? 'User ID is required' : '',
-                        returnUrl: !body.returnUrl ? 'Return URL is required' : ''
+                        userId: !body.userId ? "User ID is required" : "",
+                        returnUrl: !body.returnUrl ? "Return URL is required" : "",
                     });
                     return res(
                         ctx.status(400),
-                        ctx.json(validation)
+                        ctx.json(validation),
                     );
                 }
                 
@@ -576,28 +577,28 @@ export class PremiumMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get premium details by user ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/premium/:userId`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
                 const { userId } = req.params;
                 
                 const premium = this.responseFactory.createMockPremium({ 
                     id: `premium_${userId}`,
-                    stripeCustomerId: `cus_${userId}`
+                    stripeCustomerId: `cus_${userId}`,
                 });
                 const response = this.responseFactory.createSuccessResponse(premium);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update subscription
-            rest.put(`${this.responseFactory['baseUrl']}/api/premium/:userId`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, async (req, res, ctx) => {
                 const { userId } = req.params;
                 const body = await req.json() as PremiumSubscriptionInput;
                 
@@ -606,7 +607,7 @@ export class PremiumMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -617,19 +618,19 @@ export class PremiumMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Cancel subscription
-            rest.delete(`${this.responseFactory['baseUrl']}/api/premium/:userId`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // Check credits payment
-            rest.get(`${this.responseFactory['baseUrl']}/api/check-credits-payment`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/check-credits-payment`, (req, res, ctx) => {
                 const response: CheckCreditsPaymentResponse = {
-                    status: 'new_credits_received'
+                    status: "new_credits_received",
                 };
                 
                 return res(
@@ -638,12 +639,12 @@ export class PremiumMSWHandlers {
                         data: response,
                         meta: {
                             timestamp: new Date().toISOString(),
-                            requestId: this.responseFactory['generateRequestId'](),
-                            version: '1.0'
-                        }
-                    })
+                            requestId: this.responseFactory["generateRequestId"](),
+                            version: "1.0",
+                        },
+                    }),
                 );
-            })
+            }),
         ];
     }
     
@@ -653,65 +654,65 @@ export class PremiumMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/create-checkout-session`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        variant: 'Payment type is required',
-                        userId: 'User ID is required'
-                    }))
+                        variant: "Payment type is required",
+                        userId: "User ID is required",
+                    })),
                 );
             }),
             
             // Subscription not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/premium/:userId`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
                 const { userId } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createSubscriptionNotFoundErrorResponse(userId as string))
+                    ctx.json(this.responseFactory.createSubscriptionNotFoundErrorResponse(userId as string)),
                 );
             }),
             
             // Payment failed error
-            rest.post(`${this.responseFactory['baseUrl']}/api/create-checkout-session`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
                 return res(
                     ctx.status(402),
-                    ctx.json(this.responseFactory.createPaymentFailedErrorResponse('Insufficient funds'))
+                    ctx.json(this.responseFactory.createPaymentFailedErrorResponse("Insufficient funds")),
                 );
             }),
             
             // Subscription limit error
-            rest.post(`${this.responseFactory['baseUrl']}/api/premium/check-limit`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/premium/check-limit`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createSubscriptionLimitErrorResponse('projects', 100))
+                    ctx.json(this.responseFactory.createSubscriptionLimitErrorResponse("projects", 100)),
                 );
             }),
             
             // Permission error
-            rest.put(`${this.responseFactory['baseUrl']}/api/premium/:userId`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('manage'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("manage")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/create-checkout-session`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/create-checkout-session`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async (req, res, ctx) => {
                 const body = await req.json() as CreateCheckoutSessionParams;
                 const checkoutUrl = this.responseFactory.createMockCheckoutUrl();
                 const response = this.responseFactory.createCheckoutResponse(checkoutUrl);
@@ -719,9 +720,9 @@ export class PremiumMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -730,13 +731,13 @@ export class PremiumMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/create-checkout-session`, (req, res, ctx) => {
-                return res.networkError('Payment service connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
+                return res.networkError("Payment service connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/subscription-prices`, (req, res, ctx) => {
-                return res.networkError('Pricing service timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, (req, res, ctx) => {
+                return res.networkError("Pricing service timeout");
+            }),
         ];
     }
     
@@ -745,13 +746,13 @@ export class PremiumMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -773,7 +774,7 @@ export const premiumResponseScenarios = {
     activeSubscription: (premium?: ExtendedPremium) => {
         const factory = new PremiumResponseFactory();
         return factory.createSuccessResponse(
-            premium || factory.createMockPremium({ status: PremiumStatus.ACTIVE })
+            premium || factory.createMockPremium({ status: PremiumStatus.ACTIVE }),
         );
     },
     
@@ -782,22 +783,22 @@ export const premiumResponseScenarios = {
         return factory.createSuccessResponse(
             premium || factory.createMockPremium({ 
                 status: PremiumStatus.EXPIRED,
-                expiresAt: new Date(Date.now() - 86400000).toISOString() // Yesterday
-            })
+                expiresAt: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+            }),
         );
     },
     
     pricingSuccess: (prices?: SubscriptionPricesResponse) => {
         const factory = new PremiumResponseFactory();
         return factory.createPricingResponse(
-            prices || factory.createMockPricing()
+            prices || factory.createMockPricing(),
         );
     },
     
     checkoutSuccess: (url?: string) => {
         const factory = new PremiumResponseFactory();
         return factory.createCheckoutResponse(
-            url ? { url } : factory.createMockCheckoutUrl()
+            url ? { url } : factory.createMockCheckoutUrl(),
         );
     },
     
@@ -806,38 +807,38 @@ export const premiumResponseScenarios = {
         const factory = new PremiumResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                paymentType: 'Payment type is required',
-                userId: 'User ID is required'
-            }
+                paymentType: "Payment type is required",
+                userId: "User ID is required",
+            },
         );
     },
     
     subscriptionNotFoundError: (userId?: string) => {
         const factory = new PremiumResponseFactory();
         return factory.createSubscriptionNotFoundErrorResponse(
-            userId || 'non-existent-user'
+            userId || "non-existent-user",
         );
     },
     
     paymentFailedError: (reason?: string) => {
         const factory = new PremiumResponseFactory();
         return factory.createPaymentFailedErrorResponse(
-            reason || 'Card declined'
+            reason || "Card declined",
         );
     },
     
     subscriptionLimitError: (feature?: string, limit?: number) => {
         const factory = new PremiumResponseFactory();
         return factory.createSubscriptionLimitErrorResponse(
-            feature || 'projects',
-            limit || 10
+            feature || "projects",
+            limit || 10,
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new PremiumResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'manage'
+            operation || "manage",
         );
     },
     
@@ -850,7 +851,7 @@ export const premiumResponseScenarios = {
     successHandlers: () => new PremiumMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new PremiumMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new PremiumMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new PremiumMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new PremiumMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

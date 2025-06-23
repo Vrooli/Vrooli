@@ -31,7 +31,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     Prisma.bookmark_listUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('bookmark_list', prisma);
+        super("bookmark_list", prisma);
         this.initializeScenarios();
     }
 
@@ -51,7 +51,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
             },
             complete: {
                 id: generatePK().toString(),
-                label: `My Favorite Resources`,
+                label: "My Favorite Resources",
                 userId: generatePK().toString(),
                 bookmarks: {
                     create: [
@@ -96,7 +96,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                 },
                 exceedsLabelLength: {
                     id: generatePK().toString(),
-                    label: 'a'.repeat(129), // Exceeds 128 character limit
+                    label: "a".repeat(129), // Exceeds 128 character limit
                     userId: generatePK().toString(),
                 },
             },
@@ -109,7 +109,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                 },
                 maxLengthLabel: {
                     id: generatePK().toString(),
-                    label: 'a'.repeat(128), // Max length label
+                    label: "a".repeat(128), // Max length label
                     userId: generatePK().toString(),
                 },
                 unicodeLabel: {
@@ -286,7 +286,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create multiple lists for a user
      */
-    async createUserLists(userId: string, count: number = 3): Promise<Prisma.bookmark_list[]> {
+    async createUserLists(userId: string, count = 3): Promise<Prisma.bookmark_list[]> {
         const lists: Prisma.bookmark_list[] = [];
         
         for (let i = 0; i < count; i++) {
@@ -348,19 +348,19 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.bookmark_listCreateInput,
         config: BookmarkListRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.bookmark_listCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle user relationship
         if (config.withUser) {
-            const userId = typeof config.withUser === 'string' ? config.withUser : generatePK().toString();
+            const userId = typeof config.withUser === "string" ? config.withUser : generatePK().toString();
             data.userId = userId;
         }
 
         // Handle bookmarks
         if (config.withBookmarks) {
-            const bookmarkCount = typeof config.withBookmarks === 'number' ? config.withBookmarks : 3;
+            const bookmarkCount = typeof config.withBookmarks === "number" ? config.withBookmarks : 3;
             data.bookmarks = {
                 create: Array.from({ length: bookmarkCount }, () => ({
                     id: generatePK().toString(),
@@ -377,7 +377,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
         
         // Check label length
         if (record.label && record.label.length > 128) {
-            violations.push('Label exceeds maximum length of 128 characters');
+            violations.push("Label exceeds maximum length of 128 characters");
         }
 
         // Check label uniqueness per user
@@ -391,13 +391,13 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
             });
             
             if (duplicate) {
-                violations.push('User already has a list with this label');
+                violations.push("User already has a list with this label");
             }
         }
 
         // Check that list belongs to a user
         if (!record.userId) {
-            violations.push('Bookmark list must belong to a user');
+            violations.push("Bookmark list must belong to a user");
         }
 
         return violations;
@@ -414,14 +414,14 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.bookmark_list,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete bookmarks in this list
-        if (shouldDelete('bookmarks') && record.bookmarks?.length) {
+        if (shouldDelete("bookmarks") && record.bookmarks?.length) {
             await tx.bookmark.deleteMany({
                 where: { listId: record.id },
             });
@@ -445,7 +445,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get all lists for a user
      */
-    async getUserLists(userId: string, includeBookmarks: boolean = false): Promise<Prisma.bookmark_list[]> {
+    async getUserLists(userId: string, includeBookmarks = false): Promise<Prisma.bookmark_list[]> {
         return await this.prisma.bookmark_list.findMany({
             where: { userId },
             include: {
@@ -456,7 +456,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
         });
     }
 
@@ -493,7 +493,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createBookmarkListDbFactory = (prisma: PrismaClient) => 
-    BookmarkListDbFactory.getInstance('bookmark_list', prisma);
+    BookmarkListDbFactory.getInstance("bookmark_list", prisma);
 
 // Export the class for type usage
 export { BookmarkListDbFactory as BookmarkListDbFactoryClass };

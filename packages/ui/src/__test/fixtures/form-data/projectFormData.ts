@@ -5,22 +5,22 @@
  * Projects are Resources with resourceType="Project" in the Vrooli system.
  */
 
-import { useForm, type UseFormReturn, type FieldErrors } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { act, waitFor } from '@testing-library/react';
+import { useForm, type UseFormReturn, type FieldErrors } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import { act, waitFor } from "@testing-library/react";
 import type { 
     ResourceCreateInput,
     ResourceUpdateInput,
     Resource,
     ResourceFor,
-    ResourceUsedFor
-} from '@vrooli/shared';
+    ResourceUsedFor,
+} from "@vrooli/shared";
 import { 
     resourceValidation,
     ResourceFor as ResourceForEnum,
-    ResourceUsedFor as ResourceUsedForEnum
-} from '@vrooli/shared';
+    ResourceUsedFor as ResourceUsedForEnum,
+} from "@vrooli/shared";
 
 /**
  * UI-specific form data for project creation
@@ -32,7 +32,7 @@ export interface ProjectFormData {
     description?: string;
     
     // Project-specific fields
-    projectType?: 'software' | 'documentation' | 'research' | 'other';
+    projectType?: "software" | "documentation" | "research" | "other";
     tags?: string[];
     
     // Privacy & permissions
@@ -44,7 +44,7 @@ export interface ProjectFormData {
     percentComplete?: number;
     
     // Parent relationship (UI-specific)
-    parentType?: 'User' | 'Team';
+    parentType?: "User" | "Team";
     parentId?: string;
     
     // Version info
@@ -106,39 +106,39 @@ export class ProjectFormDataFactory {
                 .string()
                 .optional()
                 .nullable()
-                .test('handle-validation', 'Invalid handle format', function(value) {
+                .test("handle-validation", "Invalid handle format", function(value) {
                     if (!value) return true; // Optional
                     return /^[a-zA-Z0-9_-]+$/.test(value) && value.length >= 3 && value.length <= 50;
                 }),
                 
             name: yup
                 .string()
-                .required('Project name is required')
-                .min(1, 'Project name cannot be empty')
-                .max(255, 'Project name is too long'),
+                .required("Project name is required")
+                .min(1, "Project name cannot be empty")
+                .max(255, "Project name is too long"),
                 
             description: yup
                 .string()
-                .max(5000, 'Description is too long')
+                .max(5000, "Description is too long")
                 .optional(),
                 
             projectType: yup
                 .string()
-                .oneOf(['software', 'documentation', 'research', 'other'])
+                .oneOf(["software", "documentation", "research", "other"])
                 .optional(),
                 
             tags: yup
                 .array(
                     yup.string()
-                        .min(2, 'Tag must be at least 2 characters')
-                        .max(30, 'Tag is too long')
+                        .min(2, "Tag must be at least 2 characters")
+                        .max(30, "Tag is too long"),
                 )
-                .max(10, 'Maximum 10 tags allowed')
+                .max(10, "Maximum 10 tags allowed")
                 .optional(),
                 
             isPrivate: yup
                 .boolean()
-                .required('Privacy setting is required'),
+                .required("Privacy setting is required"),
                 
             isInternal: yup
                 .boolean()
@@ -151,17 +151,17 @@ export class ProjectFormDataFactory {
                 
             percentComplete: yup
                 .number()
-                .min(0, 'Percentage cannot be negative')
-                .max(100, 'Percentage cannot exceed 100')
+                .min(0, "Percentage cannot be negative")
+                .max(100, "Percentage cannot exceed 100")
                 .optional(),
                 
             parentType: yup
                 .string()
-                .oneOf(['User', 'Team'])
-                .when('parentId', {
+                .oneOf(["User", "Team"])
+                .when("parentId", {
                     is: (val: string | undefined) => !!val,
-                    then: (schema) => schema.required('Parent type is required when parent is selected'),
-                    otherwise: (schema) => schema.optional()
+                    then: (schema) => schema.required("Parent type is required when parent is selected"),
+                    otherwise: (schema) => schema.optional(),
                 }),
                 
             parentId: yup
@@ -170,34 +170,34 @@ export class ProjectFormDataFactory {
                 
             versionLabel: yup
                 .string()
-                .max(50, 'Version label is too long')
+                .max(50, "Version label is too long")
                 .optional(),
                 
             versionNotes: yup
                 .string()
-                .max(1000, 'Version notes are too long')
+                .max(1000, "Version notes are too long")
                 .optional(),
                 
             resources: yup.array(
                 yup.object({
                     name: yup
                         .string()
-                        .required('Resource name is required')
-                        .max(255, 'Resource name is too long'),
+                        .required("Resource name is required")
+                        .max(255, "Resource name is too long"),
                     link: yup
                         .string()
-                        .required('Resource link is required')
-                        .url('Invalid URL format'),
+                        .required("Resource link is required")
+                        .url("Invalid URL format"),
                     usedFor: yup
                         .mixed<ResourceUsedFor>()
                         .oneOf(Object.values(ResourceUsedForEnum))
-                        .required('Resource purpose is required'),
+                        .required("Resource purpose is required"),
                     description: yup
                         .string()
-                        .max(500, 'Resource description is too long')
-                        .optional()
-                })
-            ).optional()
+                        .max(500, "Resource description is too long")
+                        .optional(),
+                }),
+            ).optional(),
         }).defined();
     }
     
@@ -212,147 +212,147 @@ export class ProjectFormDataFactory {
      * Create project form data for different scenarios
      */
     createFormData(
-        scenario: 'empty' | 'minimal' | 'complete' | 'invalid' | 'privateProject' | 
-                 'teamProject' | 'completedProject' | 'withResources' | 'partiallyCompleted'
+        scenario: "empty" | "minimal" | "complete" | "invalid" | "privateProject" | 
+                 "teamProject" | "completedProject" | "withResources" | "partiallyCompleted",
     ): ProjectFormData {
         switch (scenario) {
-            case 'empty':
+            case "empty":
                 return {
-                    name: '',
-                    isPrivate: false
+                    name: "",
+                    isPrivate: false,
                 };
                 
-            case 'minimal':
+            case "minimal":
                 return {
-                    name: 'My Project',
-                    isPrivate: false
+                    name: "My Project",
+                    isPrivate: false,
                 };
                 
-            case 'complete':
+            case "complete":
                 return {
-                    handle: 'awesome-project',
-                    name: 'Awesome Project',
-                    description: 'A comprehensive project showcasing best practices in software development',
-                    projectType: 'software',
-                    tags: ['opensource', 'typescript', 'react', 'nodejs'],
+                    handle: "awesome-project",
+                    name: "Awesome Project",
+                    description: "A comprehensive project showcasing best practices in software development",
+                    projectType: "software",
+                    tags: ["opensource", "typescript", "react", "nodejs"],
                     isPrivate: false,
                     isInternal: false,
                     percentComplete: 75,
-                    parentType: 'User',
-                    parentId: 'user_123',
-                    versionLabel: 'v2.0.0',
-                    versionNotes: 'Major update with new features and improvements',
+                    parentType: "User",
+                    parentId: "user_123",
+                    versionLabel: "v2.0.0",
+                    versionNotes: "Major update with new features and improvements",
                     resources: [
                         {
-                            name: 'GitHub Repository',
-                            link: 'https://github.com/user/awesome-project',
+                            name: "GitHub Repository",
+                            link: "https://github.com/user/awesome-project",
                             usedFor: ResourceUsedForEnum.Context,
-                            description: 'Main source code repository'
+                            description: "Main source code repository",
                         },
                         {
-                            name: 'Documentation',
-                            link: 'https://docs.awesome-project.com',
+                            name: "Documentation",
+                            link: "https://docs.awesome-project.com",
                             usedFor: ResourceUsedForEnum.Context,
-                            description: 'Project documentation and guides'
-                        }
-                    ]
+                            description: "Project documentation and guides",
+                        },
+                    ],
                 };
                 
-            case 'invalid':
+            case "invalid":
                 return {
-                    handle: 'a', // Too short
-                    name: '', // Empty
+                    handle: "a", // Too short
+                    name: "", // Empty
                     isPrivate: false,
-                    tags: ['a', 'this-tag-is-way-too-long-and-exceeds-the-maximum-allowed-length'], // Invalid tags
+                    tags: ["a", "this-tag-is-way-too-long-and-exceeds-the-maximum-allowed-length"], // Invalid tags
                     percentComplete: 150, // Over 100
                     resources: [
                         {
-                            name: '', // Empty name
-                            link: 'not-a-url', // Invalid URL
-                            usedFor: '' as any // Invalid type
-                        }
-                    ]
+                            name: "", // Empty name
+                            link: "not-a-url", // Invalid URL
+                            usedFor: "" as any, // Invalid type
+                        },
+                    ],
                 };
                 
-            case 'privateProject':
+            case "privateProject":
                 return {
-                    handle: 'internal-project',
-                    name: 'Internal Project',
-                    description: 'Private project for internal use only',
-                    projectType: 'research',
+                    handle: "internal-project",
+                    name: "Internal Project",
+                    description: "Private project for internal use only",
+                    projectType: "research",
                     isPrivate: true,
                     isInternal: true,
-                    parentType: 'Team',
-                    parentId: 'team_456'
+                    parentType: "Team",
+                    parentId: "team_456",
                 };
                 
-            case 'teamProject':
+            case "teamProject":
                 return {
-                    handle: 'team-collaboration',
-                    name: 'Team Collaboration Project',
-                    description: 'A project managed by our development team',
-                    projectType: 'software',
-                    tags: ['teamwork', 'agile', 'scrum'],
+                    handle: "team-collaboration",
+                    name: "Team Collaboration Project",
+                    description: "A project managed by our development team",
+                    projectType: "software",
+                    tags: ["teamwork", "agile", "scrum"],
                     isPrivate: false,
-                    parentType: 'Team',
-                    parentId: 'team_789',
-                    percentComplete: 45
+                    parentType: "Team",
+                    parentId: "team_789",
+                    percentComplete: 45,
                 };
                 
-            case 'completedProject':
+            case "completedProject":
                 return {
-                    handle: 'finished-project',
-                    name: 'Completed Project',
-                    description: 'This project has been successfully completed',
-                    projectType: 'documentation',
-                    tags: ['completed', 'archived'],
+                    handle: "finished-project",
+                    name: "Completed Project",
+                    description: "This project has been successfully completed",
+                    projectType: "documentation",
+                    tags: ["completed", "archived"],
                     isPrivate: false,
-                    completedAt: new Date('2024-01-15'),
+                    completedAt: new Date("2024-01-15"),
                     percentComplete: 100,
-                    versionLabel: 'v1.0.0-final'
+                    versionLabel: "v1.0.0-final",
                 };
                 
-            case 'withResources':
+            case "withResources":
                 return {
-                    name: 'Resource-Rich Project',
-                    description: 'Project with multiple external resources',
+                    name: "Resource-Rich Project",
+                    description: "Project with multiple external resources",
                     isPrivate: false,
                     resources: [
                         {
-                            name: 'API Documentation',
-                            link: 'https://api.example.com/docs',
+                            name: "API Documentation",
+                            link: "https://api.example.com/docs",
                             usedFor: ResourceUsedForEnum.Context,
-                            description: 'REST API documentation'
+                            description: "REST API documentation",
                         },
                         {
-                            name: 'Design System',
-                            link: 'https://design.example.com',
+                            name: "Design System",
+                            link: "https://design.example.com",
                             usedFor: ResourceUsedForEnum.Display,
-                            description: 'UI/UX design guidelines'
+                            description: "UI/UX design guidelines",
                         },
                         {
-                            name: 'Project Wiki',
-                            link: 'https://wiki.example.com/project',
+                            name: "Project Wiki",
+                            link: "https://wiki.example.com/project",
                             usedFor: ResourceUsedForEnum.Context,
-                            description: 'Detailed project information'
-                        }
-                    ]
+                            description: "Detailed project information",
+                        },
+                    ],
                 };
                 
-            case 'partiallyCompleted':
+            case "partiallyCompleted":
                 return {
-                    name: 'Work in Progress',
-                    description: 'A project that is partially complete',
+                    name: "Work in Progress",
+                    description: "A project that is partially complete",
                     isPrivate: false,
                     percentComplete: 35,
-                    tags: ['wip', 'development'],
+                    tags: ["wip", "development"],
                     resources: [
                         {
-                            name: 'Roadmap',
-                            link: '', // Missing URL
-                            usedFor: ResourceUsedForEnum.Context
-                        }
-                    ]
+                            name: "Roadmap",
+                            link: "", // Missing URL
+                            usedFor: ResourceUsedForEnum.Context,
+                        },
+                    ],
                 };
                 
             default:
@@ -364,79 +364,79 @@ export class ProjectFormDataFactory {
      * Create form state for different scenarios
      */
     createFormState(
-        scenario: 'pristine' | 'dirty' | 'submitting' | 'withErrors' | 'valid' | 'checkingHandle' | 'nearCompletion'
+        scenario: "pristine" | "dirty" | "submitting" | "withErrors" | "valid" | "checkingHandle" | "nearCompletion",
     ): ProjectFormState {
-        const baseFormData = this.createFormData('complete');
+        const baseFormData = this.createFormData("complete");
         
         switch (scenario) {
-            case 'pristine':
+            case "pristine":
                 return {
-                    values: this.createFormData('empty'),
+                    values: this.createFormData("empty"),
                     errors: {},
                     touched: {},
                     isDirty: false,
                     isSubmitting: false,
-                    isValid: false
+                    isValid: false,
                 };
                 
-            case 'dirty':
+            case "dirty":
                 return {
                     values: baseFormData,
                     errors: {},
                     touched: { name: true, description: true },
                     isDirty: true,
                     isSubmitting: false,
-                    isValid: true
+                    isValid: true,
                 };
                 
-            case 'submitting':
+            case "submitting":
                 return {
                     values: baseFormData,
                     errors: {},
                     touched: Object.keys(baseFormData).reduce((acc, key) => ({
                         ...acc,
-                        [key]: true
+                        [key]: true,
                     }), {}),
                     isDirty: true,
                     isSubmitting: true,
-                    isValid: true
+                    isValid: true,
                 };
                 
-            case 'withErrors':
+            case "withErrors":
                 return {
-                    values: this.createFormData('invalid'),
+                    values: this.createFormData("invalid"),
                     errors: {
-                        handle: 'Handle must be at least 3 characters',
-                        name: 'Project name is required',
-                        percentComplete: 'Percentage cannot exceed 100',
-                        'resources[0].name': 'Resource name is required',
-                        'resources[0].link': 'Invalid URL format'
+                        handle: "Handle must be at least 3 characters",
+                        name: "Project name is required",
+                        percentComplete: "Percentage cannot exceed 100",
+                        "resources[0].name": "Resource name is required",
+                        "resources[0].link": "Invalid URL format",
                     },
                     touched: { 
                         handle: true, 
                         name: true, 
                         percentComplete: true,
-                        resources: true
+                        resources: true,
                     },
                     isDirty: true,
                     isSubmitting: false,
-                    isValid: false
+                    isValid: false,
                 };
                 
-            case 'valid':
+            case "valid":
                 return {
                     values: baseFormData,
                     errors: {},
                     touched: Object.keys(baseFormData).reduce((acc, key) => ({
                         ...acc,
-                        [key]: true
+                        [key]: true,
                     }), {}),
                     isDirty: true,
                     isSubmitting: false,
-                    isValid: true
+                    isValid: true,
                 };
                 
-            case 'checkingHandle':
+            case "checkingHandle":
                 return {
                     values: baseFormData,
                     errors: {},
@@ -446,15 +446,15 @@ export class ProjectFormDataFactory {
                     isValid: false,
                     isValidating: true,
                     projectState: {
-                        isCheckingHandleAvailability: true
-                    }
+                        isCheckingHandleAvailability: true,
+                    },
                 };
                 
-            case 'nearCompletion':
+            case "nearCompletion":
                 return {
                     values: {
                         ...baseFormData,
-                        percentComplete: 95
+                        percentComplete: 95,
                     },
                     errors: {},
                     touched: { percentComplete: true },
@@ -464,8 +464,8 @@ export class ProjectFormDataFactory {
                     completionState: {
                         isCompleted: false,
                         canMarkComplete: true,
-                        blockers: []
-                    }
+                        blockers: [],
+                    },
                 };
                 
             default:
@@ -477,22 +477,22 @@ export class ProjectFormDataFactory {
      * Create React Hook Form instance
      */
     createFormInstance(
-        initialData?: Partial<ProjectFormData>
+        initialData?: Partial<ProjectFormData>,
     ): UseFormReturn<ProjectFormData> {
         const defaultValues: ProjectFormData = {
-            name: '',
+            name: "",
             isPrivate: false,
             tags: [],
             resources: [],
-            ...initialData
+            ...initialData,
         };
         
         return useForm<ProjectFormData>({
-            mode: 'onChange',
-            reValidateMode: 'onChange',
+            mode: "onChange",
+            reValidateMode: "onChange",
             shouldFocusError: true,
             defaultValues,
-            resolver: yupResolver(this.createProjectSchema())
+            resolver: yupResolver(this.createProjectSchema()),
         });
     }
     
@@ -500,7 +500,7 @@ export class ProjectFormDataFactory {
      * Validate form data using real validation
      */
     async validateFormData(
-        formData: ProjectFormData
+        formData: ProjectFormData,
     ): Promise<{
         isValid: boolean;
         errors?: Record<string, string>;
@@ -518,7 +518,7 @@ export class ProjectFormDataFactory {
             
             return {
                 isValid: true,
-                apiInput
+                apiInput,
             };
         } catch (error: any) {
             const errors: Record<string, string> = {};
@@ -535,7 +535,7 @@ export class ProjectFormDataFactory {
             
             return {
                 isValid: false,
-                errors
+                errors,
             };
         }
     }
@@ -553,23 +553,23 @@ export class ProjectFormDataFactory {
             versionsCreate: [{
                 id: this.generateId(),
                 isComplete: formData.percentComplete === 100,
-                versionLabel: formData.versionLabel || '1.0.0',
+                versionLabel: formData.versionLabel || "1.0.0",
                 translationsCreate: [{
                     id: this.generateId(),
-                    language: 'en',
+                    language: "en",
                     name: formData.name,
                     description: formData.description,
-                    versionNotes: formData.versionNotes
-                }]
-            }]
+                    versionNotes: formData.versionNotes,
+                }],
+            }],
         };
         
         // Set parent relationship
         if (formData.parentId) {
-            if (formData.parentType === 'User') {
+            if (formData.parentType === "User") {
                 input.forConnect = formData.parentId;
                 input.resourceFor = ResourceForEnum.User;
-            } else if (formData.parentType === 'Team') {
+            } else if (formData.parentType === "Team") {
                 input.forConnect = formData.parentId;
                 input.resourceFor = ResourceForEnum.Team;
             }
@@ -584,10 +584,10 @@ export class ProjectFormDataFactory {
                 usedFor: resource.usedFor,
                 translationsCreate: [{
                     id: this.generateId(),
-                    language: 'en',
+                    language: "en",
                     name: resource.name,
-                    description: resource.description
-                }]
+                    description: resource.description,
+                }],
             }));
         }
         
@@ -604,16 +604,16 @@ export class ProjectFormDataFactory {
             suggestions.push(formData.projectType);
         }
         
-        if (formData.name?.toLowerCase().includes('api')) {
-            suggestions.push('api');
+        if (formData.name?.toLowerCase().includes("api")) {
+            suggestions.push("api");
         }
         
-        if (formData.name?.toLowerCase().includes('app')) {
-            suggestions.push('mobile', 'webapp');
+        if (formData.name?.toLowerCase().includes("app")) {
+            suggestions.push("mobile", "webapp");
         }
         
-        if (formData.description?.toLowerCase().includes('opensource')) {
-            suggestions.push('opensource', 'community');
+        if (formData.description?.toLowerCase().includes("opensource")) {
+            suggestions.push("opensource", "community");
         }
         
         return suggestions.slice(0, 5); // Return top 5 suggestions
@@ -624,7 +624,7 @@ export class ProjectFormDataFactory {
  * Form interaction simulator for project forms
  */
 export class ProjectFormInteractionSimulator {
-    private interactionDelay: number = 100;
+    private interactionDelay = 100;
     
     constructor(delay?: number) {
         this.interactionDelay = delay || 100;
@@ -635,17 +635,17 @@ export class ProjectFormInteractionSimulator {
      */
     async simulateProjectCreationFlow(
         formInstance: UseFormReturn<ProjectFormData>,
-        formData: ProjectFormData
+        formData: ProjectFormData,
     ): Promise<void> {
         // Type project name
-        await this.simulateTyping(formInstance, 'name', formData.name);
+        await this.simulateTyping(formInstance, "name", formData.name);
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // Type handle if present
         if (formData.handle) {
             for (let i = 1; i <= formData.handle.length; i++) {
                 const partialHandle = formData.handle.substring(0, i);
-                await this.fillField(formInstance, 'handle', partialHandle);
+                await this.fillField(formInstance, "handle", partialHandle);
                 
                 // Simulate availability check after 3 characters
                 if (i >= 3) {
@@ -656,12 +656,12 @@ export class ProjectFormInteractionSimulator {
         
         // Type description
         if (formData.description) {
-            await this.simulateTyping(formInstance, 'description', formData.description);
+            await this.simulateTyping(formInstance, "description", formData.description);
         }
         
         // Select project type
         if (formData.projectType) {
-            await this.fillField(formInstance, 'projectType', formData.projectType);
+            await this.fillField(formInstance, "projectType", formData.projectType);
         }
         
         // Add tags
@@ -672,11 +672,11 @@ export class ProjectFormInteractionSimulator {
         }
         
         // Set privacy
-        await this.fillField(formInstance, 'isPrivate', formData.isPrivate);
+        await this.fillField(formInstance, "isPrivate", formData.isPrivate);
         
         // Set completion percentage
         if (formData.percentComplete !== undefined) {
-            await this.simulateSliderChange(formInstance, 'percentComplete', formData.percentComplete);
+            await this.simulateSliderChange(formInstance, "percentComplete", formData.percentComplete);
         }
         
         // Add resources
@@ -692,10 +692,10 @@ export class ProjectFormInteractionSimulator {
      */
     private async addTag(
         formInstance: UseFormReturn<ProjectFormData>,
-        tag: string
+        tag: string,
     ): Promise<void> {
-        const currentTags = formInstance.getValues('tags') || [];
-        await this.fillField(formInstance, 'tags', [...currentTags, tag]);
+        const currentTags = formInstance.getValues("tags") || [];
+        await this.fillField(formInstance, "tags", [...currentTags, tag]);
         await new Promise(resolve => setTimeout(resolve, 100));
     }
     
@@ -705,7 +705,7 @@ export class ProjectFormInteractionSimulator {
     private async addResource(
         formInstance: UseFormReturn<ProjectFormData>,
         index: number,
-        resource: ProjectFormData['resources'][0]
+        resource: ProjectFormData["resources"][0],
     ): Promise<void> {
         await this.simulateTyping(formInstance, `resources.${index}.name` as any, resource.name);
         await this.simulateTyping(formInstance, `resources.${index}.link` as any, resource.link);
@@ -724,7 +724,7 @@ export class ProjectFormInteractionSimulator {
     private async simulateSliderChange(
         formInstance: UseFormReturn<ProjectFormData>,
         fieldName: string,
-        targetValue: number
+        targetValue: number,
     ): Promise<void> {
         const steps = 10;
         const currentValue = formInstance.getValues(fieldName as any) || 0;
@@ -743,7 +743,7 @@ export class ProjectFormInteractionSimulator {
     private async simulateTyping(
         formInstance: UseFormReturn<any>,
         fieldName: string,
-        text: string
+        text: string,
     ): Promise<void> {
         for (let i = 1; i <= text.length; i++) {
             await this.fillField(formInstance, fieldName, text.substring(0, i));
@@ -757,13 +757,13 @@ export class ProjectFormInteractionSimulator {
     private async fillField(
         formInstance: UseFormReturn<any>,
         fieldName: string,
-        value: any
+        value: any,
     ): Promise<void> {
         act(() => {
             formInstance.setValue(fieldName, value, {
                 shouldDirty: true,
                 shouldTouch: true,
-                shouldValidate: true
+                shouldValidate: true,
             });
         });
         
@@ -780,30 +780,30 @@ export const projectFormSimulator = new ProjectFormInteractionSimulator();
 // Export pre-configured scenarios
 export const projectFormScenarios = {
     // Basic scenarios
-    emptyProject: () => projectFormFactory.createFormState('pristine'),
-    validProject: () => projectFormFactory.createFormState('valid'),
-    projectWithErrors: () => projectFormFactory.createFormState('withErrors'),
-    submittingProject: () => projectFormFactory.createFormState('submitting'),
+    emptyProject: () => projectFormFactory.createFormState("pristine"),
+    validProject: () => projectFormFactory.createFormState("valid"),
+    projectWithErrors: () => projectFormFactory.createFormState("withErrors"),
+    submittingProject: () => projectFormFactory.createFormState("submitting"),
     
     // Project types
-    minimalProject: () => projectFormFactory.createFormData('minimal'),
-    completeProject: () => projectFormFactory.createFormData('complete'),
-    privateProject: () => projectFormFactory.createFormData('privateProject'),
-    teamProject: () => projectFormFactory.createFormData('teamProject'),
-    completedProject: () => projectFormFactory.createFormData('completedProject'),
-    resourceRichProject: () => projectFormFactory.createFormData('withResources'),
+    minimalProject: () => projectFormFactory.createFormData("minimal"),
+    completeProject: () => projectFormFactory.createFormData("complete"),
+    privateProject: () => projectFormFactory.createFormData("privateProject"),
+    teamProject: () => projectFormFactory.createFormData("teamProject"),
+    completedProject: () => projectFormFactory.createFormData("completedProject"),
+    resourceRichProject: () => projectFormFactory.createFormData("withResources"),
     
     // Interactive workflows
     async completeProjectWorkflow(formInstance: UseFormReturn<ProjectFormData>) {
         const simulator = new ProjectFormInteractionSimulator();
-        const formData = projectFormFactory.createFormData('complete');
+        const formData = projectFormFactory.createFormData("complete");
         await simulator.simulateProjectCreationFlow(formInstance, formData);
         return formData;
     },
     
     async quickProjectSetup(formInstance: UseFormReturn<ProjectFormData>) {
         const simulator = new ProjectFormInteractionSimulator(25); // Faster
-        const formData = projectFormFactory.createFormData('minimal');
+        const formData = projectFormFactory.createFormData("minimal");
         await simulator.simulateProjectCreationFlow(formInstance, formData);
         return formData;
     },
@@ -811,5 +811,5 @@ export const projectFormScenarios = {
     // Tag suggestions
     getTagSuggestions(formData: Partial<ProjectFormData>) {
         return projectFormFactory.suggestTags(formData);
-    }
+    },
 };

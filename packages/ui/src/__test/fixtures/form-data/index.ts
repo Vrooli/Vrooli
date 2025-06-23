@@ -6,17 +6,17 @@
  */
 
 // Core object fixtures
-export * from './userFormData.js';
-export * from './teamFormData.js';
-export * from './projectFormData.js';
+export * from "./userFormData.js";
+export * from "./teamFormData.js";
+export * from "./projectFormData.js";
 
 // Communication object fixtures
-export * from './chatFormData.js';
-export * from './commentFormData.js';
+export * from "./chatFormData.js";
+export * from "./commentFormData.js";
 
 // Organizational object fixtures  
-export * from './meetingFormData.js';
-export * from './bookmarkFormData.js'; // Existing from current implementation
+export * from "./meetingFormData.js";
+export * from "./bookmarkFormData.js"; // Existing from current implementation
 
 // Export commonly used types
 export type {
@@ -52,59 +52,59 @@ export type {
     
     // Bookmark-related types (from existing implementation)
     BookmarkFormData,
-    BookmarkFormState
-} from './userFormData.js';
+    BookmarkFormState,
+} from "./userFormData.js";
 
 // Re-export just the type imports to avoid circular dependencies
-export type { TeamCreateFormData, TeamProfileFormData, TeamMemberFormData, TeamFormState } from './teamFormData.js';
-export type { ProjectFormData, ProjectFormState } from './projectFormData.js';
-export type { ChatCreateFormData, ChatMessageFormData, ChatSettingsFormData, ChatFormState } from './chatFormData.js';
-export type { CommentFormData, CommentFormState } from './commentFormData.js';
-export type { MeetingFormData, MeetingFormState } from './meetingFormData.js';
-export type { BookmarkFormData, BookmarkFormState } from './bookmarkFormData.js';
+export type { TeamCreateFormData, TeamProfileFormData, TeamMemberFormData, TeamFormState } from "./teamFormData.js";
+export type { ProjectFormData, ProjectFormState } from "./projectFormData.js";
+export type { ChatCreateFormData, ChatMessageFormData, ChatSettingsFormData, ChatFormState } from "./chatFormData.js";
+export type { CommentFormData, CommentFormState } from "./commentFormData.js";
+export type { MeetingFormData, MeetingFormState } from "./meetingFormData.js";
+export type { BookmarkFormData, BookmarkFormState } from "./bookmarkFormData.js";
 
 // Export factory instances for easy access
 export {
     userFormFactory,
     userFormSimulator,
-    userFormScenarios
-} from './userFormData.js';
+    userFormScenarios,
+} from "./userFormData.js";
 
 export {
     teamFormFactory,
     teamFormSimulator,
-    teamFormScenarios
-} from './teamFormData.js';
+    teamFormScenarios,
+} from "./teamFormData.js";
 
 export {
     projectFormFactory,
     projectFormSimulator,
-    projectFormScenarios
-} from './projectFormData.js';
+    projectFormScenarios,
+} from "./projectFormData.js";
 
 export {
     chatFormFactory,
     chatFormSimulator,
-    chatFormScenarios
-} from './chatFormData.js';
+    chatFormScenarios,
+} from "./chatFormData.js";
 
 export {
     commentFormFactory,
     commentFormSimulator,
-    commentFormScenarios
-} from './commentFormData.js';
+    commentFormScenarios,
+} from "./commentFormData.js";
 
 export {
     meetingFormFactory,
     meetingFormSimulator,
-    meetingFormScenarios
-} from './meetingFormData.js';
+    meetingFormScenarios,
+} from "./meetingFormData.js";
 
 export {
     bookmarkFormFactory,
     bookmarkFormSimulator,
-    bookmarkFormScenarios
-} from './bookmarkFormData.js';
+    bookmarkFormScenarios,
+} from "./bookmarkFormData.js";
 
 /**
  * Convenience object grouping all form factories
@@ -116,7 +116,7 @@ export const formFactories = {
     chat: chatFormFactory,
     comment: commentFormFactory,
     meeting: meetingFormFactory,
-    bookmark: bookmarkFormFactory
+    bookmark: bookmarkFormFactory,
 } as const;
 
 /**
@@ -129,7 +129,7 @@ export const formSimulators = {
     chat: chatFormSimulator,
     comment: commentFormSimulator,
     meeting: meetingFormSimulator,
-    bookmark: bookmarkFormSimulator
+    bookmark: bookmarkFormSimulator,
 } as const;
 
 /**
@@ -142,7 +142,7 @@ export const formScenarios = {
     chat: chatFormScenarios,
     comment: commentFormScenarios,
     meeting: meetingFormScenarios,
-    bookmark: bookmarkFormScenarios
+    bookmark: bookmarkFormScenarios,
 } as const;
 
 /**
@@ -157,8 +157,8 @@ export function getAvailableFormTypes(): string[] {
  */
 export function createFormInstance<T extends keyof typeof formFactories>(
     formType: T,
-    ...args: Parameters<typeof formFactories[T]['createFormInstance']>
-): ReturnType<typeof formFactories[T]['createFormInstance']> {
+    ...args: Parameters<typeof formFactories[T]["createFormInstance"]>
+): ReturnType<typeof formFactories[T]["createFormInstance"]> {
     const factory = formFactories[formType];
     return factory.createFormInstance(...args as any);
 }
@@ -174,7 +174,7 @@ export async function validateFormData<T extends keyof typeof formFactories>(
     const factory = formFactories[formType];
     
     // Handle different factory method signatures
-    if ('validateFormData' in factory && typeof factory.validateFormData === 'function') {
+    if ("validateFormData" in factory && typeof factory.validateFormData === "function") {
         return factory.validateFormData(formData, ...additionalArgs);
     }
     
@@ -185,7 +185,7 @@ export async function validateFormData<T extends keyof typeof formFactories>(
  * Helper function to get form scenarios for any supported type
  */
 export function getFormScenarios<T extends keyof typeof formScenarios>(
-    formType: T
+    formType: T,
 ): typeof formScenarios[T] {
     return formScenarios[formType];
 }
@@ -201,16 +201,16 @@ export function isSupportedFormType(formType: string): formType is keyof typeof 
  * Meta information about the form fixtures
  */
 export const formFixturesMeta = {
-    version: '2.0.0',
-    description: 'Production-grade form fixtures with React Hook Form integration',
+    version: "2.0.0",
+    description: "Production-grade form fixtures with React Hook Form integration",
     features: [
-        'Type-safe form data generation',
-        'Real validation integration',
-        'User interaction simulation',
-        'React Hook Form compatibility',
-        'Comprehensive error scenarios',
-        'Accessibility testing support'
+        "Type-safe form data generation",
+        "Real validation integration",
+        "User interaction simulation",
+        "React Hook Form compatibility",
+        "Comprehensive error scenarios",
+        "Accessibility testing support",
     ],
     supportedFormTypes: getAvailableFormTypes(),
-    totalFixtures: Object.keys(formFactories).length
+    totalFixtures: Object.keys(formFactories).length,
 } as const;

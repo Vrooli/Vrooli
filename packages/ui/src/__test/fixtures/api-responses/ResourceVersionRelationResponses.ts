@@ -5,15 +5,15 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     ResourceVersionRelation, 
     ResourceVersionRelationCreateInput, 
-    ResourceVersionRelationUpdateInput
-} from '@vrooli/shared';
+    ResourceVersionRelationUpdateInput,
+} from "@vrooli/shared";
 import { 
-    resourceVersionRelationValidation
-} from '@vrooli/shared';
+    resourceVersionRelationValidation,
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -65,7 +65,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ResourceVersionRelationResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -92,15 +92,15 @@ export class ResourceVersionRelationResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/resource-version-relation/${relation.id}`,
                     related: {
                         from: `${this.baseUrl}/api/resource-version/${relation.from.id}`,
-                        to: `${this.baseUrl}/api/resource-version/${relation.to.id}`
-                    }
-                }
-            }
+                        to: `${this.baseUrl}/api/resource-version/${relation.to.id}`,
+                    },
+                },
+            },
         };
     }
     
@@ -115,7 +115,7 @@ export class ResourceVersionRelationResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: relations.length,
-            totalCount: relations.length
+            totalCount: relations.length,
         };
         
         return {
@@ -123,17 +123,17 @@ export class ResourceVersionRelationResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/resource-version-relation?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/resource-version-relation?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -143,16 +143,16 @@ export class ResourceVersionRelationResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource-version-relation'
-            }
+                path: "/api/resource-version-relation",
+            },
         };
     }
     
@@ -162,16 +162,16 @@ export class ResourceVersionRelationResponseFactory {
     createNotFoundErrorResponse(relationId: string): APIErrorResponse {
         return {
             error: {
-                code: 'RELATION_NOT_FOUND',
+                code: "RELATION_NOT_FOUND",
                 message: `Resource version relation with ID '${relationId}' was not found`,
                 details: {
                     relationId,
-                    searchCriteria: { id: relationId }
+                    searchCriteria: { id: relationId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/resource-version-relation/${relationId}`
-            }
+                path: `/api/resource-version-relation/${relationId}`,
+            },
         };
     }
     
@@ -181,17 +181,17 @@ export class ResourceVersionRelationResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this relation`,
                 details: {
                     operation,
-                    requiredPermissions: ['resource:write'],
-                    userPermissions: ['resource:read']
+                    requiredPermissions: ["resource:write"],
+                    userPermissions: ["resource:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource-version-relation'
-            }
+                path: "/api/resource-version-relation",
+            },
         };
     }
     
@@ -201,17 +201,17 @@ export class ResourceVersionRelationResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource-version-relation'
-            }
+                path: "/api/resource-version-relation",
+            },
         };
     }
     
@@ -221,17 +221,17 @@ export class ResourceVersionRelationResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource-version-relation'
-            }
+                path: "/api/resource-version-relation",
+            },
         };
     }
     
@@ -266,8 +266,8 @@ export class ResourceVersionRelationResponseFactory {
                     canDelete: true,
                     canRead: true,
                     canReport: false,
-                    canUpdate: true
-                }
+                    canUpdate: true,
+                },
             },
             to: {
                 __typename: "ResourceVersion",
@@ -288,14 +288,14 @@ export class ResourceVersionRelationResponseFactory {
                     canDelete: true,
                     canRead: true,
                     canReport: false,
-                    canUpdate: true
-                }
-            }
+                    canUpdate: true,
+                },
+            },
         };
         
         return {
             ...defaultRelation,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -320,21 +320,21 @@ export class ResourceVersionRelationResponseFactory {
     /**
      * Create multiple relations for testing
      */
-    createMultipleRelations(count: number = 5): ResourceVersionRelation[] {
+    createMultipleRelations(count = 5): ResourceVersionRelation[] {
         return Array.from({ length: count }, (_, index) => 
             this.createMockRelation({
                 id: `relation_${index}_${this.generateId()}`,
                 from: {
                     ...this.createMockRelation().from,
                     id: `from_${index}_${this.generateId()}`,
-                    title: `Source Resource ${index + 1}`
+                    title: `Source Resource ${index + 1}`,
                 },
                 to: {
                     ...this.createMockRelation().to,
                     id: `to_${index}_${this.generateId()}`,
-                    title: `Target Resource ${index + 1}`
-                }
-            })
+                    title: `Target Resource ${index + 1}`,
+                },
+            }),
         );
     }
     
@@ -363,7 +363,7 @@ export class ResourceVersionRelationResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -385,7 +385,7 @@ export class ResourceVersionRelationMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create resource version relation
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version-relation`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, async (req, res, ctx) => {
                 const body = await req.json() as ResourceVersionRelationCreateInput;
                 
                 // Validate input
@@ -393,7 +393,7 @@ export class ResourceVersionRelationMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -403,12 +403,12 @@ export class ResourceVersionRelationMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get resource version relation by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource-version-relation/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const relation = this.responseFactory.createMockRelation({ id: id as string });
@@ -416,40 +416,40 @@ export class ResourceVersionRelationMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update resource version relation
-            rest.put(`${this.responseFactory['baseUrl']}/api/resource-version-relation/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ResourceVersionRelationUpdateInput;
                 
                 const relation = this.responseFactory.createMockRelation({ 
                     id: id as string,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(relation);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete resource version relation
-            rest.delete(`${this.responseFactory['baseUrl']}/api/resource-version-relation/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List resource version relations
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource-version-relation`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const fromId = url.searchParams.get('fromId');
-                const toId = url.searchParams.get('toId');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const fromId = url.searchParams.get("fromId");
+                const toId = url.searchParams.get("toId");
                 
                 let relations = this.responseFactory.createMultipleRelations(20);
                 
@@ -472,15 +472,15 @@ export class ResourceVersionRelationMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: relations.length
-                    }
+                        totalCount: relations.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -490,49 +490,49 @@ export class ResourceVersionRelationMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version-relation`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        fromConnect: 'Source resource version is required',
-                        toConnect: 'Target resource version is required'
-                    }))
+                        fromConnect: "Source resource version is required",
+                        toConnect: "Target resource version is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource-version-relation/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version-relation`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version-relation`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version-relation`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, async (req, res, ctx) => {
                 const body = await req.json() as ResourceVersionRelationCreateInput;
                 const relation = this.responseFactory.createRelationFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(relation);
@@ -540,9 +540,9 @@ export class ResourceVersionRelationMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -551,13 +551,13 @@ export class ResourceVersionRelationMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version-relation`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version-relation`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource-version-relation/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version-relation/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -566,13 +566,13 @@ export class ResourceVersionRelationMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -594,14 +594,14 @@ export const resourceVersionRelationResponseScenarios = {
     createSuccess: (relation?: ResourceVersionRelation) => {
         const factory = new ResourceVersionRelationResponseFactory();
         return factory.createSuccessResponse(
-            relation || factory.createMockRelation()
+            relation || factory.createMockRelation(),
         );
     },
     
     listSuccess: (relations?: ResourceVersionRelation[]) => {
         const factory = new ResourceVersionRelationResponseFactory();
         return factory.createRelationListResponse(
-            relations || factory.createMultipleRelations()
+            relations || factory.createMultipleRelations(),
         );
     },
     
@@ -610,23 +610,23 @@ export const resourceVersionRelationResponseScenarios = {
         const factory = new ResourceVersionRelationResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                fromConnect: 'Source resource version is required',
-                toConnect: 'Target resource version is required'
-            }
+                fromConnect: "Source resource version is required",
+                toConnect: "Target resource version is required",
+            },
         );
     },
     
     notFoundError: (relationId?: string) => {
         const factory = new ResourceVersionRelationResponseFactory();
         return factory.createNotFoundErrorResponse(
-            relationId || 'non-existent-id'
+            relationId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ResourceVersionRelationResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -639,7 +639,7 @@ export const resourceVersionRelationResponseScenarios = {
     successHandlers: () => new ResourceVersionRelationMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ResourceVersionRelationMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ResourceVersionRelationMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ResourceVersionRelationMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ResourceVersionRelationMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

@@ -30,26 +30,26 @@ export class PhoneDbFactory extends EnhancedDbFactory<
         return {
             minimal: {
                 id: generatePK(),
-                phoneNumber: `+1555${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`,
+                phoneNumber: `+1555${Math.floor(Math.random() * 10000000).toString().padStart(7, "0")}`,
                 user: {
-                    connect: { id: userId }
+                    connect: { id: userId },
                 },
             },
             complete: {
                 id: generatePK(),
-                phoneNumber: `+1555${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`,
+                phoneNumber: `+1555${Math.floor(Math.random() * 10000000).toString().padStart(7, "0")}`,
                 verifiedAt: new Date(),
-                verificationCode: `${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
+                verificationCode: `${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`,
                 lastVerificationCodeRequestAttempt: new Date(Date.now() - 60000), // 1 minute ago
                 user: {
-                    connect: { id: userId }
+                    connect: { id: userId },
                 },
             },
             invalid: {
                 missingRequired: {
                     // Missing id and phoneNumber
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 invalidTypes: {
@@ -61,33 +61,33 @@ export class PhoneDbFactory extends EnhancedDbFactory<
                     id: generatePK(),
                     phoneNumber: "not-a-phone-number",
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },
             edgeCases: {
                 unverifiedWithCode: {
                     id: generatePK(),
-                    phoneNumber: `+1555${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`,
+                    phoneNumber: `+1555${Math.floor(Math.random() * 10000000).toString().padStart(7, "0")}`,
                     verificationCode: "123456",
                     lastVerificationCodeRequestAttempt: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 internationalPhone: {
                     id: generatePK(),
-                    phoneNumber: `+44${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`, // UK
+                    phoneNumber: `+44${Math.floor(Math.random() * 1000000000).toString().padStart(9, "0")}`, // UK
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 teamPhone: {
                     id: generatePK(),
-                    phoneNumber: `+1800${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`,
+                    phoneNumber: `+1800${Math.floor(Math.random() * 10000000).toString().padStart(7, "0")}`,
                     verifiedAt: new Date(),
                     team: {
-                        connect: { id: generatePK() }
+                        connect: { id: generatePK() },
                     },
                 },
                 shortCode: {
@@ -95,7 +95,7 @@ export class PhoneDbFactory extends EnhancedDbFactory<
                     phoneNumber: "+12345", // Short codes are typically 5-6 digits
                     verifiedAt: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },

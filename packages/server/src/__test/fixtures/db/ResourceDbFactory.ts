@@ -40,7 +40,7 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
     Prisma.ResourceUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Resource', prisma);
+        super("Resource", prisma);
         this.initializeScenarios();
     }
 
@@ -376,9 +376,9 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.ResourceCreateInput,
         config: ResourceRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ResourceCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle owner
         if (config.owner) {
@@ -527,7 +527,7 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
      * Create resource with multiple versions
      */
     async createWithVersionHistory(ownerId: string): Promise<Prisma.Resource> {
-        return this.seedScenario('versionedResource');
+        return this.seedScenario("versionedResource");
     }
 
     /**
@@ -571,7 +571,7 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
         });
 
         if (versionCount === 0) {
-            violations.push('Resource must have at least one version');
+            violations.push("Resource must have at least one version");
         }
 
         // Check that there's exactly one latest version
@@ -583,26 +583,26 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
         });
 
         if (latestVersions !== 1) {
-            violations.push('Resource must have exactly one latest version');
+            violations.push("Resource must have exactly one latest version");
         }
 
         // Check ownership
         if (!record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Resource must have an owner (user or team)');
+            violations.push("Resource must have an owner (user or team)");
         }
 
         if (record.ownedByUserId && record.ownedByTeamId) {
-            violations.push('Resource cannot be owned by both user and team');
+            violations.push("Resource cannot be owned by both user and team");
         }
 
         // Check private resource has owner
         if (record.isPrivate && !record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Private resource must have an owner');
+            violations.push("Private resource must have an owner");
         }
 
         // Check internal resources are team-owned
         if (record.isInternal && !record.ownedByTeamId) {
-            violations.push('Internal resources should be team-owned');
+            violations.push("Internal resources should be team-owned");
         }
 
         return violations;
@@ -624,14 +624,14 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.Resource,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete versions and their translations
-        if (shouldDelete('versions') && record.versions?.length) {
+        if (shouldDelete("versions") && record.versions?.length) {
             for (const version of record.versions) {
                 // Delete version relations
                 if (version.relations?.length) {
@@ -658,7 +658,7 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createResourceDbFactory = (prisma: PrismaClient) => 
-    ResourceDbFactory.getInstance('Resource', prisma);
+    ResourceDbFactory.getInstance("Resource", prisma);
 
 // Export the class for type usage
 export { ResourceDbFactory as ResourceDbFactoryClass };

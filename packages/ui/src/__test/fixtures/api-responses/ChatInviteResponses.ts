@@ -5,19 +5,19 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     ChatInvite, 
     ChatInviteCreateInput, 
     ChatInviteUpdateInput,
     ChatInviteStatus,
     Chat,
-    User 
-} from '@vrooli/shared';
+    User, 
+} from "@vrooli/shared";
 import { 
     chatInviteValidation,
-    ChatInviteStatus as ChatInviteStatusEnum 
-} from '@vrooli/shared';
+    ChatInviteStatus as ChatInviteStatusEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -69,7 +69,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ChatInviteResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -96,17 +96,17 @@ export class ChatInviteResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/chatInvite/${chatInvite.id}`,
                     related: {
                         chat: `${this.baseUrl}/api/chat/${chatInvite.chat.id}`,
                         user: `${this.baseUrl}/api/user/${chatInvite.user.id}`,
                         accept: `${this.baseUrl}/api/chatInvite/${chatInvite.id}/accept`,
-                        decline: `${this.baseUrl}/api/chatInvite/${chatInvite.id}/decline`
-                    }
-                }
-            }
+                        decline: `${this.baseUrl}/api/chatInvite/${chatInvite.id}/decline`,
+                    },
+                },
+            },
         };
     }
     
@@ -121,7 +121,7 @@ export class ChatInviteResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: chatInvites.length,
-            totalCount: chatInvites.length
+            totalCount: chatInvites.length,
         };
         
         return {
@@ -129,17 +129,17 @@ export class ChatInviteResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/chatInvite?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/chatInvite?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -149,16 +149,16 @@ export class ChatInviteResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatInvite'
-            }
+                path: "/api/chatInvite",
+            },
         };
     }
     
@@ -168,16 +168,16 @@ export class ChatInviteResponseFactory {
     createNotFoundErrorResponse(chatInviteId: string): APIErrorResponse {
         return {
             error: {
-                code: 'CHAT_INVITE_NOT_FOUND',
+                code: "CHAT_INVITE_NOT_FOUND",
                 message: `Chat invite with ID '${chatInviteId}' was not found`,
                 details: {
                     chatInviteId,
-                    searchCriteria: { id: chatInviteId }
+                    searchCriteria: { id: chatInviteId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/chatInvite/${chatInviteId}`
-            }
+                path: `/api/chatInvite/${chatInviteId}`,
+            },
         };
     }
     
@@ -187,17 +187,17 @@ export class ChatInviteResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this chat invite`,
                 details: {
                     operation,
-                    requiredPermissions: ['chat:invite'],
-                    userPermissions: ['chat:read']
+                    requiredPermissions: ["chat:invite"],
+                    userPermissions: ["chat:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatInvite'
-            }
+                path: "/api/chatInvite",
+            },
         };
     }
     
@@ -207,16 +207,16 @@ export class ChatInviteResponseFactory {
     createAlreadyProcessedErrorResponse(status: ChatInviteStatus): APIErrorResponse {
         return {
             error: {
-                code: 'INVITE_ALREADY_PROCESSED',
+                code: "INVITE_ALREADY_PROCESSED",
                 message: `This chat invite has already been ${status.toLowerCase()}`,
                 details: {
                     currentStatus: status,
-                    allowedActions: status === ChatInviteStatusEnum.Pending ? ['accept', 'decline'] : []
+                    allowedActions: status === ChatInviteStatusEnum.Pending ? ["accept", "decline"] : [],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatInvite'
-            }
+                path: "/api/chatInvite",
+            },
         };
     }
     
@@ -226,17 +226,17 @@ export class ChatInviteResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatInvite'
-            }
+                path: "/api/chatInvite",
+            },
         };
     }
     
@@ -246,17 +246,17 @@ export class ChatInviteResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatInvite'
-            }
+                path: "/api/chatInvite",
+            },
         };
     }
     
@@ -287,13 +287,13 @@ export class ChatInviteResponseFactory {
                 canDelete: false,
                 canInvite: true,
                 canRead: true,
-                canUpdate: false
-            }
+                canUpdate: false,
+            },
         };
         
         return {
             ...defaultChat,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -333,14 +333,14 @@ export class ChatInviteResponseFactory {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         };
         
         return {
             ...defaultUser,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -363,13 +363,13 @@ export class ChatInviteResponseFactory {
             you: {
                 __typename: "ChatInviteYou",
                 canDelete: true,
-                canUpdate: true
-            }
+                canUpdate: true,
+            },
         };
         
         return {
             ...defaultChatInvite,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -395,8 +395,8 @@ export class ChatInviteResponseFactory {
         return Object.values(ChatInviteStatusEnum).map(status => 
             this.createMockChatInvite({
                 status,
-                updatedAt: status !== ChatInviteStatusEnum.Pending ? new Date().toISOString() : new Date(Date.now() - 86400000).toISOString()
-            })
+                updatedAt: status !== ChatInviteStatusEnum.Pending ? new Date().toISOString() : new Date(Date.now() - 86400000).toISOString(),
+            }),
         );
     }
     
@@ -416,25 +416,25 @@ export class ChatInviteResponseFactory {
         return {
             pending: this.createMockChatInvite({
                 status: ChatInviteStatusEnum.Pending,
-                createdAt: new Date(baseTime - 3600000).toISOString() // 1 hour ago
+                createdAt: new Date(baseTime - 3600000).toISOString(), // 1 hour ago
             }),
             accepted: this.createMockChatInvite({
                 status: ChatInviteStatusEnum.Accepted,
                 createdAt: new Date(baseTime - 86400000).toISOString(), // 1 day ago
-                updatedAt: new Date(baseTime - 3600000).toISOString() // 1 hour ago
+                updatedAt: new Date(baseTime - 3600000).toISOString(), // 1 hour ago
             }),
             declined: this.createMockChatInvite({
                 status: ChatInviteStatusEnum.Declined,
                 createdAt: new Date(baseTime - 172800000).toISOString(), // 2 days ago
-                updatedAt: new Date(baseTime - 86400000).toISOString() // 1 day ago
+                updatedAt: new Date(baseTime - 86400000).toISOString(), // 1 day ago
             }),
             expired: this.createMockChatInvite({
                 status: ChatInviteStatusEnum.Pending,
-                createdAt: new Date(baseTime - 604800000).toISOString() // 7 days ago (expired)
+                createdAt: new Date(baseTime - 604800000).toISOString(), // 7 days ago (expired)
             }),
             withCustomMessage: this.createMockChatInvite({
                 message: "Hey! I'd love to discuss the project with you. Can you join our team chat?",
-                status: ChatInviteStatusEnum.Pending
+                status: ChatInviteStatusEnum.Pending,
             }),
             teamChat: this.createMockChatInvite({
                 chat: this.createMockChat({
@@ -457,12 +457,12 @@ export class ChatInviteResponseFactory {
                             canUpdate: false,
                             isBookmarked: false,
                             isReacted: false,
-                            reaction: null
-                        }
-                    }
+                            reaction: null,
+                        },
+                    },
                 }),
-                status: ChatInviteStatusEnum.Pending
-            })
+                status: ChatInviteStatusEnum.Pending,
+            }),
         };
     }
     
@@ -491,7 +491,7 @@ export class ChatInviteResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -521,7 +521,7 @@ export class ChatInviteResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -543,7 +543,7 @@ export class ChatInviteMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create chat invite
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatInvite`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, async (req, res, ctx) => {
                 const body = await req.json() as ChatInviteCreateInput;
                 
                 // Validate input
@@ -551,7 +551,7 @@ export class ChatInviteMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -561,12 +561,12 @@ export class ChatInviteMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get chat invite by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatInvite/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const chatInvite = this.responseFactory.createMockChatInvite({ id: id as string });
@@ -574,12 +574,12 @@ export class ChatInviteMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update chat invite
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatInvite/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ChatInviteUpdateInput;
                 
@@ -588,73 +588,73 @@ export class ChatInviteMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
                 const chatInvite = this.responseFactory.createMockChatInvite({ 
                     id: id as string,
                     message: body.message || null,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(chatInvite);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Accept chat invite
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatInvite/:id/accept`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const chatInvite = this.responseFactory.createMockChatInvite({ 
                     id: id as string,
                     status: ChatInviteStatusEnum.Accepted,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(chatInvite);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Decline chat invite
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatInvite/:id/decline`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/decline`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const chatInvite = this.responseFactory.createMockChatInvite({ 
                     id: id as string,
                     status: ChatInviteStatusEnum.Declined,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(chatInvite);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete chat invite
-            rest.delete(`${this.responseFactory['baseUrl']}/api/chatInvite/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List chat invites
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatInvite`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const status = url.searchParams.get('status') as ChatInviteStatus;
-                const chatId = url.searchParams.get('chatId');
-                const userId = url.searchParams.get('userId');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as ChatInviteStatus;
+                const chatId = url.searchParams.get("chatId");
+                const userId = url.searchParams.get("userId");
                 
                 let chatInvites = this.responseFactory.createChatInvitesForAllStatuses();
                 
@@ -682,15 +682,15 @@ export class ChatInviteMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: chatInvites.length
-                    }
+                        totalCount: chatInvites.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -700,57 +700,57 @@ export class ChatInviteMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatInvite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        chatConnect: 'Chat ID is required',
-                        userConnect: 'User ID is required'
-                    }))
+                        chatConnect: "Chat ID is required",
+                        userConnect: "User ID is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatInvite/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatInvite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Already processed error
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatInvite/:id/accept`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
-                    ctx.json(this.responseFactory.createAlreadyProcessedErrorResponse(ChatInviteStatusEnum.Accepted))
+                    ctx.json(this.responseFactory.createAlreadyProcessedErrorResponse(ChatInviteStatusEnum.Accepted)),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatInvite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatInvite`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, async (req, res, ctx) => {
                 const body = await req.json() as ChatInviteCreateInput;
                 const chatInvite = this.responseFactory.createChatInviteFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(chatInvite);
@@ -758,25 +758,25 @@ export class ChatInviteMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatInvite/:id/accept`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 const chatInvite = this.responseFactory.createMockChatInvite({ 
                     id: id as string,
                     status: ChatInviteStatusEnum.Accepted,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 const response = this.responseFactory.createSuccessResponse(chatInvite);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -785,21 +785,21 @@ export class ChatInviteMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatInvite`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatInvite/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatInvite/:id/accept`, (req, res, ctx) => {
-                return res.networkError('Network error during accept operation');
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
+                return res.networkError("Network error during accept operation");
             }),
             
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatInvite/:id/decline`, (req, res, ctx) => {
-                return res.networkError('Network error during decline operation');
-            })
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/decline`, (req, res, ctx) => {
+                return res.networkError("Network error during decline operation");
+            }),
         ];
     }
     
@@ -808,13 +808,13 @@ export class ChatInviteMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -836,7 +836,7 @@ export const chatInviteResponseScenarios = {
     createSuccess: (chatInvite?: ChatInvite) => {
         const factory = new ChatInviteResponseFactory();
         return factory.createSuccessResponse(
-            chatInvite || factory.createMockChatInvite()
+            chatInvite || factory.createMockChatInvite(),
         );
     },
     
@@ -844,10 +844,10 @@ export const chatInviteResponseScenarios = {
         const factory = new ChatInviteResponseFactory();
         return factory.createSuccessResponse(
             factory.createMockChatInvite({
-                id: chatInviteId || `chatinvite_${factory['generateId']()}`,
+                id: chatInviteId || `chatinvite_${factory["generateId"]()}`,
                 status: ChatInviteStatusEnum.Accepted,
-                updatedAt: new Date().toISOString()
-            })
+                updatedAt: new Date().toISOString(),
+            }),
         );
     },
     
@@ -855,17 +855,17 @@ export const chatInviteResponseScenarios = {
         const factory = new ChatInviteResponseFactory();
         return factory.createSuccessResponse(
             factory.createMockChatInvite({
-                id: chatInviteId || `chatinvite_${factory['generateId']()}`,
+                id: chatInviteId || `chatinvite_${factory["generateId"]()}`,
                 status: ChatInviteStatusEnum.Declined,
-                updatedAt: new Date().toISOString()
-            })
+                updatedAt: new Date().toISOString(),
+            }),
         );
     },
     
     listSuccess: (chatInvites?: ChatInvite[]) => {
         const factory = new ChatInviteResponseFactory();
         return factory.createChatInviteListResponse(
-            chatInvites || factory.createChatInvitesForAllStatuses()
+            chatInvites || factory.createChatInvitesForAllStatuses(),
         );
     },
     
@@ -874,30 +874,30 @@ export const chatInviteResponseScenarios = {
         const factory = new ChatInviteResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                chatConnect: 'Chat ID is required',
-                userConnect: 'User ID is required'
-            }
+                chatConnect: "Chat ID is required",
+                userConnect: "User ID is required",
+            },
         );
     },
     
     notFoundError: (chatInviteId?: string) => {
         const factory = new ChatInviteResponseFactory();
         return factory.createNotFoundErrorResponse(
-            chatInviteId || 'non-existent-id'
+            chatInviteId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ChatInviteResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
     alreadyProcessedError: (status?: ChatInviteStatus) => {
         const factory = new ChatInviteResponseFactory();
         return factory.createAlreadyProcessedErrorResponse(
-            status || ChatInviteStatusEnum.Accepted
+            status || ChatInviteStatusEnum.Accepted,
         );
     },
     
@@ -916,7 +916,7 @@ export const chatInviteResponseScenarios = {
     allScenarios: () => {
         const factory = new ChatInviteResponseFactory();
         return factory.createChatInviteScenarios();
-    }
+    },
 };
 
 // Export factory instances for easy use

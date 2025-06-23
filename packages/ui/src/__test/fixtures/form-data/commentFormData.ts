@@ -5,20 +5,20 @@
  * and thread management with React Hook Form integration.
  */
 
-import { useForm, type UseFormReturn, type FieldErrors } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { act, waitFor } from '@testing-library/react';
+import { useForm, type UseFormReturn, type FieldErrors } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import { act, waitFor } from "@testing-library/react";
 import type { 
     CommentCreateInput,
     CommentUpdateInput,
     Comment,
-    CommentFor
-} from '@vrooli/shared';
+    CommentFor,
+} from "@vrooli/shared";
 import { 
     commentValidation,
-    CommentFor as CommentForEnum
-} from '@vrooli/shared';
+    CommentFor as CommentForEnum,
+} from "@vrooli/shared";
 
 /**
  * UI-specific form data for comment creation
@@ -45,7 +45,7 @@ export interface CommentFormData {
     // Attachments (UI-specific)
     attachments?: Array<{
         name: string;
-        type: 'image' | 'file' | 'link';
+        type: "image" | "file" | "link";
         url: string;
         description?: string;
     }>;
@@ -103,19 +103,19 @@ export class CommentFormDataFactory {
         return yup.object({
             content: yup
                 .string()
-                .required('Comment content is required')
-                .min(1, 'Comment cannot be empty')
-                .max(10000, 'Comment is too long'),
+                .required("Comment content is required")
+                .min(1, "Comment cannot be empty")
+                .max(10000, "Comment is too long"),
                 
             commentFor: yup
                 .mixed<CommentFor>()
                 .oneOf(Object.values(CommentForEnum))
-                .required('Comment target type is required'),
+                .required("Comment target type is required"),
                 
             forConnect: yup
                 .string()
-                .required('Comment target is required')
-                .min(1, 'Target ID cannot be empty'),
+                .required("Comment target is required")
+                .min(1, "Target ID cannot be empty"),
                 
             isReply: yup
                 .boolean()
@@ -123,10 +123,10 @@ export class CommentFormDataFactory {
                 
             parentId: yup
                 .string()
-                .when('isReply', {
+                .when("isReply", {
                     is: true,
-                    then: (schema) => schema.required('Parent comment ID is required for replies'),
-                    otherwise: (schema) => schema.optional()
+                    then: (schema) => schema.required("Parent comment ID is required for replies"),
+                    otherwise: (schema) => schema.optional(),
                 }),
                 
             useMarkdown: yup
@@ -135,30 +135,30 @@ export class CommentFormDataFactory {
                 
             mentionedUsers: yup
                 .array(yup.string())
-                .max(20, 'Maximum 20 user mentions allowed')
+                .max(20, "Maximum 20 user mentions allowed")
                 .optional(),
                 
             tags: yup
                 .array(
                     yup.string()
-                        .min(2, 'Tag must be at least 2 characters')
-                        .max(30, 'Tag is too long')
+                        .min(2, "Tag must be at least 2 characters")
+                        .max(30, "Tag is too long"),
                 )
-                .max(10, 'Maximum 10 tags allowed')
+                .max(10, "Maximum 10 tags allowed")
                 .optional(),
                 
             attachments: yup.array(
                 yup.object({
-                    name: yup.string().required('Attachment name is required'),
-                    type: yup.string().oneOf(['image', 'file', 'link']).required(),
-                    url: yup.string().url('Invalid URL').required('Attachment URL is required'),
-                    description: yup.string().max(200, 'Description too long').optional()
-                })
-            ).max(5, 'Maximum 5 attachments per comment').optional(),
+                    name: yup.string().required("Attachment name is required"),
+                    type: yup.string().oneOf(["image", "file", "link"]).required(),
+                    url: yup.string().url("Invalid URL").required("Attachment URL is required"),
+                    description: yup.string().max(200, "Description too long").optional(),
+                }),
+            ).max(5, "Maximum 5 attachments per comment").optional(),
             
             isPrivate: yup
                 .boolean()
-                .optional()
+                .optional(),
         }).defined();
     }
     
@@ -173,104 +173,104 @@ export class CommentFormDataFactory {
      * Create comment form data for different scenarios
      */
     createFormData(
-        scenario: 'empty' | 'minimal' | 'complete' | 'invalid' | 'reply' | 'withAttachments' | 
-                 'withMentions' | 'longComment' | 'privateComment' | 'markdownComment'
+        scenario: "empty" | "minimal" | "complete" | "invalid" | "reply" | "withAttachments" | 
+                 "withMentions" | "longComment" | "privateComment" | "markdownComment",
     ): CommentFormData {
         switch (scenario) {
-            case 'empty':
+            case "empty":
                 return {
-                    content: '',
+                    content: "",
                     commentFor: CommentForEnum.Api,
-                    forConnect: ''
+                    forConnect: "",
                 };
                 
-            case 'minimal':
+            case "minimal":
                 return {
-                    content: 'Great work!',
+                    content: "Great work!",
                     commentFor: CommentForEnum.Api,
-                    forConnect: 'api_123'
+                    forConnect: "api_123",
                 };
                 
-            case 'complete':
+            case "complete":
                 return {
-                    content: 'This is an excellent implementation! I particularly like how you handled the error cases. @alice might want to review the security implications.',
+                    content: "This is an excellent implementation! I particularly like how you handled the error cases. @alice might want to review the security implications.",
                     commentFor: CommentForEnum.Api,
-                    forConnect: 'api_123',
+                    forConnect: "api_123",
                     useMarkdown: true,
-                    mentionedUsers: ['alice'],
-                    tags: ['review', 'security', 'implementation'],
+                    mentionedUsers: ["alice"],
+                    tags: ["review", "security", "implementation"],
                     attachments: [
                         {
-                            name: 'Test Results',
-                            type: 'file',
-                            url: 'https://example.com/test-results.pdf',
-                            description: 'Security test results'
-                        }
+                            name: "Test Results",
+                            type: "file",
+                            url: "https://example.com/test-results.pdf",
+                            description: "Security test results",
+                        },
                     ],
-                    isPrivate: false
+                    isPrivate: false,
                 };
                 
-            case 'invalid':
+            case "invalid":
                 return {
-                    content: '', // Empty content
-                    commentFor: '' as any, // Invalid type
-                    forConnect: '', // Empty target
-                    tags: ['a', 'this-tag-is-way-too-long-and-exceeds-maximum-length'], // Invalid tags
+                    content: "", // Empty content
+                    commentFor: "" as any, // Invalid type
+                    forConnect: "", // Empty target
+                    tags: ["a", "this-tag-is-way-too-long-and-exceeds-maximum-length"], // Invalid tags
                     attachments: [
                         {
-                            name: '', // Empty name
-                            type: 'file',
-                            url: 'not-a-url' // Invalid URL
-                        }
-                    ]
+                            name: "", // Empty name
+                            type: "file",
+                            url: "not-a-url", // Invalid URL
+                        },
+                    ],
                 };
                 
-            case 'reply':
+            case "reply":
                 return {
-                    content: 'I agree with your assessment. Thanks for the detailed feedback!',
+                    content: "I agree with your assessment. Thanks for the detailed feedback!",
                     commentFor: CommentForEnum.Api,
-                    forConnect: 'api_123',
+                    forConnect: "api_123",
                     isReply: true,
-                    parentId: 'comment_parent_123'
+                    parentId: "comment_parent_123",
                 };
                 
-            case 'withAttachments':
+            case "withAttachments":
                 return {
-                    content: 'Here are some additional resources that might be helpful:',
+                    content: "Here are some additional resources that might be helpful:",
                     commentFor: CommentForEnum.Routine,
-                    forConnect: 'routine_456',
+                    forConnect: "routine_456",
                     attachments: [
                         {
-                            name: 'Documentation',
-                            type: 'link',
-                            url: 'https://docs.example.com',
-                            description: 'Official documentation'
+                            name: "Documentation",
+                            type: "link",
+                            url: "https://docs.example.com",
+                            description: "Official documentation",
                         },
                         {
-                            name: 'Screenshot',
-                            type: 'image',
-                            url: 'https://example.com/screenshot.png',
-                            description: 'UI example'
+                            name: "Screenshot",
+                            type: "image",
+                            url: "https://example.com/screenshot.png",
+                            description: "UI example",
                         },
                         {
-                            name: 'Code Sample',
-                            type: 'file',
-                            url: 'https://github.com/example/sample.js',
-                            description: 'Working example'
-                        }
-                    ]
+                            name: "Code Sample",
+                            type: "file",
+                            url: "https://github.com/example/sample.js",
+                            description: "Working example",
+                        },
+                    ],
                 };
                 
-            case 'withMentions':
+            case "withMentions":
                 return {
-                    content: 'Great collaboration between @alice, @bob, and @charlie on this feature. @team-leads please review when you have a chance.',
+                    content: "Great collaboration between @alice, @bob, and @charlie on this feature. @team-leads please review when you have a chance.",
                     commentFor: CommentForEnum.Project,
-                    forConnect: 'project_789',
-                    mentionedUsers: ['alice', 'bob', 'charlie', 'team-leads'],
-                    tags: ['collaboration', 'feature', 'review']
+                    forConnect: "project_789",
+                    mentionedUsers: ["alice", "bob", "charlie", "team-leads"],
+                    tags: ["collaboration", "feature", "review"],
                 };
                 
-            case 'longComment':
+            case "longComment":
                 return {
                     content: `# Detailed Analysis
 
@@ -293,21 +293,21 @@ This is a comprehensive review of the implementation. Here are my findings:
 
 Overall, this is solid work that demonstrates good understanding of the requirements.`,
                     commentFor: CommentForEnum.Api,
-                    forConnect: 'api_123',
+                    forConnect: "api_123",
                     useMarkdown: true,
-                    tags: ['review', 'analysis', 'feedback']
+                    tags: ["review", "analysis", "feedback"],
                 };
                 
-            case 'privateComment':
+            case "privateComment":
                 return {
-                    content: 'This contains sensitive information that should only be visible to the team.',
+                    content: "This contains sensitive information that should only be visible to the team.",
                     commentFor: CommentForEnum.Team,
-                    forConnect: 'team_999',
+                    forConnect: "team_999",
                     isPrivate: true,
-                    tags: ['internal', 'confidential']
+                    tags: ["internal", "confidential"],
                 };
                 
-            case 'markdownComment':
+            case "markdownComment":
                 return {
                     content: `Here's a **formatted comment** with:
 
@@ -324,9 +324,9 @@ function example() {
 
 > This is a blockquote with important information.`,
                     commentFor: CommentForEnum.Routine,
-                    forConnect: 'routine_456',
+                    forConnect: "routine_456",
                     useMarkdown: true,
-                    tags: ['documentation', 'example']
+                    tags: ["documentation", "example"],
                 };
                 
             default:
@@ -338,22 +338,22 @@ function example() {
      * Create form state for different scenarios
      */
     createFormState(
-        scenario: 'pristine' | 'dirty' | 'submitting' | 'withErrors' | 'valid' | 'editing' | 'previewing' | 'nearLimit'
+        scenario: "pristine" | "dirty" | "submitting" | "withErrors" | "valid" | "editing" | "previewing" | "nearLimit",
     ): CommentFormState {
-        const baseFormData = this.createFormData('complete');
+        const baseFormData = this.createFormData("complete");
         
         switch (scenario) {
-            case 'pristine':
+            case "pristine":
                 return {
-                    values: this.createFormData('empty'),
+                    values: this.createFormData("empty"),
                     errors: {},
                     touched: {},
                     isDirty: false,
                     isSubmitting: false,
-                    isValid: false
+                    isValid: false,
                 };
                 
-            case 'dirty':
+            case "dirty":
                 return {
                     values: baseFormData,
                     errors: {},
@@ -363,58 +363,58 @@ function example() {
                     isValid: true,
                     commentState: {
                         characterCount: baseFormData.content.length,
-                        maxLength: 10000
-                    }
+                        maxLength: 10000,
+                    },
                 };
                 
-            case 'submitting':
+            case "submitting":
                 return {
                     values: baseFormData,
                     errors: {},
                     touched: Object.keys(baseFormData).reduce((acc, key) => ({
                         ...acc,
-                        [key]: true
+                        [key]: true,
                     }), {}),
                     isDirty: true,
                     isSubmitting: true,
-                    isValid: true
+                    isValid: true,
                 };
                 
-            case 'withErrors':
+            case "withErrors":
                 return {
-                    values: this.createFormData('invalid'),
+                    values: this.createFormData("invalid"),
                     errors: {
-                        content: 'Comment content is required',
-                        commentFor: 'Comment target type is required',
-                        forConnect: 'Comment target is required',
-                        'attachments[0].name': 'Attachment name is required',
-                        'attachments[0].url': 'Invalid URL'
+                        content: "Comment content is required",
+                        commentFor: "Comment target type is required",
+                        forConnect: "Comment target is required",
+                        "attachments[0].name": "Attachment name is required",
+                        "attachments[0].url": "Invalid URL",
                     },
                     touched: { 
                         content: true, 
                         commentFor: true, 
                         forConnect: true,
-                        attachments: true
+                        attachments: true,
                     },
                     isDirty: true,
                     isSubmitting: false,
-                    isValid: false
+                    isValid: false,
                 };
                 
-            case 'valid':
+            case "valid":
                 return {
                     values: baseFormData,
                     errors: {},
                     touched: Object.keys(baseFormData).reduce((acc, key) => ({
                         ...acc,
-                        [key]: true
+                        [key]: true,
                     }), {}),
                     isDirty: true,
                     isSubmitting: false,
-                    isValid: true
+                    isValid: true,
                 };
                 
-            case 'editing':
+            case "editing":
                 return {
                     values: baseFormData,
                     errors: {},
@@ -424,15 +424,15 @@ function example() {
                     isValid: true,
                     commentState: {
                         isEditing: true,
-                        originalContent: 'Original comment content before editing',
+                        originalContent: "Original comment content before editing",
                         characterCount: baseFormData.content.length,
-                        maxLength: 10000
-                    }
+                        maxLength: 10000,
+                    },
                 };
                 
-            case 'previewing':
+            case "previewing":
                 return {
-                    values: this.createFormData('markdownComment'),
+                    values: this.createFormData("markdownComment"),
                     errors: {},
                     touched: { content: true },
                     isDirty: true,
@@ -440,17 +440,17 @@ function example() {
                     isValid: true,
                     previewState: {
                         isPreviewMode: true,
-                        renderedContent: '<h1>Rendered HTML content...</h1>',
-                        isRendering: false
-                    }
+                        renderedContent: "<h1>Rendered HTML content...</h1>",
+                        isRendering: false,
+                    },
                 };
                 
-            case 'nearLimit':
-                const longContent = 'A'.repeat(9800); // Near 10000 char limit
+            case "nearLimit":
+                const longContent = "A".repeat(9800); // Near 10000 char limit
                 return {
                     values: {
                         ...baseFormData,
-                        content: longContent
+                        content: longContent,
                     },
                     errors: {},
                     touched: { content: true },
@@ -459,8 +459,8 @@ function example() {
                     isValid: true,
                     commentState: {
                         characterCount: longContent.length,
-                        maxLength: 10000
-                    }
+                        maxLength: 10000,
+                    },
                 };
                 
             default:
@@ -472,24 +472,24 @@ function example() {
      * Create React Hook Form instance
      */
     createFormInstance(
-        initialData?: Partial<CommentFormData>
+        initialData?: Partial<CommentFormData>,
     ): UseFormReturn<CommentFormData> {
         const defaultValues: CommentFormData = {
-            content: '',
+            content: "",
             commentFor: CommentForEnum.Api,
-            forConnect: '',
+            forConnect: "",
             tags: [],
             mentionedUsers: [],
             attachments: [],
-            ...initialData
+            ...initialData,
         };
         
         return useForm<CommentFormData>({
-            mode: 'onChange',
-            reValidateMode: 'onChange',
+            mode: "onChange",
+            reValidateMode: "onChange",
             shouldFocusError: true,
             defaultValues,
-            resolver: yupResolver(this.createCommentSchema())
+            resolver: yupResolver(this.createCommentSchema()),
         });
     }
     
@@ -497,7 +497,7 @@ function example() {
      * Validate form data using real validation
      */
     async validateFormData(
-        formData: CommentFormData
+        formData: CommentFormData,
     ): Promise<{
         isValid: boolean;
         errors?: Record<string, string>;
@@ -515,7 +515,7 @@ function example() {
             
             return {
                 isValid: true,
-                apiInput
+                apiInput,
             };
         } catch (error: any) {
             const errors: Record<string, string> = {};
@@ -532,7 +532,7 @@ function example() {
             
             return {
                 isValid: false,
-                errors
+                errors,
             };
         }
     }
@@ -547,9 +547,9 @@ function example() {
             forConnect: formData.forConnect,
             translationsCreate: [{
                 id: this.generateId(),
-                language: 'en',
-                text: formData.content
-            }]
+                language: "en",
+                text: formData.content,
+            }],
         };
         
         // Add parent if it's a reply
@@ -589,7 +589,7 @@ function example() {
  * Form interaction simulator for comment forms
  */
 export class CommentFormInteractionSimulator {
-    private interactionDelay: number = 100;
+    private interactionDelay = 100;
     
     constructor(delay?: number) {
         this.interactionDelay = delay || 100;
@@ -601,20 +601,20 @@ export class CommentFormInteractionSimulator {
     async simulateCommentTyping(
         formInstance: UseFormReturn<CommentFormData>,
         content: string,
-        options?: { withPauses?: boolean; typingSpeed?: number }
+        options?: { withPauses?: boolean; typingSpeed?: number },
     ): Promise<void> {
         const { withPauses = true, typingSpeed = 75 } = options || {};
         
         // Clear field first
-        await this.fillField(formInstance, 'content', '');
+        await this.fillField(formInstance, "content", "");
         
         for (let i = 1; i <= content.length; i++) {
             const partialContent = content.substring(0, i);
-            await this.fillField(formInstance, 'content', partialContent);
+            await this.fillField(formInstance, "content", partialContent);
             
             // Add realistic pauses at sentence endings and paragraphs
             if (withPauses) {
-                if (content.charAt(i - 1) === '\n') {
+                if (content.charAt(i - 1) === "\n") {
                     await new Promise(resolve => setTimeout(resolve, typingSpeed * 5));
                 } else if (/[.!?]/.test(content.charAt(i - 1))) {
                     await new Promise(resolve => setTimeout(resolve, typingSpeed * 3));
@@ -634,7 +634,7 @@ export class CommentFormInteractionSimulator {
      */
     async simulateAddingAttachments(
         formInstance: UseFormReturn<CommentFormData>,
-        attachments: CommentFormData['attachments']
+        attachments: CommentFormData["attachments"],
     ): Promise<void> {
         if (!attachments) return;
         
@@ -657,10 +657,10 @@ export class CommentFormInteractionSimulator {
      * Simulate markdown preview toggle
      */
     async simulateMarkdownPreview(
-        formInstance: UseFormReturn<CommentFormData>
+        formInstance: UseFormReturn<CommentFormData>,
     ): Promise<void> {
         // Enable markdown mode
-        await this.fillField(formInstance, 'useMarkdown', true);
+        await this.fillField(formInstance, "useMarkdown", true);
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // Simulate preview rendering delay
@@ -673,11 +673,11 @@ export class CommentFormInteractionSimulator {
     async simulateReplyWorkflow(
         formInstance: UseFormReturn<CommentFormData>,
         parentCommentId: string,
-        replyContent: string
+        replyContent: string,
     ): Promise<void> {
         // Set up reply context
-        await this.fillField(formInstance, 'isReply', true);
-        await this.fillField(formInstance, 'parentId', parentCommentId);
+        await this.fillField(formInstance, "isReply", true);
+        await this.fillField(formInstance, "parentId", parentCommentId);
         
         // Type reply content
         await this.simulateCommentTyping(formInstance, replyContent, { typingSpeed: 50 });
@@ -689,13 +689,13 @@ export class CommentFormInteractionSimulator {
     private async fillField(
         formInstance: UseFormReturn<any>,
         fieldName: string,
-        value: any
+        value: any,
     ): Promise<void> {
         act(() => {
             formInstance.setValue(fieldName, value, {
                 shouldDirty: true,
                 shouldTouch: true,
-                shouldValidate: true
+                shouldValidate: true,
             });
         });
         
@@ -712,30 +712,30 @@ export const commentFormSimulator = new CommentFormInteractionSimulator();
 // Export pre-configured scenarios
 export const commentFormScenarios = {
     // Basic scenarios
-    emptyComment: () => commentFormFactory.createFormState('pristine'),
-    validComment: () => commentFormFactory.createFormState('valid'),
-    commentWithErrors: () => commentFormFactory.createFormState('withErrors'),
-    submittingComment: () => commentFormFactory.createFormState('submitting'),
+    emptyComment: () => commentFormFactory.createFormState("pristine"),
+    validComment: () => commentFormFactory.createFormState("valid"),
+    commentWithErrors: () => commentFormFactory.createFormState("withErrors"),
+    submittingComment: () => commentFormFactory.createFormState("submitting"),
     
     // Comment types
-    minimalComment: () => commentFormFactory.createFormData('minimal'),
-    completeComment: () => commentFormFactory.createFormData('complete'),
-    replyComment: () => commentFormFactory.createFormData('reply'),
-    markdownComment: () => commentFormFactory.createFormData('markdownComment'),
-    commentWithAttachments: () => commentFormFactory.createFormData('withAttachments'),
-    commentWithMentions: () => commentFormFactory.createFormData('withMentions'),
-    longComment: () => commentFormFactory.createFormData('longComment'),
-    privateComment: () => commentFormFactory.createFormData('privateComment'),
+    minimalComment: () => commentFormFactory.createFormData("minimal"),
+    completeComment: () => commentFormFactory.createFormData("complete"),
+    replyComment: () => commentFormFactory.createFormData("reply"),
+    markdownComment: () => commentFormFactory.createFormData("markdownComment"),
+    commentWithAttachments: () => commentFormFactory.createFormData("withAttachments"),
+    commentWithMentions: () => commentFormFactory.createFormData("withMentions"),
+    longComment: () => commentFormFactory.createFormData("longComment"),
+    privateComment: () => commentFormFactory.createFormData("privateComment"),
     
     // Form states
-    editingComment: () => commentFormFactory.createFormState('editing'),
-    previewingComment: () => commentFormFactory.createFormState('previewing'),
-    nearCharacterLimit: () => commentFormFactory.createFormState('nearLimit'),
+    editingComment: () => commentFormFactory.createFormState("editing"),
+    previewingComment: () => commentFormFactory.createFormState("previewing"),
+    nearCharacterLimit: () => commentFormFactory.createFormState("nearLimit"),
     
     // Interactive workflows
     async quickCommentWorkflow(formInstance: UseFormReturn<CommentFormData>) {
         const simulator = new CommentFormInteractionSimulator();
-        const content = 'Great work on this implementation!';
+        const content = "Great work on this implementation!";
         await simulator.simulateCommentTyping(formInstance, content, { typingSpeed: 40 });
         return content;
     },
@@ -761,8 +761,8 @@ This looks excellent! A few minor suggestions:
         const simulator = new CommentFormInteractionSimulator();
         await simulator.simulateReplyWorkflow(
             formInstance,
-            'parent_comment_123',
-            'Thanks for the feedback! I\'ll address those points in the next iteration.'
+            "parent_comment_123",
+            "Thanks for the feedback! I'll address those points in the next iteration.",
         );
     },
     
@@ -773,5 +773,5 @@ This looks excellent! A few minor suggestions:
     
     calculateReadingTime(content: string) {
         return commentFormFactory.calculateReadingTime(content);
-    }
+    },
 };

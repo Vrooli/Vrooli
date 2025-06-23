@@ -40,6 +40,7 @@ export * from "./testIdGenerator.js";
 
 // Get all swarm configurations
 import { minimalSwarmConfig, completeSwarmConfig, customerSupportSwarmDb } from "./tier1-coordination/swarms/swarmFixtures.js";
+
 export const swarmConfigs = {
     minimal: minimalSwarmConfig,
     complete: completeSwarmConfig,
@@ -48,14 +49,17 @@ export const swarmConfigs = {
 
 // Get all routine fixtures by evolution stage
 import { getRoutinesByEvolutionStage } from "./tier2-process/index.js";
+
 export const routinesByStage = getRoutinesByEvolutionStage();
 
 // Get evolution metrics
 import { evolutionMetrics } from "./emergent-capabilities/index.js";
+
 export { evolutionMetrics };
 
 // Get integration flows
 import { integrationFlows, compoundGrowthMetrics } from "./integration-scenarios/index.js";
+
 export { integrationFlows, compoundGrowthMetrics };
 
 /**
@@ -72,13 +76,13 @@ export function demonstrateThreeTierFlow(scenario: keyof typeof integrationFlows
             `3. Tier 2 (Process): ${flow.tier2Action}`,
             `4. Tier 3 (Execution): ${flow.tier3Action}`,
             `5. Emergent: ${flow.emergentAction}`,
-            `6. Result: ${flow.outcome}`
+            `6. Result: ${flow.outcome}`,
         ].join("\n"),
         architecture: {
             tier1: "AI metacognition for dynamic coordination",
             tier2: "Universal workflow execution",
             tier3: "Context-aware strategy execution",
-            emergent: "Self-improving capabilities"
-        }
+            emergent: "Self-improving capabilities",
+        },
     };
 }

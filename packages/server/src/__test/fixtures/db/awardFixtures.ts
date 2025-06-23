@@ -195,7 +195,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
         if (data.progress === undefined) errors.push("Award progress is required");
 
         // Check business logic
-        if (typeof data.progress === 'number') {
+        if (typeof data.progress === "number") {
             if (data.progress < 0) {
                 errors.push("Progress cannot be negative");
             }
@@ -211,7 +211,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
         }
 
         // Check category
-        if (data.category && typeof data.category === 'string') {
+        if (data.category && typeof data.category === "string") {
             if (data.category.length === 0) {
                 errors.push("Category cannot be empty");
             }
@@ -227,7 +227,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
     static createMinimal(
         userId: string,
         category: string,
-        overrides?: Partial<Prisma.AwardCreateInput>
+        overrides?: Partial<Prisma.AwardCreateInput>,
     ): Prisma.AwardCreateInput {
         const factory = new AwardDbFactory();
         return factory.createMinimal({
@@ -241,7 +241,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
         userId: string,
         category: string,
         timeCompleted: Date,
-        overrides?: Partial<Prisma.AwardCreateInput>
+        overrides?: Partial<Prisma.AwardCreateInput>,
     ): Prisma.AwardCreateInput {
         return this.createMinimal(userId, category, {
             progress: 100,
@@ -254,7 +254,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.AwardCreateInput> {
         userId: string,
         category: string,
         progress: number,
-        overrides?: Partial<Prisma.AwardCreateInput>
+        overrides?: Partial<Prisma.AwardCreateInput>,
     ): Prisma.AwardCreateInput {
         return this.createMinimal(userId, category, {
             progress,
@@ -271,7 +271,7 @@ export async function seedAwards(
     options: {
         userId: string;
         categories: Array<{ name: string; progress?: number; completed?: boolean }>;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const awards = [];
     let completedCount = 0;
@@ -285,20 +285,20 @@ export async function seedAwards(
             awardData = AwardDbFactory.createCompleted(
                 options.userId,
                 cat.name,
-                new Date()
+                new Date(),
             );
             completedCount++;
         } else if (cat.progress !== undefined) {
             awardData = AwardDbFactory.createInProgress(
                 options.userId,
                 cat.name,
-                cat.progress
+                cat.progress,
             );
             inProgressCount++;
         } else {
             awardData = AwardDbFactory.createMinimal(
                 options.userId,
-                cat.name
+                cat.name,
             );
             startedCount++;
         }

@@ -110,7 +110,7 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                 "natural_language_understanding",
                 "intent_classification", 
                 "urgency_assessment",
-                "sentiment_analysis"
+                "sentiment_analysis",
             ],
             contributionsToCollaboration: [
                 {
@@ -118,17 +118,17 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                     description: "Categorizes customer issues and determines urgency/sentiment",
                     confidence: 0.89,
                     evidence: ["nlp_models", "historical_classifications", "sentiment_scores"],
-                    dependencies: []
-                }
+                    dependencies: [],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "solution_specialist",
                     learnedCapability: "solution_feasibility_assessment", 
                     confidenceGain: 0.15,
-                    applicationContext: ["triage_improvement", "priority_adjustment"]
-                }
-            ]
+                    applicationContext: ["triage_improvement", "priority_adjustment"],
+                },
+            ],
         },
         {
             agentId: "technical_solution_specialist",
@@ -137,7 +137,7 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                 "technical_troubleshooting",
                 "api_integration_expertise",
                 "system_architecture_knowledge",
-                "debugging_methodologies"
+                "debugging_methodologies",
             ],
             contributionsToCollaboration: [
                 {
@@ -145,17 +145,17 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                     description: "Provides technical solutions and implementation guidance",
                     confidence: 0.92,
                     evidence: ["technical_documentation", "past_solutions", "system_knowledge"],
-                    dependencies: ["issue_classification_specialist"]
-                }
+                    dependencies: ["issue_classification_specialist"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "customer_communication_specialist",
                     learnedCapability: "technical_explanation_simplification",
                     confidenceGain: 0.18,
-                    applicationContext: ["customer_facing_documentation", "explanation_clarity"]
-                }
-            ]
+                    applicationContext: ["customer_facing_documentation", "explanation_clarity"],
+                },
+            ],
         },
         {
             agentId: "customer_communication_specialist",
@@ -164,7 +164,7 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                 "empathetic_communication",
                 "technical_translation",
                 "escalation_management",
-                "customer_journey_optimization"
+                "customer_journey_optimization",
             ],
             contributionsToCollaboration: [
                 {
@@ -172,17 +172,17 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                     description: "Optimizes communication for customer satisfaction and clarity",
                     confidence: 0.86,
                     evidence: ["communication_templates", "satisfaction_scores", "response_effectiveness"],
-                    dependencies: ["technical_solution_specialist", "issue_classification_specialist"]
-                }
+                    dependencies: ["technical_solution_specialist", "issue_classification_specialist"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "quality_assurance_monitor",
                     learnedCapability: "quality_prediction_integration",
                     confidenceGain: 0.12,
-                    applicationContext: ["proactive_quality_improvement", "response_optimization"]
-                }
-            ]
+                    applicationContext: ["proactive_quality_improvement", "response_optimization"],
+                },
+            ],
         },
         {
             agentId: "quality_assurance_monitor",
@@ -191,7 +191,7 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                 "quality_assessment",
                 "bias_detection",
                 "performance_monitoring",
-                "continuous_improvement_identification"
+                "continuous_improvement_identification",
             ],
             contributionsToCollaboration: [
                 {
@@ -199,17 +199,17 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                     description: "Monitors and validates solution quality and customer satisfaction",
                     confidence: 0.84,
                     evidence: ["quality_metrics", "customer_feedback", "performance_analytics"],
-                    dependencies: ["customer_communication_specialist"]
-                }
+                    dependencies: ["customer_communication_specialist"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "issue_classification_specialist",
                     learnedCapability: "predictive_quality_assessment",
                     confidenceGain: 0.20,
-                    applicationContext: ["early_quality_prediction", "proactive_intervention"]
-                }
-            ]
+                    applicationContext: ["early_quality_prediction", "proactive_intervention"],
+                },
+            ],
         },
         {
             agentId: "workflow_coordination_specialist",
@@ -218,7 +218,7 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                 "agent_coordination",
                 "resource_allocation",
                 "workflow_optimization",
-                "conflict_resolution"
+                "conflict_resolution",
             ],
             contributionsToCollaboration: [
                 {
@@ -226,24 +226,24 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                     description: "Coordinates agent activities and optimizes overall workflow efficiency",
                     confidence: 0.81,
                     evidence: ["workflow_analytics", "coordination_patterns", "efficiency_metrics"],
-                    dependencies: ["*"] // Depends on all other agents
-                }
+                    dependencies: ["*"], // Depends on all other agents
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "technical_solution_specialist",
                     learnedCapability: "technical_complexity_estimation",
                     confidenceGain: 0.14,
-                    applicationContext: ["resource_allocation", "timeline_estimation"]
+                    applicationContext: ["resource_allocation", "timeline_estimation"],
                 },
                 {
                     fromAgent: "customer_communication_specialist", 
                     learnedCapability: "customer_satisfaction_prediction",
                     confidenceGain: 0.16,
-                    applicationContext: ["workflow_prioritization", "escalation_prevention"]
-                }
-            ]
-        }
+                    applicationContext: ["workflow_prioritization", "escalation_prevention"],
+                },
+            ],
+        },
     ],
     
     sharedState: {
@@ -256,9 +256,9 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                 supportingEvidence: [
                     "8_weeks_of_incident_data",
                     "deployment_schedule_correlation",
-                    "infrastructure_monitoring"
+                    "infrastructure_monitoring",
                 ],
-                consensusLevel: 0.95
+                consensusLevel: 0.95,
             },
             {
                 id: TestIdFactory.event(7002),
@@ -268,10 +268,10 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                 supportingEvidence: [
                     "satisfaction_survey_results",
                     "communication_effectiveness_analysis",
-                    "visual_aid_usage_correlation"
+                    "visual_aid_usage_correlation",
                 ],
-                consensusLevel: 0.89
-            }
+                consensusLevel: 0.89,
+            },
         ],
         
         patterns: [
@@ -281,7 +281,7 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                 discoveredBy: ["workflow_coordination_specialist"],
                 validatedBy: ["technical_solution_specialist", "quality_assurance_monitor"],
                 confidence: 0.85,
-                applicableContexts: ["technical_support", "enterprise_customers", "complex_integrations"]
+                applicableContexts: ["technical_support", "enterprise_customers", "complex_integrations"],
             },
             {
                 id: TestIdFactory.event(7004),
@@ -289,8 +289,8 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                 discoveredBy: ["customer_communication_specialist"],
                 validatedBy: ["issue_classification_specialist", "quality_assurance_monitor"],
                 confidence: 0.82,
-                applicableContexts: ["communication_optimization", "escalation_prevention"]
-            }
+                applicableContexts: ["communication_optimization", "escalation_prevention"],
+            },
         ],
         
         solutions: [
@@ -302,27 +302,27 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                     implementation: {
                         routing: "classify_and_route_to_specialists",
                         automation: "handle_common_issues_deterministically",
-                        escalation: "seamless_handoff_with_context_preservation"
-                    }
+                        escalation: "seamless_handoff_with_context_preservation",
+                    },
                 },
                 contributingAgents: [
                     "workflow_coordination_specialist",
                     "technical_solution_specialist", 
-                    "issue_classification_specialist"
+                    "issue_classification_specialist",
                 ],
                 consensusScore: 0.91,
                 implementationSteps: [
                     "Deploy enhanced classification model",
                     "Create automated response templates",
                     "Implement context-preserving handoff system",
-                    "Monitor effectiveness and adjust"
+                    "Monitor effectiveness and adjust",
                 ],
                 expectedOutcome: {
                     responseTime: "reduce_by_40_percent",
                     customerSatisfaction: "improve_by_15_percent", 
-                    agentEfficiency: "improve_by_35_percent"
-                }
-            }
+                    agentEfficiency: "improve_by_35_percent",
+                },
+            },
         ],
         
         decisions: [
@@ -334,14 +334,14 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
                     "technical_solution_specialist": "approve",
                     "customer_communication_specialist": "approve",
                     "quality_assurance_monitor": "approve",
-                    "workflow_coordination_specialist": "approve"
+                    "workflow_coordination_specialist": "approve",
                 },
                 rationale: "Unanimous agreement that enterprise customers would benefit from proactive monitoring",
-                implementedBy: ["technical_solution_specialist", "workflow_coordination_specialist"]
-            }
+                implementedBy: ["technical_solution_specialist", "workflow_coordination_specialist"],
+            },
         ],
         
-        lastUpdated: new Date("2024-12-07T16:30:00Z")
+        lastUpdated: new Date("2024-12-07T16:30:00Z"),
     },
     
     emergentCapabilities: [
@@ -350,8 +350,8 @@ export const CUSTOMER_SUPPORT_COLLABORATION: AgentCollaboration = {
         "Self-optimizing workflow efficiency through agent coordination",
         "Cross-domain knowledge synthesis (technical + communication + quality)",
         "Proactive quality assurance through multi-agent validation",
-        "Dynamic specialization based on issue complexity patterns"
-    ]
+        "Dynamic specialization based on issue complexity patterns",
+    ],
 };
 
 /**
@@ -374,7 +374,7 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                 "regulatory_interpretation",
                 "compliance_strategy_development",
                 "risk_assessment",
-                "audit_coordination"
+                "audit_coordination",
             ],
             contributionsToCollaboration: [
                 {
@@ -382,17 +382,17 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                     description: "Provides strategic compliance direction and risk assessment",
                     confidence: 0.94,
                     evidence: ["regulatory_updates", "audit_history", "legal_precedents"],
-                    dependencies: []
-                }
+                    dependencies: [],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "phi_scanning_specialist",
                     learnedCapability: "automated_risk_detection_patterns",
                     confidenceGain: 0.22,
-                    applicationContext: ["strategic_risk_planning", "compliance_automation"]
-                }
-            ]
+                    applicationContext: ["strategic_risk_planning", "compliance_automation"],
+                },
+            ],
         },
         {
             agentId: "phi_scanning_specialist",
@@ -401,7 +401,7 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                 "phi_detection",
                 "data_classification",
                 "automated_scanning",
-                "false_positive_reduction"
+                "false_positive_reduction",
             ],
             contributionsToCollaboration: [
                 {
@@ -409,17 +409,17 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                     description: "Detects and classifies PHI in all system interactions",
                     confidence: 0.96,
                     evidence: ["ml_models", "scanning_results", "validation_datasets"],
-                    dependencies: []
-                }
+                    dependencies: [],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "audit_trail_monitor",
                     learnedCapability: "context_aware_scanning",
                     confidenceGain: 0.18,
-                    applicationContext: ["audit_preparation", "risk_contextualization"]
-                }
-            ]
+                    applicationContext: ["audit_preparation", "risk_contextualization"],
+                },
+            ],
         },
         {
             agentId: "audit_trail_monitor",
@@ -428,7 +428,7 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                 "access_monitoring",
                 "audit_log_analysis",
                 "compliance_reporting",
-                "anomaly_detection"
+                "anomaly_detection",
             ],
             contributionsToCollaboration: [
                 {
@@ -436,17 +436,17 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                     description: "Monitors all access and maintains comprehensive audit trails",
                     confidence: 0.92,
                     evidence: ["access_logs", "audit_reports", "compliance_metrics"],
-                    dependencies: ["phi_scanning_specialist"]
-                }
+                    dependencies: ["phi_scanning_specialist"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "incident_response_coordinator",
                     learnedCapability: "proactive_incident_detection",
                     confidenceGain: 0.25,
-                    applicationContext: ["early_warning_systems", "prevention_strategies"]
-                }
-            ]
+                    applicationContext: ["early_warning_systems", "prevention_strategies"],
+                },
+            ],
         },
         {
             agentId: "incident_response_coordinator",
@@ -455,7 +455,7 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                 "incident_detection",
                 "response_coordination",
                 "stakeholder_communication",
-                "remediation_planning"
+                "remediation_planning",
             ],
             contributionsToCollaboration: [
                 {
@@ -463,18 +463,18 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                     description: "Coordinates rapid response to compliance incidents",
                     confidence: 0.88,
                     evidence: ["response_playbooks", "incident_history", "resolution_effectiveness"],
-                    dependencies: ["audit_trail_monitor", "phi_scanning_specialist"]
-                }
+                    dependencies: ["audit_trail_monitor", "phi_scanning_specialist"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "hipaa_compliance_director",
                     learnedCapability: "regulatory_impact_assessment",
                     confidenceGain: 0.19,
-                    applicationContext: ["incident_severity_evaluation", "response_prioritization"]
-                }
-            ]
-        }
+                    applicationContext: ["incident_severity_evaluation", "response_prioritization"],
+                },
+            ],
+        },
     ],
     
     sharedState: {
@@ -486,10 +486,10 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                 contributingAgents: ["phi_scanning_specialist", "audit_trail_monitor"],
                 supportingEvidence: [
                     "6_month_incident_prevention_data",
-                    "automated_vs_manual_detection_comparison"
+                    "automated_vs_manual_detection_comparison",
                 ],
-                consensusLevel: 0.98
-            }
+                consensusLevel: 0.98,
+            },
         ],
         
         patterns: [
@@ -499,8 +499,8 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                 discoveredBy: ["audit_trail_monitor"],
                 validatedBy: ["hipaa_compliance_director", "incident_response_coordinator"],
                 confidence: 0.89,
-                applicableContexts: ["deployment_planning", "compliance_testing", "change_management"]
-            }
+                applicableContexts: ["deployment_planning", "compliance_testing", "change_management"],
+            },
         ],
         
         solutions: [
@@ -510,25 +510,25 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
                 solution: {
                     strategy: "automated_compliance_pipeline_with_human_oversight",
                     automation_coverage: 0.92,
-                    human_review_for: ["edge_cases", "high_risk_scenarios", "new_data_types"]
+                    human_review_for: ["edge_cases", "high_risk_scenarios", "new_data_types"],
                 },
                 contributingAgents: ["phi_scanning_specialist", "hipaa_compliance_director"],
                 consensusScore: 0.94,
                 implementationSteps: [
                     "Expand automated scanning coverage",
                     "Implement risk-based human review triggers",
-                    "Create compliance dashboard for oversight"
+                    "Create compliance dashboard for oversight",
                 ],
                 expectedOutcome: {
                     scalability: "handle_10x_data_growth",
                     accuracy: "maintain_96_percent_plus",
-                    efficiency: "reduce_manual_effort_by_75_percent"
-                }
-            }
+                    efficiency: "reduce_manual_effort_by_75_percent",
+                },
+            },
         ],
         
         decisions: [],
-        lastUpdated: new Date("2024-12-07T14:15:00Z")
+        lastUpdated: new Date("2024-12-07T14:15:00Z"),
     },
     
     emergentCapabilities: [
@@ -537,8 +537,8 @@ export const HEALTHCARE_COMPLIANCE_COLLABORATION: AgentCollaboration = {
         "Real-time compliance status across all system components",
         "Self-improving incident response through pattern learning",
         "Proactive compliance education and guidance for users",
-        "Intelligent compliance testing based on risk patterns"
-    ]
+        "Intelligent compliance testing based on risk patterns",
+    ],
 };
 
 /**
@@ -561,7 +561,7 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                 "volatility_modeling",
                 "market_trend_analysis",
                 "correlation_analysis",
-                "regime_detection"
+                "regime_detection",
             ],
             contributionsToCollaboration: [
                 {
@@ -569,17 +569,17 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                     description: "Provides real-time market volatility and trend analysis",
                     confidence: 0.91,
                     evidence: ["market_data_feeds", "volatility_models", "trend_indicators"],
-                    dependencies: []
-                }
+                    dependencies: [],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "regulatory_compliance_monitor",
                     learnedCapability: "regulatory_impact_on_volatility",
                     confidenceGain: 0.17,
-                    applicationContext: ["volatility_forecasting", "regulatory_event_modeling"]
-                }
-            ]
+                    applicationContext: ["volatility_forecasting", "regulatory_event_modeling"],
+                },
+            ],
         },
         {
             agentId: "credit_risk_assessor",
@@ -588,7 +588,7 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                 "credit_scoring",
                 "default_probability_modeling",
                 "exposure_calculation",
-                "portfolio_risk_aggregation"
+                "portfolio_risk_aggregation",
             ],
             contributionsToCollaboration: [
                 {
@@ -596,17 +596,17 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                     description: "Assesses credit risk across all positions and counterparties",
                     confidence: 0.93,
                     evidence: ["credit_models", "default_history", "exposure_data"],
-                    dependencies: []
-                }
+                    dependencies: [],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "market_volatility_analyst",
                     learnedCapability: "market_stress_impact_on_credit",
                     confidenceGain: 0.21,
-                    applicationContext: ["stressed_credit_modeling", "correlation_risk"]
-                }
-            ]
+                    applicationContext: ["stressed_credit_modeling", "correlation_risk"],
+                },
+            ],
         },
         {
             agentId: "portfolio_optimization_engine",
@@ -615,7 +615,7 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                 "risk_return_optimization",
                 "constraint_satisfaction",
                 "scenario_analysis",
-                "dynamic_rebalancing"
+                "dynamic_rebalancing",
             ],
             contributionsToCollaboration: [
                 {
@@ -623,17 +623,17 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                     description: "Optimizes portfolio allocation based on risk analysis from all agents",
                     confidence: 0.87,
                     evidence: ["optimization_algorithms", "backtesting_results", "performance_analytics"],
-                    dependencies: ["market_volatility_analyst", "credit_risk_assessor"]
-                }
+                    dependencies: ["market_volatility_analyst", "credit_risk_assessor"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "regulatory_compliance_monitor",
                     learnedCapability: "regulatory_constraint_optimization",
                     confidenceGain: 0.15,
-                    applicationContext: ["compliant_portfolio_construction", "regulatory_capital_optimization"]
-                }
-            ]
+                    applicationContext: ["compliant_portfolio_construction", "regulatory_capital_optimization"],
+                },
+            ],
         },
         {
             agentId: "regulatory_compliance_monitor",
@@ -642,7 +642,7 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                 "regulatory_tracking",
                 "compliance_checking",
                 "capital_requirement_calculation",
-                "stress_testing_coordination"
+                "stress_testing_coordination",
             ],
             contributionsToCollaboration: [
                 {
@@ -650,18 +650,18 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                     description: "Ensures all risk management decisions comply with regulations",
                     confidence: 0.95,
                     evidence: ["regulatory_databases", "compliance_rules", "stress_test_results"],
-                    dependencies: ["portfolio_optimization_engine"]
-                }
+                    dependencies: ["portfolio_optimization_engine"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "credit_risk_assessor",
                     learnedCapability: "credit_risk_regulatory_mapping",
                     confidenceGain: 0.19,
-                    applicationContext: ["regulatory_reporting", "capital_calculation"]
-                }
-            ]
-        }
+                    applicationContext: ["regulatory_reporting", "capital_calculation"],
+                },
+            ],
+        },
     ],
     
     sharedState: {
@@ -674,10 +674,10 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                 supportingEvidence: [
                     "backtesting_over_5_years",
                     "correlation_analysis",
-                    "var_model_validation"
+                    "var_model_validation",
                 ],
-                consensusLevel: 0.94
-            }
+                consensusLevel: 0.94,
+            },
         ],
         
         patterns: [
@@ -687,8 +687,8 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                 discoveredBy: ["regulatory_compliance_monitor"],
                 validatedBy: ["market_volatility_analyst"],
                 confidence: 0.84,
-                applicableContexts: ["regulatory_change_monitoring", "volatility_forecasting", "position_sizing"]
-            }
+                applicableContexts: ["regulatory_change_monitoring", "volatility_forecasting", "position_sizing"],
+            },
         ],
         
         solutions: [
@@ -700,8 +700,8 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                     components: {
                         regime_detection: "real_time_market_regime_identification",
                         model_switching: "automatic_model_selection_by_regime",
-                        stress_overlay: "stress_scenario_model_adjustment"
-                    }
+                        stress_overlay: "stress_scenario_model_adjustment",
+                    },
                 },
                 contributingAgents: ["market_volatility_analyst", "portfolio_optimization_engine"],
                 consensusScore: 0.88,
@@ -709,18 +709,18 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
                     "Implement regime detection algorithms",
                     "Create regime-specific risk models",
                     "Develop model switching mechanisms",
-                    "Validate through stress testing"
+                    "Validate through stress testing",
                 ],
                 expectedOutcome: {
                     model_accuracy: "improve_by_25_percent_in_stress",
                     risk_prediction: "reduce_model_lag_by_40_percent",
-                    portfolio_protection: "better_downside_protection"
-                }
-            }
+                    portfolio_protection: "better_downside_protection",
+                },
+            },
         ],
         
         decisions: [],
-        lastUpdated: new Date("2024-12-07T12:45:00Z")
+        lastUpdated: new Date("2024-12-07T12:45:00Z"),
     },
     
     emergentCapabilities: [
@@ -729,8 +729,8 @@ export const FINANCIAL_RISK_COLLABORATION: AgentCollaboration = {
         "Automated stress testing with scenario generation",
         "Real-time portfolio optimization under multiple constraints",
         "Cross-asset correlation modeling and prediction",
-        "Intelligent capital allocation with regulatory optimization"
-    ]
+        "Intelligent capital allocation with regulatory optimization",
+    ],
 };
 
 /**
@@ -754,7 +754,7 @@ export const COLLABORATION_EVOLUTION = {
         description: "Agents work independently on specialized tasks",
         capabilities: ["individual_expertise", "basic_communication"],
         emergentBehaviors: [],
-        collaborationComplexity: 0.2
+        collaborationComplexity: 0.2,
     },
     
     coordinationPhase: {
@@ -762,7 +762,7 @@ export const COLLABORATION_EVOLUTION = {
         description: "Agents begin coordinating through simple communication",
         capabilities: ["task_coordination", "information_sharing", "basic_consensus"],
         emergentBehaviors: ["improved_task_allocation", "reduced_duplication"],
-        collaborationComplexity: 0.5
+        collaborationComplexity: 0.5,
     },
     
     synergisticPhase: {
@@ -770,7 +770,7 @@ export const COLLABORATION_EVOLUTION = {
         description: "Agents develop synergistic relationships and shared learning",
         capabilities: ["cross_agent_learning", "collaborative_problem_solving", "emergent_specialization"],
         emergentBehaviors: ["collective_intelligence", "adaptive_role_assignment", "knowledge_synthesis"],
-        collaborationComplexity: 0.75
+        collaborationComplexity: 0.75,
     },
     
     emergentIntelligencePhase: {
@@ -778,8 +778,8 @@ export const COLLABORATION_EVOLUTION = {
         description: "Collaborative network exhibits emergent collective intelligence",
         capabilities: ["collective_reasoning", "distributed_problem_solving", "self_organizing_workflows"],
         emergentBehaviors: ["predictive_collaboration", "proactive_optimization", "collective_creativity"],
-        collaborationComplexity: 0.92
-    }
+        collaborationComplexity: 0.92,
+    },
 };
 
 /**
@@ -802,7 +802,7 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                 "literature_synthesis",
                 "pattern_recognition",
                 "creative_hypothesis_formation",
-                "cross_domain_connection"
+                "cross_domain_connection",
             ],
             contributionsToCollaboration: [
                 {
@@ -810,17 +810,17 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                     description: "Generates novel research hypotheses from literature and data patterns",
                     confidence: 0.85,
                     evidence: ["literature_corpus", "pattern_analysis", "domain_connections"],
-                    dependencies: []
-                }
+                    dependencies: [],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "experiment_design_optimizer",
                     learnedCapability: "feasibility_aware_hypothesis_generation",
                     confidenceGain: 0.23,
-                    applicationContext: ["practical_hypothesis_filtering", "resource_aware_proposals"]
-                }
-            ]
+                    applicationContext: ["practical_hypothesis_filtering", "resource_aware_proposals"],
+                },
+            ],
         },
         {
             agentId: "experiment_design_optimizer",
@@ -829,7 +829,7 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                 "statistical_power_analysis",
                 "resource_optimization",
                 "protocol_development",
-                "control_variable_identification"
+                "control_variable_identification",
             ],
             contributionsToCollaboration: [
                 {
@@ -837,17 +837,17 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                     description: "Designs optimal experiments to test hypotheses efficiently",
                     confidence: 0.90,
                     evidence: ["statistical_models", "resource_constraints", "protocol_library"],
-                    dependencies: ["hypothesis_generation_specialist"]
-                }
+                    dependencies: ["hypothesis_generation_specialist"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "data_analysis_engine",
                     learnedCapability: "analysis_aware_experimental_design",
                     confidenceGain: 0.20,
-                    applicationContext: ["data_quality_optimization", "analysis_pipeline_design"]
-                }
-            ]
+                    applicationContext: ["data_quality_optimization", "analysis_pipeline_design"],
+                },
+            ],
         },
         {
             agentId: "data_analysis_engine",
@@ -856,7 +856,7 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                 "multivariate_analysis",
                 "anomaly_detection",
                 "result_interpretation",
-                "visualization_generation"
+                "visualization_generation",
             ],
             contributionsToCollaboration: [
                 {
@@ -864,17 +864,17 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                     description: "Performs comprehensive data analysis and interpretation",
                     confidence: 0.92,
                     evidence: ["analysis_algorithms", "statistical_tests", "visualization_tools"],
-                    dependencies: ["experiment_design_optimizer"]
-                }
+                    dependencies: ["experiment_design_optimizer"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "publication_strategist",
                     learnedCapability: "publication_oriented_analysis",
                     confidenceGain: 0.18,
-                    applicationContext: ["result_presentation", "story_driven_analysis"]
-                }
-            ]
+                    applicationContext: ["result_presentation", "story_driven_analysis"],
+                },
+            ],
         },
         {
             agentId: "publication_strategist",
@@ -883,7 +883,7 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                 "journal_targeting",
                 "manuscript_structuring",
                 "peer_review_prediction",
-                "impact_assessment"
+                "impact_assessment",
             ],
             contributionsToCollaboration: [
                 {
@@ -891,17 +891,17 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                     description: "Optimizes publication strategy for maximum research impact",
                     confidence: 0.86,
                     evidence: ["journal_analytics", "peer_review_patterns", "citation_networks"],
-                    dependencies: ["data_analysis_engine"]
-                }
+                    dependencies: ["data_analysis_engine"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "hypothesis_generation_specialist",
                     learnedCapability: "novelty_impact_correlation",
                     confidenceGain: 0.21,
-                    applicationContext: ["high_impact_targeting", "breakthrough_identification"]
-                }
-            ]
+                    applicationContext: ["high_impact_targeting", "breakthrough_identification"],
+                },
+            ],
         },
         {
             agentId: "collaboration_network_builder",
@@ -910,7 +910,7 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                 "researcher_matching",
                 "collaboration_facilitation",
                 "resource_sharing_coordination",
-                "intellectual_property_management"
+                "intellectual_property_management",
             ],
             contributionsToCollaboration: [
                 {
@@ -918,18 +918,18 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                     description: "Builds optimal research collaborations and resource sharing networks",
                     confidence: 0.83,
                     evidence: ["researcher_profiles", "collaboration_history", "resource_availability"],
-                    dependencies: ["*"]
-                }
+                    dependencies: ["*"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "hypothesis_generation_specialist",
                     learnedCapability: "expertise_gap_identification",
                     confidenceGain: 0.19,
-                    applicationContext: ["targeted_collaboration", "skill_complementarity"]
-                }
-            ]
-        }
+                    applicationContext: ["targeted_collaboration", "skill_complementarity"],
+                },
+            ],
+        },
     ],
     
     sharedState: {
@@ -940,8 +940,8 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                 confidence: 0.89,
                 contributingAgents: ["collaboration_network_builder", "hypothesis_generation_specialist"],
                 supportingEvidence: ["10_year_publication_analysis", "breakthrough_correlation_study"],
-                consensusLevel: 0.91
-            }
+                consensusLevel: 0.91,
+            },
         ],
         patterns: [
             {
@@ -950,8 +950,8 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                 discoveredBy: ["publication_strategist", "collaboration_network_builder"],
                 validatedBy: ["data_analysis_engine"],
                 confidence: 0.87,
-                applicableContexts: ["team_formation", "resource_allocation", "grant_proposals"]
-            }
+                applicableContexts: ["team_formation", "resource_allocation", "grant_proposals"],
+            },
         ],
         solutions: [
             {
@@ -962,8 +962,8 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                     components: {
                         parallel_tracks: "test_multiple_hypotheses_simultaneously",
                         adaptive_allocation: "shift_resources_to_promising_directions",
-                        early_termination: "kill_unpromising_experiments_quickly"
-                    }
+                        early_termination: "kill_unpromising_experiments_quickly",
+                    },
                 },
                 contributingAgents: ["experiment_design_optimizer", "data_analysis_engine"],
                 consensusScore: 0.90,
@@ -971,17 +971,17 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
                     "Implement parallel experiment tracking",
                     "Create early indicator metrics",
                     "Build resource reallocation system",
-                    "Monitor and optimize continuously"
+                    "Monitor and optimize continuously",
                 ],
                 expectedOutcome: {
                     cycle_time: "reduce_by_45_percent",
                     success_rate: "improve_by_30_percent",
-                    resource_efficiency: "improve_by_60_percent"
-                }
-            }
+                    resource_efficiency: "improve_by_60_percent",
+                },
+            },
         ],
         decisions: [],
-        lastUpdated: new Date("2024-12-07T18:00:00Z")
+        lastUpdated: new Date("2024-12-07T18:00:00Z"),
     },
     
     emergentCapabilities: [
@@ -990,8 +990,8 @@ export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
         "Dynamic collaboration team formation based on expertise gaps",
         "Real-time research trend identification and positioning",
         "Automated grant proposal optimization for funding success",
-        "Cross-institutional resource sharing and coordination"
-    ]
+        "Cross-institutional resource sharing and coordination",
+    ],
 };
 
 /**
@@ -1014,7 +1014,7 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                 "situation_assessment",
                 "priority_determination",
                 "resource_mobilization",
-                "multi_agency_coordination"
+                "multi_agency_coordination",
             ],
             contributionsToCollaboration: [
                 {
@@ -1022,17 +1022,17 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                     description: "Provides comprehensive crisis assessment and coordination strategy",
                     confidence: 0.91,
                     evidence: ["real_time_data_feeds", "historical_crisis_patterns", "resource_inventories"],
-                    dependencies: []
-                }
+                    dependencies: [],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "medical_emergency_specialist",
                     learnedCapability: "medical_priority_assessment",
                     confidenceGain: 0.24,
-                    applicationContext: ["triage_coordination", "resource_prioritization"]
-                }
-            ]
+                    applicationContext: ["triage_coordination", "resource_prioritization"],
+                },
+            ],
         },
         {
             agentId: "medical_emergency_specialist",
@@ -1041,7 +1041,7 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                 "medical_triage",
                 "hospital_capacity_tracking",
                 "treatment_protocol_selection",
-                "medical_resource_optimization"
+                "medical_resource_optimization",
             ],
             contributionsToCollaboration: [
                 {
@@ -1049,17 +1049,17 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                     description: "Manages medical response and healthcare resource allocation",
                     confidence: 0.93,
                     evidence: ["medical_protocols", "capacity_data", "treatment_outcomes"],
-                    dependencies: ["crisis_assessment_commander"]
-                }
+                    dependencies: ["crisis_assessment_commander"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "logistics_coordinator",
                     learnedCapability: "supply_chain_aware_medical_planning",
                     confidenceGain: 0.22,
-                    applicationContext: ["resource_planning", "supply_optimization"]
-                }
-            ]
+                    applicationContext: ["resource_planning", "supply_optimization"],
+                },
+            ],
         },
         {
             agentId: "infrastructure_protection_agent",
@@ -1068,7 +1068,7 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                 "critical_infrastructure_monitoring",
                 "vulnerability_assessment",
                 "failure_cascade_prediction",
-                "restoration_prioritization"
+                "restoration_prioritization",
             ],
             contributionsToCollaboration: [
                 {
@@ -1076,17 +1076,17 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                     description: "Predicts and prevents infrastructure failures during crisis",
                     confidence: 0.88,
                     evidence: ["infrastructure_models", "failure_patterns", "dependency_graphs"],
-                    dependencies: []
-                }
+                    dependencies: [],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "public_safety_coordinator",
                     learnedCapability: "population_aware_infrastructure_priority",
                     confidenceGain: 0.20,
-                    applicationContext: ["evacuation_support", "shelter_infrastructure"]
-                }
-            ]
+                    applicationContext: ["evacuation_support", "shelter_infrastructure"],
+                },
+            ],
         },
         {
             agentId: "public_safety_coordinator",
@@ -1095,7 +1095,7 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                 "evacuation_planning",
                 "public_communication",
                 "shelter_management",
-                "security_coordination"
+                "security_coordination",
             ],
             contributionsToCollaboration: [
                 {
@@ -1103,17 +1103,17 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                     description: "Coordinates public safety measures and civilian protection",
                     confidence: 0.87,
                     evidence: ["population_data", "evacuation_routes", "shelter_capacity"],
-                    dependencies: ["infrastructure_protection_agent", "crisis_assessment_commander"]
-                }
+                    dependencies: ["infrastructure_protection_agent", "crisis_assessment_commander"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "logistics_coordinator",
                     learnedCapability: "resource_aware_evacuation_planning",
                     confidenceGain: 0.19,
-                    applicationContext: ["evacuation_logistics", "supply_distribution"]
-                }
-            ]
+                    applicationContext: ["evacuation_logistics", "supply_distribution"],
+                },
+            ],
         },
         {
             agentId: "logistics_coordinator",
@@ -1122,7 +1122,7 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                 "supply_chain_management",
                 "resource_distribution",
                 "transportation_optimization",
-                "inventory_tracking"
+                "inventory_tracking",
             ],
             contributionsToCollaboration: [
                 {
@@ -1130,18 +1130,18 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                     description: "Optimizes resource distribution and supply chain during crisis",
                     confidence: 0.85,
                     evidence: ["inventory_systems", "transportation_networks", "distribution_algorithms"],
-                    dependencies: ["medical_emergency_specialist", "public_safety_coordinator"]
-                }
+                    dependencies: ["medical_emergency_specialist", "public_safety_coordinator"],
+                },
             ],
             learningFromOthers: [
                 {
                     fromAgent: "crisis_assessment_commander",
                     learnedCapability: "priority_based_logistics_planning",
                     confidenceGain: 0.21,
-                    applicationContext: ["critical_resource_routing", "emergency_prioritization"]
-                }
-            ]
-        }
+                    applicationContext: ["critical_resource_routing", "emergency_prioritization"],
+                },
+            ],
+        },
     ],
     
     sharedState: {
@@ -1152,8 +1152,8 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                 confidence: 0.94,
                 contributingAgents: ["crisis_assessment_commander", "logistics_coordinator"],
                 supportingEvidence: ["crisis_response_metrics", "coordination_effectiveness_study"],
-                consensusLevel: 0.96
-            }
+                consensusLevel: 0.96,
+            },
         ],
         patterns: [
             {
@@ -1162,8 +1162,8 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                 discoveredBy: ["infrastructure_protection_agent"],
                 validatedBy: ["crisis_assessment_commander", "logistics_coordinator"],
                 confidence: 0.91,
-                applicableContexts: ["failure_prevention", "restoration_planning", "resource_allocation"]
-            }
+                applicableContexts: ["failure_prevention", "restoration_planning", "resource_allocation"],
+            },
         ],
         solutions: [
             {
@@ -1174,8 +1174,8 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                     components: {
                         unified_dashboard: "real_time_shared_situational_awareness",
                         automated_protocols: "trigger_based_response_activation",
-                        resource_pooling: "dynamic_cross_agency_resource_sharing"
-                    }
+                        resource_pooling: "dynamic_cross_agency_resource_sharing",
+                    },
                 },
                 contributingAgents: ["crisis_assessment_commander", "public_safety_coordinator"],
                 consensusScore: 0.93,
@@ -1183,17 +1183,17 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
                     "Deploy unified command dashboard",
                     "Establish automated trigger protocols",
                     "Create resource sharing agreements",
-                    "Train on coordinated response"
+                    "Train on coordinated response",
                 ],
                 expectedOutcome: {
                     response_time: "reduce_by_50_percent",
                     coordination_efficiency: "improve_by_65_percent",
-                    resource_utilization: "optimize_by_40_percent"
-                }
-            }
+                    resource_utilization: "optimize_by_40_percent",
+                },
+            },
         ],
         decisions: [],
-        lastUpdated: new Date("2024-12-07T20:30:00Z")
+        lastUpdated: new Date("2024-12-07T20:30:00Z"),
     },
     
     emergentCapabilities: [
@@ -1202,8 +1202,8 @@ export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
         "Cross-domain cascade effect prediction and prevention",
         "Dynamic evacuation route optimization with infrastructure status",
         "Unified situational awareness across all response agencies",
-        "Adaptive response strategy based on crisis evolution"
-    ]
+        "Adaptive response strategy based on crisis evolution",
+    ],
 };
 
 /**
@@ -1222,5 +1222,5 @@ export const COLLABORATION_PRINCIPLES = {
     emergentCapabilities: "Collaboration creates capabilities no individual agent possesses",
     sharedKnowledge: "Collaborative agents build and maintain collective understanding", 
     adaptiveCoordination: "Collaboration patterns adapt to problem requirements",
-    collectiveDecisionMaking: "Groups make better decisions through structured consensus"
+    collectiveDecisionMaking: "Groups make better decisions through structured consensus",
 } as const;

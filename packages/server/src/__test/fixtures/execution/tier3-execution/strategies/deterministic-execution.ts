@@ -55,14 +55,14 @@ export const passwordResetDeterministic: DeterministicStrategy = {
         speed: "fast",
         cost: "low",
         reliability: "high",
-        learningPotential: "low"
+        learningPotential: "low",
     },
     
     requirements: [
         "User identity verified",
         "Account status is active",
         "No security flags on account",
-        "Email service available"
+        "Email service available",
     ],
     
     executionFlow: [
@@ -71,28 +71,28 @@ export const passwordResetDeterministic: DeterministicStrategy = {
             tool: "auth_service.verify_identity",
             parameters: {
                 userId: "${context.userId}",
-                verificationMethod: "email"
+                verificationMethod: "email",
             },
             expectedLatency: "200ms",
-            fallbackAction: "escalate_to_reasoning"
+            fallbackAction: "escalate_to_reasoning",
         },
         {
             action: "Check Account Status",
             tool: "account_service.get_status",
             parameters: {
                 userId: "${context.userId}",
-                includeSecurityFlags: true
+                includeSecurityFlags: true,
             },
-            expectedLatency: "100ms"
+            expectedLatency: "100ms",
         },
         {
             action: "Generate Reset Token",
             tool: "auth_service.create_reset_token",
             parameters: {
                 userId: "${context.userId}",
-                expiryMinutes: 30
+                expiryMinutes: 30,
             },
-            expectedLatency: "150ms"
+            expectedLatency: "150ms",
         },
         {
             action: "Send Reset Email",
@@ -102,10 +102,10 @@ export const passwordResetDeterministic: DeterministicStrategy = {
                 recipient: "${context.userEmail}",
                 data: {
                     resetLink: "${generatedToken.link}",
-                    expiryTime: "${generatedToken.expiry}"
-                }
+                    expiryTime: "${generatedToken.expiry}",
+                },
             },
-            expectedLatency: "500ms"
+            expectedLatency: "500ms",
         },
         {
             action: "Log Action",
@@ -113,36 +113,36 @@ export const passwordResetDeterministic: DeterministicStrategy = {
             parameters: {
                 action: "password_reset_sent",
                 userId: "${context.userId}",
-                timestamp: "${context.timestamp}"
+                timestamp: "${context.timestamp}",
             },
-            expectedLatency: "50ms"
-        }
+            expectedLatency: "50ms",
+        },
     ],
     
     safetyChecks: [
         {
             type: "rate_limit",
             threshold: 3, // Max 3 resets per hour
-            action: "halt"
+            action: "halt",
         },
         {
             type: "security_flag",
             threshold: 0, // Any security flag triggers escalation
-            action: "escalate"
+            action: "escalate",
         },
         {
             type: "latency",
             threshold: 2000, // 2 second total timeout
-            action: "escalate"
-        }
+            action: "escalate",
+        },
     ],
     
     metrics: {
         avgExecutionTime: "1.2 seconds",
         successRate: "99.2%",
         costPerExecution: "$0.002",
-        resourceUtilization: "5% CPU, 10MB memory"
-    }
+        resourceUtilization: "5% CPU, 10MB memory",
+    },
 };
 
 // Example of how strategies evolve
@@ -151,26 +151,26 @@ export const strategyEvolution = {
         approach: "Full AI reasoning for each request",
         avgTime: "45 seconds",
         cost: "$0.12",
-        description: "Agent reasons through each step"
+        description: "Agent reasons through each step",
     },
     
     v2_reasoning: {
         approach: "Template-based with reasoning fallback",
         avgTime: "15 seconds",
         cost: "$0.06",
-        description: "Pattern matching with AI fallback"
+        description: "Pattern matching with AI fallback",
     },
     
     v3_deterministic: {
         approach: "Direct API orchestration",
         avgTime: "1.2 seconds",
         cost: "$0.002",
-        description: "Fully automated execution"
+        description: "Fully automated execution",
     },
     
     evolutionMetrics: {
         speedImprovement: "37.5x",
         costReduction: "98.3%",
-        reliabilityIncrease: "From 92% to 99.2%"
-    }
+        reliabilityIncrease: "From 92% to 99.2%",
+    },
 };

@@ -7,6 +7,7 @@ import { runValidation } from "../../../validation/models/run.js";
 const DATA_TOO_LONG_LENGTH = 16385;
 const NAME_TOO_LONG_LENGTH = 129;
 const DATA_MAX_LENGTH = 16384;
+const MILLISECONDS_PER_DAY = 86400000;
 
 // Generate consistent test IDs
 const validIds = {
@@ -65,7 +66,7 @@ export const runFixtures: ModelTestFixtures<RunCreateInput, RunUpdateInput> = {
             scheduleCreate: {
                 id: validIds.scheduleId1,
                 startTime: new Date().toISOString(),
-                endTime: new Date(Date.now() + 86400000).toISOString(),
+                endTime: new Date(Date.now() + MILLISECONDS_PER_DAY).toISOString(),
                 timezone: "UTC",
             },
             stepsCreate: [

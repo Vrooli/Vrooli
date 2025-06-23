@@ -355,7 +355,7 @@ export class RunFactory {
     static createWithProgress(
         totalSteps: number,
         completedSteps: number,
-        overrides?: Partial<Run>
+        overrides?: Partial<Run>,
     ): Run {
         const progress: RunProgress = {
             totalSteps,
@@ -385,8 +385,8 @@ export class RunFactory {
      * Create run with parallel branches
      */
     static createWithBranches(
-        branchCount: number = 2,
-        overrides?: Partial<Run>
+        branchCount = 2,
+        overrides?: Partial<Run>,
     ): Run {
         const branches: BranchExecution[] = [];
         
@@ -426,8 +426,8 @@ export class RunFactory {
      * Create run with error
      */
     static createFailed(
-        error: string = "Test error",
-        overrides?: Partial<Run>
+        error = "Test error",
+        overrides?: Partial<Run>,
     ): Run {
         return this.createInState(RunStateEnum.FAILED, {
             error,
@@ -444,7 +444,7 @@ export class RunFactory {
      */
     static createWithContext(
         variables: Record<string, unknown>,
-        overrides?: Partial<Run>
+        overrides?: Partial<Run>,
     ): Run {
         const scopes: ContextScope[] = [
             {
@@ -481,7 +481,7 @@ export class RunFactory {
  */
 export function createStepStatus(
     state: StepStatus["state"] = "pending",
-    overrides?: Partial<StepStatus>
+    overrides?: Partial<StepStatus>,
 ): StepStatus {
     const base: StepStatus = {
         id: generatePK(),
@@ -512,7 +512,7 @@ export function createStepStatus(
 export function createLocation(
     routineId: string,
     nodeId: string,
-    overrides?: Partial<Location>
+    overrides?: Partial<Location>,
 ): Location {
     return {
         id: generatePK(),
@@ -527,7 +527,7 @@ export function createLocation(
  */
 export function createRoutineForNavigator(
     navigatorType: string,
-    overrides?: Partial<Routine>
+    overrides?: Partial<Routine>,
 ): Routine {
     const definitions: Record<string, unknown> = {
         native: {
@@ -586,12 +586,12 @@ export function createRoutineForNavigator(
  */
 export async function seedTestRuns(
     prisma: any,
-    count: number = 3,
+    count = 3,
     options?: {
         routineId?: string;
         userId?: string;
         states?: RunState[];
-    }
+    },
 ) {
     const runs = [];
     const states = options?.states || [

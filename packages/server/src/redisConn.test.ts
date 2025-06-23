@@ -14,7 +14,7 @@ describe("CacheService Integration Tests", () => {
     beforeEach(async () => {
         // Ensure Redis URL is available from global setup
         if (!process.env.REDIS_URL) {
-            throw new Error('REDIS_URL not set - global setup may have failed');
+            throw new Error("REDIS_URL not set - global setup may have failed");
         }
         
         // Reset singleton and get fresh instance
@@ -29,7 +29,7 @@ describe("CacheService Integration Tests", () => {
                 await cacheService.close();
             } catch (error) {
                 // Ignore cleanup errors
-                console.log('Cleanup error (ignored):', error);
+                console.log("Cleanup error (ignored):", error);
             }
         }
         vi.restoreAllMocks();

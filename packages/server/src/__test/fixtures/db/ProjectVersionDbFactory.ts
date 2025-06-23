@@ -39,7 +39,7 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
     Prisma.ProjectVersionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ProjectVersion', prisma);
+        super("ProjectVersion", prisma);
         this.initializeScenarios();
     }
 
@@ -185,7 +185,7 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
                             id: generatePK().toString(),
-                            language: ['en', 'es', 'fr', 'de', 'ja'][i],
+                            language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Project Version ${i}`,
                             description: `Description in language ${i}`,
                         })),
@@ -414,7 +414,7 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
                 orderBy: {
-                    childOrder: 'asc',
+                    childOrder: "asc",
                 },
             },
             _count: {
@@ -431,9 +431,9 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.ProjectVersionCreateInput,
         config: ProjectVersionRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ProjectVersionCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle root project connection
         if (config.root?.projectId) {
@@ -498,7 +498,7 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
      * Create an educational version
      */
     async createEducationalVersion(projectId: string): Promise<Prisma.ProjectVersion> {
-        return this.seedScenario('educationalRelease');
+        return this.seedScenario("educationalRelease");
     }
 
     /**
@@ -553,17 +553,17 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Check version index is positive
         if (record.versionIndex < 0) {
-            violations.push('Version index must be non-negative');
+            violations.push("Version index must be non-negative");
         }
 
         // Check that version belongs to a project
         if (!record.rootId) {
-            violations.push('ProjectVersion must belong to a Project');
+            violations.push("ProjectVersion must belong to a Project");
         }
 
         // Check version label format
         if (record.versionLabel && !/^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$/.test(record.versionLabel)) {
-            violations.push('Version label should follow semantic versioning format');
+            violations.push("Version label should follow semantic versioning format");
         }
 
         // Check that only one version is marked as latest per project
@@ -576,15 +576,15 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
                 },
             });
             if (otherLatest > 0) {
-                violations.push('Only one version can be marked as latest per project');
+                violations.push("Only one version can be marked as latest per project");
             }
         }
 
         // Check projectVersionSettings structure
         if (record.projectVersionSettings && 
             (!record.projectVersionSettings.__version || 
-             typeof record.projectVersionSettings.__version !== 'string')) {
-            violations.push('Project version settings must have a valid __version field');
+             typeof record.projectVersionSettings.__version !== "string")) {
+            violations.push("Project version settings must have a valid __version field");
         }
 
         return violations;
@@ -608,21 +608,21 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.ProjectVersion,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.projectVersionTranslation.deleteMany({
                 where: { projectVersionId: record.id },
             });
         }
 
         // Delete directories and their translations
-        if (shouldDelete('directories') && record.directories?.length) {
+        if (shouldDelete("directories") && record.directories?.length) {
             for (const dir of record.directories) {
                 if (dir.translations?.length) {
                     await tx.projectVersionDirectoryTranslation.deleteMany({
@@ -637,7 +637,7 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Remove associations with routine versions
-        if (shouldDelete('routineVersions') && record.routineVersions?.length) {
+        if (shouldDelete("routineVersions") && record.routineVersions?.length) {
             await tx.routineVersion.updateMany({
                 where: { projectVersionId: record.id },
                 data: { projectVersionId: null },
@@ -645,7 +645,7 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Remove associations with data structure versions
-        if (shouldDelete('dataStructureVersions') && record.dataStructureVersions?.length) {
+        if (shouldDelete("dataStructureVersions") && record.dataStructureVersions?.length) {
             await tx.dataStructureVersion.updateMany({
                 where: { projectVersionId: record.id },
                 data: { projectVersionId: null },
@@ -656,7 +656,7 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create version history for testing
      */
-    async createVersionHistory(projectId: string, count: number = 3): Promise<Prisma.ProjectVersion[]> {
+    async createVersionHistory(projectId: string, count = 3): Promise<Prisma.ProjectVersion[]> {
         const versions: Prisma.ProjectVersion[] = [];
         const configs = [
             projectConfigFixtures.minimal,
@@ -691,7 +691,7 @@ export class ProjectVersionDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createProjectVersionDbFactory = (prisma: PrismaClient) => 
-    ProjectVersionDbFactory.getInstance('ProjectVersion', prisma);
+    ProjectVersionDbFactory.getInstance("ProjectVersion", prisma);
 
 // Export the class for type usage
 export { ProjectVersionDbFactory as ProjectVersionDbFactoryClass };

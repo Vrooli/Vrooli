@@ -400,10 +400,10 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.ResourceCreateIn
     /**
      * Add owner to a resource fixture
      */
-    protected addOwner(data: Prisma.ResourceCreateInput, ownerId: string, ownerType: 'user' | 'team' = 'user'): Prisma.ResourceCreateInput {
+    protected addOwner(data: Prisma.ResourceCreateInput, ownerId: string, ownerType: "user" | "team" = "user"): Prisma.ResourceCreateInput {
         return {
             ...data,
-            ...(ownerType === 'user' 
+            ...(ownerType === "user" 
                 ? { ownedByUser: { connect: { id: ownerId } } }
                 : { ownedByTeam: { connect: { id: ownerId } } }
             ),
@@ -496,31 +496,31 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.ResourceCreateIn
     static createWithOwner(
         ownerId: string,
         resourceType: ResourceType = ResourceType.Code,
-        overrides?: Partial<Prisma.ResourceCreateInput>
+        overrides?: Partial<Prisma.ResourceCreateInput>,
     ): Prisma.ResourceCreateInput {
         const factory = new ResourceDbFactory();
         const data = factory.createMinimal({ resourceType, ...overrides });
-        return factory.addOwner(data, ownerId, 'user');
+        return factory.addOwner(data, ownerId, "user");
     }
 
     static createWithTeamOwner(
         teamId: string,
         resourceType: ResourceType = ResourceType.Project,
-        overrides?: Partial<Prisma.ResourceCreateInput>
+        overrides?: Partial<Prisma.ResourceCreateInput>,
     ): Prisma.ResourceCreateInput {
         const factory = new ResourceDbFactory();
         const data = factory.createMinimal({ resourceType, ...overrides });
-        return factory.addOwner(data, teamId, 'team');
+        return factory.addOwner(data, teamId, "team");
     }
 
     static createComplete(
         ownerId: string,
         resourceType: ResourceType = ResourceType.Routine,
-        overrides?: Partial<Prisma.ResourceCreateInput>
+        overrides?: Partial<Prisma.ResourceCreateInput>,
     ): Prisma.ResourceCreateInput {
         const factory = new ResourceDbFactory();
         const data = factory.createComplete({ resourceType, ...overrides });
-        return factory.addOwner(data, ownerId, 'user');
+        return factory.addOwner(data, ownerId, "user");
     }
 
     static createWithVersion(
@@ -532,11 +532,11 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.ResourceCreateIn
             isComplete?: boolean;
         },
         resourceType: ResourceType = ResourceType.Code,
-        overrides?: Partial<Prisma.ResourceCreateInput>
+        overrides?: Partial<Prisma.ResourceCreateInput>,
     ): Prisma.ResourceCreateInput {
         const factory = new ResourceDbFactory();
         let data = factory.createMinimal({ resourceType, ...overrides });
-        data = factory.addOwner(data, ownerId, 'user');
+        data = factory.addOwner(data, ownerId, "user");
         return factory.addVersions(data, [{
             name: versionData.name,
             versionLabel: versionData.versionLabel ?? "1.0.0",
@@ -557,11 +557,11 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.ResourceCreateIn
             description?: string;
         }>,
         resourceType: ResourceType = ResourceType.Code,
-        overrides?: Partial<Prisma.ResourceCreateInput>
+        overrides?: Partial<Prisma.ResourceCreateInput>,
     ): Prisma.ResourceCreateInput {
         const factory = new ResourceDbFactory();
         let data = factory.createMinimal({ resourceType, ...overrides });
-        data = factory.addOwner(data, ownerId, 'user');
+        data = factory.addOwner(data, ownerId, "user");
         return factory.addVersions(data, versions.map(version => ({
             name: version.name,
             versionLabel: version.versionLabel,
@@ -578,15 +578,15 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.ResourceCreateIn
     static createWithPermissions(
         ownerId: string,
         permissions: Record<string, any>,
-        overrides?: Partial<Prisma.ResourceCreateInput>
+        overrides?: Partial<Prisma.ResourceCreateInput>,
     ): Prisma.ResourceCreateInput {
         const factory = new ResourceDbFactory();
-        let data = factory.createMinimal({ 
+        const data = factory.createMinimal({ 
             resourceType: ResourceType.Code,
             permissions: JSON.stringify(permissions),
-            ...overrides 
+            ...overrides, 
         });
-        return factory.addOwner(data, ownerId, 'user');
+        return factory.addOwner(data, ownerId, "user");
     }
 
     /**
@@ -595,15 +595,15 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.ResourceCreateIn
     static createPrivate(
         ownerId: string,
         resourceType: ResourceType = ResourceType.Code,
-        overrides?: Partial<Prisma.ResourceCreateInput>
+        overrides?: Partial<Prisma.ResourceCreateInput>,
     ): Prisma.ResourceCreateInput {
         const factory = new ResourceDbFactory();
-        let data = factory.createMinimal({ 
+        const data = factory.createMinimal({ 
             resourceType,
             isPrivate: true,
-            ...overrides 
+            ...overrides, 
         });
-        return factory.addOwner(data, ownerId, 'user');
+        return factory.addOwner(data, ownerId, "user");
     }
 
     /**
@@ -612,15 +612,15 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.ResourceCreateIn
     static createInternal(
         ownerId: string,
         resourceType: ResourceType = ResourceType.Api,
-        overrides?: Partial<Prisma.ResourceCreateInput>
+        overrides?: Partial<Prisma.ResourceCreateInput>,
     ): Prisma.ResourceCreateInput {
         const factory = new ResourceDbFactory();
-        let data = factory.createMinimal({ 
+        const data = factory.createMinimal({ 
             resourceType,
             isInternal: true,
-            ...overrides 
+            ...overrides, 
         });
-        return factory.addOwner(data, ownerId, 'user');
+        return factory.addOwner(data, ownerId, "user");
     }
 }
 
@@ -631,7 +631,7 @@ export class ResourceVersionDbFactory {
     static createMinimal(
         resourceId: string,
         name: string,
-        overrides?: Partial<Prisma.ResourceVersionCreateInput>
+        overrides?: Partial<Prisma.ResourceVersionCreateInput>,
     ): Prisma.ResourceVersionCreateInput {
         return {
             id: generatePK(),
@@ -657,7 +657,7 @@ export class ResourceVersionDbFactory {
     static createComplete(
         resourceId: string,
         name: string,
-        overrides?: Partial<Prisma.ResourceVersionCreateInput>
+        overrides?: Partial<Prisma.ResourceVersionCreateInput>,
     ): Prisma.ResourceVersionCreateInput {
         return {
             ...this.createMinimal(resourceId, name, overrides),
@@ -684,14 +684,14 @@ export class ResourceVersionDbFactory {
 export async function seedTestResources(
     prisma: any,
     ownerId: string,
-    count: number = 3,
+    count = 3,
     options?: {
         resourceType?: ResourceType;
         withVersions?: boolean;
         isPrivate?: boolean;
         isInternal?: boolean;
         teamOwnerId?: string;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const factory = new ResourceDbFactory();
     const resources = [];
@@ -713,7 +713,7 @@ export async function seedTestResources(
                 {
                     isPrivate,
                     isInternal,
-                }
+                },
             );
             teamOwnedCount++;
         } else {
@@ -729,7 +729,7 @@ export async function seedTestResources(
                     {
                         isPrivate,
                         isInternal,
-                    }
+                    },
                 )
                 : ResourceDbFactory.createWithOwner(ownerId, resourceType, {
                     isPrivate,

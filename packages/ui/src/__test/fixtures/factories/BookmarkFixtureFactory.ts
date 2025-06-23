@@ -10,12 +10,12 @@ import type {
     BookmarkCreateInput, 
     BookmarkUpdateInput, 
     BookmarkFor,
-    BookmarkList 
+    BookmarkList, 
 } from "@vrooli/shared";
 import { 
     bookmarkValidation, 
     shapeBookmark,
-    BookmarkFor as BookmarkForEnum
+    BookmarkFor as BookmarkForEnum,
 } from "@vrooli/shared";
 import type { 
     FixtureFactory, 
@@ -23,7 +23,7 @@ import type {
     MSWHandlers,
     BookmarkFormData,
     BookmarkUIState,
-    BookmarkScenario 
+    BookmarkScenario, 
 } from "../types.js";
 import { rest } from "msw";
 
@@ -118,9 +118,9 @@ export class BookmarkFixtureFactory implements FixtureFactory<
             id: this.generateId(),
             to: { 
                 __typename: formData.bookmarkFor, 
-                id: formData.forConnect 
+                id: formData.forConnect, 
             },
-            list: formData.listId ? { id: formData.listId } : null
+            list: formData.listId ? { id: formData.listId } : null,
         };
 
         // Use real shape function from @vrooli/shared
@@ -133,7 +133,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                 listCreate: {
                     id: this.generateId(),
                     label: formData.newListLabel,
-                }
+                },
             };
         }
 
@@ -200,9 +200,9 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             to: {
                 __typename: "Resource",
@@ -222,8 +222,8 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     canReport: false,
                     isBookmarked: false,
                     isReacted: false,
-                    reaction: null
-                }
+                    reaction: null,
+                },
             },
             list: {
                 __typename: "BookmarkList",
@@ -236,14 +236,14 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                 you: {
                     __typename: "BookmarkListYou",
                     canDelete: true,
-                    canUpdate: true
-                }
-            }
+                    canUpdate: true,
+                },
+            },
         };
 
         return {
             ...defaultBookmark,
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -269,7 +269,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                         acc[err.path].push(err.message);
                     }
                     return acc;
-                }, {})
+                }, {}),
             };
         }
     }
@@ -278,7 +278,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
      * Create MSW handlers for different scenarios
      */
     createMSWHandlers(): MSWHandlers {
-        const baseUrl = process.env.VITE_SERVER_URL || 'http://localhost:3000';
+        const baseUrl = process.env.VITE_SERVER_URL || "http://localhost:3000";
 
         return {
             success: [
@@ -292,8 +292,8 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                             ctx.status(400),
                             ctx.json({ 
                                 errors: validation.errors,
-                                fieldErrors: validation.fieldErrors 
-                            })
+                                fieldErrors: validation.fieldErrors, 
+                            }),
                         );
                     }
 
@@ -302,13 +302,13 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                         to: { 
                             ...this.createMockResponse().to,
                             __typename: body.bookmarkFor,
-                            id: body.forConnect 
-                        }
+                            id: body.forConnect, 
+                        },
                     });
 
                     return res(
                         ctx.status(201),
-                        ctx.json(mockBookmark)
+                        ctx.json(mockBookmark),
                     );
                 }),
 
@@ -318,12 +318,12 @@ export class BookmarkFixtureFactory implements FixtureFactory<
 
                     const mockBookmark = this.createMockResponse({ 
                         id: id as string,
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date().toISOString(),
                     });
 
                     return res(
                         ctx.status(200),
-                        ctx.json(mockBookmark)
+                        ctx.json(mockBookmark),
                     );
                 }),
 
@@ -333,15 +333,15 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(mockBookmark)
+                        ctx.json(mockBookmark),
                     );
                 }),
 
                 rest.delete(`${baseUrl}/api/bookmark/:id`, (req, res, ctx) => {
                     return res(
-                        ctx.status(204)
+                        ctx.status(204),
                     );
-                })
+                }),
             ],
 
             error: [
@@ -349,9 +349,9 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(500),
                         ctx.json({ 
-                            message: 'Internal server error',
-                            code: 'BOOKMARK_CREATE_FAILED' 
-                        })
+                            message: "Internal server error",
+                            code: "BOOKMARK_CREATE_FAILED", 
+                        }),
                     );
                 }),
 
@@ -359,9 +359,9 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(404),
                         ctx.json({ 
-                            message: 'Bookmark not found',
-                            code: 'BOOKMARK_NOT_FOUND' 
-                        })
+                            message: "Bookmark not found",
+                            code: "BOOKMARK_NOT_FOUND", 
+                        }),
                     );
                 }),
 
@@ -369,11 +369,11 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(404),
                         ctx.json({ 
-                            message: 'Bookmark not found',
-                            code: 'BOOKMARK_NOT_FOUND' 
-                        })
+                            message: "Bookmark not found",
+                            code: "BOOKMARK_NOT_FOUND", 
+                        }),
                     );
-                })
+                }),
             ],
 
             loading: [
@@ -381,16 +381,16 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.delay(2000), // 2 second delay
                         ctx.status(201),
-                        ctx.json(this.createMockResponse())
+                        ctx.json(this.createMockResponse()),
                     );
-                })
+                }),
             ],
 
             networkError: [
                 rest.post(`${baseUrl}/api/bookmark`, (req, res, ctx) => {
-                    return res.networkError('Network connection failed');
-                })
-            ]
+                    return res.networkError("Network connection failed");
+                }),
+            ],
         };
     }
 
@@ -406,7 +406,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     error: null,
                     isBookmarked: false,
                     availableLists: [],
-                    showListSelection: false
+                    showListSelection: false,
                 };
 
             case "error":
@@ -416,7 +416,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     error: data?.message || "Failed to create bookmark",
                     isBookmarked: false,
                     availableLists: [],
-                    showListSelection: false
+                    showListSelection: false,
                 };
 
             case "success":
@@ -426,9 +426,9 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     error: null,
                     isBookmarked: true,
                     availableLists: [
-                        { id: this.generateId(), label: "My Bookmarks" }
+                        { id: this.generateId(), label: "My Bookmarks" },
                     ],
-                    showListSelection: false
+                    showListSelection: false,
                 };
 
             case "withLists":
@@ -440,9 +440,9 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     availableLists: data || [
                         { id: this.generateId(), label: "Favorites" },
                         { id: this.generateId(), label: "To Review" },
-                        { id: this.generateId(), label: "Important" }
+                        { id: this.generateId(), label: "Important" },
                     ],
-                    showListSelection: true
+                    showListSelection: true,
                 };
 
             case "empty":
@@ -453,7 +453,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                     error: null,
                     isBookmarked: false,
                     availableLists: [],
-                    showListSelection: false
+                    showListSelection: false,
                 };
         }
     }
@@ -499,9 +499,9 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                 to: { 
                     ...this.createMockResponse().to,
                     __typename: objectType,
-                    id: this.generateId() 
-                }
-            })
+                    id: this.generateId(), 
+                },
+            }),
         }));
     }
 
@@ -511,7 +511,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
     createAllFixtures() {
         const scenarios: BookmarkScenario[] = [
             "minimal", "complete", "invalid", "withNewList", 
-            "withExistingList", "forProject", "forRoutine"
+            "withExistingList", "forProject", "forRoutine",
         ];
         
         return scenarios.reduce((fixtures, scenario) => {
@@ -524,7 +524,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                 uiState: this.createUIState(scenario === "invalid" ? "error" : "success"),
                 validation: scenario === "invalid" ? 
                     { isValid: false, errors: ["Invalid bookmark data"] } :
-                    { isValid: true }
+                    { isValid: true },
             };
             
             return fixtures;
@@ -548,7 +548,7 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                 return {
                     success: false,
                     isBookmarked: false,
-                    error: validation.errors?.join(", ")
+                    error: validation.errors?.join(", "),
                 };
             }
             
@@ -556,20 +556,20 @@ export class BookmarkFixtureFactory implements FixtureFactory<
                 to: { 
                     ...this.createMockResponse().to,
                     __typename: objectType,
-                    id: objectId 
-                }
+                    id: objectId, 
+                },
             });
             
             return {
                 success: true,
                 isBookmarked: true,
-                bookmark
+                bookmark,
             };
         } catch (error: any) {
             return {
                 success: false,
                 isBookmarked: false,
-                error: error.message
+                error: error.message,
             };
         }
     }
@@ -612,5 +612,5 @@ export const bookmarkTestScenarios = {
     successHandlers: () => bookmarkFixtures.createMSWHandlers().success,
     errorHandlers: () => bookmarkFixtures.createMSWHandlers().error,
     loadingHandlers: () => bookmarkFixtures.createMSWHandlers().loading,
-    networkErrorHandlers: () => bookmarkFixtures.createMSWHandlers().networkError
+    networkErrorHandlers: () => bookmarkFixtures.createMSWHandlers().networkError,
 };

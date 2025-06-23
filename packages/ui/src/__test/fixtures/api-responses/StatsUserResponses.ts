@@ -5,15 +5,15 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     StatsUser,
     StatsUserSearchInput,
-    PeriodType
-} from '@vrooli/shared';
+    PeriodType,
+} from "@vrooli/shared";
 import { 
-    PeriodType as PeriodTypeEnum 
-} from '@vrooli/shared';
+    PeriodType as PeriodTypeEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -65,7 +65,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class StatsUserResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -92,14 +92,14 @@ export class StatsUserResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/stats/user/${stats.id}`,
                     related: {
-                        user: `${this.baseUrl}/api/user/${stats.user?.id}`
-                    }
-                }
-            }
+                        user: `${this.baseUrl}/api/user/${stats.user?.id}`,
+                    },
+                },
+            },
         };
     }
     
@@ -114,7 +114,7 @@ export class StatsUserResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: statsList.length,
-            totalCount: statsList.length
+            totalCount: statsList.length,
         };
         
         return {
@@ -122,17 +122,17 @@ export class StatsUserResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/stats/user?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/stats/user?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -142,16 +142,16 @@ export class StatsUserResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/user'
-            }
+                path: "/api/stats/user",
+            },
         };
     }
     
@@ -161,16 +161,16 @@ export class StatsUserResponseFactory {
     createNotFoundErrorResponse(userId: string): APIErrorResponse {
         return {
             error: {
-                code: 'USER_STATS_NOT_FOUND',
+                code: "USER_STATS_NOT_FOUND",
                 message: `User statistics for ID '${userId}' were not found`,
                 details: {
                     userId,
-                    searchCriteria: { userId }
+                    searchCriteria: { userId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/stats/user/${userId}`
-            }
+                path: `/api/stats/user/${userId}`,
+            },
         };
     }
     
@@ -180,17 +180,17 @@ export class StatsUserResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} user statistics`,
                 details: {
                     operation,
-                    requiredPermissions: ['user:stats:read'],
-                    userPermissions: ['user:read']
+                    requiredPermissions: ["user:stats:read"],
+                    userPermissions: ["user:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/user'
-            }
+                path: "/api/stats/user",
+            },
         };
     }
     
@@ -200,17 +200,17 @@ export class StatsUserResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/user'
-            }
+                path: "/api/stats/user",
+            },
         };
     }
     
@@ -220,17 +220,17 @@ export class StatsUserResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/user'
-            }
+                path: "/api/stats/user",
+            },
         };
     }
     
@@ -296,15 +296,15 @@ export class StatsUserResponseFactory {
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
-            }
+                        count: 0,
+                    },
+                },
+            },
         };
         
         return {
             ...defaultStats,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -325,8 +325,8 @@ export class StatsUserResponseFactory {
                 user: {
                     ...this.createMockStats().user,
                     name: "Top Contributor",
-                    handle: "top_contributor"
-                }
+                    handle: "top_contributor",
+                },
             }),
             this.createMockStats({
                 routinesCreated: 18,
@@ -340,8 +340,8 @@ export class StatsUserResponseFactory {
                 user: {
                     ...this.createMockStats().user,
                     name: "Active Creator",
-                    handle: "active_creator"
-                }
+                    handle: "active_creator",
+                },
             }),
             this.createMockStats({
                 routinesCreated: 12,
@@ -355,9 +355,9 @@ export class StatsUserResponseFactory {
                 user: {
                     ...this.createMockStats().user,
                     name: "Productive User",
-                    handle: "productive_user"
-                }
-            })
+                    handle: "productive_user",
+                },
+            }),
         ];
     }
     
@@ -368,8 +368,8 @@ export class StatsUserResponseFactory {
         const baseStats = this.createMockStats({
             user: {
                 ...this.createMockStats().user,
-                id: userId
-            }
+                id: userId,
+            },
         });
         
         return {
@@ -381,7 +381,7 @@ export class StatsUserResponseFactory {
                 runsCompleted: 2,
                 views: 15,
                 bookmarks: 1,
-                routinesCompleted: 2
+                routinesCompleted: 2,
             },
             [PeriodTypeEnum.Week]: {
                 ...baseStats,
@@ -393,7 +393,7 @@ export class StatsUserResponseFactory {
                 bookmarks: 8,
                 routinesCreated: 2,
                 routinesCompleted: 12,
-                projectsCreated: 1
+                projectsCreated: 1,
             },
             [PeriodTypeEnum.Month]: {
                 ...baseStats,
@@ -407,7 +407,7 @@ export class StatsUserResponseFactory {
                 routinesCompleted: 45,
                 projectsCreated: 3,
                 projectsCompleted: 2,
-                apisCreated: 1
+                apisCreated: 1,
             },
             [PeriodTypeEnum.Year]: {
                 ...baseStats,
@@ -421,7 +421,7 @@ export class StatsUserResponseFactory {
                 routinesCompleted: 500,
                 projectsCreated: 35,
                 projectsCompleted: 28,
-                apisCreated: 12
+                apisCreated: 12,
             },
             [PeriodTypeEnum.AllTime]: {
                 ...baseStats,
@@ -435,15 +435,15 @@ export class StatsUserResponseFactory {
                 routinesCompleted: 1000,
                 projectsCreated: 70,
                 projectsCompleted: 58,
-                apisCreated: 25
-            }
+                apisCreated: 25,
+            },
         };
     }
     
     /**
      * Create time series data for user analytics
      */
-    createTimeSeriesStats(userId: string, days: number = 30): StatsUser[] {
+    createTimeSeriesStats(userId: string, days = 30): StatsUser[] {
         const oneDay = 24 * 60 * 60 * 1000;
         const baseTime = Date.now();
         
@@ -454,7 +454,7 @@ export class StatsUserResponseFactory {
             return this.createMockStats({
                 user: {
                     ...this.createMockStats().user,
-                    id: userId
+                    id: userId,
                 },
                 periodType: PeriodTypeEnum.Day,
                 periodStart: new Date(dayStart).toISOString(),
@@ -463,7 +463,7 @@ export class StatsUserResponseFactory {
                 runsCompleted: Math.floor(Math.random() * 6) + 1,
                 views: Math.floor(Math.random() * 30) + 5,
                 bookmarks: Math.floor(Math.random() * 3),
-                routinesCompleted: Math.floor(Math.random() * 4)
+                routinesCompleted: Math.floor(Math.random() * 4),
             });
         });
     }
@@ -478,14 +478,14 @@ export class StatsUserResponseFactory {
                     ...this.createMockStats().user,
                     id: userId,
                     name: `User ${userId}`,
-                    handle: `user_${userId}`
+                    handle: `user_${userId}`,
                 },
                 periodType: PeriodTypeEnum.Month,
                 runsCompleted: Math.floor(Math.random() * 100) + 20,
                 routinesCreated: Math.floor(Math.random() * 15) + 2,
                 projectsCompleted: Math.floor(Math.random() * 8) + 1,
-                views: Math.floor(Math.random() * 1000) + 100
-            })
+                views: Math.floor(Math.random() * 1000) + 100,
+            }),
         );
     }
     
@@ -498,7 +498,7 @@ export class StatsUserResponseFactory {
                 ...this.createMockStats().user,
                 id: userId,
                 name: "Your Profile",
-                handle: "your_handle"
+                handle: "your_handle",
             },
             periodType: PeriodTypeEnum.Month,
             routines: 45,
@@ -513,7 +513,7 @@ export class StatsUserResponseFactory {
             runsStarted: 65,
             runsCompleted: 58,
             views: 1200,
-            bookmarks: 85
+            bookmarks: 85,
         });
     }
 }
@@ -534,10 +534,10 @@ export class StatsUserMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get user statistics by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/user/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
-                const period = url.searchParams.get('period') as PeriodType;
+                const period = url.searchParams.get("period") as PeriodType;
                 
                 if (period) {
                     const statsByPeriod = this.responseFactory.createStatsByPeriod(id as string);
@@ -546,45 +546,45 @@ export class StatsUserMSWHandlers {
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(response)
+                        ctx.json(response),
                     );
                 }
                 
                 const stats = this.responseFactory.createMockStats({
                     user: {
                         ...this.responseFactory.createMockStats().user,
-                        id: id as string
-                    }
+                        id: id as string,
+                    },
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get current user's statistics
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/user/me`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/user/me`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const period = url.searchParams.get('period') as PeriodType || PeriodTypeEnum.Month;
+                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
                 
-                const stats = this.responseFactory.createPersonalDashboardStats('current-user');
+                const stats = this.responseFactory.createPersonalDashboardStats("current-user");
                 stats.periodType = period;
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Search user statistics
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/user/search`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/user/search`, async (req, res, ctx) => {
                 const body = await req.json() as StatsUserSearchInput;
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 let statsList: StatsUser[] = [];
                 
@@ -598,7 +598,7 @@ export class StatsUserMSWHandlers {
                 if (body.periodType) {
                     statsList = statsList.map(stats => ({
                         ...stats,
-                        periodType: body.periodType!
+                        periodType: body.periodType!,
                     }));
                 }
                 
@@ -611,21 +611,21 @@ export class StatsUserMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: statsList.length
-                    }
+                        totalCount: statsList.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get top performing users
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/user/top-performers`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/user/top-performers`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const period = url.searchParams.get('period') as PeriodType || PeriodTypeEnum.Month;
-                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
+                const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 const topUsers = this.responseFactory.createHighPerformingUserStats()
                     .map(stats => ({ ...stats, periodType: period }))
@@ -635,27 +635,27 @@ export class StatsUserMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get time series data for user
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/user/:id/timeseries`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id/timeseries`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
-                const days = parseInt(url.searchParams.get('days') || '30');
+                const days = parseInt(url.searchParams.get("days") || "30");
                 
                 const timeSeriesData = this.responseFactory.createTimeSeriesStats(id as string, days);
                 const response = this.responseFactory.createStatsListResponse(timeSeriesData);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get aggregated statistics for multiple users
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/user/aggregate`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/user/aggregate`, async (req, res, ctx) => {
                 const { userIds, periodType } = await req.json() as {
                     userIds: string[];
                     periodType: PeriodType;
@@ -668,9 +668,9 @@ export class StatsUserMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -680,53 +680,53 @@ export class StatsUserMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/user/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/user/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('view'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("view")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/user/search`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/user/search`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/user/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const stats = this.responseFactory.createMockStats({
                     user: {
                         ...this.responseFactory.createMockStats().user,
-                        id: id as string
-                    }
+                        id: id as string,
+                    },
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -735,13 +735,13 @@ export class StatsUserMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/user/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/user/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/user/search`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
-            })
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/user/search`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
+            }),
         ];
     }
     
@@ -750,13 +750,13 @@ export class StatsUserMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -778,21 +778,21 @@ export const statsUserResponseScenarios = {
     getSuccess: (stats?: StatsUser) => {
         const factory = new StatsUserResponseFactory();
         return factory.createSuccessResponse(
-            stats || factory.createMockStats()
+            stats || factory.createMockStats(),
         );
     },
     
     personalDashboard: (userId?: string) => {
         const factory = new StatsUserResponseFactory();
         return factory.createSuccessResponse(
-            factory.createPersonalDashboardStats(userId || 'current-user')
+            factory.createPersonalDashboardStats(userId || "current-user"),
         );
     },
     
     searchSuccess: (statsList?: StatsUser[]) => {
         const factory = new StatsUserResponseFactory();
         return factory.createStatsListResponse(
-            statsList || factory.createHighPerformingUserStats()
+            statsList || factory.createHighPerformingUserStats(),
         );
     },
     
@@ -808,14 +808,14 @@ export const statsUserResponseScenarios = {
     timeSeriesData: (userId?: string, days?: number) => {
         const factory = new StatsUserResponseFactory();
         return factory.createStatsListResponse(
-            factory.createTimeSeriesStats(userId || 'user-123', days)
+            factory.createTimeSeriesStats(userId || "user-123", days),
         );
     },
     
     comparativeStats: (userIds?: string[]) => {
         const factory = new StatsUserResponseFactory();
         return factory.createStatsListResponse(
-            factory.createComparativeStats(userIds || ['user-1', 'user-2', 'user-3'])
+            factory.createComparativeStats(userIds || ["user-1", "user-2", "user-3"]),
         );
     },
     
@@ -823,14 +823,14 @@ export const statsUserResponseScenarios = {
     notFoundError: (userId?: string) => {
         const factory = new StatsUserResponseFactory();
         return factory.createNotFoundErrorResponse(
-            userId || 'non-existent-id'
+            userId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new StatsUserResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'view'
+            operation || "view",
         );
     },
     
@@ -843,7 +843,7 @@ export const statsUserResponseScenarios = {
     successHandlers: () => new StatsUserMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new StatsUserMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new StatsUserMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new StatsUserMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new StatsUserMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

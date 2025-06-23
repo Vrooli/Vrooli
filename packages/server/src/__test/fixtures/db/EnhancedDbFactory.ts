@@ -6,7 +6,7 @@ import type {
     DbFactoryResult, 
     DbFixtureValidation, 
     EnhancedDbFactory as IEnhancedDbFactory,
-    DbErrorScenarios
+    DbErrorScenarios,
 } from "./types.js";
 
 /**
@@ -146,11 +146,11 @@ export abstract class EnhancedDbFactory<TCreate, TUpdate = Partial<TCreate>>
             }
 
             // Check for common patterns
-            if (dataObj.handle && typeof dataObj.handle !== 'string') {
+            if (dataObj.handle && typeof dataObj.handle !== "string") {
                 errors.push("Handle must be a string");
             }
 
-            if (dataObj.name && typeof dataObj.name !== 'string') {
+            if (dataObj.name && typeof dataObj.name !== "string") {
                 errors.push("Name must be a string");
             }
 
@@ -160,7 +160,7 @@ export abstract class EnhancedDbFactory<TCreate, TUpdate = Partial<TCreate>>
             warnings.push(...customValidation.warnings);
 
         } catch (error) {
-            errors.push(`Validation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            errors.push(`Validation error: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
 
         return {
@@ -178,13 +178,13 @@ export abstract class EnhancedDbFactory<TCreate, TUpdate = Partial<TCreate>>
         const errorScenarios = this.getErrorScenarios();
 
         switch (scenario) {
-            case 'missingRequired':
+            case "missingRequired":
                 return fixtures.invalid.missingRequired;
-            case 'invalidTypes':
+            case "invalidTypes":
                 return fixtures.invalid.invalidTypes;
-            case 'uniqueViolation':
+            case "uniqueViolation":
                 return errorScenarios.constraints.uniqueViolation;
-            case 'foreignKeyViolation':
+            case "foreignKeyViolation":
                 return errorScenarios.constraints.foreignKeyViolation;
             default:
                 return fixtures.invalid[scenario] || fixtures.invalid.missingRequired;
@@ -282,16 +282,16 @@ export abstract class EnhancedDbFactory<TCreate, TUpdate = Partial<TCreate>>
      * Utility method to create a fixture with specific overrides
      */
     createCustom<K extends keyof TCreate>(
-        base: 'minimal' | 'complete' | string,
-        overrides: Partial<TCreate>
+        base: "minimal" | "complete" | string,
+        overrides: Partial<TCreate>,
     ): TCreate {
         let baseData: TCreate;
 
         switch (base) {
-            case 'minimal':
+            case "minimal":
                 baseData = this.createMinimal();
                 break;
-            case 'complete':
+            case "complete":
                 baseData = this.createComplete();
                 break;
             default:
@@ -313,11 +313,11 @@ export abstract class EnhancedDbFactory<TCreate, TUpdate = Partial<TCreate>>
      * Create multiple fixtures with different configurations
      */
     createBatch(configs: Array<{
-        type: 'minimal' | 'complete' | string;
+        type: "minimal" | "complete" | string;
         overrides?: Partial<TCreate>;
     }>): TCreate[] {
         return configs.map(config => 
-            this.createCustom(config.type, config.overrides || {})
+            this.createCustom(config.type, config.overrides || {}),
         );
     }
 }

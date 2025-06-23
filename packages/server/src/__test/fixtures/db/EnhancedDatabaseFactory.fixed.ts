@@ -68,7 +68,7 @@ export abstract class EnhancedDatabaseFactory<
         
         const result = await this.getPrismaDelegate().create({ 
             data,
-            include: this.getDefaultInclude()
+            include: this.getDefaultInclude(),
         });
         
         this.trackCreatedId(result.id);
@@ -84,7 +84,7 @@ export abstract class EnhancedDatabaseFactory<
         
         const result = await this.getPrismaDelegate().create({ 
             data,
-            include: this.getDefaultInclude()
+            include: this.getDefaultInclude(),
         });
         
         this.trackCreatedId(result.id);
@@ -106,7 +106,7 @@ export abstract class EnhancedDatabaseFactory<
             const txDelegate = this.getTxPrismaDelegate(tx);
             const result = await txDelegate.create({ 
                 data: baseData,
-                include: this.getDefaultInclude()
+                include: this.getDefaultInclude(),
             });
             
             this.trackCreatedId(result.id);
@@ -119,7 +119,7 @@ export abstract class EnhancedDatabaseFactory<
      */
     async seedMultiple(
         count: number, 
-        template?: Partial<TPrismaCreateInput>
+        template?: Partial<TPrismaCreateInput>,
     ): Promise<TPrismaModel[]> {
         const records: TPrismaModel[] = [];
         const fixtures = this.getFixtures();
@@ -134,7 +134,7 @@ export abstract class EnhancedDatabaseFactory<
             
             const record = await this.getPrismaDelegate().create({ 
                 data,
-                include: this.getDefaultInclude()
+                include: this.getDefaultInclude(),
             });
             
             this.trackCreatedId(record.id);
@@ -154,8 +154,8 @@ export abstract class EnhancedDatabaseFactory<
         
         return {
             id: record.id.toString(),
-            scenario: typeof scenario === 'string' ? scenario : scenario.name,
-            relatedIds: {}
+            scenario: typeof scenario === "string" ? scenario : scenario.name,
+            relatedIds: {},
         };
     }
 
@@ -183,7 +183,7 @@ export abstract class EnhancedDatabaseFactory<
     async verifyState(id: string, expected: Partial<DbResult>): Promise<void> {
         const record = await this.getPrismaDelegate().findUnique({
             where: { id: this.convertId(id) },
-            include: this.getDefaultInclude()
+            include: this.getDefaultInclude(),
         });
         
         if (!record) {
@@ -195,7 +195,7 @@ export abstract class EnhancedDatabaseFactory<
             const actualValue = (record as any)[key];
             if (actualValue !== expectedValue) {
                 throw new Error(
-                    `Field ${key} mismatch in ${this.modelName} ${id}: expected ${expectedValue}, got ${actualValue}`
+                    `Field ${key} mismatch in ${this.modelName} ${id}: expected ${expectedValue}, got ${actualValue}`,
                 );
             }
         }
@@ -209,9 +209,9 @@ export abstract class EnhancedDatabaseFactory<
             where: { id: this.convertId(id) },
             include: {
                 _count: {
-                    select: this.getCountSelections(expectedCounts)
-                }
-            }
+                    select: this.getCountSelections(expectedCounts),
+                },
+            },
         });
         
         if (!record) {
@@ -223,7 +223,7 @@ export abstract class EnhancedDatabaseFactory<
             const actualCount = (record._count as any)[relation];
             if (actualCount !== expectedCount) {
                 throw new Error(
-                    `${relation} count mismatch in ${this.modelName} ${id}: expected ${expectedCount}, got ${actualCount}`
+                    `${relation} count mismatch in ${this.modelName} ${id}: expected ${expectedCount}, got ${actualCount}`,
                 );
             }
         }
@@ -235,13 +235,13 @@ export abstract class EnhancedDatabaseFactory<
     async verifyConstraints(id: string): Promise<ConstraintValidation> {
         // Default implementation - basic existence check
         const record = await this.getPrismaDelegate().findUnique({
-            where: { id: this.convertId(id) }
+            where: { id: this.convertId(id) },
         });
         
         return {
             isValid: !!record,
             violations: record ? [] : [`${this.modelName} ${id} does not exist`],
-            warnings: []
+            warnings: [],
         };
     }
 
@@ -256,9 +256,9 @@ export abstract class EnhancedDatabaseFactory<
         await this.getPrismaDelegate().deleteMany({
             where: {
                 id: {
-                    in: convertedIds
-                }
-            }
+                    in: convertedIds,
+                },
+            },
         });
         
         // Remove from tracking
@@ -303,10 +303,10 @@ export abstract class EnhancedDatabaseFactory<
      */
     protected convertId(id: string | bigint): string | bigint {
         // Default: try to convert to bigint if the original ID was bigint
-        if (typeof id === 'bigint') return id;
+        if (typeof id === "bigint") return id;
         
         // Check if this looks like a bigint (all digits)
-        if (typeof id === 'string' && /^\d+$/.test(id)) {
+        if (typeof id === "string" && /^\d+$/.test(id)) {
             try {
                 return BigInt(id);
             } catch {
@@ -333,7 +333,7 @@ export abstract class EnhancedDatabaseFactory<
      */
     getVariant(variantName: string): TPrismaCreateInput {
         const fixtures = this.getFixtures();
-        if ('variants' in fixtures && fixtures.variants[variantName]) {
+        if ("variants" in fixtures && fixtures.variants[variantName]) {
             return fixtures.variants[variantName];
         }
         throw new Error(`Variant '${variantName}' not found for ${this.modelName}`);
@@ -355,7 +355,7 @@ export abstract class EnhancedDatabaseFactory<
      */
     getEdgeCase(edgeCaseName: string): TPrismaCreateInput {
         const fixtures = this.getFixtures();
-        if ('edgeCase' in fixtures && fixtures.edgeCase[edgeCaseName]) {
+        if ("edgeCase" in fixtures && fixtures.edgeCase[edgeCaseName]) {
             return fixtures.edgeCase[edgeCaseName];
         }
         throw new Error(`Edge case '${edgeCaseName}' not found for ${this.modelName}`);
@@ -368,15 +368,15 @@ export abstract class EnhancedDatabaseFactory<
         const errors: string[] = [];
         
         // Basic validation - check if required ID exists
-        if (!data || typeof data !== 'object') {
-            errors.push('Fixture data must be an object');
+        if (!data || typeof data !== "object") {
+            errors.push("Fixture data must be an object");
         } else if (!(data as any).id) {
-            errors.push('Fixture data must include an id field');
+            errors.push("Fixture data must include an id field");
         }
         
         return {
             isValid: errors.length === 0,
-            errors
+            errors,
         };
     }
 }

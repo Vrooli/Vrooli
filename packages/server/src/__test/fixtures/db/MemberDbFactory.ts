@@ -29,7 +29,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
     Prisma.memberUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('member', prisma);
+        super("member", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -146,7 +146,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
         userId: bigint, 
         teamId: bigint, 
         role: "Owner" | "Admin" | "Member",
-        overrides?: Partial<Prisma.memberCreateInput>
+        overrides?: Partial<Prisma.memberCreateInput>,
     ) {
         const data = {
             id: generatePK(),
@@ -244,7 +244,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
      */
     async createTeamMembers(
         teamId: bigint,
-        members: Array<{ userId: bigint; role?: "Owner" | "Admin" | "Member" }>
+        members: Array<{ userId: bigint; role?: "Owner" | "Admin" | "Member" }>,
     ) {
         return this.prisma.$transaction(async (tx) => {
             const createdMembers = [];
@@ -283,7 +283,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
         
         if (member.role !== expectedRole) {
             throw new Error(
-                `Role mismatch: expected ${expectedRole}, got ${member.role}`
+                `Role mismatch: expected ${expectedRole}, got ${member.role}`,
             );
         }
         
@@ -300,7 +300,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
         
         if (count !== expectedCount) {
             throw new Error(
-                `Member count mismatch for team ${teamId}: expected ${expectedCount}, got ${count}`
+                `Member count mismatch for team ${teamId}: expected ${expectedCount}, got ${count}`,
             );
         }
         

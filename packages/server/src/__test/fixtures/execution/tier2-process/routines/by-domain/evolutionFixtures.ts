@@ -403,7 +403,7 @@ export const ROUTINE_EVOLUTION_STAGES = {
                     dependencies: ["*"], // Depends on all previous
                     parallelizable: false,
                     estimatedDuration: 300,
-                }
+                },
             ],
             
             // Intelligent routing logic
@@ -426,8 +426,8 @@ export const ROUTINE_EVOLUTION_STAGES = {
                     cacheSharing: true,
                     resourcePooling: true,
                     resultReuse: true,
-                }
-            }
+                },
+            },
         },
         
         // Optimized performance through intelligent routing
@@ -474,7 +474,7 @@ export const ROUTINE_EVOLUTION_STAGES = {
                     successRate: 1.0, // 1% higher success
                     qualityScore: 1.1, // 1.1% higher quality
                     parallelizationGain: 65, // New metric
-                    specializationGain: 82 // New metric
+                    specializationGain: 82, // New metric
                 },
             },
         ],

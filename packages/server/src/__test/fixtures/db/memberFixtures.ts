@@ -9,7 +9,7 @@ export class MemberDbFactory {
     static createMinimal(
         userId: string,
         teamId: string,
-        overrides?: Partial<Prisma.MemberCreateInput>
+        overrides?: Partial<Prisma.MemberCreateInput>,
     ): Prisma.MemberCreateInput {
         return {
             id: generatePK(),
@@ -23,7 +23,7 @@ export class MemberDbFactory {
     static createOwner(
         userId: string,
         teamId: string,
-        overrides?: Partial<Prisma.MemberCreateInput>
+        overrides?: Partial<Prisma.MemberCreateInput>,
     ): Prisma.MemberCreateInput {
         return this.createMinimal(userId, teamId, {
             role: "Owner",
@@ -34,7 +34,7 @@ export class MemberDbFactory {
     static createAdmin(
         userId: string,
         teamId: string,
-        overrides?: Partial<Prisma.MemberCreateInput>
+        overrides?: Partial<Prisma.MemberCreateInput>,
     ): Prisma.MemberCreateInput {
         return this.createMinimal(userId, teamId, {
             role: "Admin",
@@ -46,10 +46,10 @@ export class MemberDbFactory {
         userId: string,
         teamId: string,
         permissions: string[],
-        overrides?: Partial<Prisma.MemberCreateInput>
+        overrides?: Partial<Prisma.MemberCreateInput>,
     ): Prisma.MemberCreateInput {
         return this.createMinimal(userId, teamId, {
-            permissions: permissions,
+            permissions,
             ...overrides,
         });
     }
@@ -63,7 +63,7 @@ export class MemberInviteDbFactory {
         userId: string,
         teamId: string,
         createdById: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>
+        overrides?: Partial<Prisma.MemberInviteCreateInput>,
     ): Prisma.MemberInviteCreateInput {
         return {
             id: generatePK(),
@@ -81,7 +81,7 @@ export class MemberInviteDbFactory {
         userId: string,
         teamId: string,
         createdById: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>
+        overrides?: Partial<Prisma.MemberInviteCreateInput>,
     ): Prisma.MemberInviteCreateInput {
         return this.createMinimal(userId, teamId, createdById, {
             willBeAdmin: true,
@@ -95,7 +95,7 @@ export class MemberInviteDbFactory {
         teamId: string,
         createdById: string,
         permissions: string[],
-        overrides?: Partial<Prisma.MemberInviteCreateInput>
+        overrides?: Partial<Prisma.MemberInviteCreateInput>,
     ): Prisma.MemberInviteCreateInput {
         return this.createMinimal(userId, teamId, createdById, {
             willHavePermissions: permissions,
@@ -115,7 +115,7 @@ export async function seedTeamWithMembers(
         memberIds?: string[];
         adminIds?: string[];
         withInvites?: Array<{ userId: string; willBeAdmin?: boolean }>;
-    }
+    },
 ) {
     const members = [];
 
@@ -153,12 +153,12 @@ export async function seedTeamWithMembers(
                 ? MemberInviteDbFactory.createAdminInvite(
                     invite.userId,
                     options.teamId,
-                    options.ownerId
+                    options.ownerId,
                 )
                 : MemberInviteDbFactory.createMinimal(
                     invite.userId,
                     options.teamId,
-                    options.ownerId
+                    options.ownerId,
                 );
             
             const createdInvite = await prisma.memberInvite.create({ data: inviteData });

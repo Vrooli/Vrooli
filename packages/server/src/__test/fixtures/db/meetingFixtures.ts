@@ -305,7 +305,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     // Static methods for backward compatibility
     static createMinimal(
         teamId: string,
-        overrides?: Partial<Prisma.MeetingCreateInput>
+        overrides?: Partial<Prisma.MeetingCreateInput>,
     ): Prisma.MeetingCreateInput {
         const factory = new MeetingDbFactory();
         const data = factory.createMinimal(overrides);
@@ -315,7 +315,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     static createWithTranslations(
         teamId: string,
         translations: Array<{ language: string; name: string; description?: string; link?: string }>,
-        overrides?: Partial<Prisma.MeetingCreateInput>
+        overrides?: Partial<Prisma.MeetingCreateInput>,
     ): Prisma.MeetingCreateInput {
         const factory = new MeetingDbFactory();
         const data = factory.createMinimal({
@@ -336,32 +336,32 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.MeetingCreateInpu
     static createScheduled(
         teamId: string,
         scheduledFor: Date,
-        overrides?: Partial<Prisma.MeetingCreateInput>
+        overrides?: Partial<Prisma.MeetingCreateInput>,
     ): Prisma.MeetingCreateInput {
         return this.createWithTranslations(
             teamId,
             [{ 
                 language: "en", 
                 name: "Scheduled Meeting",
-                description: "Team sync meeting"
+                description: "Team sync meeting",
             }],
             {
                 scheduledFor,
                 ...overrides,
-            }
+            },
         );
     }
 
     static createWithInvites(
         teamId: string,
         invitedByIds: Array<{ userId: string; createdById: string }>,
-        overrides?: Partial<Prisma.MeetingCreateInput>
+        overrides?: Partial<Prisma.MeetingCreateInput>,
     ): Prisma.MeetingCreateInput {
         const factory = new MeetingDbFactory();
         const data = this.createWithTranslations(
             teamId,
             [{ language: "en", name: "Meeting with Invites" }],
-            overrides
+            overrides,
         );
         return factory.addInvites(data, invitedByIds);
     }
@@ -375,7 +375,7 @@ export class MeetingInviteDbFactory {
         userId: string,
         meetingId: string,
         createdById: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>
+        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
     ): Prisma.MeetingInviteCreateInput {
         return {
             id: generatePK(),
@@ -398,7 +398,7 @@ export async function seedMeetings(
         count?: number;
         withInvites?: Array<{ userId: string }>;
         scheduleDates?: Date[];
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const factory = new MeetingDbFactory();
     const meetings = [];
@@ -416,9 +416,9 @@ export async function seedMeetings(
                 options.teamId,
                 options.withInvites.map(inv => ({ 
                     userId: inv.userId, 
-                    createdById: options.createdById 
+                    createdById: options.createdById, 
                 })),
-                { scheduledFor }
+                { scheduledFor },
             );
             inviteCount += options.withInvites.length;
         } else {

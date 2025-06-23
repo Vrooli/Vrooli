@@ -207,6 +207,12 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 runConnect: validIds.id2,
             },
         },
+        updateEmptyData: {
+            update: {
+                id: validIds.id1,
+                data: "", // This should become undefined and fail validation since data is required
+            } as RunIOUpdateInput,
+        },
     },
     edgeCases: {
         simpleInput: {
@@ -343,12 +349,6 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 id: validIds.id1,
                 data: "z".repeat(DATA_MAX_LENGTH), // Maximum length in update
             },
-        },
-        updateEmptyData: {
-            update: {
-                id: validIds.id1,
-                data: "", // This should become undefined and fail validation since data is required
-            } as RunIOUpdateInput,
         },
     },
 };

@@ -19,8 +19,8 @@ try {
     console.log("Generated nanoid:", nano, "type:", typeof nano);
     
     // Test Prisma types
-    console.log("Prisma namespace available:", typeof Prisma !== 'undefined');
-    console.log("PrismaClient available:", typeof PrismaClient !== 'undefined');
+    console.log("Prisma namespace available:", typeof Prisma !== "undefined");
+    console.log("PrismaClient available:", typeof PrismaClient !== "undefined");
     
 } catch (error) {
     console.error("Error testing imports:", error);

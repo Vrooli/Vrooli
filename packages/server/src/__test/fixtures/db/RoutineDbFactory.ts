@@ -42,7 +42,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
     Prisma.RoutineUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Routine', prisma);
+        super("Routine", prisma);
         this.initializeScenarios();
     }
 
@@ -128,7 +128,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 maxLengthHandle: {
                     id: generatePK().toString(),
                     publicId: generatePublicId(),
-                    handle: 'rout_' + 'a'.repeat(45), // Max length handle
+                    handle: "rout_" + "a".repeat(45), // Max length handle
                     isPrivate: false,
                     isInternal: false,
                 },
@@ -182,7 +182,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
                             id: generatePK().toString(),
-                            language: ['en', 'es', 'fr', 'de', 'ja'][i],
+                            language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Routine Name ${i}`,
                             description: `Routine description in language ${i}`,
                         })),
@@ -449,7 +449,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                     createdAt: true,
                 },
                 orderBy: {
-                    versionIndex: 'desc',
+                    versionIndex: "desc",
                 },
             },
             tags: {
@@ -476,9 +476,9 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.RoutineCreateInput,
         config: RoutineRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.RoutineCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle owner (user or team)
         if (config.owner) {
@@ -553,35 +553,35 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
      * Create a simple action routine
      */
     async createSimpleActionRoutine(): Promise<Prisma.Routine> {
-        return this.seedScenario('simpleActionRoutine');
+        return this.seedScenario("simpleActionRoutine");
     }
 
     /**
      * Create a text generation routine
      */
     async createTextGenerationRoutine(): Promise<Prisma.Routine> {
-        return this.seedScenario('textGenerationRoutine');
+        return this.seedScenario("textGenerationRoutine");
     }
 
     /**
      * Create a multi-step workflow
      */
     async createMultiStepWorkflow(): Promise<Prisma.Routine> {
-        return this.seedScenario('multiStepWorkflow');
+        return this.seedScenario("multiStepWorkflow");
     }
 
     /**
      * Create a data transformation routine
      */
     async createDataTransformationRoutine(): Promise<Prisma.Routine> {
-        return this.seedScenario('dataTransformationRoutine');
+        return this.seedScenario("dataTransformationRoutine");
     }
 
     /**
      * Create a manual process routine
      */
     async createManualProcessRoutine(): Promise<Prisma.Routine> {
-        return this.seedScenario('manualProcessRoutine');
+        return this.seedScenario("manualProcessRoutine");
     }
 
     /**
@@ -672,13 +672,13 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
                 },
             });
             if (duplicate) {
-                violations.push('Handle must be unique');
+                violations.push("Handle must be unique");
             }
         }
 
         // Check handle format
         if (record.handle && !/^[a-zA-Z0-9_]+$/.test(record.handle)) {
-            violations.push('Handle contains invalid characters');
+            violations.push("Handle contains invalid characters");
         }
 
         // Check that routine has at least one version
@@ -687,7 +687,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (versions === 0) {
-            violations.push('Routine must have at least one version');
+            violations.push("Routine must have at least one version");
         }
 
         // Check that only one version is marked as latest
@@ -699,26 +699,26 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (latestVersions > 1) {
-            violations.push('Routine can only have one latest version');
+            violations.push("Routine can only have one latest version");
         }
 
         // Check ownership
         if (!record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Routine must have an owner (user or team)');
+            violations.push("Routine must have an owner (user or team)");
         }
 
         if (record.ownedByUserId && record.ownedByTeamId) {
-            violations.push('Routine cannot be owned by both user and team');
+            violations.push("Routine cannot be owned by both user and team");
         }
 
         // Check private routine has owner
         if (record.isPrivate && !record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Private routine must have an owner');
+            violations.push("Private routine must have an owner");
         }
 
         // Check internal routines are team-owned
         if (record.isInternal && !record.ownedByTeamId) {
-            violations.push('Internal routines should be team-owned');
+            violations.push("Internal routines should be team-owned");
         }
 
         return violations;
@@ -745,7 +745,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.Routine,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
@@ -754,14 +754,14 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
         
         // Delete runs
-        if (shouldDelete('runs') && record.runs?.length) {
+        if (shouldDelete("runs") && record.runs?.length) {
             await tx.run.deleteMany({
                 where: { routineId: record.id },
             });
         }
 
         // Delete routine versions (cascade will handle their related records)
-        if (shouldDelete('versions') && record.versions?.length) {
+        if (shouldDelete("versions") && record.versions?.length) {
             for (const version of record.versions) {
                 // Delete version translations
                 if (version.translations?.length) {
@@ -790,28 +790,28 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Delete bookmarks
-        if (shouldDelete('bookmarks') && record.bookmarks?.length) {
+        if (shouldDelete("bookmarks") && record.bookmarks?.length) {
             await tx.bookmark.deleteMany({
                 where: { routineId: record.id },
             });
         }
 
         // Delete views
-        if (shouldDelete('views') && record.views?.length) {
+        if (shouldDelete("views") && record.views?.length) {
             await tx.view.deleteMany({
                 where: { routineId: record.id },
             });
         }
 
         // Delete tag relationships
-        if (shouldDelete('tags') && record.tags?.length) {
+        if (shouldDelete("tags") && record.tags?.length) {
             await tx.routineTag.deleteMany({
                 where: { routineId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.routineTranslation.deleteMany({
                 where: { routineId: record.id },
             });
@@ -821,9 +821,9 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create routine collection for testing
      */
-    async createRoutineCollection(ownerId: string, count: number = 3): Promise<Prisma.Routine[]> {
+    async createRoutineCollection(ownerId: string, count = 3): Promise<Prisma.Routine[]> {
         const routines: Prisma.Routine[] = [];
-        const types = ['simpleActionRoutine', 'textGenerationRoutine', 'multiStepWorkflow', 'dataTransformationRoutine'];
+        const types = ["simpleActionRoutine", "textGenerationRoutine", "multiStepWorkflow", "dataTransformationRoutine"];
         
         for (let i = 0; i < count; i++) {
             const type = types[i % types.length];
@@ -837,7 +837,7 @@ export class RoutineDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRoutineDbFactory = (prisma: PrismaClient) => 
-    RoutineDbFactory.getInstance('Routine', prisma);
+    RoutineDbFactory.getInstance("Routine", prisma);
 
 // Export the class for type usage
 export { RoutineDbFactory as RoutineDbFactoryClass };

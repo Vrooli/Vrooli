@@ -1,13 +1,13 @@
 import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { 
-    RoutineDbFactory,
-    RoutineVersionDbFactory,
-    ResourceDbFactory,
-    ResourceVersionDbFactory,
-    ResourceVersionRelationDbFactory,
-    UserDbFactory,
-    TeamDbFactory,
+    type RoutineDbFactory,
+    type RoutineVersionDbFactory,
+    type ResourceDbFactory,
+    type ResourceVersionDbFactory,
+    type ResourceVersionRelationDbFactory,
+    type UserDbFactory,
+    type TeamDbFactory,
     createRoutineDbFactory,
     createRoutineVersionDbFactory,
     createResourceDbFactory,
@@ -157,7 +157,7 @@ describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
 
             const routineWithVersions = await prisma.routine.findUnique({
                 where: { id: routine.id },
-                include: { versions: { orderBy: { versionLabel: 'asc' } } },
+                include: { versions: { orderBy: { versionLabel: "asc" } } },
             });
 
             expect(routineWithVersions?.versions).toHaveLength(3);
@@ -213,11 +213,11 @@ describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
                         include: { 
                             resources: { 
                                 include: { 
-                                    resourceVersion: { include: { translations: true } } 
-                                } 
-                            } 
-                        } 
-                    } 
+                                    resourceVersion: { include: { translations: true } }, 
+                                }, 
+                            }, 
+                        }, 
+                    }, 
                 },
             });
 
@@ -289,7 +289,7 @@ describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
 
             const resourceWithVersions = await prisma.resource.findUnique({
                 where: { id: resource.id },
-                include: { versions: { orderBy: { versionLabel: 'asc' } } },
+                include: { versions: { orderBy: { versionLabel: "asc" } } },
             });
 
             expect(resourceWithVersions?.versions).toHaveLength(3);
@@ -337,7 +337,7 @@ describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
 
             const version = await resourceVersionFactory.createTutorialVersionWithRelations(
                 testResourceId,
-                [{ id: routineVersion!.id, type: "RoutineVersion" }]
+                [{ id: routineVersion!.id, type: "RoutineVersion" }],
             );
 
             const versionWithData = await prisma.resourceVersion.findUnique({
@@ -395,7 +395,7 @@ describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
             const relation = await resourceVersionRelationFactory.createResourceToRoutine(
                 testResourceVersionId,
                 testRoutineVersionId,
-                0
+                0,
             );
 
             expect(relation.resourceVersionId).toBe(testResourceVersionId);
@@ -413,7 +413,7 @@ describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
                 [
                     { id: testRoutineVersionId, type: "RoutineVersion" },
                     { id: routineVersion2Id, type: "RoutineVersion" },
-                ]
+                ],
             );
 
             expect(relations).toHaveLength(2);
@@ -435,7 +435,7 @@ describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
             const relations = await resourceVersionRelationFactory.createOrderedRelations(
                 testResourceVersionId,
                 routineIds,
-                "RoutineVersion"
+                "RoutineVersion",
             );
 
             expect(relations).toHaveLength(3);
@@ -448,7 +448,7 @@ describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
         test("should validate relation constraints", async () => {
             const relation = await resourceVersionRelationFactory.createResourceToRoutine(
                 testResourceVersionId,
-                testRoutineVersionId
+                testRoutineVersionId,
             );
 
             const validation = await resourceVersionRelationFactory.verifyConstraints(relation.id);
@@ -548,12 +548,12 @@ describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
             await resourceVersionRelationFactory.createResourceToRoutine(
                 sharedVersionId, 
                 routine1.versions![0].id, 
-                0
+                0,
             );
             await resourceVersionRelationFactory.createResourceToRoutine(
                 sharedVersionId, 
                 routine2.versions![0].id, 
-                0
+                0,
             );
 
             // Verify relations

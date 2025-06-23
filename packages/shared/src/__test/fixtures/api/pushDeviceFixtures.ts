@@ -42,14 +42,14 @@ export const pushDeviceFixtures: ModelTestFixtures<PushDeviceCreateInput, PushDe
             unknownField1: "should be stripped",
             unknownField2: 123,
             unknownField3: true,
-        } as any as PushDeviceCreateInput,
+        } as PushDeviceCreateInput & { unknownField1: string; unknownField2: number; unknownField3: boolean },
         update: {
             id: validIds.id1,
             name: "Updated Device Name",
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 456,
-        } as any as PushDeviceUpdateInput,
+        } as PushDeviceUpdateInput & { unknownField1: string; unknownField2: number },
     },
     invalid: {
         missingRequired: {

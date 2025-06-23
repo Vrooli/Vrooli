@@ -190,40 +190,40 @@ export const AI_CAPABILITY_MARKETPLACE: AgentMarketplace = {
                     outputGuarantees: ["semantic_breakdown", "entity_relationships", "sentiment_layers"],
                     qualityMetrics: [
                         { metric: "accuracy", value: 0.94, confidence: 0.92 },
-                        { metric: "speed", value: 0.87, confidence: 0.95 }
+                        { metric: "speed", value: 0.87, confidence: 0.95 },
                     ],
                     examples: [
                         {
                             input: "Complex legal document analysis",
                             output: "Structured legal entity extraction with 96% accuracy",
                             processingTime: 1200,
-                            satisfactionScore: 0.92
-                        }
-                    ]
-                }
+                            satisfactionScore: 0.92,
+                        },
+                    ],
+                },
             ],
             availability: {
                 schedule: "24/7",
                 currentLoad: 0.45,
                 queueLength: 3,
-                estimatedWaitTime: 120
+                estimatedWaitTime: 120,
             },
             pricingModel: {
                 type: "usage_based",
                 baseRate: 0.01,
                 volumeDiscounts: [
                     { threshold: 1000, discount: 0.1 },
-                    { threshold: 10000, discount: 0.2 }
+                    { threshold: 10000, discount: 0.2 },
                 ],
-                priorityPricing: 1.5
+                priorityPricing: 1.5,
             },
             performanceMetrics: {
                 averageResponseTime: 850,
                 successRate: 0.96,
                 customerSatisfaction: 0.91,
-                uptimePercentage: 0.997
+                uptimePercentage: 0.997,
             },
-            specializations: ["legal", "medical", "technical_documentation"]
+            specializations: ["legal", "medical", "technical_documentation"],
         },
         {
             agentId: "vision_analysis_expert",
@@ -235,23 +235,23 @@ export const AI_CAPABILITY_MARKETPLACE: AgentMarketplace = {
                     outputGuarantees: ["object_detection", "scene_understanding", "temporal_tracking"],
                     qualityMetrics: [
                         { metric: "detection_accuracy", value: 0.96, confidence: 0.94 },
-                        { metric: "tracking_precision", value: 0.91, confidence: 0.90 }
+                        { metric: "tracking_precision", value: 0.91, confidence: 0.90 },
                     ],
                     examples: [
                         {
                             input: "Security camera feed analysis",
                             output: "Real-time threat detection with behavioral analysis",
                             processingTime: 50,
-                            satisfactionScore: 0.94
-                        }
-                    ]
-                }
+                            satisfactionScore: 0.94,
+                        },
+                    ],
+                },
             ],
             availability: {
                 schedule: "24/7",
                 currentLoad: 0.72,
                 queueLength: 8,
-                estimatedWaitTime: 300
+                estimatedWaitTime: 300,
             },
             pricingModel: {
                 type: "compute_based",
@@ -259,17 +259,17 @@ export const AI_CAPABILITY_MARKETPLACE: AgentMarketplace = {
                 computeMultiplier: 1.2,
                 batchDiscounts: [
                     { batchSize: 100, discount: 0.15 },
-                    { batchSize: 1000, discount: 0.25 }
-                ]
+                    { batchSize: 1000, discount: 0.25 },
+                ],
             },
             performanceMetrics: {
                 averageResponseTime: 200,
                 successRate: 0.94,
                 customerSatisfaction: 0.93,
-                uptimePercentage: 0.995
+                uptimePercentage: 0.995,
             },
-            specializations: ["security", "medical_imaging", "quality_control", "autonomous_vehicles"]
-        }
+            specializations: ["security", "medical_imaging", "quality_control", "autonomous_vehicles"],
+        },
     ],
     
     transactions: [
@@ -281,8 +281,8 @@ export const AI_CAPABILITY_MARKETPLACE: AgentMarketplace = {
             timestamp: new Date("2024-12-07T10:30:00Z"),
             outcome: "success",
             qualityScore: 0.93,
-            feedback: "Excellent sentiment analysis helped resolve complex customer complaint"
-        }
+            feedback: "Excellent sentiment analysis helped resolve complex customer complaint",
+        },
     ],
     
     reputationScores: {
@@ -293,12 +293,12 @@ export const AI_CAPABILITY_MARKETPLACE: AgentMarketplace = {
                 "accuracy": 0.94,
                 "speed": 0.89,
                 "reliability": 0.95,
-                "communication": 0.90
+                "communication": 0.90,
             },
             transactionCount: 4827,
             successRate: 0.96,
             averageQuality: 0.91,
-            trustLevel: "expert"
+            trustLevel: "expert",
         },
         "vision_analysis_expert": {
             agentId: "vision_analysis_expert",
@@ -307,32 +307,32 @@ export const AI_CAPABILITY_MARKETPLACE: AgentMarketplace = {
                 "accuracy": 0.96,
                 "speed": 0.92,
                 "reliability": 0.94,
-                "innovation": 0.93
+                "innovation": 0.93,
             },
             transactionCount: 3156,
             successRate: 0.94,
             averageQuality: 0.93,
-            trustLevel: "expert"
-        }
+            trustLevel: "expert",
+        },
     },
     
     discoveryMechanisms: [
         {
             type: "capability_matching",
             description: "Match requirements to agent capabilities using semantic similarity",
-            effectiveness: 0.88
+            effectiveness: 0.88,
         },
         {
             type: "reputation_based",
             description: "Recommend agents based on reputation and past performance",
-            effectiveness: 0.91
+            effectiveness: 0.91,
         },
         {
             type: "collaborative_filtering",
             description: "Suggest agents based on similar task patterns",
-            effectiveness: 0.85
-        }
-    ]
+            effectiveness: 0.85,
+        },
+    ],
 };
 
 /**
@@ -346,36 +346,36 @@ export const DYNAMIC_RESEARCH_TEAM: DynamicTeamFormation = {
             "genomic_analysis",
             "clinical_trial_design", 
             "statistical_modeling",
-            "medical_writing"
+            "medical_writing",
         ],
         desiredCapabilities: [
             "machine_learning",
             "patient_recruitment",
             "regulatory_compliance",
-            "data_visualization"
+            "data_visualization",
         ],
         constraints: [
             { type: "budget", value: 50000, unit: "credits" },
             { type: "deadline", value: "2024-12-31", unit: "date" },
-            { type: "quality", value: 0.95, unit: "minimum_score" }
+            { type: "quality", value: 0.95, unit: "minimum_score" },
         ],
         performanceTargets: [
             { metric: "analysis_accuracy", target: 0.97 },
-            { metric: "time_to_completion", target: 30, unit: "days" }
+            { metric: "time_to_completion", target: 30, unit: "days" },
         ],
         deadline: new Date("2024-12-31"),
         budget: {
             totalCredits: 50000,
             reservePercentage: 0.1,
-            flexibilityRange: 0.15
-        }
+            flexibilityRange: 0.15,
+        },
     },
     
     teamFormationStrategy: {
         optimizationGoal: "quality",
         teamSizePreference: "redundant",
         diversityRequirement: "high",
-        experienceLevel: "expert"
+        experienceLevel: "expert",
     },
     
     candidateAgents: [
@@ -387,8 +387,8 @@ export const DYNAMIC_RESEARCH_TEAM: DynamicTeamFormation = {
             relevantExperience: ["cancer_genomics", "precision_medicine"],
             collaborationHistory: {
                 successfulProjects: 47,
-                averageRating: 0.93
-            }
+                averageRating: 0.93,
+            },
         },
         {
             agentId: "clinical_trials_expert",
@@ -398,9 +398,9 @@ export const DYNAMIC_RESEARCH_TEAM: DynamicTeamFormation = {
             relevantExperience: ["oncology_trials", "fda_submissions"],
             collaborationHistory: {
                 successfulProjects: 62,
-                averageRating: 0.95
-            }
-        }
+                averageRating: 0.95,
+            },
+        },
     ],
     
     selectedTeam: {
@@ -410,44 +410,44 @@ export const DYNAMIC_RESEARCH_TEAM: DynamicTeamFormation = {
                 agentId: "genomics_specialist_alpha",
                 role: "lead_analyst",
                 allocation: 0.8,
-                responsibilities: ["genomic_data_analysis", "biomarker_identification"]
+                responsibilities: ["genomic_data_analysis", "biomarker_identification"],
             },
             {
                 agentId: "clinical_trials_expert",
                 role: "trial_designer",
                 allocation: 0.6,
-                responsibilities: ["protocol_development", "regulatory_compliance"]
+                responsibilities: ["protocol_development", "regulatory_compliance"],
             },
             {
                 agentId: "stats_modeling_pro",
                 role: "statistician",
                 allocation: 0.7,
-                responsibilities: ["statistical_analysis", "predictive_modeling"]
+                responsibilities: ["statistical_analysis", "predictive_modeling"],
             },
             {
                 agentId: "medical_writer_specialist",
                 role: "documentation_lead",
                 allocation: 0.5,
-                responsibilities: ["manuscript_preparation", "regulatory_documentation"]
-            }
+                responsibilities: ["manuscript_preparation", "regulatory_documentation"],
+            },
         ],
         roles: {
             "lead_analyst": ["genomics_specialist_alpha"],
             "trial_designer": ["clinical_trials_expert"],
             "statistician": ["stats_modeling_pro"],
-            "documentation_lead": ["medical_writer_specialist"]
+            "documentation_lead": ["medical_writer_specialist"],
         },
         coordinationProtocol: "weekly_sync_with_continuous_async",
         expectedPerformance: {
             completionProbability: 0.92,
             qualityScore: 0.96,
             estimatedDuration: 28,
-            confidenceInterval: 0.85
+            confidenceInterval: 0.85,
         },
         backupMembers: {
             "lead_analyst": ["genomics_specialist_beta"],
-            "statistician": ["stats_modeling_secondary"]
-        }
+            "statistician": ["stats_modeling_secondary"],
+        },
     },
     
     alternativeTeams: [
@@ -455,15 +455,15 @@ export const DYNAMIC_RESEARCH_TEAM: DynamicTeamFormation = {
             configurationId: "budget_optimized",
             totalCost: 38000,
             qualityScore: 0.91,
-            completionProbability: 0.87
+            completionProbability: 0.87,
         },
         {
             configurationId: "speed_optimized",
             totalCost: 55000,
             qualityScore: 0.93,
-            completionProbability: 0.95
-        }
-    ]
+            completionProbability: 0.95,
+        },
+    ],
 };
 
 /**
@@ -484,17 +484,17 @@ export const FINANCIAL_LEARNING_NETWORK: CollaborativeLearning = {
                     description: "Pre-crash volatility signature pattern",
                     sharedWith: ["risk_assessment_learner", "portfolio_optimizer"],
                     adoptionRate: 0.87,
-                    impactScore: 0.91
-                }
+                    impactScore: 0.91,
+                },
             ],
             learningHistory: [
                 {
                     fromAgent: "regulatory_compliance_expert",
                     learned: "regulatory_impact_on_volatility",
                     effectiveness: 0.88,
-                    retentionScore: 0.94
-                }
-            ]
+                    retentionScore: 0.94,
+                },
+            ],
         },
         {
             agentId: "risk_assessment_learner",
@@ -507,10 +507,10 @@ export const FINANCIAL_LEARNING_NETWORK: CollaborativeLearning = {
                     fromAgent: "market_prediction_master",
                     learned: "volatility_risk_correlation",
                     effectiveness: 0.91,
-                    retentionScore: 0.89
-                }
-            ]
-        }
+                    retentionScore: 0.89,
+                },
+            ],
+        },
     ],
     
     knowledgeTransfers: [
@@ -521,12 +521,12 @@ export const FINANCIAL_LEARNING_NETWORK: CollaborativeLearning = {
             content: {
                 patternName: "volatility_regime_shift",
                 indicators: ["vix_spike", "correlation_breakdown", "volume_anomaly"],
-                reliability: 0.89
+                reliability: 0.89,
             },
             transferMethod: "collaborative_practice",
             effectiveness: 0.91,
-            retentionRate: 0.88
-        }
+            retentionRate: 0.88,
+        },
     ],
     
     sharedModels: [
@@ -538,7 +538,7 @@ export const FINANCIAL_LEARNING_NETWORK: CollaborativeLearning = {
                 accuracy: 0.87,
                 precision: 0.91,
                 recall: 0.84,
-                improvement_rate: 0.03 // 3% monthly improvement
+                improvement_rate: 0.03, // 3% monthly improvement
             },
             usageCount: 1847,
             improvementHistory: [
@@ -546,16 +546,16 @@ export const FINANCIAL_LEARNING_NETWORK: CollaborativeLearning = {
                     version: "1.0",
                     date: new Date("2024-10-01"),
                     improvement: 0.0,
-                    contributors: ["market_prediction_master"]
+                    contributors: ["market_prediction_master"],
                 },
                 {
                     version: "1.1",
                     date: new Date("2024-11-01"),
                     improvement: 0.03,
-                    contributors: ["market_prediction_master", "risk_assessment_learner"]
-                }
-            ]
-        }
+                    contributors: ["market_prediction_master", "risk_assessment_learner"],
+                },
+            ],
+        },
     ],
     
     learningProtocols: [
@@ -564,15 +564,15 @@ export const FINANCIAL_LEARNING_NETWORK: CollaborativeLearning = {
             description: "Agents share anonymized experience for collective learning",
             participants: ["all"],
             frequency: "continuous",
-            effectiveness: 0.89
+            effectiveness: 0.89,
         },
         {
             name: "adversarial_knowledge_testing",
             description: "Agents challenge each other's knowledge to improve robustness",
             participants: ["expert_level"],
             frequency: "weekly",
-            effectiveness: 0.92
-        }
+            effectiveness: 0.92,
+        },
     ],
     
     emergentKnowledge: [
@@ -582,9 +582,9 @@ export const FINANCIAL_LEARNING_NETWORK: CollaborativeLearning = {
             discoveringAgents: ["market_prediction_master", "regulatory_compliance_expert"],
             verificationScore: 0.91,
             practicalApplications: ["risk_hedging", "position_sizing", "timing_strategies"],
-            adoptionRate: 0.78
-        }
-    ]
+            adoptionRate: 0.78,
+        },
+    ],
 };
 
 /**
@@ -601,7 +601,7 @@ export const CUSTOMER_SERVICE_HIERARCHY: SelfOrganizingHierarchy = {
             agents: ["quick_response_bot_1", "quick_response_bot_2", "quick_response_bot_3"],
             responsibilities: ["initial_contact", "simple_queries", "routing_complex_issues"],
             authorityScope: ["automated_responses", "basic_troubleshooting"],
-            coordinationOverhead: 0.1
+            coordinationOverhead: 0.1,
         },
         {
             level: 2,
@@ -609,7 +609,7 @@ export const CUSTOMER_SERVICE_HIERARCHY: SelfOrganizingHierarchy = {
             agents: ["technical_specialist", "billing_specialist", "product_specialist"],
             responsibilities: ["complex_problem_solving", "escalated_issues", "knowledge_creation"],
             authorityScope: ["system_modifications", "credit_issuance", "priority_handling"],
-            coordinationOverhead: 0.25
+            coordinationOverhead: 0.25,
         },
         {
             level: 3,
@@ -617,7 +617,7 @@ export const CUSTOMER_SERVICE_HIERARCHY: SelfOrganizingHierarchy = {
             agents: ["senior_resolution_expert", "quality_assurance_lead"],
             responsibilities: ["cross_functional_issues", "agent_training", "process_improvement"],
             authorityScope: ["policy_exceptions", "team_reorganization", "resource_allocation"],
-            coordinationOverhead: 0.4
+            coordinationOverhead: 0.4,
         },
         {
             level: 4,
@@ -625,33 +625,33 @@ export const CUSTOMER_SERVICE_HIERARCHY: SelfOrganizingHierarchy = {
             agents: ["customer_experience_director"],
             responsibilities: ["strategy_setting", "performance_optimization", "innovation_leadership"],
             authorityScope: ["full_system_control", "agent_deployment", "protocol_modification"],
-            coordinationOverhead: 0.6
-        }
+            coordinationOverhead: 0.6,
+        },
     ],
     
     promotionCriteria: {
         performanceThreshold: 0.9,
         experienceRequirement: 500, // successful interactions
         peerEndorsements: 3,
-        specialAchievements: ["innovation_award", "perfect_satisfaction_streak", "crisis_resolution"]
+        specialAchievements: ["innovation_award", "perfect_satisfaction_streak", "crisis_resolution"],
     },
     
     reorganizationTriggers: [
         {
             trigger: "performance_degradation",
             threshold: 0.8,
-            action: "reassign_underperformers"
+            action: "reassign_underperformers",
         },
         {
             trigger: "workload_imbalance",
             threshold: 0.3, // 30% difference between levels
-            action: "rebalance_teams"
+            action: "rebalance_teams",
         },
         {
             trigger: "new_capability_emergence",
             threshold: 1, // any new capability
-            action: "create_specialist_role"
-        }
+            action: "create_specialist_role",
+        },
     ],
     
     currentStructure: {
@@ -661,8 +661,8 @@ export const CUSTOMER_SERVICE_HIERARCHY: SelfOrganizingHierarchy = {
         coordinationEfficiency: 0.87,
         adaptationFrequency: "bi_weekly",
         lastReorganization: new Date("2024-12-01"),
-        performanceImprovement: 0.15 // 15% since last reorg
-    }
+        performanceImprovement: 0.15, // 15% since last reorg
+    },
 };
 
 /**
@@ -675,13 +675,13 @@ export const PATTERN_SYNERGIES = {
         benefits: [
             "Pre-verified agent quality through reputation",
             "Cost optimization through competitive pricing",
-            "Rapid team assembly from global talent pool"
+            "Rapid team assembly from global talent pool",
         ],
         emergentBehaviors: [
             "Specialist agents emerge for niche requirements",
             "Price discovery for different capability combinations",
-            "Quality standards rise through competition"
-        ]
+            "Quality standards rise through competition",
+        ],
     },
     
     learningPlusHierarchy: {
@@ -689,13 +689,13 @@ export const PATTERN_SYNERGIES = {
         benefits: [
             "Knowledge flows from experts to learners",
             "Hierarchies form based on demonstrated expertise",
-            "Continuous improvement at all levels"
+            "Continuous improvement at all levels",
         ],
         emergentBehaviors: [
             "Mentorship relationships form naturally",
             "Expertise specialization increases over time",
-            "Collective intelligence exceeds individual capabilities"
-        ]
+            "Collective intelligence exceeds individual capabilities",
+        ],
     },
     
     allPatternIntegration: {
@@ -704,15 +704,15 @@ export const PATTERN_SYNERGIES = {
             "Autonomous capability discovery and team formation",
             "Continuous learning and knowledge transfer",
             "Self-organizing structures for optimal performance",
-            "Market-driven quality improvements"
+            "Market-driven quality improvements",
         ],
         emergentBehaviors: [
             "New agent roles emerge based on market needs",
             "Cross-domain innovation through diverse teams",
             "Exponential capability growth through network effects",
-            "Resilient system through redundancy and adaptation"
-        ]
-    }
+            "Resilient system through redundancy and adaptation",
+        ],
+    },
 };
 
 /**
@@ -726,32 +726,32 @@ export const IMPLEMENTATION_GUIDE = {
             phase: 1,
             name: "Basic Collaboration",
             patterns: ["Direct agent communication", "Simple task sharing"],
-            duration: "2-4 weeks"
+            duration: "2-4 weeks",
         },
         {
             phase: 2,
             name: "Marketplace Introduction",
             patterns: ["Capability advertising", "Basic reputation"],
-            duration: "1-2 months"
+            duration: "1-2 months",
         },
         {
             phase: 3,
             name: "Dynamic Teams",
             patterns: ["Automated team formation", "Performance tracking"],
-            duration: "2-3 months"
+            duration: "2-3 months",
         },
         {
             phase: 4,
             name: "Learning Networks",
             patterns: ["Knowledge sharing", "Collective improvement"],
-            duration: "3-4 months"
+            duration: "3-4 months",
         },
         {
             phase: 5,
             name: "Self-Organization",
             patterns: ["Hierarchical emergence", "Autonomous adaptation"],
-            duration: "4-6 months"
-        }
+            duration: "4-6 months",
+        },
     ],
     
     criticalSuccessFactors: [
@@ -759,8 +759,8 @@ export const IMPLEMENTATION_GUIDE = {
         "Measure and reward collaborative behaviors",
         "Ensure transparent reputation and quality metrics",
         "Allow emergent behaviors rather than forcing structure",
-        "Continuously monitor and optimize the ecosystem"
-    ]
+        "Continuously monitor and optimize the ecosystem",
+    ],
 };
 
 // Type definitions for supporting interfaces

@@ -1,6 +1,6 @@
 import type { BotCreateInput, ProfileUpdateInput, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
-import { userValidation } from "../../../validation/models/user.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { userTranslationValidation, userValidation } from "../../../validation/models/user.js";
 
 // Magic number constants for testing
 const HANDLE_TOO_LONG_LENGTH = 17;
@@ -228,7 +228,7 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
                 id: validIds.id1,
                 handle: "abc", // Minimum 3 chars
                 isPrivate: false,
-                name: "A",
+                name: "Abc", // Name also requires minimum 3 chars
                 isBotDepictingPerson: false,
                 botSettings: {},
             },
@@ -433,155 +433,284 @@ export const userTranslationFixtures: ModelTestFixtures<UserTranslationCreateInp
 // Schema-specific fixtures
 export const emailLogInFixtures = {
     minimal: {
-        email: "user@example.com",
+        create: {
+            email: "user@example.com",
+        },
     },
     complete: {
-        email: "user@example.com",
-        password: "SecurePass123!",
-        verificationCode: "123456",
-    },
-    withPasswordOnly: {
-        password: "SecurePass123!",
-    },
-    withVerificationOnly: {
-        verificationCode: "123456",
+        create: {
+            email: "user@example.com",
+            password: "SecurePass123!",
+            verificationCode: "123456",
+        },
     },
     invalid: {
+        missingRequired: {
+            create: {
+                // Missing all fields - at least one required
+            },
+        },
+        invalidTypes: {
+            create: {
+                // @ts-expect-error - Testing invalid types
+                email: 123, // Should be string
+                password: "SecurePass123!",
+            },
+        },
         invalidEmail: {
-            email: "not-an-email",
-            password: "SecurePass123!",
+            create: {
+                email: "not-an-email",
+                password: "SecurePass123!",
+            },
         },
         tooLongPassword: {
-            email: "user@example.com",
-            password: "P".repeat(PASSWORD_TOO_LONG_LENGTH), // Too long (max 256)
+            create: {
+                email: "user@example.com",
+                password: "P".repeat(PASSWORD_TOO_LONG_LENGTH), // Too long (max 256)
+            },
         },
         tooLongVerificationCode: {
-            email: "user@example.com",
-            verificationCode: "V".repeat(VERIFICATION_CODE_TOO_LONG_LENGTH), // Too long (max 128)
+            create: {
+                email: "user@example.com",
+                verificationCode: "V".repeat(VERIFICATION_CODE_TOO_LONG_LENGTH), // Too long (max 128)
+            },
         },
     },
 };
 
 export const userDeleteOneFixtures = {
-    valid: {
-        password: "CurrentPassword123!",
-        deletePublicData: true,
+    minimal: {
+        create: {
+            password: "CurrentPassword123!",
+            deletePublicData: true,
+        },
     },
-    keepPublicData: {
-        password: "CurrentPassword123!",
-        deletePublicData: false,
+    complete: {
+        create: {
+            password: "CurrentPassword123!",
+            deletePublicData: false,
+        },
     },
     invalid: {
+        missingRequired: {
+            create: {
+                // Missing required fields
+            },
+        },
+        invalidTypes: {
+            create: {
+                // @ts-expect-error - Testing invalid types
+                password: 123, // Should be string
+                deletePublicData: true,
+            },
+        },
         missingPassword: {
-            deletePublicData: true,
+            create: {
+                deletePublicData: true,
+            },
         },
         missingDeleteFlag: {
-            password: "CurrentPassword123!",
+            create: {
+                password: "CurrentPassword123!",
+            },
         },
         tooLongPassword: {
-            password: "P".repeat(PASSWORD_TOO_LONG_LENGTH), // Too long (max 256),
-            deletePublicData: true,
+            create: {
+                password: "P".repeat(PASSWORD_TOO_LONG_LENGTH), // Too long (max 256),
+                deletePublicData: true,
+            },
         },
     },
 };
 
 export const emailRequestPasswordChangeFixtures = {
-    valid: {
-        email: "user@example.com",
+    minimal: {
+        create: {
+            email: "user@example.com",
+        },
+    },
+    complete: {
+        create: {
+            email: "user@example.com",
+        },
     },
     invalid: {
-        missingEmail: {},
+        missingRequired: {
+            create: {
+                // Missing required email field
+            },
+        },
+        invalidTypes: {
+            create: {
+                // @ts-expect-error - Testing invalid types
+                email: 123, // Should be string
+            },
+        },
         invalidEmail: {
-            email: "not-an-email",
+            create: {
+                email: "not-an-email",
+            },
         },
     },
 };
 
 export const emailResetPasswordFormFixtures = {
-    valid: {
-        newPassword: "NewSecure123!",
-        confirmNewPassword: "NewSecure123!",
-    },
-    invalid: {
-        missingNewPassword: {
+    minimal: {
+        create: {
+            newPassword: "NewSecure123!",
             confirmNewPassword: "NewSecure123!",
         },
-        missingConfirmPassword: {
+    },
+    complete: {
+        create: {
             newPassword: "NewSecure123!",
+            confirmNewPassword: "NewSecure123!",
         },
-        passwordMismatch: {
-            newPassword: "NewSecure123!",
-            confirmNewPassword: "DifferentPass123!",
+    },
+    invalid: {
+        missingRequired: {
+            create: {
+                // Missing required newPassword field
+            },
+        },
+        invalidTypes: {
+            create: {
+                // @ts-expect-error - Testing invalid types
+                newPassword: 123, // Should be string
+            },
         },
         weakPassword: {
-            newPassword: "weak",
-            confirmNewPassword: "weak",
+            create: {
+                newPassword: "weak",
+                confirmNewPassword: "weak",
+            },
+        },
+        passwordMismatch: {
+            create: {
+                newPassword: "NewSecure123!",
+                confirmNewPassword: "DifferentPass123!",
+            },
         },
     },
 };
 
 export const emailResetPasswordFixtures = {
-    validWithId: {
-        id: validIds.id1,
-        code: "RESET123456",
-        newPassword: "NewSecure123!",
+    minimal: {
+        create: {
+            id: validIds.id1,
+            code: "RESET123456",
+            newPassword: "NewSecure123!",
+        },
     },
-    validWithPublicId: {
-        publicId: "usrabc123xy", // Valid 10-12 char alphanumeric publicId (lowercase only)
-        code: "RESET123456",
-        newPassword: "NewSecure123!",
-    },
-    validWithBoth: {
-        id: validIds.id1,
-        publicId: "usrabc123xy", // Valid 10-12 char alphanumeric publicId (lowercase only)
-        code: "RESET123456",
-        newPassword: "NewSecure123!",
+    complete: {
+        create: {
+            id: validIds.id1,
+            publicId: "usrabc123xy", // Valid 10-12 char alphanumeric publicId (lowercase only)
+            code: "RESET123456",
+            newPassword: "NewSecure123!",
+        },
     },
     invalid: {
+        missingRequired: {
+            create: {
+                // Missing required fields
+            },
+        },
+        invalidTypes: {
+            create: {
+                // @ts-expect-error - Testing invalid types
+                id: 123, // Should be string
+                code: "RESET123456",
+                newPassword: "NewSecure123!",
+            },
+        },
         missingIdentifier: {
-            code: "RESET123456",
-            newPassword: "NewSecure123!",
+            create: {
+                code: "RESET123456",
+                newPassword: "NewSecure123!",
+            },
         },
         missingCode: {
-            id: validIds.id1,
-            newPassword: "NewSecure123!",
+            create: {
+                id: validIds.id1,
+                newPassword: "NewSecure123!",
+            },
         },
         missingPassword: {
-            id: validIds.id1,
-            code: "RESET123456",
+            create: {
+                id: validIds.id1,
+                code: "RESET123456",
+            },
         },
         tooLongCode: {
-            id: validIds.id1,
-            code: "C".repeat(VERIFICATION_CODE_TOO_LONG_LENGTH),
-            newPassword: "NewSecure123!",
+            create: {
+                id: validIds.id1,
+                code: "C".repeat(VERIFICATION_CODE_TOO_LONG_LENGTH),
+                newPassword: "NewSecure123!",
+            },
         },
     },
 };
 
 export const validateSessionFixtures = {
-    valid: {
-        timeZone: "America/New_York",
+    minimal: {
+        create: {
+            timeZone: "America/New_York",
+        },
     },
-    otherTimeZones: {
-        utc: { timeZone: "UTC" },
-        tokyo: { timeZone: "Asia/Tokyo" },
-        london: { timeZone: "Europe/London" },
+    complete: {
+        create: {
+            timeZone: "America/New_York",
+        },
     },
     invalid: {
-        missingTimeZone: {},
-        emptyTimeZone: { timeZone: "" },
-        tooLongTimeZone: { timeZone: "T".repeat(TIMEZONE_TOO_LONG_LENGTH) },
+        missingRequired: {
+            create: {
+                // Missing required timeZone field
+            },
+        },
+        invalidTypes: {
+            create: {
+                // @ts-expect-error - Testing invalid types
+                timeZone: 123, // Should be string
+            },
+        },
+        emptyTimeZone: {
+            create: {
+                timeZone: "",
+            },
+        },
+        tooLongTimeZone: {
+            create: {
+                timeZone: "T".repeat(TIMEZONE_TOO_LONG_LENGTH),
+            },
+        },
     },
 };
 
 export const switchCurrentAccountFixtures = {
-    valid: {
-        id: validIds.id1,
+    minimal: {
+        create: {
+            id: validIds.id1,
+        },
+    },
+    complete: {
+        create: {
+            id: validIds.id1,
+        },
     },
     invalid: {
-        missingId: {},
-        // @ts-expect-error Testing invalid type - id should be string
-        invalidIdType: { id: 123 },
+        missingRequired: {
+            create: {
+                // Missing required id field
+            },
+        },
+        invalidTypes: {
+            create: {
+                // @ts-expect-error - Testing invalid types
+                id: 123, // Should be string
+            },
+        },
     },
 };
 
@@ -627,6 +756,18 @@ export const profileEmailUpdateFixtures = {
         },
     },
     invalid: {
+        missingRequired: {
+            update: {
+                // Missing required 'id' field
+            } as ProfileUpdateInput,
+        },
+        invalidTypes: {
+            update: {
+                // @ts-expect-error - Testing invalid types for validation
+                id: 123, // Should be string
+                currentPassword: "CurrentPass123!",
+            } as unknown as ProfileUpdateInput,
+        },
         missingPassword: {
             update: {
                 newPassword: "NewPass123!",
@@ -660,7 +801,17 @@ const customizers = {
 
 // Export enhanced type-safe factories
 export const userTestDataFactory = new TypedTestDataFactory(userFixtures, userValidation, customizers);
-export const userTranslationTestDataFactory = new TestDataFactory(userTranslationFixtures);
+export const userTranslationTestDataFactory = new TypedTestDataFactory(userTranslationFixtures, userTranslationValidation, {
+    create: (base: UserTranslationCreateInput): UserTranslationCreateInput => ({
+        id: testValues.snowflakeId(),
+        language: "en",
+        ...base,
+    }),
+    update: (base: UserTranslationUpdateInput): UserTranslationUpdateInput => ({
+        id: testValues.snowflakeId(),
+        ...base,
+    }),
+});
 
 // Export type-safe fixtures with validation capabilities
 export const typedUserFixtures = createTypedFixtures(userFixtures, userValidation);

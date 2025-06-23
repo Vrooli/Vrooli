@@ -197,11 +197,11 @@ describe("validNumber", () => {
 
 describe("toBool", () => {
     describe("string conversion", () => {
-        it('should return true for "true"', () => {
+        it("should return true for \"true\"", () => {
             expect(toBool("true")).toBe(true);
         });
 
-        it('should return false for "false"', () => {
+        it("should return false for \"false\"", () => {
             expect(toBool("false")).toBe(false);
         });
 

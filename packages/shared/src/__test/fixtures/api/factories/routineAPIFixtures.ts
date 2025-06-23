@@ -18,14 +18,17 @@ import type {
     ResourceVersionTranslationUpdateInput,
     ResourceVersionUpdateInput,
     TagCreateInput,
+    User,
 } from "../../../../api/types.js";
 import { ResourceSubType, ResourceType } from "../../../../api/types.js";
 import { generatePK } from "../../../../id/snowflake.js";
 import { type RoutineVersionConfigObject } from "../../../../shape/configs/routine.js";
 import { LATEST_CONFIG_VERSION } from "../../../../shape/configs/utils.js";
+import { type McpToolName, type McpSwarmToolName } from "../../../../consts/mcp.js";
 import { shapeResource, type ResourceShape } from "../../../../shape/models/models.js";
 import { BaseAPIFixtureFactory } from "../BaseAPIFixtureFactory.js";
 import type { APIFixtureFactory, FactoryCustomizers } from "../types.js";
+import { routineConfigFixtures, createActionRoutineConfig, createGenerateRoutineConfig, createMultiStepRoutineConfig } from "../../config/routineConfigFixtures.js";
 
 // Magic number constants for testing
 const ROUTINE_NAME_TOO_LONG_LENGTH = 257;
@@ -77,191 +80,6 @@ const validPublicIds = {
     version4: "ver012edge3",
 };
 
-// Create proper routine config objects with the current format
-const createActionRoutineConfig = (): RoutineVersionConfigObject => ({
-    __version: LATEST_CONFIG_VERSION,
-    callDataAction: {
-        __version: LATEST_CONFIG_VERSION,
-        schema: {
-            toolName: "resource_manage" as any,
-            inputTemplate: JSON.stringify({
-                op: "find",
-                resource_type: "Note",
-                filters: {
-                    name: "{{input.searchTerm}}",
-                },
-            }),
-            allowedContexts: ["user", "agent"],
-            outputMapping: {
-                "result": "payload.data",
-                "count": "payload.total",
-            },
-        },
-    },
-    formInput: {
-        __version: LATEST_CONFIG_VERSION,
-        schema: {
-            containers: [],
-            elements: [
-                {
-                    id: "searchTerm",
-                    fieldName: "searchTerm",
-                    label: "Search Term",
-                    type: "text" as any,
-                    props: {
-                        placeholder: "Enter search term",
-                    },
-                },
-            ],
-        },
-    },
-    formOutput: {
-        __version: LATEST_CONFIG_VERSION,
-        schema: {
-            containers: [],
-            elements: [
-                {
-                    id: "result",
-                    fieldName: "result",
-                    label: "Search Results",
-                    type: "text" as any,
-                },
-                {
-                    id: "count",
-                    fieldName: "count",
-                    label: "Result Count",
-                    type: "number" as any,
-                },
-            ],
-        },
-    },
-});
-
-const createGenerateRoutineConfig = (): RoutineVersionConfigObject => ({
-    __version: LATEST_CONFIG_VERSION,
-    callDataGenerate: {
-        __version: LATEST_CONFIG_VERSION,
-        schema: {
-            model: "gpt-4" as any,
-            prompt: "Generate a response for: {{input.prompt}}",
-            maxTokens: 1000,
-            botStyle: "Default" as any,
-        },
-    },
-    formInput: {
-        __version: LATEST_CONFIG_VERSION,
-        schema: {
-            containers: [],
-            elements: [
-                {
-                    id: "prompt",
-                    fieldName: "prompt",
-                    label: "Input Prompt",
-                    type: "text" as any,
-                    props: {
-                        placeholder: "Enter your prompt",
-                    },
-                },
-            ],
-        },
-    },
-    formOutput: {
-        __version: LATEST_CONFIG_VERSION,
-        schema: {
-            containers: [],
-            elements: [
-                {
-                    id: "response",
-                    fieldName: "response",
-                    label: "Generated Response",
-                    type: "text" as any,
-                    props: {
-                        placeholder: "Model response will be displayed here",
-                    },
-                },
-            ],
-        },
-    },
-});
-
-const createMultiStepRoutineConfig = (): RoutineVersionConfigObject => ({
-    __version: LATEST_CONFIG_VERSION,
-    graph: {
-        __version: LATEST_CONFIG_VERSION,
-        __type: "BPMN-2.0",
-        schema: {
-            __format: "xml",
-            data: `<?xml version="1.0" encoding="UTF-8"?>
-<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">
-  <process id="multiStepProcess" isExecutable="true">
-    <startEvent id="start"/>
-    <sequenceFlow id="flow1" sourceRef="start" targetRef="step1"/>
-    <callActivity id="step1" name="Data Collection" calledElement="dataCollection"/>
-    <sequenceFlow id="flow2" sourceRef="step1" targetRef="step2"/>
-    <callActivity id="step2" name="Data Processing" calledElement="dataProcessing"/>
-    <sequenceFlow id="flow3" sourceRef="step2" targetRef="end"/>
-    <endEvent id="end"/>
-  </process>
-</definitions>`,
-            activityMap: {
-                "step1": {
-                    subroutineId: validIds.routineVersion1,
-                    inputMap: {
-                        "userInput": "input",
-                    },
-                    outputMap: {
-                        "collectedData": "data",
-                    },
-                },
-                "step2": {
-                    subroutineId: validIds.routineVersion2,
-                    inputMap: {
-                        "rawData": "collectedData",
-                    },
-                    outputMap: {
-                        "processedData": "result",
-                    },
-                },
-            },
-            rootContext: {
-                inputMap: {
-                    "input": "userInput",
-                },
-                outputMap: {
-                    "result": "finalResult",
-                },
-            },
-        },
-    },
-    formInput: {
-        __version: LATEST_CONFIG_VERSION,
-        schema: {
-            containers: [],
-            elements: [
-                {
-                    id: "userInput",
-                    fieldName: "userInput",
-                    label: "Input Data",
-                    type: "text" as any,
-                },
-            ],
-        },
-    },
-    formOutput: {
-        __version: LATEST_CONFIG_VERSION,
-        schema: {
-            containers: [],
-            elements: [
-                {
-                    id: "finalResult",
-                    fieldName: "finalResult",
-                    label: "Final Result",
-                    type: "text" as any,
-                },
-            ],
-        },
-    },
-});
 
 // Core fixture data with complete type safety
 const routineFixtureData = {
@@ -277,13 +95,13 @@ const routineFixtureData = {
                     versionLabel: "1.0.0",
                     isPrivate: false,
                     isComplete: true,
-                    resourceSubType: ResourceSubType.RoutineInternalAction,
-                    config: createActionRoutineConfig(),
+                    resourceSubType: ResourceSubType.RoutineInformational,
+                    config: routineConfigFixtures.minimal,
                     translationsCreate: [
                         {
                             id: validIds.translation1,
                             language: "en",
-                            name: "Simple Action Routine",
+                            name: "Minimal Routine",
                             description: "A minimal routine for testing basic functionality",
                         },
                     ],
@@ -335,9 +153,9 @@ const routineFixtureData = {
                     isDeleted: false,
                     isLatest: true,
                     isAutomatable: true,
-                    resourceSubType: ResourceSubType.RoutineInternalAction,
+                    resourceSubType: ResourceSubType.RoutineInformational,
                     complexity: 1,
-                    config: createActionRoutineConfig(),
+                    config: routineConfigFixtures.minimal,
                     codeLanguage: null,
                     commentsCount: 0,
                     forksCount: 0,
@@ -357,7 +175,7 @@ const routineFixtureData = {
                             __typename: "ResourceVersionTranslation" as const,
                             id: validIds.translation1,
                             language: "en",
-                            name: "Simple Action Routine",
+                            name: "Minimal Routine",
                             description: "A minimal routine for testing basic functionality",
                             details: null,
                             instructions: "",
@@ -367,7 +185,7 @@ const routineFixtureData = {
                     root: {
                         __typename: "Resource" as const,
                         id: validIds.routine1,
-                    } as any,
+                    } as Partial<Resource>,
                     you: {
                         __typename: "ResourceVersionYou" as const,
                         canDelete: true,
@@ -385,7 +203,7 @@ const routineFixtureData = {
             owner: {
                 __typename: "User" as const,
                 id: validIds.user1,
-            } as any,
+            } as Partial<User>,
             parent: null,
             you: {
                 __typename: "ResourceYou" as const,
@@ -429,7 +247,7 @@ const routineFixtureData = {
                     isComplete: true,
                     isAutomatable: true,
                     resourceSubType: ResourceSubType.RoutineMultiStep,
-                    config: createMultiStepRoutineConfig(),
+                    config: routineConfigFixtures.complete,
                     translationsCreate: [
                         {
                             id: validIds.translation2,
@@ -457,7 +275,7 @@ const routineFixtureData = {
                     isComplete: true,
                     isAutomatable: true,
                     resourceSubType: ResourceSubType.RoutineMultiStep,
-                    config: createMultiStepRoutineConfig(),
+                    config: routineConfigFixtures.multiStep.sequential,
                     translationsCreate: [
                         {
                             id: validIds.translation4,
@@ -484,7 +302,7 @@ const routineFixtureData = {
                     isPrivate: false,
                     isComplete: true,
                     resourceSubType: ResourceSubType.RoutineGenerate,
-                    config: createGenerateRoutineConfig(),
+                    config: routineConfigFixtures.generate.withCustomModel,
                     translationsCreate: [
                         {
                             id: validIds.translation5,
@@ -590,7 +408,7 @@ const routineFixtureData = {
                     isAutomatable: true,
                     resourceSubType: ResourceSubType.RoutineMultiStep,
                     complexity: 8,
-                    config: createMultiStepRoutineConfig(),
+                    config: routineConfigFixtures.multiStep.complexWorkflow,
                     codeLanguage: null,
                     commentsCount: 12,
                     forksCount: 8,
@@ -629,7 +447,7 @@ const routineFixtureData = {
                     root: {
                         __typename: "Resource" as const,
                         id: validIds.routine2,
-                    } as any,
+                    } as Partial<Resource>,
                     you: {
                         __typename: "ResourceVersionYou" as const,
                         canDelete: true,
@@ -657,7 +475,7 @@ const routineFixtureData = {
                     isAutomatable: true,
                     resourceSubType: ResourceSubType.RoutineGenerate,
                     complexity: 5,
-                    config: createGenerateRoutineConfig(),
+                    config: routineConfigFixtures.generate.withCustomModel,
                     codeLanguage: null,
                     commentsCount: 5,
                     forksCount: 3,
@@ -687,7 +505,7 @@ const routineFixtureData = {
                     root: {
                         __typename: "Resource" as const,
                         id: validIds.routine2,
-                    } as any,
+                    } as Partial<Resource>,
                     you: {
                         __typename: "ResourceVersionYou" as const,
                         canDelete: true,
@@ -705,7 +523,7 @@ const routineFixtureData = {
             owner: {
                 __typename: "Team" as const,
                 id: validIds.team1,
-            } as any,
+            } as Partial<Resource>,
             parent: null,
             you: {
                 __typename: "ResourceYou" as const,
@@ -763,7 +581,7 @@ const routineFixtureData = {
                         versionLabel: "1.0.0",
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineInternalAction,
-                        config: createActionRoutineConfig(),
+                        config: routineConfigFixtures.action.simple,
                         translationsCreate: [
                             {
                                 id: validIds.translation1,
@@ -812,7 +630,7 @@ const routineFixtureData = {
                         config: {
                             __version: "invalid",
                             invalidField: "not valid",
-                        } as any, // Invalid config structure
+                        } as Partial<Resource>, // Invalid config structure
                         translationsCreate: [
                             {
                                 id: validIds.translation1,
@@ -835,7 +653,7 @@ const routineFixtureData = {
                         versionLabel: "1.0.0",
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineInternalAction,
-                        config: createActionRoutineConfig(),
+                        config: routineConfigFixtures.action.simple,
                         translationsCreate: [
                             {
                                 id: validIds.translation1,
@@ -860,7 +678,7 @@ const routineFixtureData = {
                         versionLabel: "invalid version label!", // Invalid characters
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineInternalAction,
-                        config: createActionRoutineConfig(),
+                        config: routineConfigFixtures.action.simple,
                         translationsCreate: [
                             {
                                 id: validIds.translation1,
@@ -883,7 +701,7 @@ const routineFixtureData = {
                         versionLabel: "1.0.0",
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineInternalAction,
-                        config: createActionRoutineConfig(),
+                        config: routineConfigFixtures.action.simple,
                         translationsCreate: [
                             {
                                 id: validIds.translation1,
@@ -907,7 +725,7 @@ const routineFixtureData = {
                         versionLabel: "1.0.0",
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineInternalAction,
-                        config: createActionRoutineConfig(),
+                        config: routineConfigFixtures.action.simple,
                         translationsCreate: [
                             {
                                 id: validIds.translation1,
@@ -931,7 +749,7 @@ const routineFixtureData = {
                         versionLabel: "1.0.0",
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineInternalAction,
-                        config: createActionRoutineConfig(),
+                        config: routineConfigFixtures.action.simple,
                         translationsCreate: [
                             {
                                 id: validIds.translation1,
@@ -942,6 +760,105 @@ const routineFixtureData = {
                     },
                 ],
             } satisfies Partial<ResourceCreateInput>,
+        },
+    },
+
+    invalidConfigs: {
+        missingVersion: {
+            create: {
+                id: validIds.routine1,
+                resourceType: ResourceType.Routine,
+                isPrivate: false,
+                ownedByUserConnect: validIds.user1,
+                versionsCreate: [
+                    {
+                        id: validIds.routineVersion1,
+                        versionLabel: "1.0.0",
+                        isPrivate: false,
+                        resourceSubType: ResourceSubType.RoutineInformational,
+                        config: routineConfigFixtures.invalid.missingVersion as RoutineVersionConfigObject,
+                        translationsCreate: [
+                            {
+                                id: validIds.translation1,
+                                language: "en",
+                                name: "Invalid Config - Missing Version",
+                            },
+                        ],
+                    },
+                ],
+            } satisfies ResourceCreateInput,
+        },
+        invalidVersion: {
+            create: {
+                id: validIds.routine2,
+                resourceType: ResourceType.Routine,
+                isPrivate: false,
+                ownedByUserConnect: validIds.user1,
+                versionsCreate: [
+                    {
+                        id: validIds.routineVersion2,
+                        versionLabel: "1.0.0",
+                        isPrivate: false,
+                        resourceSubType: ResourceSubType.RoutineInformational,
+                        config: routineConfigFixtures.invalid.invalidVersion as RoutineVersionConfigObject,
+                        translationsCreate: [
+                            {
+                                id: validIds.translation2,
+                                language: "en",
+                                name: "Invalid Config - Bad Version",
+                            },
+                        ],
+                    },
+                ],
+            } satisfies ResourceCreateInput,
+        },
+        malformedStructure: {
+            create: {
+                id: validIds.routine3,
+                resourceType: ResourceType.Routine,
+                isPrivate: false,
+                ownedByUserConnect: validIds.user1,
+                versionsCreate: [
+                    {
+                        id: validIds.routineVersion3,
+                        versionLabel: "1.0.0",
+                        isPrivate: false,
+                        resourceSubType: ResourceSubType.RoutineMultiStep,
+                        config: routineConfigFixtures.invalid.malformedStructure as RoutineVersionConfigObject,
+                        translationsCreate: [
+                            {
+                                id: validIds.translation3,
+                                language: "en",
+                                name: "Invalid Config - Malformed Structure",
+                            },
+                        ],
+                    },
+                ],
+            } satisfies ResourceCreateInput,
+        },
+        invalidTypes: {
+            create: {
+                id: validIds.routine1,
+                resourceType: ResourceType.Routine,
+                isPrivate: false,
+                ownedByUserConnect: validIds.user1,
+                versionsCreate: [
+                    {
+                        id: validIds.routineVersion1,
+                        versionLabel: "1.0.0",
+                        isPrivate: false,
+                        resourceSubType: ResourceSubType.RoutineInternalAction,
+                        config: routineConfigFixtures.invalid.invalidTypes as RoutineVersionConfigObject,
+                        translationsCreate: [
+                            {
+                                id: validIds.translation1,
+                                language: "en",
+                                name: "Invalid Config - Bad Types",
+                            },
+                        ],
+                    },
+                ],
+            } satisfies ResourceCreateInput,
         },
     },
 
@@ -993,7 +910,7 @@ const routineFixtureData = {
                         isComplete: true,
                         isAutomatable: true,
                         resourceSubType: ResourceSubType.RoutineMultiStep,
-                        config: createMultiStepRoutineConfig(),
+                        config: routineConfigFixtures.multiStep.sequential,
                         translationsCreate: [
                             {
                                 id: validIds.translation1,
@@ -1067,7 +984,7 @@ const routineFixtureData = {
                         versionLabel: "1.0.0",
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineInternalAction,
-                        config: createActionRoutineConfig(),
+                        config: routineConfigFixtures.action.simple,
                         translationsCreate: [
                             {
                                 id: validIds.translation1,
@@ -1106,12 +1023,84 @@ const routineFixtureData = {
                         versionLabel: "1.0.0",
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineMultiStep,
-                        config: createMultiStepRoutineConfig(),
+                        config: routineConfigFixtures.multiStep.withBranching,
                         translationsCreate: [
                             {
                                 id: validIds.translation3,
                                 language: "en",
                                 name: "Complex Multi-Step Routine",
+                            },
+                        ],
+                    },
+                ],
+            } satisfies ResourceCreateInput,
+
+            apiRoutine: {
+                id: validIds.routine1,
+                resourceType: ResourceType.Routine,
+                isPrivate: false,
+                ownedByUserConnect: validIds.user1,
+                versionsCreate: [
+                    {
+                        id: validIds.routineVersion1,
+                        versionLabel: "1.0.0",
+                        isPrivate: false,
+                        resourceSubType: ResourceSubType.RoutineApi,
+                        config: routineConfigFixtures.variants.simpleApiCall,
+                        translationsCreate: [
+                            {
+                                id: validIds.translation1,
+                                language: "en",
+                                name: "API Call Routine",
+                                description: "Makes external API calls",
+                            },
+                        ],
+                    },
+                ],
+            } satisfies ResourceCreateInput,
+
+            dataTransformRoutine: {
+                id: validIds.routine2,
+                resourceType: ResourceType.Routine,
+                isPrivate: false,
+                ownedByUserConnect: validIds.user1,
+                versionsCreate: [
+                    {
+                        id: validIds.routineVersion2,
+                        versionLabel: "1.0.0",
+                        isPrivate: false,
+                        resourceSubType: ResourceSubType.RoutineCode,
+                        config: routineConfigFixtures.variants.dataTransformation,
+                        translationsCreate: [
+                            {
+                                id: validIds.translation2,
+                                language: "en",
+                                name: "Data Transformation Routine",
+                                description: "Transforms input data using template mapping",
+                            },
+                        ],
+                    },
+                ],
+            } satisfies ResourceCreateInput,
+
+            textGenerationRoutine: {
+                id: validIds.routine3,
+                resourceType: ResourceType.Routine,
+                isPrivate: false,
+                ownedByUserConnect: validIds.user1,
+                versionsCreate: [
+                    {
+                        id: validIds.routineVersion3,
+                        versionLabel: "1.0.0",
+                        isPrivate: false,
+                        resourceSubType: ResourceSubType.RoutineGenerate,
+                        config: routineConfigFixtures.variants.textGeneration,
+                        translationsCreate: [
+                            {
+                                id: validIds.translation3,
+                                language: "en",
+                                name: "Text Generation Routine",
+                                description: "Generates text using AI models",
                             },
                         ],
                     },
@@ -1154,7 +1143,7 @@ const routineFixtureData = {
                         versionLabel: "1.0.0",
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineInternalAction,
-                        config: createActionRoutineConfig(),
+                        config: routineConfigFixtures.action.simple,
                         translationsCreate: [
                             {
                                 id: validIds.translation2,
@@ -1178,7 +1167,7 @@ const routineFixtureData = {
                         versionLabel: "1.0.0",
                         isPrivate: false,
                         resourceSubType: ResourceSubType.RoutineInternalAction,
-                        config: createActionRoutineConfig(),
+                        config: routineConfigFixtures.action.simple,
                         translationsCreate: [
                             {
                                 id: validIds.translation3,
@@ -1221,7 +1210,7 @@ const routineCustomizers: FactoryCustomizers<ResourceCreateInput, ResourceUpdate
                     versionLabel: "1.0.0",
                     isPrivate: false,
                     resourceSubType: ResourceSubType.RoutineInternalAction,
-                    config: createActionRoutineConfig(),
+                    config: routineConfigFixtures.action.simple,
                     translationsCreate: [
                         {
                             id: generatePK().toString(),
@@ -1293,11 +1282,11 @@ export class RoutineAPIFixtureFactory extends BaseAPIFixtureFactory<
         overrides?: Partial<ResourceCreateInput>,
     ): ResourceCreateInput => {
         const config = createActionRoutineConfig();
-        if (toolName) {
-            config.callDataAction!.schema.toolName = toolName as any;
+        if (toolName && config.callDataAction) {
+            config.callDataAction.schema.toolName = toolName as McpToolName | McpSwarmToolName;
         }
-        if (inputTemplate) {
-            config.callDataAction!.schema.inputTemplate = inputTemplate;
+        if (inputTemplate && config.callDataAction) {
+            config.callDataAction.schema.inputTemplate = inputTemplate;
         }
 
         return this.createFactory({
@@ -1327,11 +1316,11 @@ export class RoutineAPIFixtureFactory extends BaseAPIFixtureFactory<
         overrides?: Partial<ResourceCreateInput>,
     ): ResourceCreateInput => {
         const config = createGenerateRoutineConfig();
-        if (model) {
-            config.callDataGenerate!.schema.model = model as any;
+        if (model && config.callDataGenerate) {
+            config.callDataGenerate.schema.model = { name: model, value: model };
         }
-        if (prompt) {
-            config.callDataGenerate!.schema.prompt = prompt;
+        if (prompt && config.callDataGenerate) {
+            config.callDataGenerate.schema.prompt = prompt;
         }
 
         return this.createFactory({
@@ -1393,7 +1382,7 @@ export class RoutineAPIFixtureFactory extends BaseAPIFixtureFactory<
                 __version: LATEST_CONFIG_VERSION,
                 schema: {
                     endpoint,
-                    method: method as any,
+                    method: method as string,
                     headers: {
                         "Content-Type": "application/json",
                     },
@@ -1467,14 +1456,14 @@ export class RoutineAPIFixtureFactory extends BaseAPIFixtureFactory<
     // AI Execution Helpers
     // ========================================
 
-    addRoutineStep = (routineId: string, stepConfig: any): ResourceUpdateInput => {
+    addRoutineStep = (routineId: string, _stepConfig: unknown): ResourceUpdateInput => {
         return this.updateFactory(routineId, {
             // This would require complex version update logic for multi-step routines
             // Implementation depends on specific step management requirements
         });
     };
 
-    updateRoutineFlow = (routineId: string, flowConfig: any): ResourceUpdateInput => {
+    updateRoutineFlow = (routineId: string, _flowConfig: unknown): ResourceUpdateInput => {
         return this.updateFactory(routineId, {
             // Implementation for updating BPMN flow configuration
         });
@@ -1482,8 +1471,8 @@ export class RoutineAPIFixtureFactory extends BaseAPIFixtureFactory<
 
     setRoutineParameters = (
         routineId: string,
-        inputs: any[],
-        outputs: any[],
+        _inputs: unknown[],
+        _outputs: unknown[],
     ): ResourceUpdateInput => {
         return this.updateFactory(routineId, {
             // Implementation for updating input/output parameters
@@ -1506,7 +1495,7 @@ export class RoutineAPIFixtureFactory extends BaseAPIFixtureFactory<
                     versionNotes: versionInfo.notes,
                     isPrivate: false,
                     resourceSubType: ResourceSubType.RoutineInternalAction,
-                    config: versionInfo.config || createActionRoutineConfig(),
+                    config: versionInfo.config || routineConfigFixtures.action.simple,
                     translationsCreate: [
                         {
                             id: generatePK().toString(),
@@ -1527,7 +1516,7 @@ export class RoutineAPIFixtureFactory extends BaseAPIFixtureFactory<
                     versionLabel: "1.0.0",
                     isPrivate: false,
                     resourceSubType: ResourceSubType.RoutineInternalAction,
-                    config: createActionRoutineConfig(),
+                    config: routineConfigFixtures.action.simple,
                     translationsCreate: [
                         {
                             id: generatePK().toString(),
@@ -1545,8 +1534,10 @@ export class RoutineAPIFixtureFactory extends BaseAPIFixtureFactory<
     // ========================================
 
     setRoutineModel = (routineId: string, model: string): ResourceUpdateInput => {
-        const config = createGenerateRoutineConfig();
-        config.callDataGenerate!.schema.model = model as any;
+        const config = createGenerateRoutineConfig("Generate response for: {{input}}", { name: model, value: model });
+        if (config.callDataGenerate) {
+            config.callDataGenerate.schema.model = { name: model, value: model };
+        }
 
         return this.updateFactory(routineId, {
             versionsUpdate: [
@@ -1673,6 +1664,7 @@ export const legacyRoutineFixtures = {
     minimal: routineAPIFixtures.minimal,
     complete: routineAPIFixtures.complete,
     invalid: routineAPIFixtures.invalid,
+    invalidConfigs: routineAPIFixtures.invalidConfigs,
     edgeCases: routineAPIFixtures.edgeCases,
 
     // Factory methods

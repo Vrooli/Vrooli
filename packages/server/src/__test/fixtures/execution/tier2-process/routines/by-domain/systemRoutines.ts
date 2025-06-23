@@ -37,15 +37,15 @@ export const SYSTEM_LOG_SEARCH: RoutineFixture = {
                     filters: {
                         content: "{{input.searchPattern}}",
                         timeRange: "{{input.timeRange}}",
-                        severity: "{{input.severity}}"
+                        severity: "{{input.severity}}",
                     },
-                    limit: 500
+                    limit: 500,
                 }),
                 outputMapping: {
                     logs: "items",
-                    count: "count"
-                }
-            }
+                    count: "count",
+                },
+            },
         } as CallDataActionConfigObject,
         formInput: {
             __version: "1.0",
@@ -58,7 +58,7 @@ export const SYSTEM_LOG_SEARCH: RoutineFixture = {
                         label: "Search Pattern",
                         type: InputType.Text,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "timeRange",
@@ -67,7 +67,7 @@ export const SYSTEM_LOG_SEARCH: RoutineFixture = {
                         type: InputType.Text,
                         isRequired: true,
                         defaultValue: "24h",
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "severity",
@@ -80,12 +80,12 @@ export const SYSTEM_LOG_SEARCH: RoutineFixture = {
                                 { label: "All", value: "all" },
                                 { label: "Error", value: "error" },
                                 { label: "Warning", value: "warning" },
-                                { label: "Info", value: "info" }
-                            ]
-                        }
-                    }
-                ]
-            }
+                                { label: "Info", value: "info" },
+                            ],
+                        },
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -97,17 +97,17 @@ export const SYSTEM_LOG_SEARCH: RoutineFixture = {
                         id: "logs",
                         label: "Found Logs",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "count",
                         id: "count",
                         label: "Total Count",
                         type: InputType.IntegerInput,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "deterministic" as const,
     } as RoutineVersionConfigObject,
@@ -134,9 +134,9 @@ export const SYSTEM_HEALTH_CHECK: RoutineFixture = {
                 maxResults: 5,
                 outputMapping: {
                     bestPractices: "results[*].snippet",
-                    resources: "results[*].link"
-                }
-            }
+                    resources: "results[*].link",
+                },
+            },
         } as CallDataWebConfigObject,
         formInput: {
             __version: "1.0",
@@ -150,10 +150,10 @@ export const SYSTEM_HEALTH_CHECK: RoutineFixture = {
                         type: InputType.Text,
                         isRequired: true,
                         defaultValue: "kubernetes cluster",
-                        props: {}
-                    }
-                ]
-            }
+                        props: {},
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -165,17 +165,17 @@ export const SYSTEM_HEALTH_CHECK: RoutineFixture = {
                         id: "best_practices",
                         label: "Monitoring Best Practices",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "resources",
                         id: "resources",
                         label: "Reference Resources",
                         type: InputType.JSON,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "deterministic" as const,
     } as RoutineVersionConfigObject,

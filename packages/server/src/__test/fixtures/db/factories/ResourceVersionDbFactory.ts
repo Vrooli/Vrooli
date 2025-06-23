@@ -24,7 +24,7 @@ export class ResourceVersionDbFactory extends DatabaseFixtureFactory<
     Prisma.ResourceVersionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ResourceVersion', prisma);
+        super("ResourceVersion", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -155,15 +155,15 @@ export class ResourceVersionDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.ResourceVersionCreateInput,
         config: ResourceVersionRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ResourceVersionCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle resource connection
         if (config.resource) {
-            if ('id' in config.resource) {
+            if ("id" in config.resource) {
                 data.root = { connect: { id: config.resource.id } };
-            } else if ('create' in config.resource) {
+            } else if ("create" in config.resource) {
                 data.root = { create: config.resource.create };
             }
         }
@@ -222,7 +222,7 @@ export class ResourceVersionDbFactory extends DatabaseFixtureFactory<
      */
     async createTutorialVersionWithRelations(
         resourceId: string,
-        relatedVersions: Array<{ id: string; type: "ProjectVersion" | "RoutineVersion" }>
+        relatedVersions: Array<{ id: string; type: "ProjectVersion" | "RoutineVersion" }>,
     ): Promise<Prisma.ResourceVersion> {
         return this.createWithRelations({
             resource: { id: resourceId },
@@ -326,12 +326,12 @@ export class ResourceVersionDbFactory extends DatabaseFixtureFactory<
 
         // Check version label format
         if (record.versionLabel && !/^\d+\.\d+\.\d+(-\w+)?$/.test(record.versionLabel)) {
-            violations.push('Version label must follow semantic versioning format');
+            violations.push("Version label must follow semantic versioning format");
         }
 
         // Check complexity range
         if (record.complexity < 1 || record.complexity > 10) {
-            violations.push('Complexity must be between 1 and 10');
+            violations.push("Complexity must be between 1 and 10");
         }
 
         // Check that if isLatest is true, no other version has isLatest for the same resource
@@ -344,13 +344,13 @@ export class ResourceVersionDbFactory extends DatabaseFixtureFactory<
                 },
             });
             if (otherLatest > 0) {
-                violations.push('Only one version can be marked as latest');
+                violations.push("Only one version can be marked as latest");
             }
         }
 
         // Check link format if provided
-        if (record.link && !record.link.startsWith('http://') && !record.link.startsWith('https://')) {
-            violations.push('Link must be a valid URL starting with http:// or https://');
+        if (record.link && !record.link.startsWith("http://") && !record.link.startsWith("https://")) {
+            violations.push("Link must be a valid URL starting with http:// or https://");
         }
 
         return violations;
@@ -464,7 +464,7 @@ export class ResourceVersionDbFactory extends DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: Prisma.ResourceVersion,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete relations
         if (record.relations?.length) {

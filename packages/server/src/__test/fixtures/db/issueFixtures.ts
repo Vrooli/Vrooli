@@ -249,7 +249,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
         if (!data.publicId) errors.push("Issue publicId is required");
 
         // Check business logic - should have exactly one target object
-        const targetFields = ['api', 'code', 'note', 'project', 'routine', 'standard', 'team'];
+        const targetFields = ["api", "code", "note", "project", "routine", "standard", "team"];
         const connectedTargets = targetFields.filter(field => data[field as keyof Prisma.IssueCreateInput]);
         
         if (connectedTargets.length === 0) {
@@ -260,8 +260,8 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
 
         // Check closure logic
         if (data.closedBy && data.createdBy && 
-            typeof data.closedBy === 'object' && 'connect' in data.closedBy &&
-            typeof data.createdBy === 'object' && 'connect' in data.createdBy &&
+            typeof data.closedBy === "object" && "connect" in data.closedBy &&
+            typeof data.createdBy === "object" && "connect" in data.createdBy &&
             data.closedBy.connect.id === data.createdBy.connect.id) {
             warnings.push("Issue closed by the same user who created it");
         }
@@ -272,7 +272,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
     // Static methods for backward compatibility
     static createMinimal(
         createdById: string,
-        overrides?: Partial<Prisma.IssueCreateInput>
+        overrides?: Partial<Prisma.IssueCreateInput>,
     ): Prisma.IssueCreateInput {
         const factory = new IssueDbFactory();
         return factory.createMinimal({
@@ -285,7 +285,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
         createdById: string,
         objectId: string,
         objectType: string,
-        overrides?: Partial<Prisma.IssueCreateInput>
+        overrides?: Partial<Prisma.IssueCreateInput>,
     ): Prisma.IssueCreateInput {
         const base = this.createMinimal(createdById, overrides);
         
@@ -309,7 +309,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
     static createWithTranslations(
         createdById: string,
         translations: Array<{ language: string; name: string; description: string }>,
-        overrides?: Partial<Prisma.IssueCreateInput>
+        overrides?: Partial<Prisma.IssueCreateInput>,
     ): Prisma.IssueCreateInput {
         return {
             ...this.createMinimal(createdById, overrides),
@@ -327,7 +327,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
     static createWithLabels(
         createdById: string,
         labelIds: string[],
-        overrides?: Partial<Prisma.IssueCreateInput>
+        overrides?: Partial<Prisma.IssueCreateInput>,
     ): Prisma.IssueCreateInput {
         return {
             ...this.createMinimal(createdById, overrides),
@@ -349,7 +349,7 @@ export async function seedIssues(
         forObject?: { id: string; type: string };
         withTranslations?: boolean;
         withLabels?: string[];
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const issues = [];
     const count = options.count || 1;
@@ -381,7 +381,7 @@ export async function seedIssues(
                             connect: options.withLabels.map(id => ({ id })),
                         },
                     }),
-                }
+                },
             );
             targetedCount++;
         } else {
@@ -399,7 +399,7 @@ export async function seedIssues(
                                 connect: options.withLabels.map(id => ({ id })),
                             },
                         }),
-                    }
+                    },
                 )
                 : IssueDbFactory.createMinimal(options.createdById, {
                     ...(options.withLabels && {

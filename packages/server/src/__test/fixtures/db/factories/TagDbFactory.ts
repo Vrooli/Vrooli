@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
@@ -16,20 +16,20 @@ interface TagRelationConfig extends RelationConfig {
  * Handles hierarchical tags with multi-language support
  */
 export class TagDbFactory extends DatabaseFixtureFactory<
-    Prisma.Tag,
-    Prisma.TagCreateInput,
-    Prisma.TagInclude,
-    Prisma.TagUpdateInput
+    Prisma.tag,
+    Prisma.tagCreateInput,
+    Prisma.tagInclude,
+    Prisma.tagUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Tag', prisma);
+        super("tag", prisma);
     }
 
     protected getPrismaDelegate() {
         return this.prisma.tag;
     }
 
-    protected getMinimalData(overrides?: Partial<Prisma.TagCreateInput>): Prisma.TagCreateInput {
+    protected getMinimalData(overrides?: Partial<Prisma.tagCreateInput>): Prisma.tagCreateInput {
         const uniqueTag = `tag_${nanoid(8)}`.toLowerCase();
         
         return {
@@ -41,7 +41,7 @@ export class TagDbFactory extends DatabaseFixtureFactory<
         };
     }
 
-    protected getCompleteData(overrides?: Partial<Prisma.TagCreateInput>): Prisma.TagCreateInput {
+    protected getCompleteData(overrides?: Partial<Prisma.tagCreateInput>): Prisma.tagCreateInput {
         const uniqueTag = `complete_tag_${nanoid(6)}`.toLowerCase();
         
         return {
@@ -67,7 +67,7 @@ export class TagDbFactory extends DatabaseFixtureFactory<
         };
     }
 
-    protected getDefaultInclude(): Prisma.TagInclude {
+    protected getDefaultInclude(): Prisma.tagInclude {
         return {
             translations: true,
             parent: {
@@ -97,11 +97,11 @@ export class TagDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.TagCreateInput,
+        baseData: Prisma.tagCreateInput,
         config: TagRelationConfig,
-        tx: any
-    ): Promise<Prisma.TagCreateInput> {
-        let data = { ...baseData };
+        tx: any,
+    ): Promise<Prisma.tagCreateInput> {
+        const data = { ...baseData };
 
         // Handle translations
         if (config.withTranslations || config.translations) {
@@ -113,8 +113,8 @@ export class TagDbFactory extends DatabaseFixtureFactory<
                     })),
                 };
             } else if (config.withTranslations) {
-                const count = typeof config.withTranslations === 'number' ? config.withTranslations : 2;
-                const languages = ['en', 'es', 'fr', 'de', 'ja'].slice(0, count);
+                const count = typeof config.withTranslations === "number" ? config.withTranslations : 2;
+                const languages = ["en", "es", "fr", "de", "ja"].slice(0, count);
                 data.translations = {
                     create: languages.map(lang => ({
                         id: generatePK(),
@@ -128,7 +128,7 @@ export class TagDbFactory extends DatabaseFixtureFactory<
         // Handle parent relationship
         if (config.parentId) {
             data.parent = {
-                connect: { id: config.parentId }
+                connect: { id: config.parentId },
             };
         }
 
@@ -140,7 +140,7 @@ export class TagDbFactory extends DatabaseFixtureFactory<
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.Tag): Promise<string[]> {
+    protected async checkModelConstraints(record: Prisma.tag): Promise<string[]> {
         const violations: string[] = [];
         
         // Check tag name uniqueness
@@ -152,37 +152,37 @@ export class TagDbFactory extends DatabaseFixtureFactory<
                 },
             });
             if (duplicate) {
-                violations.push('Tag name must be unique');
+                violations.push("Tag name must be unique");
             }
         }
 
         // Check tag name format
         if (record.tag && !/^[a-z0-9_-]+$/.test(record.tag)) {
-            violations.push('Tag name should only contain lowercase letters, numbers, underscores, and hyphens');
+            violations.push("Tag name should only contain lowercase letters, numbers, underscores, and hyphens");
         }
 
         // Check tag name length
         if (record.tag && (record.tag.length < 2 || record.tag.length > 50)) {
-            violations.push('Tag name must be between 2 and 50 characters');
+            violations.push("Tag name must be between 2 and 50 characters");
         }
 
         // Check bookmarks count
         if (record.bookmarks < 0) {
-            violations.push('Bookmark count cannot be negative');
+            violations.push("Bookmark count cannot be negative");
         }
 
         // Check for self-parent reference
         if (record.parentId && record.id && record.parentId === record.id) {
-            violations.push('Tag cannot be its own parent');
+            violations.push("Tag cannot be its own parent");
         }
 
         // Check parent exists
         if (record.parentId) {
             const parent = await this.prisma.tag.findUnique({
-                where: { id: record.parentId }
+                where: { id: record.parentId },
             });
             if (!parent) {
-                violations.push('Parent tag does not exist');
+                violations.push("Parent tag does not exist");
             }
         }
 
@@ -192,7 +192,7 @@ export class TagDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a popular tag with high bookmark count
      */
-    async createPopularTag(overrides?: Partial<Prisma.TagCreateInput>): Promise<Prisma.Tag> {
+    async createPopularTag(overrides?: Partial<Prisma.tagCreateInput>): Promise<Prisma.tag> {
         return this.createMinimal({
             bookmarks: Math.floor(Math.random() * 500) + 100, // 100-600 bookmarks
             ...overrides,
@@ -204,16 +204,16 @@ export class TagDbFactory extends DatabaseFixtureFactory<
      */
     async createTagWithChildren(
         parentTag: string, 
-        childTags: string[]
-    ): Promise<{ parent: Prisma.Tag; children: Prisma.Tag[] }> {
+        childTags: string[],
+    ): Promise<{ parent: Prisma.tag; children: Prisma.tag[] }> {
         const parent = await this.createMinimal({
-            tag: parentTag.toLowerCase().replace(/\s+/g, '-'),
+            tag: parentTag.toLowerCase().replace(/\s+/g, "-"),
         });
 
         const children = [];
         for (const childTag of childTags) {
             const child = await this.createMinimal({
-                tag: childTag.toLowerCase().replace(/\s+/g, '-'),
+                tag: childTag.toLowerCase().replace(/\s+/g, "-"),
                 parent: { connect: { id: parent.id } },
             });
             children.push(child);
@@ -227,10 +227,10 @@ export class TagDbFactory extends DatabaseFixtureFactory<
      */
     async createMultilingualTag(
         tag: string,
-        descriptions: Record<string, string>
-    ): Promise<Prisma.Tag> {
+        descriptions: Record<string, string>,
+    ): Promise<Prisma.tag> {
         return this.createWithRelations({
-            overrides: { tag: tag.toLowerCase().replace(/\s+/g, '-') },
+            overrides: { tag: tag.toLowerCase().replace(/\s+/g, "-") },
             translations: Object.entries(descriptions).map(([language, description]) => ({
                 language,
                 description,
@@ -241,10 +241,10 @@ export class TagDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a technology tag cloud
      */
-    async createTechTagCloud(): Promise<Prisma.Tag[]> {
+    async createTechTagCloud(): Promise<Prisma.tag[]> {
         const techTags = [
-            'javascript', 'typescript', 'python', 'react', 'nodejs',
-            'docker', 'kubernetes', 'aws', 'postgresql', 'mongodb'
+            "javascript", "typescript", "python", "react", "nodejs",
+            "docker", "kubernetes", "aws", "postgresql", "mongodb",
         ];
 
         const tags = [];
@@ -263,36 +263,36 @@ export class TagDbFactory extends DatabaseFixtureFactory<
      * Create nested tag hierarchy (category > subcategory > specific)
      */
     async createNestedHierarchy(): Promise<{ 
-        categories: Prisma.Tag[]; 
-        subcategories: Prisma.Tag[]; 
-        specific: Prisma.Tag[] 
+        categories: Prisma.tag[]; 
+        subcategories: Prisma.tag[]; 
+        specific: Prisma.tag[] 
     }> {
         // Create main categories
         const categories = await Promise.all([
-            this.createMinimal({ tag: 'programming' }),
-            this.createMinimal({ tag: 'design' }),
-            this.createMinimal({ tag: 'business' }),
+            this.createMinimal({ tag: "programming" }),
+            this.createMinimal({ tag: "design" }),
+            this.createMinimal({ tag: "business" }),
         ]);
 
         // Create subcategories
         const subcategories = await Promise.all([
             // Programming subcategories
             this.createMinimal({ 
-                tag: 'web-development', 
-                parent: { connect: { id: categories[0].id } }
+                tag: "web-development", 
+                parent: { connect: { id: categories[0].id } },
             }),
             this.createMinimal({ 
-                tag: 'mobile-development', 
-                parent: { connect: { id: categories[0].id } }
+                tag: "mobile-development", 
+                parent: { connect: { id: categories[0].id } },
             }),
             // Design subcategories
             this.createMinimal({ 
-                tag: 'ui-design', 
-                parent: { connect: { id: categories[1].id } }
+                tag: "ui-design", 
+                parent: { connect: { id: categories[1].id } },
             }),
             this.createMinimal({ 
-                tag: 'ux-design', 
-                parent: { connect: { id: categories[1].id } }
+                tag: "ux-design", 
+                parent: { connect: { id: categories[1].id } },
             }),
         ]);
 
@@ -300,21 +300,21 @@ export class TagDbFactory extends DatabaseFixtureFactory<
         const specific = await Promise.all([
             // Web development specific
             this.createMinimal({ 
-                tag: 'react-js', 
-                parent: { connect: { id: subcategories[0].id } }
+                tag: "react-js", 
+                parent: { connect: { id: subcategories[0].id } },
             }),
             this.createMinimal({ 
-                tag: 'vue-js', 
-                parent: { connect: { id: subcategories[0].id } }
+                tag: "vue-js", 
+                parent: { connect: { id: subcategories[0].id } },
             }),
             // Mobile development specific
             this.createMinimal({ 
-                tag: 'react-native', 
-                parent: { connect: { id: subcategories[1].id } }
+                tag: "react-native", 
+                parent: { connect: { id: subcategories[1].id } },
             }),
             this.createMinimal({ 
-                tag: 'flutter', 
-                parent: { connect: { id: subcategories[1].id } }
+                tag: "flutter", 
+                parent: { connect: { id: subcategories[1].id } },
             }),
         ]);
 
@@ -368,15 +368,15 @@ export class TagDbFactory extends DatabaseFixtureFactory<
     /**
      * Get edge case scenarios
      */
-    getEdgeCaseScenarios(): Record<string, Prisma.TagCreateInput> {
+    getEdgeCaseScenarios(): Record<string, Prisma.tagCreateInput> {
         return {
             maxLengthTag: {
                 ...this.getMinimalData(),
-                tag: 'a'.repeat(50), // Maximum length
+                tag: "a".repeat(50), // Maximum length
             },
             unicodeTag: {
                 ...this.getMinimalData(),
-                tag: '🏷️-emoji-tag-日本語'.toLowerCase(),
+                tag: "🏷️-emoji-tag-日本語".toLowerCase(),
             },
             popularTag: {
                 ...this.getMinimalData(),
@@ -412,9 +412,9 @@ export class TagDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.Tag,
+        record: Prisma.tag,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete in order of dependencies
         

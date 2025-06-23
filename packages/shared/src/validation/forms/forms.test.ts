@@ -385,9 +385,9 @@ describe("Form Validations", () => {
 
         it("should handle large numbers of email operations", async () => {
             const manyEmails = Array.from({ length: 100 }, (_, i) => ({ 
-                emailAddress: `email${i}@example.com` 
+                emailAddress: `email${i}@example.com`, 
             }));
-            const manyIds = Array.from({ length: 100 }, (_, i) => `12345678901234567${i.toString().padStart(2, '0')}`);
+            const manyIds = Array.from({ length: 100 }, (_, i) => `12345678901234567${i.toString().padStart(2, "0")}`);
 
             const validData = {
                 currentPassword: "CurrentPassword123!",

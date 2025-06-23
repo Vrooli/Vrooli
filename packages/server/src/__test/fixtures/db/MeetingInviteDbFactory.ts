@@ -31,7 +31,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     Prisma.MeetingInviteUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('MeetingInvite', prisma);
+        super("MeetingInvite", prisma);
         this.initializeScenarios();
     }
 
@@ -88,7 +88,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                 maxLengthMessage: {
                     id: generatePK().toString(),
                     status: InviteStatus.Pending,
-                    message: 'a'.repeat(4096), // Max length message
+                    message: "a".repeat(4096), // Max length message
                     meeting: { connect: { id: "meeting-789" } },
                     user: { connect: { id: "user-789" } },
                 },
@@ -277,9 +277,9 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.MeetingInviteCreateInput,
         config: MeetingInviteRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.MeetingInviteCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle meeting connection (required)
         if (config.meeting) {
@@ -287,7 +287,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                 connect: { id: config.meeting.meetingId },
             };
         } else {
-            throw new Error('MeetingInvite requires a meeting connection');
+            throw new Error("MeetingInvite requires a meeting connection");
         }
 
         // Handle user connection (required)
@@ -296,7 +296,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                 connect: { id: config.user.userId },
             };
         } else {
-            throw new Error('MeetingInvite requires a user connection');
+            throw new Error("MeetingInvite requires a user connection");
         }
 
         return data;
@@ -308,7 +308,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     async createPendingInvite(
         meetingId: string,
         userId: string,
-        message?: string
+        message?: string,
     ): Promise<Prisma.MeetingInvite> {
         return await this.createWithRelations({
             overrides: {
@@ -326,12 +326,12 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
     async createBulkInvites(
         meetingId: string,
         userIds: string[],
-        message?: string
+        message?: string,
     ): Promise<Prisma.MeetingInvite[]> {
         const invites = await Promise.all(
             userIds.map(userId => 
-                this.createPendingInvite(meetingId, userId, message)
-            )
+                this.createPendingInvite(meetingId, userId, message),
+            ),
         );
         return invites;
     }
@@ -392,7 +392,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (duplicate) {
-            violations.push('User already has an invite to this meeting');
+            violations.push("User already has an invite to this meeting");
         }
 
         // Check if user is already an attendee
@@ -404,17 +404,17 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (existingAttendee && record.status === InviteStatus.Pending) {
-            violations.push('User is already an attendee of this meeting');
+            violations.push("User is already an attendee of this meeting");
         }
 
         // Check message length
         if (record.message && record.message.length > 4096) {
-            violations.push('Message exceeds maximum length of 4096 characters');
+            violations.push("Message exceeds maximum length of 4096 characters");
         }
 
         // Check valid status
         if (!Object.values(InviteStatus).includes(record.status as InviteStatus)) {
-            violations.push('Invalid invite status');
+            violations.push("Invalid invite status");
         }
 
         // Check meeting exists
@@ -423,7 +423,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (!meeting) {
-            violations.push('Meeting does not exist');
+            violations.push("Meeting does not exist");
         }
 
         return violations;
@@ -439,7 +439,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.MeetingInvite,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // MeetingInvite has no dependent records to delete
     }
@@ -449,7 +449,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
      */
     async getInvitesByStatus(
         status: InviteStatus,
-        meetingId?: string
+        meetingId?: string,
     ): Promise<Prisma.MeetingInvite[]> {
         const where: Prisma.MeetingInviteWhereInput = { status };
         if (meetingId) {
@@ -459,7 +459,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         return await this.prisma.meetingInvite.findMany({
             where,
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
         });
     }
 
@@ -473,7 +473,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
                 status: InviteStatus.Pending,
             },
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
         });
     }
 
@@ -481,7 +481,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
      * Send reminder for pending invites
      */
     async getReminderCandidates(
-        hoursBeforeMeeting: number = 24
+        hoursBeforeMeeting = 24,
     ): Promise<Prisma.MeetingInvite[]> {
         const cutoffTime = new Date(Date.now() + hoursBeforeMeeting * 60 * 60 * 1000);
         
@@ -509,37 +509,37 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
      */
     async createTestInviteSet(
         meetingId: string,
-        userIds: string[]
+        userIds: string[],
     ): Promise<{
         pending: Prisma.MeetingInvite[];
         accepted: Prisma.MeetingInvite[];
         declined: Prisma.MeetingInvite[];
     }> {
         if (userIds.length < 3) {
-            throw new Error('Need at least 3 user IDs for test set');
+            throw new Error("Need at least 3 user IDs for test set");
         }
 
         const pending = await this.createPendingInvite(
             meetingId,
             userIds[0],
-            "Pending invitation - awaiting response"
+            "Pending invitation - awaiting response",
         );
 
         const acceptedInvite = await this.createPendingInvite(
             meetingId,
             userIds[1],
-            "This will be accepted"
+            "This will be accepted",
         );
         const accepted = await this.acceptInvite(acceptedInvite.id);
 
         const declinedInvite = await this.createPendingInvite(
             meetingId,
             userIds[2],
-            "This will be declined"
+            "This will be declined",
         );
         const declined = await this.declineInvite(
             declinedInvite.id,
-            "Schedule conflict"
+            "Schedule conflict",
         );
 
         return {
@@ -561,25 +561,25 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
         const teamMeeting = await this.createPendingInvite(
             "meeting-team",
             userId,
-            "Weekly team sync - please review the agenda beforehand"
+            "Weekly team sync - please review the agenda beforehand",
         );
 
         const clientMeeting = await this.createPendingInvite(
             "meeting-client",
             userId,
-            "Client presentation - your technical expertise would be valuable"
+            "Client presentation - your technical expertise would be valuable",
         );
 
         const webinar = await this.createPendingInvite(
             "meeting-webinar",
             userId,
-            "Join our product launch webinar! Feel free to invite colleagues"
+            "Join our product launch webinar! Feel free to invite colleagues",
         );
 
         const oneOnOne = await this.createPendingInvite(
             "meeting-1on1",
             userId,
-            "Monthly 1:1 check-in - let's discuss your goals and progress"
+            "Monthly 1:1 check-in - let's discuss your goals and progress",
         );
 
         return {
@@ -593,7 +593,7 @@ export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createMeetingInviteDbFactory = (prisma: PrismaClient) => 
-    MeetingInviteDbFactory.getInstance('MeetingInvite', prisma);
+    MeetingInviteDbFactory.getInstance("MeetingInvite", prisma);
 
 // Export the class for type usage
 export { MeetingInviteDbFactory as MeetingInviteDbFactoryClass };

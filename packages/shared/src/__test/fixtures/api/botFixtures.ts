@@ -1,6 +1,6 @@
 import type { BotCreateInput, BotUpdateInput, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
-import { botValidation } from "../../../validation/models/bot.js";
+import { botTranslationValidation, botValidation } from "../../../validation/models/bot.js";
 
 // Magic number constants for testing
 const NAME_TOO_LONG_LENGTH = 257;
@@ -191,7 +191,7 @@ export const botFixtures: ModelTestFixtures<BotCreateInput, BotUpdateInput> = {
                 },
                 handle: "bot", // Minimum 3 chars
                 isBotDepictingPerson: false,
-                name: "B",
+                name: "Bot", // Name also requires minimum 3 chars
             },
         },
         maximalHandle: {
@@ -429,7 +429,17 @@ const customizers = {
 
 // Export factories for creating test data programmatically
 export const botTestDataFactory = new TypedTestDataFactory(botFixtures, botValidation, customizers);
-export const botTranslationTestDataFactory = new TestDataFactory(botTranslationFixtures);
+export const botTranslationTestDataFactory = new TypedTestDataFactory(botTranslationFixtures, botTranslationValidation, {
+    create: (base: UserTranslationCreateInput): UserTranslationCreateInput => ({
+        id: testValues.snowflakeId(),
+        language: "en",
+        ...base,
+    }),
+    update: (base: UserTranslationUpdateInput): UserTranslationUpdateInput => ({
+        id: testValues.snowflakeId(),
+        ...base,
+    }),
+});
 
 // Export type-safe fixtures with validation capabilities
 export const typedBotFixtures = createTypedFixtures(botFixtures, botValidation);

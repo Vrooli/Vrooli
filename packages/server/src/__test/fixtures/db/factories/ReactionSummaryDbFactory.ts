@@ -4,7 +4,7 @@ import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
 
 interface ReactionSummaryRelationConfig extends RelationConfig {
-    objectType?: 'resource' | 'chatMessage' | 'comment' | 'issue';
+    objectType?: "resource" | "chatMessage" | "comment" | "issue";
     objectId?: string;
     reactionData?: Array<{ emoji: string; count: number }>;
 }
@@ -20,7 +20,7 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
     Prisma.reaction_summaryUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('reaction_summary', prisma);
+        super("reaction_summary", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -49,11 +49,11 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
      * Create a reaction summary for a specific object
      */
     async createForObject(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
         objectId: string,
         emoji: string,
         count: number,
-        overrides?: Partial<Prisma.reaction_summaryCreateInput>
+        overrides?: Partial<Prisma.reaction_summaryCreateInput>,
     ): Promise<Prisma.reaction_summary> {
         const data: Prisma.reaction_summaryCreateInput = {
             ...this.getMinimalData(),
@@ -72,9 +72,9 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
      * Create multiple summaries from reaction data
      */
     async createFromReactionData(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
         objectId: string,
-        reactionData: Array<{ emoji: string; count: number }>
+        reactionData: Array<{ emoji: string; count: number }>,
     ): Promise<Prisma.reaction_summary[]> {
         const summaries: Prisma.reaction_summary[] = [];
 
@@ -83,7 +83,7 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
                 objectType,
                 objectId,
                 emoji,
-                count
+                count,
             );
             summaries.push(summary);
         }
@@ -95,8 +95,8 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
      * Create summaries from actual reactions
      */
     async createFromReactions(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
-        objectId: string
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
+        objectId: string,
     ): Promise<Prisma.reaction_summary[]> {
         // Get all reactions for this object
         const whereClause = { [`${objectType}Id`]: objectId };
@@ -124,10 +124,10 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
      * Update or create summary (upsert)
      */
     async upsertForObject(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
         objectId: string,
         emoji: string,
-        delta: number
+        delta: number,
     ): Promise<Prisma.reaction_summary> {
         const whereClause = {
             [`${objectType}Id`]: objectId,
@@ -148,7 +148,7 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
             return this.createForObject(objectType, objectId, emoji, delta);
         } else {
             // Don't create summary with 0 or negative count
-            throw new Error('Cannot create reaction summary with non-positive count');
+            throw new Error("Cannot create reaction summary with non-positive count");
         }
     }
 
@@ -165,9 +165,9 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.reaction_summaryCreateInput,
         config: ReactionSummaryRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.reaction_summaryCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle object connection
         if (config.objectType && config.objectId) {
@@ -189,8 +189,8 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
      * Create test scenarios
      */
     async createPopularContent(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
-        objectId: string
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
+        objectId: string,
     ): Promise<Prisma.reaction_summary[]> {
         const popularReactions = [
             { emoji: "👍", count: 150 },
@@ -204,8 +204,8 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
     }
 
     async createControversialContent(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
-        objectId: string
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
+        objectId: string,
     ): Promise<Prisma.reaction_summary[]> {
         const controversialReactions = [
             { emoji: "👍", count: 120 },
@@ -219,8 +219,8 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
     }
 
     async createDiverseReactions(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
-        objectId: string
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
+        objectId: string,
     ): Promise<Prisma.reaction_summary[]> {
         const diverseReactions = [
             { emoji: "👍", count: 25 },
@@ -239,8 +239,8 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
     }
 
     async createMinimalEngagement(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
-        objectId: string
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
+        objectId: string,
     ): Promise<Prisma.reaction_summary[]> {
         const minimalReactions = [
             { emoji: "👍", count: 1 },
@@ -253,25 +253,25 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
         const violations: string[] = [];
 
         // Check exactly one parent object
-        const parentFields = ['resourceId', 'chatMessageId', 'commentId', 'issueId'];
+        const parentFields = ["resourceId", "chatMessageId", "commentId", "issueId"];
         const connectedObjects = parentFields.filter(field => 
-            record[field as keyof Prisma.reaction_summary]
+            record[field as keyof Prisma.reaction_summary],
         );
         
         if (connectedObjects.length === 0) {
-            violations.push('ReactionSummary must reference exactly one object');
+            violations.push("ReactionSummary must reference exactly one object");
         } else if (connectedObjects.length > 1) {
-            violations.push('ReactionSummary cannot reference multiple objects');
+            violations.push("ReactionSummary cannot reference multiple objects");
         }
 
         // Check emoji is valid
         if (!record.emoji || record.emoji.length === 0) {
-            violations.push('ReactionSummary must have an emoji');
+            violations.push("ReactionSummary must have an emoji");
         }
 
         // Check count is valid
         if (record.count < 0) {
-            violations.push('ReactionSummary count cannot be negative');
+            violations.push("ReactionSummary count cannot be negative");
         }
 
         // Check for duplicate summaries (same object and emoji)
@@ -288,7 +288,7 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
             });
             
             if (duplicate) {
-                violations.push('ReactionSummary already exists for this object and emoji');
+                violations.push("ReactionSummary already exists for this object and emoji");
             }
         }
 
@@ -393,8 +393,8 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
      * Synchronize summaries with actual reactions
      */
     async synchronizeWithReactions(
-        objectType: 'resource' | 'chatMessage' | 'comment' | 'issue',
-        objectId: string
+        objectType: "resource" | "chatMessage" | "comment" | "issue",
+        objectId: string,
     ): Promise<{
         created: Prisma.reaction_summary[];
         updated: Prisma.reaction_summary[];
@@ -461,7 +461,7 @@ export class ReactionSummaryDbFactory extends DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: Prisma.reaction_summary,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // ReactionSummaries don't have child records to delete
     }

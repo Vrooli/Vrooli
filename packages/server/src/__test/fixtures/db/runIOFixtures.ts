@@ -18,7 +18,7 @@ export const runIODbIds = {
 /**
  * Minimal RunIO data for database creation
  */
-export const minimalRunIODb: Omit<Prisma.run_ioCreateInput, 'run'> = {
+export const minimalRunIODb: Omit<Prisma.run_ioCreateInput, "run"> = {
     id: runIODbIds.runIO1,
     data: "test input data",
     nodeInputName: "input1",
@@ -28,12 +28,12 @@ export const minimalRunIODb: Omit<Prisma.run_ioCreateInput, 'run'> = {
 /**
  * Complete RunIO with all fields
  */
-export const completeRunIODb: Omit<Prisma.run_ioCreateInput, 'run'> = {
+export const completeRunIODb: Omit<Prisma.run_ioCreateInput, "run"> = {
     id: runIODbIds.runIO2,
     data: JSON.stringify({
         value: "complex test data",
         type: "string",
-        metadata: { source: "test" }
+        metadata: { source: "test" },
     }),
     nodeInputName: "complexInput",
     nodeName: "ComplexTestNode",
@@ -42,14 +42,14 @@ export const completeRunIODb: Omit<Prisma.run_ioCreateInput, 'run'> = {
 /**
  * RunIO with JSON data
  */
-export const jsonRunIODb: Omit<Prisma.run_ioCreateInput, 'run'> = {
+export const jsonRunIODb: Omit<Prisma.run_ioCreateInput, "run"> = {
     id: runIODbIds.runIO3,
     data: JSON.stringify({
         numbers: [1, 2, 3, 4, 5],
         nested: {
             property: "value",
-            flag: true
-        }
+            flag: true,
+        },
     }),
     nodeInputName: "jsonInput",
     nodeName: "JsonNode",
@@ -58,7 +58,7 @@ export const jsonRunIODb: Omit<Prisma.run_ioCreateInput, 'run'> = {
 /**
  * RunIO with large text data
  */
-export const largeDataRunIODb: Omit<Prisma.run_ioCreateInput, 'run'> = {
+export const largeDataRunIODb: Omit<Prisma.run_ioCreateInput, "run"> = {
     id: runIODbIds.runIO4,
     data: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(50),
     nodeInputName: "textInput",
@@ -71,7 +71,7 @@ export const largeDataRunIODb: Omit<Prisma.run_ioCreateInput, 'run'> = {
 export class RunIODbFactory {
     static createMinimal(
         runId: string,
-        overrides?: Partial<Prisma.run_ioCreateInput>
+        overrides?: Partial<Prisma.run_ioCreateInput>,
     ): Prisma.run_ioCreateInput {
         return {
             ...minimalRunIODb,
@@ -83,7 +83,7 @@ export class RunIODbFactory {
 
     static createComplete(
         runId: string,
-        overrides?: Partial<Prisma.run_ioCreateInput>
+        overrides?: Partial<Prisma.run_ioCreateInput>,
     ): Prisma.run_ioCreateInput {
         return {
             ...completeRunIODb,
@@ -96,7 +96,7 @@ export class RunIODbFactory {
     static createWithJsonData(
         runId: string,
         jsonData: any,
-        overrides?: Partial<Prisma.run_ioCreateInput>
+        overrides?: Partial<Prisma.run_ioCreateInput>,
     ): Prisma.run_ioCreateInput {
         return {
             ...jsonRunIODb,
@@ -110,7 +110,7 @@ export class RunIODbFactory {
     static createWithTextData(
         runId: string,
         textData: string,
-        overrides?: Partial<Prisma.run_ioCreateInput>
+        overrides?: Partial<Prisma.run_ioCreateInput>,
     ): Prisma.run_ioCreateInput {
         return {
             ...largeDataRunIODb,
@@ -129,11 +129,11 @@ export class RunIODbFactory {
         nodeName: string,
         nodeInputName: string,
         data: any,
-        overrides?: Partial<Prisma.run_ioCreateInput>
+        overrides?: Partial<Prisma.run_ioCreateInput>,
     ): Prisma.run_ioCreateInput {
         return {
             id: generatePK(),
-            data: typeof data === 'string' ? data : JSON.stringify(data),
+            data: typeof data === "string" ? data : JSON.stringify(data),
             nodeInputName,
             nodeName,
             run: { connect: { id: runId } },
@@ -151,7 +151,7 @@ export class RunIODbFactory {
             nodeInputName: string;
             data: any;
             overrides?: Partial<Prisma.run_ioCreateInput>;
-        }>
+        }>,
     ): Prisma.run_ioCreateInput[] {
         return ioData.map(item => 
             this.createForNode(
@@ -159,8 +159,8 @@ export class RunIODbFactory {
                 item.nodeName,
                 item.nodeInputName,
                 item.data,
-                item.overrides
-            )
+                item.overrides,
+            ),
         );
     }
 }
@@ -180,7 +180,7 @@ export async function seedRunIO(
             nodeInputName: string;
             data: any;
         }>;
-    }
+    },
 ) {
     const runIOs = [];
     
@@ -192,7 +192,7 @@ export async function seedRunIO(
                     options.runId,
                     item.nodeName,
                     item.nodeInputName,
-                    item.data
+                    item.data,
                 ),
             });
             runIOs.push(runIO);
@@ -207,12 +207,12 @@ export async function seedRunIO(
             if (options.withJsonData && i === 0) {
                 runIOData = RunIODbFactory.createWithJsonData(
                     options.runId,
-                    { testData: `value_${i}`, index: i }
+                    { testData: `value_${i}`, index: i },
                 );
             } else if (options.withLargeData && i === 1) {
                 runIOData = RunIODbFactory.createWithTextData(
                     options.runId,
-                    `Large test data entry ${i}. `.repeat(100)
+                    `Large test data entry ${i}. `.repeat(100),
                 );
             } else {
                 runIOData = RunIODbFactory.createMinimal(options.runId, {
@@ -235,26 +235,26 @@ export async function seedRunIO(
  */
 export async function seedRoutineExecutionIO(
     prisma: any,
-    runId: string
+    runId: string,
 ) {
     const executionFlow = [
         {
             nodeName: "StartNode",
             nodeInputName: "initialInput",
-            data: { message: "Starting routine execution" }
+            data: { message: "Starting routine execution" },
         },
         {
             nodeName: "DataProcessingNode", 
             nodeInputName: "dataInput",
             data: { 
                 rawData: [1, 2, 3, 4, 5],
-                processedData: [2, 4, 6, 8, 10]
-            }
+                processedData: [2, 4, 6, 8, 10],
+            },
         },
         {
             nodeName: "ConditionalNode",
             nodeInputName: "conditionInput",
-            data: { condition: true, result: "continue" }
+            data: { condition: true, result: "continue" },
         },
         {
             nodeName: "OutputNode",
@@ -262,9 +262,9 @@ export async function seedRoutineExecutionIO(
             data: { 
                 success: true,
                 message: "Routine completed successfully",
-                results: { count: 5, total: 30 }
-            }
-        }
+                results: { count: 5, total: 30 },
+            },
+        },
     ];
 
     return seedRunIO(prisma, {

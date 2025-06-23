@@ -1,6 +1,6 @@
 import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import InputAdornment from "@mui/material/InputAdornment";
 import InputLabel from "@mui/material/InputLabel";
 import LinearProgress from "@mui/material/LinearProgress";
@@ -52,27 +52,62 @@ export function PasswordTextInput({
         if (!password) {
             return { ...defaultProps, score: 0 };
         }
-        const zxcvbn = (await import("zxcvbn")).default;
-        const result = zxcvbn(password);
-        const score = result.score;
-        switch (score) {
-            case 0:
-            case 1:
-                return { label: "Weak", primary: palette.error.main, secondary: palette.error.light, score };
-            case 2:
-                return { label: "Moderate", primary: palette.warning.main, secondary: palette.warning.light, score };
-            case 3:
-                return { label: "Strong", primary: palette.success.main, secondary: palette.success.light, score };
-            case 4:
-                return { label: "Very Strong", primary: palette.success.dark, secondary: palette.success.light, score };
-            default:
-                return { ...defaultProps, score };
+        
+        try {
+            const zxcvbn = (await import("zxcvbn")).default;
+            const result = zxcvbn(password);
+            const score = result.score;
+            switch (score) {
+                case 0:
+                case 1:
+                    return { label: "Weak", primary: palette.error.main, secondary: palette.error.light, score };
+                case 2:
+                    return { label: "Moderate", primary: palette.warning.main, secondary: palette.warning.light, score };
+                case 3:
+                    return { label: "Strong", primary: palette.success.main, secondary: palette.success.light, score };
+                case 4:
+                    return { label: "Very Strong", primary: palette.success.dark, secondary: palette.success.light, score };
+                default:
+                    return { ...defaultProps, score };
+            }
+        } catch (error) {
+            console.warn("Failed to load password strength library:", error);
+            // Fallback to simple length-based scoring
+            let score = 0;
+            if (password.length >= 12) score = 4;
+            else if (password.length >= 10) score = 3;
+            else if (password.length >= 8) score = 2;
+            else if (password.length >= 6) score = 1;
+            
+            switch (score) {
+                case 0:
+                case 1:
+                    return { label: "Weak", primary: palette.error.main, secondary: palette.error.light, score };
+                case 2:
+                    return { label: "Moderate", primary: palette.warning.main, secondary: palette.warning.light, score };
+                case 3:
+                    return { label: "Strong", primary: palette.success.main, secondary: palette.success.light, score };
+                case 4:
+                    return { label: "Very Strong", primary: palette.success.dark, secondary: palette.success.light, score };
+                default:
+                    return { ...defaultProps, score };
+            }
         }
     }, [palette]);
 
     const [strengthProps, setStrengthProps] = useState<PasswordStrengthProps>({ label: "N/A", primary: palette.info.main, secondary: palette.info.light, score: 0 });
     useEffect(() => {
-        getPasswordStrengthProps(field.value).then(setStrengthProps);
+        let isMounted = true;
+        
+        getPasswordStrengthProps(field.value).then((props) => {
+            if (isMounted) {
+                setStrengthProps(props);
+            }
+        });
+        
+        return () => {
+            isMounted = false;
+        };
     }, [field.value, getPasswordStrengthProps]);
 
     return (
@@ -88,6 +123,7 @@ export function PasswordTextInput({
                 autoComplete={autoComplete}
                 autoFocus={autoFocus}
                 error={meta.touched && !!meta.error}
+                data-testid="password-input"
                 startAdornment={passwordStartAdornment}
                 endAdornment={
                     <InputAdornment position="end">
@@ -95,6 +131,7 @@ export function PasswordTextInput({
                             aria-label="toggle password visibility"
                             onClick={handleClickShowPassword}
                             edge="end"
+                            variant="transparent"
                             sx={{
                                 "&:focus": {
                                     border: `2px solid ${palette.background.textPrimary}`,

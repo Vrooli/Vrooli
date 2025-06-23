@@ -31,7 +31,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     Prisma.NotificationUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Notification', prisma);
+        super("Notification", prisma);
         this.initializeScenarios();
     }
 
@@ -84,7 +84,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     id: generatePK().toString(),
                     category: "system",
                     isRead: false,
-                    title: 'a'.repeat(129), // Exceeds max length of 128
+                    title: "a".repeat(129), // Exceeds max length of 128
                     count: 1,
                     user: { connect: { id: "user-123" } },
                 },
@@ -93,7 +93,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     category: "system",
                     isRead: false,
                     title: "Notification",
-                    description: 'a'.repeat(2049), // Exceeds max length of 2048
+                    description: "a".repeat(2049), // Exceeds max length of 2048
                     count: 1,
                     user: { connect: { id: "user-123" } },
                 },
@@ -111,7 +111,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     id: generatePK().toString(),
                     category: "system",
                     isRead: false,
-                    title: 'a'.repeat(128), // Max length
+                    title: "a".repeat(128), // Max length
                     count: 1,
                     user: { connect: { id: "user-max" } },
                 },
@@ -120,7 +120,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     category: "system",
                     isRead: false,
                     title: "Long Description",
-                    description: 'a'.repeat(2048), // Max length
+                    description: "a".repeat(2048), // Max length
                     count: 1,
                     user: { connect: { id: "user-max-desc" } },
                 },
@@ -346,9 +346,9 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.NotificationCreateInput,
         config: NotificationRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.NotificationCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle user connection (required)
         if (config.user) {
@@ -356,7 +356,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                 connect: { id: config.user.userId },
             };
         } else {
-            throw new Error('Notification requires a user connection');
+            throw new Error("Notification requires a user connection");
         }
 
         return data;
@@ -375,7 +375,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
             imgLink?: string;
             count?: number;
             isRead?: boolean;
-        }
+        },
     ): Promise<Prisma.Notification> {
         return await this.createWithRelations({
             overrides: {
@@ -399,7 +399,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         category: string,
         title: string,
         count: number,
-        description?: string
+        description?: string,
     ): Promise<Prisma.Notification> {
         return await this.createNotification(userId, category, title, {
             description,
@@ -446,7 +446,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Increment notification count
      */
-    async incrementCount(notificationId: string, increment: number = 1): Promise<Prisma.Notification> {
+    async incrementCount(notificationId: string, increment = 1): Promise<Prisma.Notification> {
         return await this.prisma.notification.update({
             where: { id: notificationId },
             data: { count: { increment } },
@@ -459,32 +459,32 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         
         // Check title length
         if (record.title.length > 128) {
-            violations.push('Title exceeds maximum length of 128 characters');
+            violations.push("Title exceeds maximum length of 128 characters");
         }
 
         // Check description length
         if (record.description && record.description.length > 2048) {
-            violations.push('Description exceeds maximum length of 2048 characters');
+            violations.push("Description exceeds maximum length of 2048 characters");
         }
 
         // Check category length
         if (record.category.length > 64) {
-            violations.push('Category exceeds maximum length of 64 characters');
+            violations.push("Category exceeds maximum length of 64 characters");
         }
 
         // Check count is positive
         if (record.count < 1) {
-            violations.push('Count must be at least 1');
+            violations.push("Count must be at least 1");
         }
 
         // Check link format
         if (record.link && record.link.length > 2048) {
-            violations.push('Link exceeds maximum length of 2048 characters');
+            violations.push("Link exceeds maximum length of 2048 characters");
         }
 
         // Check image link format
         if (record.imgLink && record.imgLink.length > 2048) {
-            violations.push('Image link exceeds maximum length of 2048 characters');
+            violations.push("Image link exceeds maximum length of 2048 characters");
         }
 
         return violations;
@@ -500,7 +500,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.Notification,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Notification has no dependent records to delete
     }
@@ -515,7 +515,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                 isRead: false,
             },
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
             take: limit,
         });
     }
@@ -526,7 +526,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     async getNotificationsByCategory(
         userId: string,
         category: string,
-        options?: { isRead?: boolean; limit?: number }
+        options?: { isRead?: boolean; limit?: number },
     ): Promise<Prisma.Notification[]> {
         const where: Prisma.NotificationWhereInput = {
             userId,
@@ -540,7 +540,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         return await this.prisma.notification.findMany({
             where,
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
             take: options?.limit,
         });
     }
@@ -552,12 +552,12 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         userIds: string[],
         category: string,
         title: string,
-        description?: string
+        description?: string,
     ): Promise<Prisma.Notification[]> {
         const notifications = await Promise.all(
             userIds.map(userId =>
-                this.createNotification(userId, category, title, { description })
-            )
+                this.createNotification(userId, category, title, { description }),
+            ),
         );
         return notifications;
     }
@@ -565,7 +565,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Delete old read notifications
      */
-    async deleteOldReadNotifications(userId: string, daysOld: number = 30): Promise<number> {
+    async deleteOldReadNotifications(userId: string, daysOld = 30): Promise<number> {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
@@ -610,7 +610,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
             "follow",
             "New followers",
             15,
-            "15 people started following you"
+            "15 people started following you",
         );
 
         const urgent = await this.createNotification(userId, "security", "⚠️ Security Alert", {
@@ -659,7 +659,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createNotificationDbFactory = (prisma: PrismaClient) => 
-    NotificationDbFactory.getInstance('Notification', prisma);
+    NotificationDbFactory.getInstance("Notification", prisma);
 
 // Export the class for type usage
 export { NotificationDbFactory as NotificationDbFactoryClass };

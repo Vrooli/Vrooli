@@ -43,7 +43,7 @@ export const completeReputationHistoryDb: Prisma.Reputation_historyCreateInput =
 export class ReputationHistoryDbFactory {
     static createMinimal(
         userId: string,
-        overrides?: Partial<Prisma.Reputation_historyCreateInput>
+        overrides?: Partial<Prisma.Reputation_historyCreateInput>,
     ): Prisma.Reputation_historyCreateInput {
         return {
             id: generatePK(),
@@ -56,7 +56,7 @@ export class ReputationHistoryDbFactory {
 
     static createComplete(
         userId: string,
-        overrides?: Partial<Prisma.Reputation_historyCreateInput>
+        overrides?: Partial<Prisma.Reputation_historyCreateInput>,
     ): Prisma.Reputation_historyCreateInput {
         return {
             id: generatePK(),
@@ -74,9 +74,9 @@ export class ReputationHistoryDbFactory {
      */
     static createPositive(
         userId: string,
-        amount: number = 15,
-        event: string = "positive_action",
-        overrides?: Partial<Prisma.Reputation_historyCreateInput>
+        amount = 15,
+        event = "positive_action",
+        overrides?: Partial<Prisma.Reputation_historyCreateInput>,
     ): Prisma.Reputation_historyCreateInput {
         return {
             id: generatePK(),
@@ -92,9 +92,9 @@ export class ReputationHistoryDbFactory {
      */
     static createNegative(
         userId: string,
-        amount: number = -5,
-        event: string = "negative_action",
-        overrides?: Partial<Prisma.Reputation_historyCreateInput>
+        amount = -5,
+        event = "negative_action",
+        overrides?: Partial<Prisma.Reputation_historyCreateInput>,
     ): Prisma.Reputation_historyCreateInput {
         return {
             id: generatePK(),
@@ -112,7 +112,7 @@ export class ReputationHistoryDbFactory {
         userId: string,
         objectId1: string,
         objectId2?: string,
-        overrides?: Partial<Prisma.Reputation_historyCreateInput>
+        overrides?: Partial<Prisma.Reputation_historyCreateInput>,
     ): Prisma.Reputation_historyCreateInput {
         return {
             id: generatePK(),
@@ -130,8 +130,8 @@ export class ReputationHistoryDbFactory {
      */
     static createForEvent(
         userId: string,
-        eventType: 'routine_completed' | 'project_created' | 'comment_liked' | 'api_used' | 'resource_shared',
-        overrides?: Partial<Prisma.Reputation_historyCreateInput>
+        eventType: "routine_completed" | "project_created" | "comment_liked" | "api_used" | "resource_shared",
+        overrides?: Partial<Prisma.Reputation_historyCreateInput>,
     ): Prisma.Reputation_historyCreateInput {
         const eventConfig = {
             routine_completed: { amount: 50, event: "routine_completed" },
@@ -168,7 +168,7 @@ export async function seedReputationHistory(
             objectId2?: string;
         }>;
         includeNegative?: boolean;
-    }
+    },
 ) {
     const histories = [];
     const count = options.count || 5;
@@ -188,12 +188,12 @@ export async function seedReputationHistory(
         }
     } else {
         // Create a mix of different event types
-        const eventTypes: Array<'routine_completed' | 'project_created' | 'comment_liked' | 'api_used' | 'resource_shared'> = [
-            'routine_completed',
-            'project_created', 
-            'comment_liked',
-            'api_used',
-            'resource_shared',
+        const eventTypes: Array<"routine_completed" | "project_created" | "comment_liked" | "api_used" | "resource_shared"> = [
+            "routine_completed",
+            "project_created", 
+            "comment_liked",
+            "api_used",
+            "resource_shared",
         ];
 
         for (let i = 0; i < count; i++) {
@@ -233,7 +233,7 @@ export async function seedReputationTimeline(
         startDate?: Date;
         dayIncrement?: number;
         eventCount?: number;
-    }
+    },
 ) {
     const startDate = options?.startDate || new Date();
     const dayIncrement = options?.dayIncrement || 1;
@@ -247,7 +247,7 @@ export async function seedReputationTimeline(
         
         const history = await prisma.reputation_history.create({
             data: {
-                ...ReputationHistoryDbFactory.createForEvent(userId, 'routine_completed'),
+                ...ReputationHistoryDbFactory.createForEvent(userId, "routine_completed"),
                 createdAt: eventDate,
                 updatedAt: eventDate,
             },

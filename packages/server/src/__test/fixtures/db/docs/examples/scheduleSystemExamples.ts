@@ -9,7 +9,7 @@ import {
     ScheduleRecurrenceDbFactory,
     RRuleHelpers,
     scheduleExceptionPatterns,
-    scheduleRecurrencePatterns
+    scheduleRecurrencePatterns,
 } from "../index.js";
 
 /**
@@ -46,7 +46,7 @@ export const dailyRecurringWithExceptionsExample = async (prisma: any) => {
                 startTime: new Date("2025-07-01T09:00:00Z"),
                 endTime: new Date("2025-07-01T10:00:00Z"),
                 timezone: "UTC",
-            }
+            },
         ),
     });
     
@@ -56,7 +56,7 @@ export const dailyRecurringWithExceptionsExample = async (prisma: any) => {
             data: ScheduleExceptionDbFactory.createHolidayException(
                 schedule.id,
                 new Date("2025-07-04T09:00:00Z"),
-                "Independence Day"
+                "Independence Day",
             ),
         }),
         prisma.schedule_exception.create({
@@ -64,7 +64,7 @@ export const dailyRecurringWithExceptionsExample = async (prisma: any) => {
                 schedule.id,
                 new Date("2025-07-15T09:00:00Z"),
                 new Date("2025-07-15T14:00:00Z"), // Moved to afternoon
-                new Date("2025-07-15T15:00:00Z")
+                new Date("2025-07-15T15:00:00Z"),
             ),
         }),
     ]);
@@ -90,7 +90,7 @@ export const complexRRuleExample = () => {
             startTime: new Date("2025-07-01T14:00:00Z"),
             endTime: new Date("2025-07-01T15:00:00Z"),
             timezone: "Europe/London",
-        }
+        },
     );
 };
 
@@ -114,7 +114,7 @@ export const monthlyScheduleExample = () => {
             startTime: new Date("2025-07-15T10:00:00Z"),
             endTime: new Date("2025-07-15T12:00:00Z"),
             timezone: "Asia/Tokyo",
-        }
+        },
     );
 };
 
@@ -150,7 +150,7 @@ export const multipleRecurrencesExample = async (prisma: any) => {
             startTime: new Date("2025-07-01T09:00:00Z"),
             endTime: new Date("2025-07-01T10:00:00Z"),
             timezone: "Pacific/Auckland",
-        }
+        },
     );
     
     return prisma.schedule.create({ data: scheduleData });
@@ -182,7 +182,7 @@ export const generateOccurrencesExample = () => {
         {
             start: new Date("2025-07-01T00:00:00Z"),
             end: new Date("2025-07-31T23:59:59Z"),
-        }
+        },
     );
     
     return occurrences; // Will return 5 Wednesday occurrences
@@ -199,7 +199,7 @@ export const conferenceWeekExample = async (prisma: any) => {
         data: ScheduleDbFactory.createRecurring(
             meetingId,
             "Meeting",
-            scheduleRecurrencePatterns.weeklyTeamMeeting(meetingId)
+            scheduleRecurrencePatterns.weeklyTeamMeeting(meetingId),
         ),
     });
     
@@ -207,13 +207,13 @@ export const conferenceWeekExample = async (prisma: any) => {
     const conferenceWeekStart = new Date("2025-08-04T00:00:00Z");
     const exceptions = scheduleExceptionPatterns.conferenceWeek(
         schedule.id,
-        conferenceWeekStart
+        conferenceWeekStart,
     );
     
     await Promise.all(
         exceptions.map(exception => 
-            prisma.schedule_exception.create({ data: exception })
-        )
+            prisma.schedule_exception.create({ data: exception }),
+        ),
     );
     
     return { schedule, exceptionsCount: exceptions.length };
@@ -239,7 +239,7 @@ export const yearlyEventWithTimezoneExample = () => {
             startTime: new Date("2025-06-15T00:00:00Z"),
             endTime: new Date("2025-06-15T08:00:00Z"),
             timezone: "Pacific/Honolulu", // Different timezone
-        }
+        },
     );
 };
 
@@ -258,28 +258,28 @@ export const bulkScheduleCreationExample = async (prisma: any) => {
             case 0: // One-time
                 scheduleData = ScheduleDbFactory.createMinimal(
                     `meeting_${i}`,
-                    "Meeting"
+                    "Meeting",
                 );
                 break;
             case 1: // Daily
                 scheduleData = ScheduleDbFactory.createRecurring(
                     `routine_${i}`,
                     "RunRoutine",
-                    scheduleRecurrencePatterns.dailyStandup(`schedule_${i}`)
+                    scheduleRecurrencePatterns.dailyStandup(`schedule_${i}`),
                 );
                 break;
             case 2: // Weekly
                 scheduleData = ScheduleDbFactory.createRecurring(
                     `project_${i}`,
                     "RunProject",
-                    scheduleRecurrencePatterns.weeklyTeamMeeting(`schedule_${i}`)
+                    scheduleRecurrencePatterns.weeklyTeamMeeting(`schedule_${i}`),
                 );
                 break;
             case 3: // Monthly
                 scheduleData = ScheduleDbFactory.createRecurring(
                     `focus_${i}`,
                     "FocusMode",
-                    scheduleRecurrencePatterns.monthlyAllHands(`schedule_${i}`)
+                    scheduleRecurrencePatterns.monthlyAllHands(`schedule_${i}`),
                 );
                 break;
         }
@@ -308,8 +308,8 @@ export const edgeCaseExamples = () => {
                 month: 2,
                 dayOfMonth: 29, // Feb 29
                 duration: 60,
-            }
-        )
+            },
+        ),
     );
     
     // Very frequent recurrence
@@ -322,8 +322,8 @@ export const edgeCaseExamples = () => {
                 interval: 1,
                 duration: 30,
                 endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week
-            }
-        )
+            },
+        ),
     );
     
     // Monthly on last day (31st will adjust to last day of month)
@@ -336,8 +336,8 @@ export const edgeCaseExamples = () => {
                 interval: 1,
                 dayOfMonth: 31,
                 duration: 120,
-            }
-        )
+            },
+        ),
     );
     
     return examples;

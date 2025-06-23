@@ -8,18 +8,18 @@
  * including roles, permissions, and participation metadata.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     ChatParticipant, 
     ChatParticipantUpdateInput,
     ChatParticipantSearchInput,
-    ChatParticipantSortBy,
     Chat,
-    User
-} from '@vrooli/shared';
+    User,
+} from "@vrooli/shared";
 import { 
     chatParticipantValidation 
-} from '@vrooli/shared';
+,
+    ChatParticipantSortBy} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -71,7 +71,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ChatParticipantResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -98,16 +98,16 @@ export class ChatParticipantResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/chatParticipant/${participant.id}`,
                     related: {
                         chat: `${this.baseUrl}/api/chat/${participant.chat.id}`,
                         user: `${this.baseUrl}/api/user/${participant.user.id}`,
-                        participants: `${this.baseUrl}/api/chatParticipants?chatId=${participant.chat.id}`
-                    }
-                }
-            }
+                        participants: `${this.baseUrl}/api/chatParticipants?chatId=${participant.chat.id}`,
+                    },
+                },
+            },
         };
     }
     
@@ -122,7 +122,7 @@ export class ChatParticipantResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: participants.length,
-            totalCount: participants.length
+            totalCount: participants.length,
         };
         
         return {
@@ -130,17 +130,17 @@ export class ChatParticipantResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/chatParticipants?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/chatParticipants?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -150,16 +150,16 @@ export class ChatParticipantResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatParticipant'
-            }
+                path: "/api/chatParticipant",
+            },
         };
     }
     
@@ -169,16 +169,16 @@ export class ChatParticipantResponseFactory {
     createNotFoundErrorResponse(participantId: string): APIErrorResponse {
         return {
             error: {
-                code: 'CHAT_PARTICIPANT_NOT_FOUND',
+                code: "CHAT_PARTICIPANT_NOT_FOUND",
                 message: `Chat participant with ID '${participantId}' was not found`,
                 details: {
                     participantId,
-                    searchCriteria: { id: participantId }
+                    searchCriteria: { id: participantId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/chatParticipant/${participantId}`
-            }
+                path: `/api/chatParticipant/${participantId}`,
+            },
         };
     }
     
@@ -188,17 +188,17 @@ export class ChatParticipantResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this chat participant`,
                 details: {
                     operation,
-                    requiredPermissions: ['chat:participate'],
-                    userPermissions: ['chat:read']
+                    requiredPermissions: ["chat:participate"],
+                    userPermissions: ["chat:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatParticipant'
-            }
+                path: "/api/chatParticipant",
+            },
         };
     }
     
@@ -208,16 +208,16 @@ export class ChatParticipantResponseFactory {
     createChatNotFoundErrorResponse(chatId: string): APIErrorResponse {
         return {
             error: {
-                code: 'CHAT_NOT_FOUND',
+                code: "CHAT_NOT_FOUND",
                 message: `Chat with ID '${chatId}' was not found`,
                 details: {
                     chatId,
-                    searchCriteria: { chatId }
+                    searchCriteria: { chatId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatParticipants'
-            }
+                path: "/api/chatParticipants",
+            },
         };
     }
     
@@ -227,17 +227,17 @@ export class ChatParticipantResponseFactory {
     createAlreadyParticipantErrorResponse(userId: string, chatId: string): APIErrorResponse {
         return {
             error: {
-                code: 'USER_ALREADY_PARTICIPANT',
-                message: `User is already a participant in this chat`,
+                code: "USER_ALREADY_PARTICIPANT",
+                message: "User is already a participant in this chat",
                 details: {
                     userId,
                     chatId,
-                    conflictType: 'duplicate_participation'
+                    conflictType: "duplicate_participation",
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatParticipant'
-            }
+                path: "/api/chatParticipant",
+            },
         };
     }
     
@@ -247,17 +247,17 @@ export class ChatParticipantResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatParticipant'
-            }
+                path: "/api/chatParticipant",
+            },
         };
     }
     
@@ -267,17 +267,17 @@ export class ChatParticipantResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/chatParticipant'
-            }
+                path: "/api/chatParticipant",
+            },
         };
     }
     
@@ -317,14 +317,14 @@ export class ChatParticipantResponseFactory {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         } as User;
         
         return {
             ...defaultUser,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -355,13 +355,13 @@ export class ChatParticipantResponseFactory {
                 canDelete: false,
                 canUpdate: false,
                 canInvite: false,
-                canManageParticipants: false
-            }
+                canManageParticipants: false,
+            },
         } as Chat;
         
         return {
             ...defaultChat,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -378,12 +378,12 @@ export class ChatParticipantResponseFactory {
             createdAt: now,
             updatedAt: now,
             user: this.createMockUser(),
-            chat: this.createMockChat()
+            chat: this.createMockChat(),
         };
         
         return {
             ...defaultParticipant,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -396,14 +396,14 @@ export class ChatParticipantResponseFactory {
         return {
             ...base,
             id: input.id,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
         } as ChatParticipant;
     }
     
     /**
      * Create multiple participants for a chat
      */
-    createChatParticipants(chatId: string, userCount: number = 5): ChatParticipant[] {
+    createChatParticipants(chatId: string, userCount = 5): ChatParticipant[] {
         const chat = this.createMockChat({ id: chatId });
         const participants: ChatParticipant[] = [];
         
@@ -413,14 +413,14 @@ export class ChatParticipantResponseFactory {
                 handle: `participant_${i}`,
                 name: `Participant ${i + 1}`,
                 isBot: i === 0, // First user is a bot
-                premium: i % 3 === 0 // Every third user is premium
+                premium: i % 3 === 0, // Every third user is premium
             });
             
             participants.push(this.createMockChatParticipant({
                 id: `participant_${chatId}_${i}`,
                 user,
                 chat,
-                createdAt: new Date(Date.now() - (userCount - i) * 86400000).toISOString() // Stagger join times
+                createdAt: new Date(Date.now() - (userCount - i) * 86400000).toISOString(), // Stagger join times
             }));
         }
         
@@ -433,19 +433,19 @@ export class ChatParticipantResponseFactory {
     createParticipantsForScenarios(): { [scenario: string]: ChatParticipant[] } {
         return {
             // Active public chat with diverse participants
-            publicChat: this.createChatParticipants('public_chat_123', 8),
+            publicChat: this.createChatParticipants("public_chat_123", 8),
             
             // Small private team chat
-            teamChat: this.createChatParticipants('team_chat_456', 3),
+            teamChat: this.createChatParticipants("team_chat_456", 3),
             
             // Large community chat
-            communityChat: this.createChatParticipants('community_chat_789', 15),
+            communityChat: this.createChatParticipants("community_chat_789", 15),
             
             // One-on-one chat
-            directMessage: this.createChatParticipants('dm_chat_012', 2),
+            directMessage: this.createChatParticipants("dm_chat_012", 2),
             
             // Support chat with bot
-            supportChat: this.createChatParticipants('support_chat_345', 4)
+            supportChat: this.createChatParticipants("support_chat_345", 4),
         };
     }
     
@@ -474,7 +474,7 @@ export class ChatParticipantResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -496,7 +496,7 @@ export class ChatParticipantMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get ChatParticipant by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatParticipant/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const participant = this.responseFactory.createMockChatParticipant({ id: id as string });
@@ -504,12 +504,12 @@ export class ChatParticipantMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update ChatParticipant
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatParticipant/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ChatParticipantUpdateInput;
                 
@@ -518,7 +518,7 @@ export class ChatParticipantMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -528,18 +528,18 @@ export class ChatParticipantMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // List ChatParticipants
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatParticipants`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const chatId = url.searchParams.get('chatId');
-                const userId = url.searchParams.get('userId');
-                const sortBy = url.searchParams.get('sortBy') as ChatParticipantSortBy;
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const chatId = url.searchParams.get("chatId");
+                const userId = url.searchParams.get("userId");
+                const sortBy = url.searchParams.get("sortBy") as ChatParticipantSortBy;
                 
                 let participants: ChatParticipant[] = [];
                 
@@ -570,15 +570,15 @@ export class ChatParticipantMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: participants.length
-                    }
+                        totalCount: participants.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -612,76 +612,76 @@ export class ChatParticipantMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatParticipant/:id`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        id: 'Participant ID is required and must be a valid format'
-                    }))
+                        id: "Participant ID is required and must be a valid format",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatParticipant/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatParticipant/:id`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('update'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
                 );
             }),
             
             // Chat not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatParticipants`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const chatId = url.searchParams.get('chatId');
+                const chatId = url.searchParams.get("chatId");
                 
-                if (chatId === 'non-existent-chat') {
+                if (chatId === "non-existent-chat") {
                     return res(
                         ctx.status(404),
-                        ctx.json(this.responseFactory.createChatNotFoundErrorResponse(chatId))
+                        ctx.json(this.responseFactory.createChatNotFoundErrorResponse(chatId)),
                     );
                 }
                 
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
             }),
             
             // Already participant error
-            rest.post(`${this.responseFactory['baseUrl']}/api/chatParticipant`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/chatParticipant`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
-                    ctx.json(this.responseFactory.createAlreadyParticipantErrorResponse('user_123', 'chat_456'))
+                    ctx.json(this.responseFactory.createAlreadyParticipantErrorResponse("user_123", "chat_456")),
                 );
             }),
             
             // Server error
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatParticipants`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatParticipants`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const chatId = url.searchParams.get('chatId') || 'default_chat';
+                const chatId = url.searchParams.get("chatId") || "default_chat";
                 
                 const participants = this.responseFactory.createChatParticipants(chatId, 5);
                 const response = this.responseFactory.createChatParticipantListResponse(participants);
@@ -689,11 +689,11 @@ export class ChatParticipantMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatParticipant/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ChatParticipantUpdateInput;
                 
@@ -703,9 +703,9 @@ export class ChatParticipantMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -714,17 +714,17 @@ export class ChatParticipantMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatParticipant/:id`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/chatParticipants`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.put(`${this.responseFactory['baseUrl']}/api/chatParticipant/:id`, (req, res, ctx) => {
-                return res.networkError('Network error during update');
-            })
+            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
+                return res.networkError("Network error during update");
+            }),
         ];
     }
     
@@ -733,13 +733,13 @@ export class ChatParticipantMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -761,20 +761,20 @@ export const chatParticipantResponseScenarios = {
     getSuccess: (participant?: ChatParticipant) => {
         const factory = new ChatParticipantResponseFactory();
         return factory.createSuccessResponse(
-            participant || factory.createMockChatParticipant()
+            participant || factory.createMockChatParticipant(),
         );
     },
     
     updateSuccess: (participant?: ChatParticipant) => {
         const factory = new ChatParticipantResponseFactory();
         return factory.createSuccessResponse(
-            participant || factory.createMockChatParticipant({ updatedAt: new Date().toISOString() })
+            participant || factory.createMockChatParticipant({ updatedAt: new Date().toISOString() }),
         );
     },
     
     listSuccess: (participants?: ChatParticipant[], chatId?: string) => {
         const factory = new ChatParticipantResponseFactory();
-        const data = participants || factory.createChatParticipants(chatId || 'default_chat', 5);
+        const data = participants || factory.createChatParticipants(chatId || "default_chat", 5);
         return factory.createChatParticipantListResponse(data);
     },
     
@@ -802,37 +802,37 @@ export const chatParticipantResponseScenarios = {
         const factory = new ChatParticipantResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                id: 'Participant ID is required and must be a valid format'
-            }
+                id: "Participant ID is required and must be a valid format",
+            },
         );
     },
     
     notFoundError: (participantId?: string) => {
         const factory = new ChatParticipantResponseFactory();
         return factory.createNotFoundErrorResponse(
-            participantId || 'non-existent-participant'
+            participantId || "non-existent-participant",
         );
     },
     
     chatNotFoundError: (chatId?: string) => {
         const factory = new ChatParticipantResponseFactory();
         return factory.createChatNotFoundErrorResponse(
-            chatId || 'non-existent-chat'
+            chatId || "non-existent-chat",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ChatParticipantResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'view'
+            operation || "view",
         );
     },
     
     alreadyParticipantError: (userId?: string, chatId?: string) => {
         const factory = new ChatParticipantResponseFactory();
         return factory.createAlreadyParticipantErrorResponse(
-            userId || 'user_123',
-            chatId || 'chat_456'
+            userId || "user_123",
+            chatId || "chat_456",
         );
     },
     
@@ -850,7 +850,7 @@ export const chatParticipantResponseScenarios = {
     successHandlers: () => new ChatParticipantMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ChatParticipantMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ChatParticipantMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ChatParticipantMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ChatParticipantMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

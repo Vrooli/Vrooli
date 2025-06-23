@@ -74,7 +74,7 @@ export const completeRunDb: Prisma.RunCreateInput = {
     data: JSON.stringify({ 
         input: "complex test data",
         parameters: { verbose: true },
-        result: "success"
+        result: "success",
     }),
     resourceVersion: {
         connect: { id: runDbIds.resourceVersion2 },
@@ -159,7 +159,7 @@ export const failedRunDb: Prisma.RunCreateInput = {
     timeElapsed: 60000, // 1 minute
     data: JSON.stringify({ 
         input: "test data",
-        error: "Process failed due to invalid input"
+        error: "Process failed due to invalid input",
     }),
     user: {
         connect: { id: runDbIds.user2 },
@@ -181,7 +181,7 @@ export class RunDbFactory {
 
     static createWithResourceVersion(
         resourceVersionId: string,
-        overrides?: Partial<Prisma.RunCreateInput>
+        overrides?: Partial<Prisma.RunCreateInput>,
     ): Prisma.RunCreateInput {
         return {
             ...runWithResourceVersionDb,
@@ -270,7 +270,7 @@ export class RunDbFactory {
      */
     static createWithStatus(
         status: "Scheduled" | "InProgress" | "Paused" | "Completed" | "Failed" | "Cancelled",
-        overrides?: Partial<Prisma.RunCreateInput>
+        overrides?: Partial<Prisma.RunCreateInput>,
     ): Prisma.RunCreateInput {
         const now = new Date();
         const baseData: Partial<Prisma.RunCreateInput> = {
@@ -302,7 +302,7 @@ export class RunDbFactory {
     static createWithOwnership(
         userId: string,
         teamId?: string,
-        overrides?: Partial<Prisma.RunCreateInput>
+        overrides?: Partial<Prisma.RunCreateInput>,
     ): Prisma.RunCreateInput {
         return {
             ...this.createMinimal(overrides),
@@ -315,8 +315,8 @@ export class RunDbFactory {
      * Create run with steps
      */
     static createWithSteps(
-        stepCount: number = 3,
-        overrides?: Partial<Prisma.RunCreateInput>
+        stepCount = 3,
+        overrides?: Partial<Prisma.RunCreateInput>,
     ): Prisma.RunCreateInput {
         const steps = Array.from({ length: stepCount }, (_, index) => ({
             id: generatePK(),
@@ -341,7 +341,7 @@ export class RunDbFactory {
      */
     static createWithIO(
         ioData: Array<{ nodeName: string; nodeInputName: string; data: any }>,
-        overrides?: Partial<Prisma.RunCreateInput>
+        overrides?: Partial<Prisma.RunCreateInput>,
     ): Prisma.RunCreateInput {
         const io = ioData.map(item => ({
             id: generatePK(),
@@ -361,7 +361,7 @@ export class RunDbFactory {
      */
     static createScheduled(
         scheduleId: string,
-        overrides?: Partial<Prisma.RunCreateInput>
+        overrides?: Partial<Prisma.RunCreateInput>,
     ): Prisma.RunCreateInput {
         return {
             ...this.createMinimal(overrides),
@@ -385,7 +385,7 @@ export async function seedRuns(
         statuses?: Array<"Scheduled" | "InProgress" | "Completed" | "Failed" | "Cancelled">;
         withSteps?: boolean;
         withIO?: boolean;
-    } = {}
+    } = {},
 ) {
     const {
         count = 3,
@@ -401,7 +401,7 @@ export async function seedRuns(
 
     for (let i = 0; i < count; i++) {
         const status = statuses[i % statuses.length];
-        let runData = RunDbFactory.createWithStatus(status, {
+        const runData = RunDbFactory.createWithStatus(status, {
             name: `Seeded Run ${i + 1}`,
         });
 

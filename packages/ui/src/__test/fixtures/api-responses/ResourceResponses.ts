@@ -5,18 +5,18 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     Resource, 
     ResourceCreateInput, 
     ResourceUpdateInput,
     ResourceShape,
-    ResourceUsedFor 
-} from '@vrooli/shared';
+    ResourceUsedFor, 
+} from "@vrooli/shared";
 import { 
     resourceValidation,
-    ResourceUsedFor as ResourceUsedForEnum 
-} from '@vrooli/shared';
+    ResourceUsedFor as ResourceUsedForEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -68,7 +68,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ResourceResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -95,15 +95,15 @@ export class ResourceResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/resource/${resource.id}`,
                     related: {
                         versions: `${this.baseUrl}/api/resource/${resource.id}/versions`,
-                        usedBy: `${this.baseUrl}/api/resource/${resource.id}/used-by`
-                    }
-                }
-            }
+                        usedBy: `${this.baseUrl}/api/resource/${resource.id}/used-by`,
+                    },
+                },
+            },
         };
     }
     
@@ -118,7 +118,7 @@ export class ResourceResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: resources.length,
-            totalCount: resources.length
+            totalCount: resources.length,
         };
         
         return {
@@ -126,17 +126,17 @@ export class ResourceResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/resource?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/resource?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -146,16 +146,16 @@ export class ResourceResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource'
-            }
+                path: "/api/resource",
+            },
         };
     }
     
@@ -165,16 +165,16 @@ export class ResourceResponseFactory {
     createNotFoundErrorResponse(resourceId: string): APIErrorResponse {
         return {
             error: {
-                code: 'RESOURCE_NOT_FOUND',
+                code: "RESOURCE_NOT_FOUND",
                 message: `Resource with ID '${resourceId}' was not found`,
                 details: {
                     resourceId,
-                    searchCriteria: { id: resourceId }
+                    searchCriteria: { id: resourceId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/resource/${resourceId}`
-            }
+                path: `/api/resource/${resourceId}`,
+            },
         };
     }
     
@@ -184,17 +184,17 @@ export class ResourceResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this resource`,
                 details: {
                     operation,
-                    requiredPermissions: ['resource:write'],
-                    userPermissions: ['resource:read']
+                    requiredPermissions: ["resource:write"],
+                    userPermissions: ["resource:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource'
-            }
+                path: "/api/resource",
+            },
         };
     }
     
@@ -204,17 +204,17 @@ export class ResourceResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource'
-            }
+                path: "/api/resource",
+            },
         };
     }
     
@@ -224,17 +224,17 @@ export class ResourceResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource'
-            }
+                path: "/api/resource",
+            },
         };
     }
     
@@ -263,13 +263,13 @@ export class ResourceResponseFactory {
                 canReport: false,
                 isBookmarked: false,
                 isReacted: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         };
         
         return {
             ...defaultResource,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -297,8 +297,8 @@ export class ResourceResponseFactory {
     createResourcesForAllPurposes(): Resource[] {
         return Object.values(ResourceUsedForEnum).map(usedFor => 
             this.createMockResource({
-                id: `resource_${usedFor.toLowerCase()}_${this.generateId()}`
-            })
+                id: `resource_${usedFor.toLowerCase()}_${this.generateId()}`,
+            }),
         );
     }
     
@@ -327,7 +327,7 @@ export class ResourceResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -349,7 +349,7 @@ export class ResourceMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create resource
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource`, async (req, res, ctx) => {
                 const body = await req.json() as ResourceCreateInput;
                 
                 // Validate input
@@ -357,7 +357,7 @@ export class ResourceMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -367,12 +367,12 @@ export class ResourceMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get resource by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const resource = this.responseFactory.createMockResource({ id: id as string });
@@ -380,39 +380,39 @@ export class ResourceMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update resource
-            rest.put(`${this.responseFactory['baseUrl']}/api/resource/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/resource/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ResourceUpdateInput;
                 
                 const resource = this.responseFactory.createMockResource({ 
                     id: id as string,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(resource);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete resource
-            rest.delete(`${this.responseFactory['baseUrl']}/api/resource/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/resource/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List resources
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const isInternal = url.searchParams.get('isInternal') === 'true';
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const isInternal = url.searchParams.get("isInternal") === "true";
                 
                 let resources = this.responseFactory.createResourcesForAllPurposes();
                 
@@ -430,15 +430,15 @@ export class ResourceMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: resources.length
-                    }
+                        totalCount: resources.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -448,48 +448,48 @@ export class ResourceMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        versions: 'At least one version is required'
-                    }))
+                        versions: "At least one version is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource`, async (req, res, ctx) => {
                 const body = await req.json() as ResourceCreateInput;
                 const resource = this.responseFactory.createResourceFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(resource);
@@ -497,9 +497,9 @@ export class ResourceMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -508,13 +508,13 @@ export class ResourceMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -523,13 +523,13 @@ export class ResourceMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -551,14 +551,14 @@ export const resourceResponseScenarios = {
     createSuccess: (resource?: Resource) => {
         const factory = new ResourceResponseFactory();
         return factory.createSuccessResponse(
-            resource || factory.createMockResource()
+            resource || factory.createMockResource(),
         );
     },
     
     listSuccess: (resources?: Resource[]) => {
         const factory = new ResourceResponseFactory();
         return factory.createResourceListResponse(
-            resources || factory.createResourcesForAllPurposes()
+            resources || factory.createResourcesForAllPurposes(),
         );
     },
     
@@ -567,22 +567,22 @@ export const resourceResponseScenarios = {
         const factory = new ResourceResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                versions: 'At least one version is required'
-            }
+                versions: "At least one version is required",
+            },
         );
     },
     
     notFoundError: (resourceId?: string) => {
         const factory = new ResourceResponseFactory();
         return factory.createNotFoundErrorResponse(
-            resourceId || 'non-existent-id'
+            resourceId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ResourceResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -595,7 +595,7 @@ export const resourceResponseScenarios = {
     successHandlers: () => new ResourceMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ResourceMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ResourceMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ResourceMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ResourceMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

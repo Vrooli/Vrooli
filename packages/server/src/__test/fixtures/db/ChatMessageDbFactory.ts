@@ -36,7 +36,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
     Prisma.chat_messageUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ChatMessage', prisma);
+        super("ChatMessage", prisma);
         this.initializeScenarios();
     }
 
@@ -86,7 +86,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
                 textTooLong: {
                     id: generatePK().toString(),
                     language: "en",
-                    text: 'a'.repeat(32769), // Exceeds max length of 32768
+                    text: "a".repeat(32769), // Exceeds max length of 32768
                     score: 0,
                     versionIndex: 0,
                     chat: { connect: { id: "chat-123" } },
@@ -104,7 +104,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
                 maxLengthMessage: {
                     id: generatePK().toString(),
                     language: "en",
-                    text: 'a'.repeat(32768), // Max length
+                    text: "a".repeat(32768), // Max length
                     score: 0,
                     versionIndex: 0,
                     chat: { connect: { id: "chat-max" } },
@@ -317,7 +317,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
                     score: true,
                 },
                 orderBy: {
-                    createdAt: 'asc',
+                    createdAt: "asc",
                 },
             },
             _count: {
@@ -332,9 +332,9 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.ChatMessageCreateInput,
         config: ChatMessageRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ChatMessageCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle chat connection (required)
         if (config.chat) {
@@ -342,7 +342,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
                 connect: { id: config.chat.chatId },
             };
         } else {
-            throw new Error('ChatMessage requires a chat connection');
+            throw new Error("ChatMessage requires a chat connection");
         }
 
         // Handle user connection (optional - system messages may not have user)
@@ -371,7 +371,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
         chatId: string,
         userId: string,
         text: string,
-        language: string = "en"
+        language = "en",
     ): Promise<Prisma.ChatMessage> {
         return await this.createWithRelations({
             overrides: {
@@ -391,7 +391,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
         chatId: string,
         botId: string,
         text: string,
-        toolCalls?: any[]
+        toolCalls?: any[],
     ): Promise<Prisma.ChatMessage> {
         const config = toolCalls 
             ? { ...messageConfigFixtures.variants.assistantWithTools, toolCalls }
@@ -413,7 +413,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
     async createReply(
         parentMessageId: string,
         userId: string,
-        text: string
+        text: string,
     ): Promise<Prisma.ChatMessage> {
         // Get parent message to inherit chat
         const parent = await this.prisma.chatMessage.findUnique({
@@ -422,7 +422,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
         });
 
         if (!parent) {
-            throw new Error('Parent message not found');
+            throw new Error("Parent message not found");
         }
 
         return await this.createWithRelations({
@@ -467,17 +467,17 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
         
         // Check text length
         if (record.text.length > 32768) {
-            violations.push('Message text exceeds maximum length of 32768 characters');
+            violations.push("Message text exceeds maximum length of 32768 characters");
         }
 
         // Check language code format
         if (!/^[a-z]{2,3}$/.test(record.language)) {
-            violations.push('Invalid language code format');
+            violations.push("Invalid language code format");
         }
 
         // Check version index
         if (record.versionIndex < 0) {
-            violations.push('Version index cannot be negative');
+            violations.push("Version index cannot be negative");
         }
 
         // Check parent relationship
@@ -488,15 +488,15 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
             });
             
             if (!parent) {
-                violations.push('Parent message does not exist');
+                violations.push("Parent message does not exist");
             } else if (parent.chatId !== record.chatId) {
-                violations.push('Parent message must be in the same chat');
+                violations.push("Parent message must be in the same chat");
             }
         }
 
         // Check circular references
         if (record.parentId === record.id) {
-            violations.push('Message cannot be its own parent');
+            violations.push("Message cannot be its own parent");
         }
 
         return violations;
@@ -515,7 +515,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.ChatMessage,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
@@ -524,28 +524,28 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
         
         // Delete child messages recursively
-        if (shouldDelete('children') && record.children?.length) {
+        if (shouldDelete("children") && record.children?.length) {
             await tx.chatMessage.deleteMany({
                 where: { parentId: record.id },
             });
         }
 
         // Delete reactions
-        if (shouldDelete('reactions') && record.reactions?.length) {
+        if (shouldDelete("reactions") && record.reactions?.length) {
             await tx.reaction.deleteMany({
                 where: { chatMessageId: record.id },
             });
         }
 
         // Delete reaction summaries
-        if (shouldDelete('reactionSummaries') && record.reactionSummaries?.length) {
+        if (shouldDelete("reactionSummaries") && record.reactionSummaries?.length) {
             await tx.reactionSummary.deleteMany({
                 where: { chatMessageId: record.id },
             });
         }
 
         // Delete reports
-        if (shouldDelete('reports') && record.reports?.length) {
+        if (shouldDelete("reports") && record.reports?.length) {
             await tx.report.deleteMany({
                 where: { chatMessageId: record.id },
             });
@@ -557,7 +557,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
      */
     async createMessageThread(
         chatId: string,
-        messages: Array<{ userId: string; text: string }>
+        messages: Array<{ userId: string; text: string }>,
     ): Promise<Prisma.ChatMessage[]> {
         const thread: Prisma.ChatMessage[] = [];
         let parentId: string | undefined;
@@ -584,7 +584,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
      */
     async createConversation(
         chatId: string,
-        exchanges: Array<{ userId: string; text: string; isBot?: boolean }>
+        exchanges: Array<{ userId: string; text: string; isBot?: boolean }>,
     ): Promise<Prisma.ChatMessage[]> {
         const messages: Prisma.ChatMessage[] = [];
 
@@ -621,42 +621,42 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
         const userMessage = await this.createUserMessage(
             chatId,
             "user-123",
-            "Hello, I have a question"
+            "Hello, I have a question",
         );
 
         const botMessage = await this.createBotMessage(
             chatId,
             "bot-123",
-            "I'd be happy to help! What would you like to know?"
+            "I'd be happy to help! What would you like to know?",
         );
 
         const threadParent = await this.createUserMessage(
             chatId,
             "user-456",
-            "This is the start of a thread"
+            "This is the start of a thread",
         );
 
         const threadedMessage = await this.createReply(
             threadParent.id,
             "user-789",
-            "This is a reply in the thread"
+            "This is a reply in the thread",
         );
 
         const toEdit = await this.createUserMessage(
             chatId,
             "user-edit",
-            "This message will be edited"
+            "This message will be edited",
         );
 
         const editedMessage = await this.editMessage(
             toEdit.id,
-            "This message has been edited"
+            "This message has been edited",
         );
 
         const popular = await this.createUserMessage(
             chatId,
             "user-popular",
-            "This is a really helpful answer!"
+            "This is a really helpful answer!",
         );
 
         const popularMessage = await this.updateScore(popular.id, 100);
@@ -673,7 +673,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createChatMessageDbFactory = (prisma: PrismaClient) => 
-    ChatMessageDbFactory.getInstance('ChatMessage', prisma);
+    ChatMessageDbFactory.getInstance("ChatMessage", prisma);
 
 // Export the class for type usage
 export { ChatMessageDbFactory as ChatMessageDbFactoryClass };

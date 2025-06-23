@@ -36,7 +36,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     Prisma.UserUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('User', prisma);
+        super("User", prisma);
         this.initializeScenarios();
     }
 
@@ -127,7 +127,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Max Length Handle User",
-                    handle: 'a'.repeat(50), // Max length handle
+                    handle: "a".repeat(50), // Max length handle
                     status: AccountStatus.Unlocked,
                     isBot: false,
                     isBotDepictingPerson: false,
@@ -194,7 +194,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         create: Array.from({ length: 10 }, (_, i) => ({
                             id: generatePK(),
-                            language: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'zh', 'ar'][i],
+                            language: ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "zh", "ar"][i],
                             bio: `Bio in language ${i}`,
                         })),
                     },
@@ -364,7 +364,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
      * Create specific user personas
      */
     async createAdminUser(): Promise<Prisma.User> {
-        return await this.seedScenario('admin');
+        return await this.seedScenario("admin");
     }
 
     async createSuspendedUser(): Promise<Prisma.User> {
@@ -422,9 +422,9 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.UserCreateInput,
         config: UserRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.UserCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle authentication
         if (config.withAuth) {
@@ -439,7 +439,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
 
         // Handle emails
         if (config.withEmails) {
-            const emailCount = typeof config.withEmails === 'number' ? config.withEmails : 1;
+            const emailCount = typeof config.withEmails === "number" ? config.withEmails : 1;
             data.emails = {
                 create: Array.from({ length: emailCount }, (_, i) => ({
                     id: generatePK(),
@@ -455,7 +455,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                 create: config.teams.map(team => ({
                     id: generatePK(),
                     teamId: team.teamId,
-                    role: team.role || 'Member',
+                    role: team.role || "Member",
                 })),
             };
         }
@@ -491,18 +491,18 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                 },
             });
             if (duplicate) {
-                violations.push('Handle must be unique');
+                violations.push("Handle must be unique");
             }
         }
 
         // Check handle format
         if (record.handle && !/^[a-zA-Z0-9_]+$/.test(record.handle)) {
-            violations.push('Handle contains invalid characters');
+            violations.push("Handle contains invalid characters");
         }
 
         // Check bot settings
         if (record.isBot && !record.botSettings) {
-            violations.push('Bot users must have botSettings');
+            violations.push("Bot users must have botSettings");
         }
 
         // Check email verification
@@ -511,7 +511,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (emails.length > 0 && !emails.some(e => e.verifiedAt !== null)) {
-            violations.push('User should have at least one verified email');
+            violations.push("User should have at least one verified email");
         }
 
         return violations;
@@ -537,7 +537,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.User,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
@@ -546,70 +546,70 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
         
         // Delete views
-        if (shouldDelete('views') && record.views?.length) {
+        if (shouldDelete("views") && record.views?.length) {
             await tx.view.deleteMany({
                 where: { byId: record.id },
             });
         }
 
         // Delete reactions
-        if (shouldDelete('reactions') && record.reactions?.length) {
+        if (shouldDelete("reactions") && record.reactions?.length) {
             await tx.reaction.deleteMany({
                 where: { byId: record.id },
             });
         }
 
         // Delete comments
-        if (shouldDelete('comments') && record.comments?.length) {
+        if (shouldDelete("comments") && record.comments?.length) {
             await tx.comment.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete bookmarks
-        if (shouldDelete('bookmarks') && record.bookmarks?.length) {
+        if (shouldDelete("bookmarks") && record.bookmarks?.length) {
             await tx.bookmark.deleteMany({
                 where: { byId: record.id },
             });
         }
 
         // Delete chat participations
-        if (shouldDelete('chats') && record.chats?.length) {
+        if (shouldDelete("chats") && record.chats?.length) {
             await tx.chatParticipant.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete team memberships
-        if (shouldDelete('teams') && record.teams?.length) {
+        if (shouldDelete("teams") && record.teams?.length) {
             await tx.member.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete sessions
-        if (shouldDelete('sessions') && record.sessions?.length) {
+        if (shouldDelete("sessions") && record.sessions?.length) {
             await tx.session.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.userTranslation.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete emails
-        if (shouldDelete('emails') && record.emails?.length) {
+        if (shouldDelete("emails") && record.emails?.length) {
             await tx.email.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete auth records
-        if (shouldDelete('auths') && record.auths?.length) {
+        if (shouldDelete("auths") && record.auths?.length) {
             await tx.auth.deleteMany({
                 where: { userId: record.id },
             });
@@ -654,10 +654,10 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         suspended: Prisma.User;
     }> {
         const [admin, member, guest, suspended] = await Promise.all([
-            this.seedScenario('admin'),
-            this.seedScenario('regularMember'),
+            this.seedScenario("admin"),
+            this.seedScenario("regularMember"),
             this.createMinimal({ name: "Guest User" }),
-            this.seedScenario('suspendedUser'),
+            this.seedScenario("suspendedUser"),
         ]);
 
         return {
@@ -671,7 +671,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createUserDbFactory = (prisma: PrismaClient) => 
-    UserDbFactory.getInstance('User', prisma);
+    UserDbFactory.getInstance("User", prisma);
 
 // Export the class for type usage
 export { UserDbFactory as UserDbFactoryClass };

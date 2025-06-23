@@ -198,7 +198,7 @@ export class SessionDbFactory {
     static createActive(
         userId: bigint,
         authId: bigint,
-        daysUntilExpiry: number = 30,
+        daysUntilExpiry = 30,
         overrides?: Partial<Prisma.SessionCreateInput>,
     ): Prisma.SessionCreateInput {
         return {
@@ -219,7 +219,7 @@ export class SessionDbFactory {
     static createExpired(
         userId: bigint,
         authId: bigint,
-        expiredDaysAgo: number = 1,
+        expiredDaysAgo = 1,
         overrides?: Partial<Prisma.SessionCreateInput>,
     ): Prisma.SessionCreateInput {
         return {
@@ -240,7 +240,7 @@ export class SessionDbFactory {
     static createRevoked(
         userId: bigint,
         authId: bigint,
-        revokedHoursAgo: number = 1,
+        revokedHoursAgo = 1,
         overrides?: Partial<Prisma.SessionCreateInput>,
     ): Prisma.SessionCreateInput {
         return {
@@ -356,7 +356,7 @@ export class SessionDbFactory {
     static createNearExpiry(
         userId: bigint,
         authId: bigint,
-        hoursUntilExpiry: number = 2,
+        hoursUntilExpiry = 2,
         overrides?: Partial<Prisma.SessionCreateInput>,
     ): Prisma.SessionCreateInput {
         return {
@@ -377,7 +377,7 @@ export class SessionDbFactory {
     static createMultipleForUser(
         userId: bigint,
         authId: bigint,
-        count: number = 3,
+        count = 3,
     ): Prisma.SessionCreateInput[] {
         const sessions: Prisma.SessionCreateInput[] = [];
         
@@ -482,7 +482,7 @@ export async function seedSessionHistory(db: any, userId: bigint, authId: bigint
     );
 
     const sessions = await Promise.all(
-        sessionHistory.map(session => db.session.create({ data: session }))
+        sessionHistory.map(session => db.session.create({ data: session })),
     );
 
     return sessions;

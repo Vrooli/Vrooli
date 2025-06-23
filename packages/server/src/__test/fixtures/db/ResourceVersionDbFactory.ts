@@ -38,7 +38,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
     Prisma.ResourceVersionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ResourceVersion', prisma);
+        super("ResourceVersion", prisma);
         this.initializeScenarios();
     }
 
@@ -183,7 +183,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
                             id: generatePK().toString(),
-                            language: ['en', 'es', 'fr', 'de', 'ja'][i],
+                            language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Resource Version ${i}`,
                             description: `Description in language ${i}`,
                         })),
@@ -415,9 +415,9 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.ResourceVersionCreateInput,
         config: ResourceVersionRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ResourceVersionCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle root resource connection
         if (config.root?.resourceId) {
@@ -501,7 +501,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
      * Create a beta/pre-release version
      */
     async createBetaVersion(resourceId: string): Promise<Prisma.ResourceVersion> {
-        return this.seedScenario('betaVersion');
+        return this.seedScenario("betaVersion");
     }
 
     /**
@@ -509,7 +509,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
      */
     async createVersionWithDependencies(
         resourceId: string,
-        dependencyIds: string[]
+        dependencyIds: string[],
     ): Promise<Prisma.ResourceVersion> {
         return this.createWithRelations({
             root: { resourceId },
@@ -537,22 +537,22 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Check complexity range
         if (record.complexity < 1 || record.complexity > 10) {
-            violations.push('Complexity must be between 1 and 10');
+            violations.push("Complexity must be between 1 and 10");
         }
 
         // Check simplicity range if provided
         if (record.simplicity !== null && (record.simplicity < 1 || record.simplicity > 10)) {
-            violations.push('Simplicity must be between 1 and 10');
+            violations.push("Simplicity must be between 1 and 10");
         }
 
         // Check that version belongs to a resource
         if (!record.rootId) {
-            violations.push('ResourceVersion must belong to a Resource');
+            violations.push("ResourceVersion must belong to a Resource");
         }
 
         // Check version label format
         if (record.versionLabel && !/^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$/.test(record.versionLabel)) {
-            violations.push('Version label should follow semantic versioning format');
+            violations.push("Version label should follow semantic versioning format");
         }
 
         // Check that only one version is marked as latest per resource
@@ -565,13 +565,13 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                 },
             });
             if (otherLatest > 0) {
-                violations.push('Only one version can be marked as latest per resource');
+                violations.push("Only one version can be marked as latest per resource");
             }
         }
 
         // Check link format if provided
-        if (record.link && !record.link.startsWith('http')) {
-            violations.push('Link must be a valid URL');
+        if (record.link && !record.link.startsWith("http")) {
+            violations.push("Link must be a valid URL");
         }
 
         return violations;
@@ -588,21 +588,21 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.ResourceVersion,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.resourceVersionTranslation.deleteMany({
                 where: { resourceVersionId: record.id },
             });
         }
 
         // Delete relations
-        if (shouldDelete('relations') && record.relations?.length) {
+        if (shouldDelete("relations") && record.relations?.length) {
             await tx.resourceVersionRelation.deleteMany({
                 where: { OR: [{ fromId: record.id }, { toId: record.id }] },
             });
@@ -612,7 +612,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create version history for testing
      */
-    async createVersionHistory(resourceId: string, count: number = 3): Promise<Prisma.ResourceVersion[]> {
+    async createVersionHistory(resourceId: string, count = 3): Promise<Prisma.ResourceVersion[]> {
         const versions: Prisma.ResourceVersion[] = [];
         
         for (let i = 0; i < count; i++) {
@@ -641,7 +641,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createResourceVersionDbFactory = (prisma: PrismaClient) => 
-    ResourceVersionDbFactory.getInstance('ResourceVersion', prisma);
+    ResourceVersionDbFactory.getInstance("ResourceVersion", prisma);
 
 // Export the class for type usage
 export { ResourceVersionDbFactory as ResourceVersionDbFactoryClass };

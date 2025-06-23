@@ -1,21 +1,13 @@
-import { generatePK } from "@vrooli/shared";
-import { nanoid } from "nanoid";
-import { type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { type chat_participants, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
-
-interface ChatParticipantCreateInput {
-    id: bigint;
-    chatId: bigint;
-    userId: bigint;
-    hasUnread?: boolean;
-}
 
 interface ChatParticipantRelationConfig extends RelationConfig {
     chatId?: string;
     userId?: string;
     withUnread?: boolean;
-    participantRole?: 'member' | 'admin' | 'moderator';
+    participantRole?: "member" | "admin" | "moderator";
 }
 
 /**
@@ -23,42 +15,34 @@ interface ChatParticipantRelationConfig extends RelationConfig {
  * Handles user/team/bot participants with roles and unread status
  */
 export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
-    any,
-    ChatParticipantCreateInput,
-    any,
-    any
+    chat_participants,
+    Prisma.chat_participantsCreateInput,
+    Prisma.chat_participantsInclude,
+    Prisma.chat_participantsUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('chat_participants', prisma);
+        super("chat_participants", prisma);
     }
 
     protected getPrismaDelegate() {
         return this.prisma.chat_participants;
     }
 
-    protected getMinimalData(overrides?: Partial<ChatParticipantCreateInput>): ChatParticipantCreateInput {
-        // Generate placeholder IDs - these should be overridden with actual chat/user IDs
-        const chatId = BigInt(generatePK());
-        const userId = BigInt(generatePK());
-        
+    protected getMinimalData(overrides?: Partial<Prisma.chat_participantsCreateInput>): Prisma.chat_participantsCreateInput {
         return {
             id: generatePK(),
-            chatId,
-            userId,
+            chat: { connect: { id: generatePK() } },
+            user: { connect: { id: generatePK() } },
             hasUnread: false,
             ...overrides,
         };
     }
 
-    protected getCompleteData(overrides?: Partial<ChatParticipantCreateInput>): ChatParticipantCreateInput {
-        // Generate placeholder IDs - these should be overridden with actual chat/user IDs
-        const chatId = BigInt(generatePK());
-        const userId = BigInt(generatePK());
-        
+    protected getCompleteData(overrides?: Partial<Prisma.chat_participantsCreateInput>): Prisma.chat_participantsCreateInput {
         return {
             id: generatePK(),
-            chatId,
-            userId,
+            chat: { connect: { id: generatePK() } },
+            user: { connect: { id: generatePK() } },
             hasUnread: false,
             ...overrides,
         };
@@ -68,14 +52,14 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
      * Create participant with specific chat and user
      */
     async createParticipant(
-        chatId: string, 
-        userId: string, 
-        overrides?: Partial<ChatParticipantCreateInput>
-    ): Promise<any> {
-        const data: ChatParticipantCreateInput = {
+        chatId: string | bigint, 
+        userId: string | bigint, 
+        overrides?: Partial<Prisma.chat_participantsCreateInput>,
+    ): Promise<chat_participants> {
+        const data: Prisma.chat_participantsCreateInput = {
             ...this.getMinimalData(),
-            chatId: BigInt(chatId),
-            userId: BigInt(userId),
+            chat: { connect: { id: BigInt(chatId) } },
+            user: { connect: { id: BigInt(userId) } },
             ...overrides,
         };
         
@@ -88,10 +72,10 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
      * Create participant with unread messages
      */
     async createWithUnread(
-        chatId: string, 
-        userId: string, 
-        hasUnread: boolean = true
-    ): Promise<any> {
+        chatId: string | bigint, 
+        userId: string | bigint, 
+        hasUnread = true,
+    ): Promise<chat_participants> {
         return this.createParticipant(chatId, userId, { hasUnread });
     }
 
@@ -99,9 +83,9 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
      * Create admin participant
      */
     async createAdmin(
-        chatId: string, 
-        userId: string
-    ): Promise<any> {
+        chatId: string | bigint, 
+        userId: string | bigint,
+    ): Promise<chat_participants> {
         return this.createParticipant(chatId, userId, {
             hasUnread: false,
             // Note: Admin role would be stored in chat config or separate table
@@ -113,15 +97,15 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
      * Create bot participant
      */
     async createBotParticipant(
-        chatId: string, 
-        botId: string
-    ): Promise<any> {
+        chatId: string | bigint, 
+        botId: string | bigint,
+    ): Promise<chat_participants> {
         return this.createParticipant(chatId, botId, {
             hasUnread: false,
         });
     }
 
-    protected getDefaultInclude(): any {
+    protected getDefaultInclude(): Prisma.chat_participantsInclude {
         return {
             chat: {
                 select: {
@@ -129,7 +113,7 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
                     publicId: true,
                     isPrivate: true,
                     translations: {
-                        where: { language: 'en' },
+                        where: { language: "en" },
                         select: {
                             name: true,
                             description: true,
@@ -152,19 +136,19 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async applyRelationships(
-        baseData: ChatParticipantCreateInput,
+        baseData: Prisma.chat_participantsCreateInput,
         config: ChatParticipantRelationConfig,
-        tx: any
-    ): Promise<ChatParticipantCreateInput> {
-        let data = { ...baseData };
+        tx: any,
+    ): Promise<Prisma.chat_participantsCreateInput> {
+        const data = { ...baseData };
 
         // Apply chat and user connections
         if (config.chatId) {
-            data.chatId = BigInt(config.chatId);
+            data.chat = { connect: { id: BigInt(config.chatId) } };
         }
         
         if (config.userId) {
-            data.userId = BigInt(config.userId);
+            data.user = { connect: { id: BigInt(config.userId) } };
         }
 
         // Apply unread status
@@ -179,11 +163,11 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
      * Bulk create participants for a chat
      */
     async addParticipantsToChat(
-        chatId: string, 
-        userIds: string[], 
-        hasUnread: boolean = true
-    ): Promise<any[]> {
-        const participants: any[] = [];
+        chatId: string | bigint, 
+        userIds: (string | bigint)[], 
+        hasUnread = true,
+    ): Promise<chat_participants[]> {
+        const participants: chat_participants[] = [];
         
         for (const userId of userIds) {
             const participant = await this.createParticipant(chatId, userId, { hasUnread });
@@ -196,7 +180,7 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
     /**
      * Mark participant as having read messages
      */
-    async markAsRead(chatId: string, userId: string): Promise<any> {
+    async markAsRead(chatId: string | bigint, userId: string | bigint): Promise<Prisma.BatchPayload> {
         const result = await this.prisma.chat_participants.updateMany({
             where: {
                 chatId: BigInt(chatId),
@@ -213,7 +197,7 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
     /**
      * Mark participant as having unread messages
      */
-    async markAsUnread(chatId: string, userId: string): Promise<any> {
+    async markAsUnread(chatId: string | bigint, userId: string | bigint): Promise<Prisma.BatchPayload> {
         const result = await this.prisma.chat_participants.updateMany({
             where: {
                 chatId: BigInt(chatId),
@@ -227,7 +211,7 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
         return result;
     }
 
-    protected async checkModelConstraints(record: any): Promise<string[]> {
+    protected async checkModelConstraints(record: chat_participants): Promise<string[]> {
         const violations: string[] = [];
         
         // Check unique constraint (chatId, userId combination)
@@ -239,7 +223,7 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
             },
         });
         if (duplicate) {
-            violations.push('User can only participate once per chat');
+            violations.push("User can only participate once per chat");
         }
 
         // Check chat exists
@@ -247,7 +231,7 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
             where: { id: record.chatId },
         });
         if (!chat) {
-            violations.push('Referenced chat does not exist');
+            violations.push("Referenced chat does not exist");
         }
 
         // Check user exists
@@ -255,7 +239,7 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
             where: { id: record.userId },
         });
         if (!user) {
-            violations.push('Referenced user does not exist');
+            violations.push("Referenced user does not exist");
         }
 
         return violations;
@@ -300,33 +284,33 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
     /**
      * Get edge case scenarios
      */
-    getEdgeCaseScenarios(): Record<string, ChatParticipantCreateInput> {
+    getEdgeCaseScenarios(): Record<string, Prisma.chat_participantsCreateInput> {
         const baseChatId = BigInt(generatePK());
         const baseUserId = BigInt(generatePK());
         
         return {
             participantWithUnread: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: baseUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: baseUserId } },
                 hasUnread: true,
             },
             participantWithoutUnread: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: BigInt(generatePK()),
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: BigInt(generatePK()) } },
                 hasUnread: false,
             },
             botParticipant: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: BigInt(generatePK()), // Would be a bot user ID
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: BigInt(generatePK()) } }, // Would be a bot user ID
                 hasUnread: false,
             },
             multiChatParticipant: {
                 ...this.getMinimalData(),
-                chatId: BigInt(generatePK()), // Different chat
-                userId: baseUserId, // Same user
+                chat: { connect: { id: BigInt(generatePK()) } }, // Different chat
+                user: { connect: { id: baseUserId } }, // Same user
                 hasUnread: true,
             },
         };
@@ -339,9 +323,9 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: any,
+        record: chat_participants,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // ChatParticipant doesn't have dependent records to delete
         // It's a junction table record
@@ -350,21 +334,21 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
     /**
      * Test scenario helpers
      */
-    async createActiveParticipants(chatId: string, userIds: string[]): Promise<any[]> {
+    async createActiveParticipants(chatId: string | bigint, userIds: (string | bigint)[]): Promise<chat_participants[]> {
         return this.addParticipantsToChat(chatId, userIds, false);
     }
 
     async createMixedReadStates(
-        chatId: string, 
-        participants: Array<{ userId: string; hasUnread: boolean }>
-    ): Promise<any[]> {
-        const results: any[] = [];
+        chatId: string | bigint, 
+        participants: Array<{ userId: string | bigint; hasUnread: boolean }>,
+    ): Promise<chat_participants[]> {
+        const results: chat_participants[] = [];
         
         for (const participant of participants) {
             const result = await this.createParticipant(
                 chatId, 
                 participant.userId, 
-                { hasUnread: participant.hasUnread }
+                { hasUnread: participant.hasUnread },
             );
             results.push(result);
         }
@@ -373,16 +357,16 @@ export class ChatParticipantDbFactory extends DatabaseFixtureFactory<
     }
 
     async createChatWithParticipants(
-        chatId: string,
+        chatId: string | bigint,
         config: {
-            activeUsers: string[];
-            unreadUsers: string[];
-            bots: string[];
-        }
+            activeUsers: (string | bigint)[];
+            unreadUsers: (string | bigint)[];
+            bots: (string | bigint)[];
+        },
     ): Promise<{
-        active: any[];
-        unread: any[];
-        bots: any[];
+        active: chat_participants[];
+        unread: chat_participants[];
+        bots: chat_participants[];
     }> {
         const [active, unread, bots] = await Promise.all([
             this.addParticipantsToChat(chatId, config.activeUsers, false),

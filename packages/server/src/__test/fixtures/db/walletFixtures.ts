@@ -135,7 +135,7 @@ export class WalletDbFactory {
      */
     static createForUser(
         userId: string,
-        overrides?: Partial<Prisma.WalletCreateInput>
+        overrides?: Partial<Prisma.WalletCreateInput>,
     ): Prisma.WalletCreateInput {
         return {
             ...this.createComplete(overrides),
@@ -148,7 +148,7 @@ export class WalletDbFactory {
      */
     static createForTeam(
         teamId: string,
-        overrides?: Partial<Prisma.WalletCreateInput>
+        overrides?: Partial<Prisma.WalletCreateInput>,
     ): Prisma.WalletCreateInput {
         return {
             ...this.createComplete(overrides),
@@ -162,7 +162,7 @@ export class WalletDbFactory {
     static createForUserAndTeam(
         userId: string,
         teamId: string,
-        overrides?: Partial<Prisma.WalletCreateInput>
+        overrides?: Partial<Prisma.WalletCreateInput>,
     ): Prisma.WalletCreateInput {
         return {
             ...this.createComplete(overrides),
@@ -208,7 +208,7 @@ export class WalletDbFactory {
  */
 export function createWalletForVerification(
     stakingAddress: string,
-    overrides?: Partial<Prisma.WalletCreateInput>
+    overrides?: Partial<Prisma.WalletCreateInput>,
 ) {
     return {
         ...WalletDbFactory.createUnverified(overrides),
@@ -224,13 +224,13 @@ export function createWalletForVerification(
  */
 export async function seedTestWallets(
     prisma: any,
-    count: number = 3,
+    count = 3,
     options?: {
         userId?: string;
         teamId?: string;
         verified?: boolean;
         withPublicAddress?: boolean;
-    }
+    },
 ) {
     const wallets = [];
 

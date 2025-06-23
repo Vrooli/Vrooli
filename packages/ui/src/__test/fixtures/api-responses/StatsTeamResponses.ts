@@ -5,15 +5,15 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     StatsTeam,
     StatsTeamSearchInput,
-    PeriodType
-} from '@vrooli/shared';
+    PeriodType,
+} from "@vrooli/shared";
 import { 
-    PeriodType as PeriodTypeEnum 
-} from '@vrooli/shared';
+    PeriodType as PeriodTypeEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -65,7 +65,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class StatsTeamResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -92,14 +92,14 @@ export class StatsTeamResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/stats/team/${stats.id}`,
                     related: {
-                        team: `${this.baseUrl}/api/team/${stats.team?.id}`
-                    }
-                }
-            }
+                        team: `${this.baseUrl}/api/team/${stats.team?.id}`,
+                    },
+                },
+            },
         };
     }
     
@@ -114,7 +114,7 @@ export class StatsTeamResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: statsList.length,
-            totalCount: statsList.length
+            totalCount: statsList.length,
         };
         
         return {
@@ -122,17 +122,17 @@ export class StatsTeamResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/stats/team?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/stats/team?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -142,16 +142,16 @@ export class StatsTeamResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/team'
-            }
+                path: "/api/stats/team",
+            },
         };
     }
     
@@ -161,16 +161,16 @@ export class StatsTeamResponseFactory {
     createNotFoundErrorResponse(teamId: string): APIErrorResponse {
         return {
             error: {
-                code: 'TEAM_STATS_NOT_FOUND',
+                code: "TEAM_STATS_NOT_FOUND",
                 message: `Team statistics for ID '${teamId}' were not found`,
                 details: {
                     teamId,
-                    searchCriteria: { teamId }
+                    searchCriteria: { teamId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/stats/team/${teamId}`
-            }
+                path: `/api/stats/team/${teamId}`,
+            },
         };
     }
     
@@ -180,17 +180,17 @@ export class StatsTeamResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} team statistics`,
                 details: {
                     operation,
-                    requiredPermissions: ['team:stats:read'],
-                    userPermissions: ['team:read']
+                    requiredPermissions: ["team:stats:read"],
+                    userPermissions: ["team:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/team'
-            }
+                path: "/api/stats/team",
+            },
         };
     }
     
@@ -200,17 +200,17 @@ export class StatsTeamResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/team'
-            }
+                path: "/api/stats/team",
+            },
         };
     }
     
@@ -220,17 +220,17 @@ export class StatsTeamResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/team'
-            }
+                path: "/api/stats/team",
+            },
         };
     }
     
@@ -308,21 +308,21 @@ export class StatsTeamResponseFactory {
                             updated_at: now,
                             name: "Admin",
                             permissions: JSON.stringify(["read", "write", "admin"]),
-                            translations: []
+                            translations: [],
                         },
                         you: {
                             __typename: "MemberYou",
                             canUpdate: true,
-                            canDelete: false
-                        }
-                    }
-                }
-            }
+                            canDelete: false,
+                        },
+                    },
+                },
+            },
         };
         
         return {
             ...defaultStats,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -341,7 +341,7 @@ export class StatsTeamResponseFactory {
                 runsCompleted: 120,
                 views: 2500,
                 bookmarks: 150,
-                periodType: PeriodTypeEnum.Month
+                periodType: PeriodTypeEnum.Month,
             }),
             this.createMockStats({
                 members: 18,
@@ -353,7 +353,7 @@ export class StatsTeamResponseFactory {
                 runsCompleted: 95,
                 views: 1800,
                 bookmarks: 120,
-                periodType: PeriodTypeEnum.Month
+                periodType: PeriodTypeEnum.Month,
             }),
             this.createMockStats({
                 members: 12,
@@ -365,8 +365,8 @@ export class StatsTeamResponseFactory {
                 runsCompleted: 75,
                 views: 1200,
                 bookmarks: 90,
-                periodType: PeriodTypeEnum.Month
-            })
+                periodType: PeriodTypeEnum.Month,
+            }),
         ];
     }
     
@@ -377,8 +377,8 @@ export class StatsTeamResponseFactory {
         const baseStats = this.createMockStats({
             team: {
                 ...this.createMockStats().team,
-                id: teamId
-            }
+                id: teamId,
+            },
         });
         
         return {
@@ -390,7 +390,7 @@ export class StatsTeamResponseFactory {
                 runsStarted: 5,
                 runsCompleted: 4,
                 views: 25,
-                bookmarks: 2
+                bookmarks: 2,
             },
             [PeriodTypeEnum.Week]: {
                 ...baseStats,
@@ -402,7 +402,7 @@ export class StatsTeamResponseFactory {
                 views: 180,
                 bookmarks: 12,
                 routinesCreated: 3,
-                projectsCreated: 1
+                projectsCreated: 1,
             },
             [PeriodTypeEnum.Month]: {
                 ...baseStats,
@@ -418,7 +418,7 @@ export class StatsTeamResponseFactory {
                 routinesCreated: 12,
                 routinesCompleted: 35,
                 projectsCreated: 5,
-                projectsCompleted: 3
+                projectsCompleted: 3,
             },
             [PeriodTypeEnum.Year]: {
                 ...baseStats,
@@ -434,7 +434,7 @@ export class StatsTeamResponseFactory {
                 routinesCreated: 150,
                 routinesCompleted: 400,
                 projectsCreated: 60,
-                projectsCompleted: 45
+                projectsCompleted: 45,
             },
             [PeriodTypeEnum.AllTime]: {
                 ...baseStats,
@@ -450,15 +450,15 @@ export class StatsTeamResponseFactory {
                 routinesCreated: 300,
                 routinesCompleted: 800,
                 projectsCreated: 120,
-                projectsCompleted: 95
-            }
+                projectsCompleted: 95,
+            },
         };
     }
     
     /**
      * Create time series data for team analytics
      */
-    createTimeSeriesStats(teamId: string, days: number = 30): StatsTeam[] {
+    createTimeSeriesStats(teamId: string, days = 30): StatsTeam[] {
         const oneDay = 24 * 60 * 60 * 1000;
         const baseTime = Date.now();
         
@@ -469,7 +469,7 @@ export class StatsTeamResponseFactory {
             return this.createMockStats({
                 team: {
                     ...this.createMockStats().team,
-                    id: teamId
+                    id: teamId,
                 },
                 periodType: PeriodTypeEnum.Day,
                 periodStart: new Date(dayStart).toISOString(),
@@ -478,7 +478,7 @@ export class StatsTeamResponseFactory {
                 runsStarted: Math.floor(Math.random() * 10) + 2,
                 runsCompleted: Math.floor(Math.random() * 8) + 1,
                 views: Math.floor(Math.random() * 50) + 10,
-                bookmarks: Math.floor(Math.random() * 5)
+                bookmarks: Math.floor(Math.random() * 5),
             });
         });
     }
@@ -492,15 +492,15 @@ export class StatsTeamResponseFactory {
                 team: {
                     ...this.createMockStats().team,
                     id: teamId,
-                    name: `Team ${teamId}`
+                    name: `Team ${teamId}`,
                 },
                 periodType: PeriodTypeEnum.Month,
                 members: Math.floor(Math.random() * 30) + 5,
                 runsCompleted: Math.floor(Math.random() * 100) + 20,
                 routinesCreated: Math.floor(Math.random() * 15) + 2,
                 projectsCompleted: Math.floor(Math.random() * 8) + 1,
-                views: Math.floor(Math.random() * 1000) + 100
-            })
+                views: Math.floor(Math.random() * 1000) + 100,
+            }),
         );
     }
 }
@@ -521,10 +521,10 @@ export class StatsTeamMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get team statistics by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/team/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
-                const period = url.searchParams.get('period') as PeriodType;
+                const period = url.searchParams.get("period") as PeriodType;
                 
                 if (period) {
                     const statsByPeriod = this.responseFactory.createStatsByPeriod(id as string);
@@ -533,30 +533,30 @@ export class StatsTeamMSWHandlers {
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(response)
+                        ctx.json(response),
                     );
                 }
                 
                 const stats = this.responseFactory.createMockStats({
                     team: {
                         ...this.responseFactory.createMockStats().team,
-                        id: id as string
-                    }
+                        id: id as string,
+                    },
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Search team statistics
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/team/search`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, async (req, res, ctx) => {
                 const body = await req.json() as StatsTeamSearchInput;
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 let statsList: StatsTeam[] = [];
                 
@@ -570,7 +570,7 @@ export class StatsTeamMSWHandlers {
                 if (body.periodType) {
                     statsList = statsList.map(stats => ({
                         ...stats,
-                        periodType: body.periodType!
+                        periodType: body.periodType!,
                     }));
                 }
                 
@@ -583,21 +583,21 @@ export class StatsTeamMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: statsList.length
-                    }
+                        totalCount: statsList.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get top performing teams
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/team/top-performers`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/top-performers`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const period = url.searchParams.get('period') as PeriodType || PeriodTypeEnum.Month;
-                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
+                const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 const topTeams = this.responseFactory.createHighPerformingTeamStats()
                     .map(stats => ({ ...stats, periodType: period }))
@@ -607,27 +607,27 @@ export class StatsTeamMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get time series data for team
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/team/:id/timeseries`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id/timeseries`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
-                const days = parseInt(url.searchParams.get('days') || '30');
+                const days = parseInt(url.searchParams.get("days") || "30");
                 
                 const timeSeriesData = this.responseFactory.createTimeSeriesStats(id as string, days);
                 const response = this.responseFactory.createStatsListResponse(timeSeriesData);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get aggregated statistics for multiple teams
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/team/aggregate`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/team/aggregate`, async (req, res, ctx) => {
                 const { teamIds, periodType } = await req.json() as {
                     teamIds: string[];
                     periodType: PeriodType;
@@ -640,9 +640,9 @@ export class StatsTeamMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -652,53 +652,53 @@ export class StatsTeamMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/team/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/team/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('view'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("view")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/team/search`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/team/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const stats = this.responseFactory.createMockStats({
                     team: {
                         ...this.responseFactory.createMockStats().team,
-                        id: id as string
-                    }
+                        id: id as string,
+                    },
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -707,13 +707,13 @@ export class StatsTeamMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/team/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/team/search`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
-            })
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
+            }),
         ];
     }
     
@@ -722,13 +722,13 @@ export class StatsTeamMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -750,14 +750,14 @@ export const statsTeamResponseScenarios = {
     getSuccess: (stats?: StatsTeam) => {
         const factory = new StatsTeamResponseFactory();
         return factory.createSuccessResponse(
-            stats || factory.createMockStats()
+            stats || factory.createMockStats(),
         );
     },
     
     searchSuccess: (statsList?: StatsTeam[]) => {
         const factory = new StatsTeamResponseFactory();
         return factory.createStatsListResponse(
-            statsList || factory.createHighPerformingTeamStats()
+            statsList || factory.createHighPerformingTeamStats(),
         );
     },
     
@@ -773,14 +773,14 @@ export const statsTeamResponseScenarios = {
     timeSeriesData: (teamId?: string, days?: number) => {
         const factory = new StatsTeamResponseFactory();
         return factory.createStatsListResponse(
-            factory.createTimeSeriesStats(teamId || 'team-123', days)
+            factory.createTimeSeriesStats(teamId || "team-123", days),
         );
     },
     
     comparativeStats: (teamIds?: string[]) => {
         const factory = new StatsTeamResponseFactory();
         return factory.createStatsListResponse(
-            factory.createComparativeStats(teamIds || ['team-1', 'team-2', 'team-3'])
+            factory.createComparativeStats(teamIds || ["team-1", "team-2", "team-3"]),
         );
     },
     
@@ -788,14 +788,14 @@ export const statsTeamResponseScenarios = {
     notFoundError: (teamId?: string) => {
         const factory = new StatsTeamResponseFactory();
         return factory.createNotFoundErrorResponse(
-            teamId || 'non-existent-id'
+            teamId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new StatsTeamResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'view'
+            operation || "view",
         );
     },
     
@@ -808,7 +808,7 @@ export const statsTeamResponseScenarios = {
     successHandlers: () => new StatsTeamMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new StatsTeamMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new StatsTeamMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new StatsTeamMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new StatsTeamMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

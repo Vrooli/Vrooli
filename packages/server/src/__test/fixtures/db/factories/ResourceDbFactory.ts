@@ -27,7 +27,7 @@ export class ResourceDbFactory extends DatabaseFixtureFactory<
     Prisma.ResourceUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Resource', prisma);
+        super("Resource", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -135,9 +135,9 @@ export class ResourceDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.ResourceCreateInput,
         config: ResourceRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ResourceCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle owner
         if (config.owner) {
@@ -375,7 +375,7 @@ export class ResourceDbFactory extends DatabaseFixtureFactory<
         });
 
         if (versionCount === 0) {
-            violations.push('Resource must have at least one version');
+            violations.push("Resource must have at least one version");
         }
 
         // Check that there's exactly one latest version
@@ -387,26 +387,26 @@ export class ResourceDbFactory extends DatabaseFixtureFactory<
         });
 
         if (latestVersions !== 1) {
-            violations.push('Resource must have exactly one latest version');
+            violations.push("Resource must have exactly one latest version");
         }
 
         // Check ownership
         if (!record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Resource must have an owner (user or team)');
+            violations.push("Resource must have an owner (user or team)");
         }
 
         if (record.ownedByUserId && record.ownedByTeamId) {
-            violations.push('Resource cannot be owned by both user and team');
+            violations.push("Resource cannot be owned by both user and team");
         }
 
         // Check private resource has owner
         if (record.isPrivate && !record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Private resource must have an owner');
+            violations.push("Private resource must have an owner");
         }
 
         // Check internal resources are team-owned
         if (record.isInternal && !record.ownedByTeamId) {
-            violations.push('Internal resources should be team-owned');
+            violations.push("Internal resources should be team-owned");
         }
 
         return violations;
@@ -522,7 +522,7 @@ export class ResourceDbFactory extends DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: Prisma.Resource,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete versions and their translations
         if (record.versions?.length) {

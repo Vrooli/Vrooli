@@ -1,10 +1,7 @@
 import { generatePK, generatePublicId } from "./idHelpers.js";
-import { type Prisma, type PrismaClient } from "@prisma/client";
-import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
-    RelationConfig,
-} from "./types.js";
+import { type session, type Prisma, type PrismaClient } from "@prisma/client";
+import { DatabaseFixtureFactory } from "./DatabaseFixtureFactory.js";
+import type { RelationConfig } from "./DatabaseFixtureFactory.js";
 
 interface SessionRelationConfig extends RelationConfig {
     withUser?: boolean;
@@ -24,8 +21,8 @@ interface SessionRelationConfig extends RelationConfig {
  * - Revocation testing
  * - Predefined test scenarios
  */
-export class SessionDbFactory extends EnhancedDatabaseFactory<
-    any, // Using any temporarily to avoid type issues
+export class SessionDbFactory extends DatabaseFixtureFactory<
+    session,
     Prisma.sessionCreateInput,
     Prisma.sessionInclude,
     Prisma.sessionUpdateInput
@@ -38,24 +35,29 @@ export class SessionDbFactory extends EnhancedDatabaseFactory<
         return this.prisma.session;
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.sessionCreateInput>): Prisma.sessionCreateInput {
+    protected trackCreatedId(id: string | bigint): void {
+        (this as any).createdIds.add(id.toString());
+    }
+
+    protected getMinimalData(overrides?: Partial<Prisma.sessionCreateInput>): Prisma.sessionCreateInput {
         return {
             id: generatePK(),
-            secret: `session_${generatePublicId()}`,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
             user: { connect: { id: generatePK() } },
+            auth: { connect: { id: generatePK() } },
             ...overrides,
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.sessionCreateInput>): Prisma.sessionCreateInput {
+    protected getCompleteData(overrides?: Partial<Prisma.sessionCreateInput>): Prisma.sessionCreateInput {
         return {
-            ...this.generateMinimalData(),
-            secret: `complete_session_${generatePublicId()}`,
-            theme: "light",
-            device: "desktop",
-            ipAddress: "192.168.1.100",
-            userAgent: "Mozilla/5.0 (Test Browser)",
+            ...this.getMinimalData(),
+            device_info: JSON.stringify({
+                userAgent: "Mozilla/5.0 (Test Browser)",
+                platform: "desktop",
+                theme: "light"
+            }),
+            ip_address: "192.168.1.100",
             ...overrides,
         };
     }
@@ -63,24 +65,13 @@ export class SessionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get complete test fixtures for Session model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.sessionCreateInput, Prisma.sessionUpdateInput> {
+    getFixtures() {
         const userId = generatePK();
+        const authId = generatePK();
         
         return {
-            minimal: this.generateMinimalData(),
-            complete: this.generateCompleteData(),
-                    platform: "desktop",
-                    language: "en-US",
-                    timezone: "America/New_York"
-                }),
-                ip_address: "192.168.1.100",
-                user: {
-                    connect: { id: userId }
-                },
-                auth: {
-                    connect: { id: authId }
-                },
-            },
+            minimal: this.getMinimalData(),
+            complete: this.getCompleteData(),
             invalid: {
                 missingRequired: {
                     // Missing id, expires_at, user, and auth connections

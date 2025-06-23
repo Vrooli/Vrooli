@@ -1,15 +1,23 @@
-import { type ChatCreateInput, type ChatUpdateInput, generatePK, generatePublicId } from "@vrooli/shared";
-import { type PrismaClient } from "@prisma/client";
-import { nanoid } from "nanoid";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { type chat, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
-import { chatConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/chatConfigFixtures.js";
+// TODO: Update this import path when chatConfigFixtures is available
+const chatConfigFixtures = {
+    minimal: { __version: "1.0.0" },
+    complete: { __version: "1.0.0", goal: "Default chat goal" },
+    variants: {
+        restrictedTeamSwarm: { __version: "1.0.0", isRestricted: true },
+        publicSwarm: { __version: "1.0.0", isPublic: true },
+        highLimitSwarm: { __version: "1.0.0", limits: { maxToolCalls: 1000 } },
+    },
+};
 
 interface ChatRelationConfig extends RelationConfig {
     withTeam?: boolean;
-    teamId?: string;
+    teamId?: string | bigint;
     withParticipants?: boolean | number;
-    participantIds?: string[];
+    participantIds?: (string | bigint)[];
     withMessages?: boolean | number;
     withInvites?: boolean | number;
     translations?: Array<{ language: string; name: string; description?: string }>;
@@ -20,20 +28,20 @@ interface ChatRelationConfig extends RelationConfig {
  * Handles team chats, private chats, and AI bot integration with comprehensive relationship support
  */
 export class ChatDbFactory extends DatabaseFixtureFactory<
-    any, // Using any for model type since it comes from prisma client
-    ChatCreateInput,
-    any, // Using any for include type
-    ChatUpdateInput
+    chat,
+    Prisma.chatCreateInput,
+    Prisma.chatInclude,
+    Prisma.chatUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('chat', prisma);
+        super("chat", prisma);
     }
 
     protected getPrismaDelegate() {
         return this.prisma.chat;
     }
 
-    protected getMinimalData(overrides?: Partial<ChatCreateInput>): ChatCreateInput {
+    protected getMinimalData(overrides?: Partial<Prisma.chatCreateInput>): Prisma.chatCreateInput {
         return {
             id: generatePK(),
             publicId: generatePublicId(),
@@ -44,7 +52,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
         };
     }
 
-    protected getCompleteData(overrides?: Partial<ChatCreateInput>): ChatCreateInput {
+    protected getCompleteData(overrides?: Partial<Prisma.chatCreateInput>): Prisma.chatCreateInput {
         return {
             id: generatePK(),
             publicId: generatePublicId(),
@@ -74,8 +82,8 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a private chat with specific configuration
      */
-    async createPrivate(overrides?: Partial<ChatCreateInput>): Promise<any> {
-        const data: ChatCreateInput = {
+    async createPrivate(overrides?: Partial<Prisma.chatCreateInput>): Promise<chat> {
+        const data: Prisma.chatCreateInput = {
             ...this.getMinimalData(),
             isPrivate: true,
             openToAnyoneWithInvite: false,
@@ -99,10 +107,10 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a team chat with enhanced configuration
      */
-    async createTeamChat(teamId: string, overrides?: Partial<ChatCreateInput>): Promise<any> {
-        const data: ChatCreateInput = {
+    async createTeamChat(teamId: string, overrides?: Partial<Prisma.chatCreateInput>): Promise<chat> {
+        const data: Prisma.chatCreateInput = {
             ...this.getMinimalData(),
-            teamId: BigInt(teamId),
+            team: { connect: { id: BigInt(teamId) } },
             isPrivate: true,
             openToAnyoneWithInvite: false,
             config: chatConfigFixtures.variants.restrictedTeamSwarm as any,
@@ -125,8 +133,8 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
     /**
      * Create a bot chat for AI assistance
      */
-    async createBotChat(userId: string, botId: string, overrides?: Partial<ChatCreateInput>): Promise<any> {
-        const data: ChatCreateInput = {
+    async createBotChat(userId: string, botId: string, overrides?: Partial<Prisma.chatCreateInput>): Promise<chat> {
+        const data: Prisma.chatCreateInput = {
             ...this.getMinimalData(),
             isPrivate: true,
             openToAnyoneWithInvite: false,
@@ -152,7 +160,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
         return result;
     }
 
-    protected getDefaultInclude(): any {
+    protected getDefaultInclude(): Prisma.chatInclude {
         return {
             translations: true,
             participants: {
@@ -173,7 +181,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
             },
             messages: {
                 take: 5,
-                orderBy: { createdAt: 'desc' },
+                orderBy: { createdAt: "desc" },
                 select: {
                     id: true,
                     text: true,
@@ -188,7 +196,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
                 },
             },
             invites: {
-                where: { status: 'Pending' },
+                where: { status: "Pending" },
                 select: {
                     id: true,
                     message: true,
@@ -208,7 +216,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
                     publicId: true,
                     handle: true,
                     translations: {
-                        where: { language: 'en' },
+                        where: { language: "en" },
                         select: {
                             name: true,
                         },
@@ -227,15 +235,15 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async applyRelationships(
-        baseData: ChatCreateInput,
+        baseData: Prisma.chatCreateInput,
         config: ChatRelationConfig,
-        tx: any
-    ): Promise<ChatCreateInput> {
-        let data = { ...baseData };
+        tx: any,
+    ): Promise<Prisma.chatCreateInput> {
+        const data = { ...baseData };
 
         // Handle team relationship
         if (config.withTeam && config.teamId) {
-            data.teamId = BigInt(config.teamId);
+            data.team = { connect: { id: BigInt(config.teamId) } };
         }
 
         // Handle translations
@@ -250,7 +258,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
 
         // Handle participants
         if (config.withParticipants && config.participantIds && config.participantIds.length > 0) {
-            const participantCount = typeof config.withParticipants === 'number' 
+            const participantCount = typeof config.withParticipants === "number" 
                 ? Math.min(config.withParticipants, config.participantIds.length)
                 : config.participantIds.length;
                 
@@ -265,7 +273,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
 
         // Handle initial messages
         if (config.withMessages && config.participantIds && config.participantIds.length > 0) {
-            const messageCount = typeof config.withMessages === 'number' ? config.withMessages : 1;
+            const messageCount = typeof config.withMessages === "number" ? config.withMessages : 1;
             const senderId = config.participantIds[0];
             
             data.messages = {
@@ -286,7 +294,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
 
         // Handle invites
         if (config.withInvites && config.participantIds && config.participantIds.length > 0) {
-            const inviteCount = typeof config.withInvites === 'number' ? config.withInvites : 1;
+            const inviteCount = typeof config.withInvites === "number" ? config.withInvites : 1;
             const creatorId = config.participantIds[0];
             
             data.invites = {
@@ -305,7 +313,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
     /**
      * Create test scenarios
      */
-    async createPrivateDM(user1Id: string, user2Id: string): Promise<any> {
+    async createPrivateDM(user1Id: string | bigint, user2Id: string | bigint): Promise<chat> {
         return this.createWithRelations({
             overrides: {
                 isPrivate: true,
@@ -322,7 +330,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
         });
     }
 
-    async createPublicChat(name: string, creatorId: string): Promise<any> {
+    async createPublicChat(name: string, creatorId: string | bigint): Promise<chat> {
         return this.createWithRelations({
             overrides: {
                 isPrivate: false,
@@ -341,10 +349,10 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
         });
     }
 
-    async createHighPerformanceChat(teamId: string): Promise<any> {
+    async createHighPerformanceChat(teamId: string | bigint): Promise<chat> {
         return this.createWithRelations({
             overrides: {
-                teamId: BigInt(teamId),
+                team: { connect: { id: BigInt(teamId) } },
                 isPrivate: true,
                 openToAnyoneWithInvite: false,
                 config: chatConfigFixtures.variants.highLimitSwarm as any,
@@ -359,7 +367,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
         });
     }
 
-    protected async checkModelConstraints(record: any): Promise<string[]> {
+    protected async checkModelConstraints(record: chat): Promise<string[]> {
         const violations: string[] = [];
         
         // Check publicId uniqueness
@@ -371,18 +379,18 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
                 },
             });
             if (duplicate) {
-                violations.push('PublicId must be unique');
+                violations.push("PublicId must be unique");
             }
         }
 
         // Check business logic: private chats should not be open to anyone with invite
         if (record.isPrivate && record.openToAnyoneWithInvite) {
-            violations.push('Private chats should not be open to anyone with invite');
+            violations.push("Private chats should not be open to anyone with invite");
         }
 
         // Check config structure
-        if (!record.config || typeof record.config !== 'object') {
-            violations.push('Chat config is required and must be an object');
+        if (!record.config || typeof record.config !== "object") {
+            violations.push("Chat config is required and must be an object");
         }
 
         // Check team relationship exists if teamId is set
@@ -391,7 +399,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
                 where: { id: record.teamId },
             });
             if (!team) {
-                violations.push('Referenced team does not exist');
+                violations.push("Referenced team does not exist");
             }
         }
 
@@ -443,7 +451,7 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
     /**
      * Get edge case scenarios
      */
-    getEdgeCaseScenarios(): Record<string, ChatCreateInput> {
+    getEdgeCaseScenarios(): Record<string, Prisma.chatCreateInput> {
         return {
             emptyPrivateChat: {
                 ...this.getMinimalData(),
@@ -511,36 +519,41 @@ export class ChatDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: any,
+        record: chat & {
+            messages?: any[];
+            invites?: any[];
+            participants?: any[];
+            translations?: any[];
+        },
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete in order of dependencies
         
         // Delete messages
         if (record.messages?.length) {
-            await tx.chatMessage.deleteMany({
+            await tx.chat_message.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete invites
         if (record.invites?.length) {
-            await tx.chatInvite.deleteMany({
+            await tx.chat_invite.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete participants
         if (record.participants?.length) {
-            await tx.chatParticipants.deleteMany({
+            await tx.chat_participants.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete translations
         if (record.translations?.length) {
-            await tx.chatTranslation.deleteMany({
+            await tx.chat_translation.deleteMany({
                 where: { chatId: record.id },
             });
         }

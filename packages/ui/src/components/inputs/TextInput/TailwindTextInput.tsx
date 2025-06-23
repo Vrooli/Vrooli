@@ -2,7 +2,7 @@ import React, { forwardRef, useMemo, useCallback } from "react";
 import { useField } from "formik";
 import { cn } from "../../../utils/tailwind-theme.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
-import { buildTextInputClasses } from "./textInputStyles.js";
+import { buildTextInputClasses, buildContainerClasses } from "./textInputStyles.js";
 import type { TailwindTextInputBaseProps, TailwindTextInputProps, TranslatedTailwindTextInputProps } from "./types.js";
 
 function StyledLabel({ label, isRequired }: { label: string; isRequired?: boolean }) {
@@ -51,24 +51,49 @@ export const TailwindTextInputBase = forwardRef<HTMLInputElement | HTMLTextAreaE
         ...props 
     }, ref) => {
         const hasAdornments = startAdornment || endAdornment;
+        const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement>(null);
         
-        const inputClasses = useMemo(() => 
-            buildTextInputClasses({ 
-                variant, 
-                size, 
-                error, 
-                disabled, 
-                fullWidth, 
-                hasAdornments 
-            }),
-            [variant, size, error, disabled, fullWidth, hasAdornments]
-        );
+        // Use provided ref or internal ref
+        React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement | HTMLTextAreaElement);
+        
+        const inputClasses = useMemo(() => {
+            if (hasAdornments) {
+                // When we have adornments, the input needs styling but without borders/padding
+                return cn(
+                    "tw-flex-1",
+                    "tw-bg-transparent",
+                    "tw-border-0",
+                    "tw-outline-none",
+                    "focus:tw-outline-none",
+                    "focus:tw-ring-0",
+                    // Horizontal padding - less on left if there's a start adornment
+                    startAdornment ? "tw-pl-0" : (size === "sm" || size === "md" ? "tw-pl-3" : "tw-pl-4"),
+                    size === "sm" && "tw-pr-3",
+                    size === "md" && "tw-pr-3", 
+                    size === "lg" && "tw-pr-4",
+                    "tw-appearance-none", // Remove browser defaults
+                    "tw-text-text-primary placeholder:tw-text-text-secondary",
+                    "disabled:tw-cursor-not-allowed",
+                    "tw-m-0", // Remove any default margins
+                    // Text sizing with line height to match container
+                    size === "sm" && "tw-text-sm tw-leading-8",
+                    size === "md" && "tw-text-base tw-leading-10", 
+                    size === "lg" && "tw-text-lg tw-leading-12",
+                    // Apply variant-specific text color from parent focus state
+                    "focus:tw-text-text-primary",
+                );
+            }
+            // Regular input styling when no adornments
+            return buildTextInputClasses({ variant, size, error, disabled, fullWidth });
+        }, [variant, size, error, disabled, fullWidth, hasAdornments, startAdornment]);
 
         const containerClasses = useMemo(() => {
             if (!hasAdornments) return "";
+            // Container gets the full input styling when adornments are present
             return cn(
-                "tw-flex tw-items-center tw-relative",
-                buildTextInputClasses({ variant, size, error, disabled, fullWidth })
+                "tw-flex tw-items-center tw-cursor-text",
+                buildContainerClasses({ variant, size, error, disabled, fullWidth }),
+                disabled && "tw-cursor-not-allowed",
             );
         }, [variant, size, error, disabled, fullWidth, hasAdornments]);
 
@@ -87,33 +112,47 @@ export const TailwindTextInputBase = forwardRef<HTMLInputElement | HTMLTextAreaE
             }
         }, [enterWillSubmit, onSubmit, onKeyDown]);
 
+        const handleContainerClick = useCallback(() => {
+            // Focus the input when clicking anywhere in the container
+            if (inputRef.current && !disabled) {
+                inputRef.current.focus();
+            }
+        }, [disabled]);
+
+        const handleContainerKeyDown = useCallback((event: React.KeyboardEvent) => {
+            if (event.key === "Enter") {
+                handleContainerClick();
+            }
+        }, [handleContainerClick]);
+
         const InputElement = multiline ? "textarea" : "input";
 
         // If we have adornments and it's not multiline, wrap in container
         if (hasAdornments && !multiline) {
             return (
-                <div className={fullWidth ? "tw-w-full" : ""}>
+                <div className={fullWidth ? "tw-w-full" : ""} data-testid="tailwind-text-input-base">
                     {label && <StyledLabel label={label} isRequired={isRequired} />}
-                    <div className={containerClasses}>
+                    <div 
+                        className={containerClasses} 
+                        onClick={handleContainerClick}
+                        onKeyDown={handleContainerKeyDown}
+                        role="button"
+                        tabIndex={0}
+                    >
                         {startAdornment && (
-                            <div className="tw-flex tw-items-center tw-pl-3 tw-pr-2 tw-text-text-secondary">
+                            <div className="tw-flex tw-items-center tw-justify-center tw-pl-3 tw-text-text-secondary tw-flex-shrink-0">
                                 {startAdornment}
                             </div>
                         )}
                         <InputElement
-                            ref={ref as any}
+                            ref={inputRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement>["current"]}
                             disabled={disabled}
-                            className={cn(
-                                "tw-flex-1 tw-border-0 tw-bg-transparent focus:tw-ring-0 tw-outline-none",
-                                startAdornment && "tw-pl-0",
-                                endAdornment && "tw-pr-0",
-                                className
-                            )}
+                            className={cn(inputClasses, className)}
                             onKeyDown={handleKeyDown}
                             {...props}
                         />
                         {endAdornment && (
-                            <div className="tw-flex tw-items-center tw-pr-3 tw-pl-2 tw-text-text-secondary">
+                            <div className="tw-flex tw-items-center tw-justify-center tw-pr-3 tw-text-text-secondary tw-flex-shrink-0">
                                 {endAdornment}
                             </div>
                         )}
@@ -125,10 +164,10 @@ export const TailwindTextInputBase = forwardRef<HTMLInputElement | HTMLTextAreaE
 
         // Standard input without adornments or multiline with adornments (adornments not supported for multiline)
         return (
-            <div className={fullWidth ? "tw-w-full" : ""}>
+            <div className={fullWidth ? "tw-w-full" : ""} data-testid="tailwind-text-input-base">
                 {label && <StyledLabel label={label} isRequired={isRequired} />}
                 <InputElement
-                    ref={ref as any}
+                    ref={inputRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement>["current"]}
                     disabled={disabled}
                     className={cn(inputClasses, className)}
                     onKeyDown={handleKeyDown}
@@ -137,44 +176,38 @@ export const TailwindTextInputBase = forwardRef<HTMLInputElement | HTMLTextAreaE
                 <HelperText helperText={helperText} error={error} />
             </div>
         );
-    }
+    },
 );
 
 TailwindTextInputBase.displayName = "TailwindTextInputBase";
 
 export function TailwindTextInput({
+    name,
+    validate,
     enterWillSubmit,
-    helperText,
-    label,
-    isRequired,
     onSubmit,
-    placeholder,
-    ref,
     ...props
 }: TailwindTextInputProps) {
-    const inputLabelProps = useMemo(function inputLabelPropsMemo() {
-        return (label && placeholder) ? { shrink: true } : {};
-    }, [label, placeholder]);
+    const [field, meta] = useField({ name, validate });
 
-    function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-        if (enterWillSubmit !== true || typeof onSubmit !== "function") return;
-        if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            onSubmit();
+    const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+        // Handle enter submit logic
+        if (enterWillSubmit && typeof onSubmit === "function") {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                onSubmit();
+            }
         }
-    }
+    }, [enterWillSubmit, onSubmit]);
 
     return (
         <TailwindTextInputBase
-            helperText={helperText}
-            label={label}
-            isRequired={isRequired}
-            onKeyDown={onKeyDown}
-            placeholder={placeholder}
-            ref={ref as React.RefObject<HTMLInputElement>}
-            enterWillSubmit={enterWillSubmit}
-            onSubmit={onSubmit}
             {...props}
+            {...field}
+            error={meta.touched && Boolean(meta.error)}
+            helperText={meta.touched && meta.error}
+            onKeyDown={handleKeyDown}
+            data-testid="tailwind-text-input"
         />
     );
 }
@@ -187,16 +220,16 @@ export function TranslatedTailwindTextInput({
     const [field, meta, helpers] = useField("translations");
     const { value, error, touched } = getTranslationData(field, meta, language);
 
-    function handleBlur(event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const handleBlur = useCallback((event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         field.onBlur(event);
-    }
+    }, [field]);
 
-    function handleChange(event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         handleTranslationChange(field, meta, helpers, event, language);
-    }
+    }, [field, meta, helpers, language]);
 
     return (
-        <TailwindTextInput
+        <TailwindTextInputBase
             {...props}
             id={name}
             name={name}

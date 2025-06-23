@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type {
     ReportResponse,
     ReportResponseCreateInput,
@@ -14,14 +14,14 @@ import type {
     ReportFor,
     ReportStatus,
     ReportSuggestedAction,
-    User
-} from '@vrooli/shared';
+    User,
+} from "@vrooli/shared";
 import {
     reportResponseValidation,
     ReportFor as ReportForEnum,
     ReportStatus as ReportStatusEnum,
-    ReportSuggestedAction as ReportSuggestedActionEnum
-} from '@vrooli/shared';
+    ReportSuggestedAction as ReportSuggestedActionEnum,
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -73,7 +73,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ReportResponseResponseFactory {
     private readonly baseUrl: string;
 
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
 
@@ -100,15 +100,15 @@ export class ReportResponseResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/report-response/${reportResponse.id}`,
                     related: {
                         report: `${this.baseUrl}/api/report/${reportResponse.report.id}`,
-                        reportedObject: `${this.baseUrl}/api/${reportResponse.report.createdFor.toLowerCase()}/${reportResponse.report.publicId}`
-                    }
-                }
-            }
+                        reportedObject: `${this.baseUrl}/api/${reportResponse.report.createdFor.toLowerCase()}/${reportResponse.report.publicId}`,
+                    },
+                },
+            },
         };
     }
 
@@ -123,7 +123,7 @@ export class ReportResponseResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: responses.length,
-            totalCount: responses.length
+            totalCount: responses.length,
         };
 
         return {
@@ -131,17 +131,17 @@ export class ReportResponseResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/report-response?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/report-response?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
 
@@ -151,16 +151,16 @@ export class ReportResponseResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/report-response'
-            }
+                path: "/api/report-response",
+            },
         };
     }
 
@@ -170,16 +170,16 @@ export class ReportResponseResponseFactory {
     createNotFoundErrorResponse(responseId: string): APIErrorResponse {
         return {
             error: {
-                code: 'REPORT_RESPONSE_NOT_FOUND',
+                code: "REPORT_RESPONSE_NOT_FOUND",
                 message: `Report response with ID '${responseId}' was not found`,
                 details: {
                     responseId,
-                    searchCriteria: { id: responseId }
+                    searchCriteria: { id: responseId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/report-response/${responseId}`
-            }
+                path: `/api/report-response/${responseId}`,
+            },
         };
     }
 
@@ -189,17 +189,17 @@ export class ReportResponseResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} report responses`,
                 details: {
                     operation,
-                    requiredPermissions: ['report:moderate'],
-                    userPermissions: ['report:read']
+                    requiredPermissions: ["report:moderate"],
+                    userPermissions: ["report:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/report-response'
-            }
+                path: "/api/report-response",
+            },
         };
     }
 
@@ -209,17 +209,17 @@ export class ReportResponseResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/report-response'
-            }
+                path: "/api/report-response",
+            },
         };
     }
 
@@ -229,24 +229,24 @@ export class ReportResponseResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/report-response'
-            }
+                path: "/api/report-response",
+            },
         };
     }
 
     /**
      * Create mock user data
      */
-    private createMockUser(role: 'moderator' | 'admin' | 'user' = 'moderator'): User {
+    private createMockUser(role: "moderator" | "admin" | "user" = "moderator"): User {
         const now = new Date().toISOString();
         const id = this.generateId();
 
@@ -261,9 +261,9 @@ export class ReportResponseResponseFactory {
             isPrivate: false,
             profileImage: null,
             bannerImage: null,
-            premium: role !== 'user',
-            premiumExpiration: role !== 'user' ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : null,
-            roles: role === 'admin' ? ['Admin'] : role === 'moderator' ? ['Moderator'] : [],
+            premium: role !== "user",
+            premiumExpiration: role !== "user" ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : null,
+            roles: role === "admin" ? ["Admin"] : role === "moderator" ? ["Moderator"] : [],
             wallets: [],
             translations: [],
             translationsCount: 0,
@@ -279,9 +279,9 @@ export class ReportResponseResponseFactory {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         };
     }
 
@@ -309,13 +309,13 @@ export class ReportResponseResponseFactory {
                 __typename: "ReportYou",
                 canDelete: false,
                 canUpdate: false,
-                canRespond: true
-            }
+                canRespond: true,
+            },
         };
 
         return {
             ...defaultReport,
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -338,13 +338,13 @@ export class ReportResponseResponseFactory {
             you: {
                 __typename: "ReportResponseYou",
                 canDelete: true,
-                canUpdate: true
-            }
+                canUpdate: true,
+            },
         };
 
         return {
             ...defaultResponse,
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -378,28 +378,28 @@ export class ReportResponseResponseFactory {
             {
                 action: ReportSuggestedActionEnum.Delete,
                 status: ReportStatusEnum.ClosedDeleted,
-                details: "Content violated community guidelines and has been removed."
+                details: "Content violated community guidelines and has been removed.",
             },
             {
                 action: ReportSuggestedActionEnum.FalseReport,
                 status: ReportStatusEnum.ClosedFalseReport,
-                details: "Investigation found no violation. Report marked as false."
+                details: "Investigation found no violation. Report marked as false.",
             },
             {
                 action: ReportSuggestedActionEnum.HideUntilFixed,
                 status: ReportStatusEnum.ClosedHidden,
-                details: "Content hidden until issues are resolved by the creator."
+                details: "Content hidden until issues are resolved by the creator.",
             },
             {
                 action: ReportSuggestedActionEnum.NonIssue,
                 status: ReportStatusEnum.ClosedNonIssue,
-                details: "Review determined content does not violate any guidelines."
+                details: "Review determined content does not violate any guidelines.",
             },
             {
                 action: ReportSuggestedActionEnum.SuspendUser,
                 status: ReportStatusEnum.ClosedSuspended,
-                details: "User account suspended for repeated violations."
-            }
+                details: "User account suspended for repeated violations.",
+            },
         ];
 
         return scenarios.map(scenario => 
@@ -407,9 +407,9 @@ export class ReportResponseResponseFactory {
                 actionSuggested: scenario.action,
                 details: scenario.details,
                 report: this.createMockReport({
-                    status: scenario.status
-                })
-            })
+                    status: scenario.status,
+                }),
+            }),
         );
     }
 
@@ -420,7 +420,7 @@ export class ReportResponseResponseFactory {
         const report = this.createMockReport({
             createdFor: ReportForEnum.ChatMessage,
             reason: "Harassment",
-            details: "User is sending threatening messages"
+            details: "User is sending threatening messages",
         });
 
         // Initial review
@@ -428,18 +428,18 @@ export class ReportResponseResponseFactory {
             report,
             actionSuggested: ReportSuggestedActionEnum.HideUntilFixed,
             details: "Content temporarily hidden. Investigating further.",
-            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
         });
 
         // Final action
         const finalAction = this.createMockReportResponse({
             report: {
                 ...report,
-                status: ReportStatusEnum.ClosedSuspended
+                status: ReportStatusEnum.ClosedSuspended,
             },
             actionSuggested: ReportSuggestedActionEnum.SuspendUser,
             details: "User suspended for 7 days due to harassment violation.",
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
         });
 
         return [initialReview, finalAction];
@@ -470,7 +470,7 @@ export class ReportResponseResponseFactory {
 
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -492,7 +492,7 @@ export class ReportResponseMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create report response
-            rest.post(`${this.responseFactory['baseUrl']}/api/report-response`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async (req, res, ctx) => {
                 const body = await req.json() as ReportResponseCreateInput;
 
                 // Validate input
@@ -500,7 +500,7 @@ export class ReportResponseMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
 
@@ -510,12 +510,12 @@ export class ReportResponseMSWHandlers {
 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
 
             // Get report response by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/report-response/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
                 const { id } = req.params;
 
                 const reportResponse = this.responseFactory.createMockReportResponse({ id: id as string });
@@ -523,12 +523,12 @@ export class ReportResponseMSWHandlers {
 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
 
             // Update report response
-            rest.put(`${this.responseFactory['baseUrl']}/api/report-response/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ReportResponseUpdateInput;
 
@@ -536,28 +536,28 @@ export class ReportResponseMSWHandlers {
                     id: id as string,
                     updatedAt: new Date().toISOString(),
                     actionSuggested: body.actionSuggested || ReportSuggestedActionEnum.NonIssue,
-                    details: body.details || undefined
+                    details: body.details || undefined,
                 });
 
                 const response = this.responseFactory.createSuccessResponse(reportResponse);
 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
 
             // Delete report response
-            rest.delete(`${this.responseFactory['baseUrl']}/api/report-response/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
 
             // List report responses
-            rest.get(`${this.responseFactory['baseUrl']}/api/report-response`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const reportId = url.searchParams.get('reportId');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const reportId = url.searchParams.get("reportId");
 
                 let responses = this.responseFactory.createReportResponseScenarios();
 
@@ -575,18 +575,18 @@ export class ReportResponseMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: responses.length
-                    }
+                        totalCount: responses.length,
+                    },
                 );
 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
 
             // Get report responses for a specific report
-            rest.get(`${this.responseFactory['baseUrl']}/api/report/:reportId/responses`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/report/:reportId/responses`, (req, res, ctx) => {
                 const { reportId } = req.params;
 
                 const responses = this.responseFactory.createModeratorWorkflowResponse();
@@ -594,9 +594,9 @@ export class ReportResponseMSWHandlers {
 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
 
@@ -606,49 +606,49 @@ export class ReportResponseMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/report-response`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        reportConnect: 'Report ID is required',
-                        actionSuggested: 'Action must be specified'
-                    }))
+                        reportConnect: "Report ID is required",
+                        actionSuggested: "Action must be specified",
+                    })),
                 );
             }),
 
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/report-response/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
 
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/report-response`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
 
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/report-response`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
 
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/report-response`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async (req, res, ctx) => {
                 const body = await req.json() as ReportResponseCreateInput;
                 const reportResponse = this.responseFactory.createReportResponseFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(reportResponse);
@@ -656,9 +656,9 @@ export class ReportResponseMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
 
@@ -667,13 +667,13 @@ export class ReportResponseMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/report-response`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
 
-            rest.get(`${this.responseFactory['baseUrl']}/api/report-response/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
 
@@ -682,13 +682,13 @@ export class ReportResponseMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
 
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -710,21 +710,21 @@ export const reportResponseScenarios = {
     createSuccess: (response?: ReportResponse) => {
         const factory = new ReportResponseResponseFactory();
         return factory.createSuccessResponse(
-            response || factory.createMockReportResponse()
+            response || factory.createMockReportResponse(),
         );
     },
 
     listSuccess: (responses?: ReportResponse[]) => {
         const factory = new ReportResponseResponseFactory();
         return factory.createReportResponseListResponse(
-            responses || factory.createReportResponseScenarios()
+            responses || factory.createReportResponseScenarios(),
         );
     },
 
     moderatorWorkflow: () => {
         const factory = new ReportResponseResponseFactory();
         return factory.createReportResponseListResponse(
-            factory.createModeratorWorkflowResponse()
+            factory.createModeratorWorkflowResponse(),
         );
     },
 
@@ -733,23 +733,23 @@ export const reportResponseScenarios = {
         const factory = new ReportResponseResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                reportConnect: 'Report ID is required',
-                actionSuggested: 'Action must be specified'
-            }
+                reportConnect: "Report ID is required",
+                actionSuggested: "Action must be specified",
+            },
         );
     },
 
     notFoundError: (responseId?: string) => {
         const factory = new ReportResponseResponseFactory();
         return factory.createNotFoundErrorResponse(
-            responseId || 'non-existent-id'
+            responseId || "non-existent-id",
         );
     },
 
     permissionError: (operation?: string) => {
         const factory = new ReportResponseResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
 
@@ -762,7 +762,7 @@ export const reportResponseScenarios = {
     successHandlers: () => new ReportResponseMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ReportResponseMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ReportResponseMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ReportResponseMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ReportResponseMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

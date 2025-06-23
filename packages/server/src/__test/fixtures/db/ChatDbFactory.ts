@@ -37,7 +37,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     Prisma.chatUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('chat', prisma);
+        super("chat", prisma);
         this.initializeScenarios();
     }
 
@@ -369,9 +369,9 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.chatCreateInput,
         config: ChatRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.chatCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle creator
         if (config.withCreator) {
@@ -405,7 +405,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     id: generatePK().toString(),
                     userId: invite.userId,
                     status: invite.status || "Pending",
-                    message: `You've been invited to join this chat`,
+                    message: "You've been invited to join this chat",
                 })),
             };
         }
@@ -472,7 +472,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         
         // Check conflicting privacy settings
         if (record.isPrivate && record.openToAnyoneWithInvite) {
-            violations.push('Private chats should not be open to anyone with invite');
+            violations.push("Private chats should not be open to anyone with invite");
         }
 
         // Check participant count
@@ -481,7 +481,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (participantCount === 0) {
-            violations.push('Chat should have at least one participant');
+            violations.push("Chat should have at least one participant");
         }
 
         // Check team-owned chats have team members
@@ -500,7 +500,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
             const hasTeamMember = teamMembers.some(m => participantUserIds.has(m.userId));
             
             if (!hasTeamMember) {
-                violations.push('Team chat should have at least one team member as participant');
+                violations.push("Team chat should have at least one team member as participant");
             }
         }
 
@@ -521,7 +521,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.Chat,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
@@ -530,35 +530,35 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
         
         // Delete messages
-        if (shouldDelete('messages') && record.messages?.length) {
+        if (shouldDelete("messages") && record.messages?.length) {
             await tx.chat_message.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete invites
-        if (shouldDelete('invites') && record.invites?.length) {
+        if (shouldDelete("invites") && record.invites?.length) {
             await tx.chat_invite.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete participants
-        if (shouldDelete('participants') && record.participants?.length) {
+        if (shouldDelete("participants") && record.participants?.length) {
             await tx.chat_participants.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete subscriptions
-        if (shouldDelete('subscriptions') && record.subscriptions?.length) {
+        if (shouldDelete("subscriptions") && record.subscriptions?.length) {
             await tx.notification_subscription.deleteMany({
                 where: { chatId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.chat_translation.deleteMany({
                 where: { chatId: record.id },
             });
@@ -606,10 +606,10 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
         supportChat: Prisma.chat;
     }> {
         const [privateChat, teamChat, publicChat, supportChat] = await Promise.all([
-            this.seedScenario('privateChat'),
-            this.seedScenario('teamChat'),
-            this.seedScenario('publicCommunity'),
-            this.seedScenario('supportChat'),
+            this.seedScenario("privateChat"),
+            this.seedScenario("teamChat"),
+            this.seedScenario("publicCommunity"),
+            this.seedScenario("supportChat"),
         ]);
 
         return {
@@ -623,7 +623,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createChatDbFactory = (prisma: PrismaClient) => 
-    ChatDbFactory.getInstance('chat', prisma);
+    ChatDbFactory.getInstance("chat", prisma);
 
 // Export the class for type usage
 export { ChatDbFactory as ChatDbFactoryClass };

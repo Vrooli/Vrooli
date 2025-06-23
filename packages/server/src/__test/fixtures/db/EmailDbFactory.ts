@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "./idHelpers.js";
+import { generatePK, generatePublicId, nanoid } from "./idHelpers.js";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -31,7 +31,7 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
     Prisma.emailUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('email', prisma);
+        super("email", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -70,7 +70,7 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
                 missingRequired: {
                     // Missing id and emailAddress
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 invalidTypes: {
@@ -82,7 +82,7 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
                     id: generatePK(),
                     emailAddress: "existing@example.com", // Assumes this exists
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },
@@ -93,7 +93,7 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
                     verificationCode: `verify_${nanoid()}`,
                     lastVerificationCodeRequestAttempt: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 verifiedNoCode: {
@@ -102,7 +102,7 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
                     verifiedAt: new Date(),
                     verificationCode: null,
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 teamEmail: {
@@ -110,14 +110,14 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
                     emailAddress: `team_${nanoid()}@company.com`,
                     verifiedAt: new Date(),
                     team: {
-                        connect: { id: generatePK() }
+                        connect: { id: generatePK() },
                     },
                 },
                 caseInsensitiveEmail: {
                     id: generatePK(),
                     emailAddress: `MiXeD.CaSe_${nanoid()}@ExAmPlE.CoM`,
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },

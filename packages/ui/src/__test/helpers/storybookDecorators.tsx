@@ -1,7 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { PageContainer } from "../../components/Page/Page.js";
 import { ScrollBox } from "../../styles.js";
+import { FormView } from "../../forms/FormView/FormView.js";
+import { Formik } from "formik";
+import type { FormSchema } from "@vrooli/shared";
 
 /**
  * Common Storybook decorators for consistent story presentation
@@ -33,7 +37,7 @@ export const fullscreenDecorator = (Story: React.ComponentType) => (
         p: 2, 
         height: "100vh", 
         overflow: "auto",
-        bgcolor: "background.default" 
+        bgcolor: "background.default", 
     }}>
         <Story />
     </Box>
@@ -84,7 +88,7 @@ export const withControlsDecorator = (Story: React.ComponentType) => (
         overflow: "auto",
         bgcolor: "background.default",
         maxWidth: 1200, 
-        mx: "auto" 
+        mx: "auto", 
     }}>
         <Story />
     </Box>
@@ -124,7 +128,7 @@ export const gridDecorator = (columns = 3, gap = 2) => (Story: React.ComponentTy
         gridTemplateColumns: { 
             xs: "1fr", 
             sm: `repeat(${Math.min(2, columns)}, 1fr)`, 
-            md: `repeat(${columns}, 1fr)` 
+            md: `repeat(${columns}, 1fr)`, 
         },
         gap,
         p: 2,
@@ -220,7 +224,7 @@ export const pageWithBottomNavDecorator = (paddingBottom = 120) => (Story: React
             p: 2,
             height: "100%",
             overflow: "auto",
-            paddingBottom: `${paddingBottom}px`
+            paddingBottom: `${paddingBottom}px`,
         }}>
             <Story />
         </Box>
@@ -245,3 +249,98 @@ export const customWrapperDecorator = (Wrapper: React.ComponentType<{ children: 
 export const composeDecorators = (...decorators: Array<(Story: React.ComponentType) => JSX.Element>) => 
     (Story: React.ComponentType) => 
         decorators.reduceRight((acc, decorator) => () => decorator(acc), Story)();
+
+/**
+ * Configuration for the showcase decorator
+ */
+export interface ShowcaseDecoratorConfig {
+    /** Name of the component being showcased (used in section titles) */
+    componentName: string;
+    /** Form schema defining the controls */
+    controlsSchema: FormSchema;
+    /** Initial values for the form controls */
+    initialValues: Record<string, any>;
+    /** Function that renders the showcase content based on form values */
+    renderShowcase: (values: Record<string, any>) => React.ReactNode;
+}
+
+/**
+ * Creates a showcase decorator with form controls and component display
+ * Used for interactive stories with configuration options like Button showcase
+ */
+export const showcaseDecorator = (config: ShowcaseDecoratorConfig) => 
+    () => {
+        const [formValues, setFormValues] = useState(config.initialValues);
+
+        const handleFormChange = (values: Record<string, any>) => {
+            setFormValues(values);
+        };
+
+        return (
+            <Box sx={{ 
+                p: 2, 
+                height: "100vh", 
+                overflow: "auto",
+                bgcolor: "background.default", 
+            }}>
+                <Box sx={{ 
+                    display: "flex", 
+                    gap: 2, 
+                    flexDirection: "column",
+                    maxWidth: 1400, 
+                    mx: "auto", 
+                }}>
+                    {/* Controls Section */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                        height: "fit-content",
+                        width: "100%",
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>
+                            {config.componentName} Controls
+                        </Typography>
+                        
+                        <Formik
+                            initialValues={config.initialValues}
+                            onSubmit={() => {}}
+                            enableReinitialize
+                        >
+                            {({ values }) => {
+                                // Update form values when they change
+                                React.useEffect(() => {
+                                    handleFormChange(values);
+                                }, [values]);
+
+                                return (
+                                    <FormView
+                                        disabled={false}
+                                        isEditing={false}
+                                        schema={config.controlsSchema}
+                                        onSchemaChange={() => {}}
+                                    />
+                                );
+                            }}
+                        </Formik>
+                    </Box>
+
+                    {/* Showcase Display */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                        width: "100%",
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>
+                            {config.componentName} Showcase
+                        </Typography>
+                        
+                        {config.renderShowcase(formValues)}
+                    </Box>
+                </Box>
+            </Box>
+        );
+    };

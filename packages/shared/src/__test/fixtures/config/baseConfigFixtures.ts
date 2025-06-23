@@ -24,6 +24,7 @@ export interface ConfigTestFixtures<T extends BaseConfigObject = BaseConfigObjec
 export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
     minimal: {
         __version: LATEST_CONFIG_VERSION,
+        resources: [], // Required field - empty array for minimal config
     },
 
     complete: {

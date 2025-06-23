@@ -126,7 +126,7 @@ export class PremiumDbFactory {
     /**
      * Create trial premium
      */
-    static createTrial(trialDays: number = 7, overrides?: Partial<typeof trialPremiumDb>) {
+    static createTrial(trialDays = 7, overrides?: Partial<typeof trialPremiumDb>) {
         return {
             ...trialPremiumDb,
             expiresAt: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString(),
@@ -141,7 +141,7 @@ export class PremiumDbFactory {
         planName: string,
         credits: number,
         expirationDays?: number,
-        overrides?: Partial<typeof completePremiumDb>
+        overrides?: Partial<typeof completePremiumDb>,
     ) {
         const baseData = {
             credits,
@@ -165,7 +165,7 @@ export class PremiumDbFactory {
 export function createUserWithPremium(
     prisma: any,
     userOverrides?: Partial<Prisma.UserCreateInput>,
-    premiumData = minimalPremiumDb
+    premiumData = minimalPremiumDb,
 ): Prisma.UserCreateInput {
     return {
         id: generatePK(),
@@ -187,7 +187,7 @@ export function createUserWithPremium(
 export function createTeamWithPremium(
     prisma: any,
     teamOverrides?: Partial<Prisma.TeamCreateInput>,
-    premiumData = minimalPremiumDb
+    premiumData = minimalPremiumDb,
 ): Prisma.TeamCreateInput {
     return {
         id: generatePK(),
@@ -205,7 +205,7 @@ export async function addPremiumToEntity(
     prisma: any,
     entityType: "user" | "team",
     entityId: string,
-    premiumData = minimalPremiumDb
+    premiumData = minimalPremiumDb,
 ) {
     const model = entityType === "user" ? prisma.user : prisma.team;
     
@@ -248,7 +248,7 @@ export function getRemainingPremiumDays(premium: typeof minimalPremiumDb | null)
  */
 export function deductCredits(
     premium: typeof minimalPremiumDb,
-    amount: number
+    amount: number,
 ): typeof minimalPremiumDb {
     return {
         ...premium,

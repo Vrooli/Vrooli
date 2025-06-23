@@ -37,7 +37,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
     Prisma.reminderUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Reminder', prisma);
+        super("Reminder", prisma);
         this.initializeScenarios();
     }
 
@@ -60,7 +60,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                 name: "Test Reminder",
                 index: 0,
                 reminderList: {
-                    connect: { id: "reminder_list_id" }
+                    connect: { id: "reminder_list_id" },
                 },
             },
             complete: {
@@ -70,7 +70,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                 index: 0,
                 dueDate: tomorrow,
                 reminderList: {
-                    connect: { id: "reminder_list_id" }
+                    connect: { id: "reminder_list_id" },
                 },
                 reminderItems: {
                     create: [
@@ -108,7 +108,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                     name: "Negative Index",
                     index: -1, // Should be non-negative
                     reminderList: {
-                        connect: { id: "reminder_list_id" }
+                        connect: { id: "reminder_list_id" },
                     },
                 },
                 tooLongName: {
@@ -116,7 +116,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                     name: "a".repeat(129), // Exceeds 128 character limit
                     index: 0,
                     reminderList: {
-                        connect: { id: "reminder_list_id" }
+                        connect: { id: "reminder_list_id" },
                     },
                 },
                 tooLongDescription: {
@@ -125,7 +125,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                     description: "a".repeat(2049), // Exceeds 2048 character limit
                     index: 0,
                     reminderList: {
-                        connect: { id: "reminder_list_id" }
+                        connect: { id: "reminder_list_id" },
                     },
                 },
             },
@@ -138,7 +138,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                     dueDate: yesterday,
                     completedAt: now,
                     reminderList: {
-                        connect: { id: "reminder_list_id" }
+                        connect: { id: "reminder_list_id" },
                     },
                 },
                 overdueReminder: {
@@ -148,7 +148,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                     index: 0,
                     dueDate: yesterday,
                     reminderList: {
-                        connect: { id: "reminder_list_id" }
+                        connect: { id: "reminder_list_id" },
                     },
                 },
                 reminderWithManyItems: {
@@ -158,7 +158,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                     index: 0,
                     dueDate: nextWeek,
                     reminderList: {
-                        connect: { id: "reminder_list_id" }
+                        connect: { id: "reminder_list_id" },
                     },
                     reminderItems: {
                         create: Array.from({ length: 20 }, (_, i) => ({
@@ -178,7 +178,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                     dueDate: tomorrow,
                     embeddingExpiredAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
                     reminderList: {
-                        connect: { id: "reminder_list_id" }
+                        connect: { id: "reminder_list_id" },
                     },
                 },
                 partiallyCompletedReminder: {
@@ -187,7 +187,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                     description: "Some items are completed",
                     index: 0,
                     reminderList: {
-                        connect: { id: "reminder_list_id" }
+                        connect: { id: "reminder_list_id" },
                     },
                     reminderItems: {
                         create: [
@@ -211,7 +211,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
                     description: "High index indicates lower display priority",
                     index: 999,
                     reminderList: {
-                        connect: { id: "reminder_list_id" }
+                        connect: { id: "reminder_list_id" },
                     },
                 },
             },
@@ -243,7 +243,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
             name: `Reminder_${nanoid(8)}`,
             index: 0,
             reminderList: {
-                connect: { id: "default_reminder_list_id" }
+                connect: { id: "default_reminder_list_id" },
             },
             ...overrides,
         };
@@ -259,7 +259,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
             index: 0,
             dueDate: tomorrow,
             reminderList: {
-                connect: { id: "default_reminder_list_id" }
+                connect: { id: "default_reminder_list_id" },
             },
             reminderItems: {
                 create: [
@@ -361,7 +361,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createReminderWithItems(listId: string, itemCount: number = 3): Promise<Prisma.reminder> {
+    async createReminderWithItems(listId: string, itemCount = 3): Promise<Prisma.reminder> {
         return await this.createWithRelations({
             overrides: {
                 reminderList: { connect: { id: listId } },
@@ -388,7 +388,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
         return {
             reminderList: true,
             reminderItems: {
-                orderBy: { index: 'asc' },
+                orderBy: { index: "asc" },
             },
             _count: {
                 select: {
@@ -401,20 +401,20 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.reminderCreateInput,
         config: ReminderRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.reminderCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle reminder list relationship
         if (config.withList) {
             data.reminderList = {
-                connect: { id: config.withList.reminderListId }
+                connect: { id: config.withList.reminderListId },
             };
         }
 
         // Handle reminder items
         if (config.withItems) {
-            const itemCount = typeof config.withItems === 'number' ? config.withItems : 1;
+            const itemCount = typeof config.withItems === "number" ? config.withItems : 1;
             const baseDueDate = (data.dueDate as Date) || new Date(Date.now() + 24 * 60 * 60 * 1000);
             
             data.reminderItems = {
@@ -436,17 +436,17 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
         
         // Check name length
         if (record.name.length > 128) {
-            violations.push('Reminder name exceeds 128 character limit');
+            violations.push("Reminder name exceeds 128 character limit");
         }
 
         // Check description length
         if (record.description && record.description.length > 2048) {
-            violations.push('Reminder description exceeds 2048 character limit');
+            violations.push("Reminder description exceeds 2048 character limit");
         }
 
         // Check index
         if (record.index < 0) {
-            violations.push('Reminder index must be non-negative');
+            violations.push("Reminder index must be non-negative");
         }
 
         // Check completion logic
@@ -459,16 +459,16 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
             const indexSet = new Set<number>();
             for (const item of record.reminderItems) {
                 if (indexSet.has(item.index)) {
-                    violations.push('Reminder item indexes must be unique within a reminder');
+                    violations.push("Reminder item indexes must be unique within a reminder");
                 }
                 indexSet.add(item.index);
 
                 if (item.name.length > 128) {
-                    violations.push('Reminder item name exceeds 128 character limit');
+                    violations.push("Reminder item name exceeds 128 character limit");
                 }
 
                 if (item.description && item.description.length > 2048) {
-                    violations.push('Reminder item description exceeds 2048 character limit');
+                    violations.push("Reminder item description exceeds 2048 character limit");
                 }
             }
         }
@@ -486,13 +486,13 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.reminder,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete reminder items
-        if (shouldDelete('reminderItems') && record.reminderItems?.length) {
+        if (shouldDelete("reminderItems") && record.reminderItems?.length) {
             await tx.reminder_item.deleteMany({
                 where: { reminderId: record.id },
             });
@@ -504,7 +504,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
      */
     async createReminderWithSpecificItems(
         listId: string,
-        items: Array<{ name: string; description?: string; dueDate?: Date }>
+        items: Array<{ name: string; description?: string; dueDate?: Date }>,
     ): Promise<Prisma.reminder> {
         return await this.createComplete({
             reminderList: { connect: { id: listId } },
@@ -553,7 +553,7 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
     Prisma.reminder_listUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ReminderList', prisma);
+        super("ReminderList", prisma);
         this.initializeScenarios();
     }
 
@@ -569,13 +569,13 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
             minimal: {
                 id: generatePK().toString(),
                 user: {
-                    connect: { id: "user_id" }
+                    connect: { id: "user_id" },
                 },
             },
             complete: {
                 id: generatePK().toString(),
                 user: {
-                    connect: { id: "user_id" }
+                    connect: { id: "user_id" },
                 },
                 reminders: {
                     create: [
@@ -609,13 +609,13 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
                 emptyList: {
                     id: generatePK().toString(),
                     user: {
-                        connect: { id: "user_id" }
+                        connect: { id: "user_id" },
                     },
                 },
                 largeList: {
                     id: generatePK().toString(),
                     user: {
-                        connect: { id: "user_id" }
+                        connect: { id: "user_id" },
                     },
                     reminders: {
                         create: Array.from({ length: 50 }, (_, i) => ({
@@ -628,7 +628,7 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
                 allCompletedList: {
                     id: generatePK().toString(),
                     user: {
-                        connect: { id: "user_id" }
+                        connect: { id: "user_id" },
                     },
                     reminders: {
                         create: Array.from({ length: 5 }, (_, i) => ({
@@ -661,7 +661,7 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
         return {
             id: generatePK().toString(),
             user: {
-                connect: { id: "default_user_id" }
+                connect: { id: "default_user_id" },
             },
             ...overrides,
         };
@@ -671,7 +671,7 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
         return {
             id: generatePK().toString(),
             user: {
-                connect: { id: "default_user_id" }
+                connect: { id: "default_user_id" },
             },
             reminders: {
                 create: [
@@ -730,7 +730,7 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
      * Create specific list types
      */
     async createPersonalList(userId: string): Promise<Prisma.reminder_list> {
-        return await this.seedScenario('personalList');
+        return await this.seedScenario("personalList");
     }
 
     async createWorkList(userId: string): Promise<Prisma.reminder_list> {
@@ -752,10 +752,10 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
         return {
             user: true,
             reminders: {
-                orderBy: { index: 'asc' },
+                orderBy: { index: "asc" },
                 include: {
                     reminderItems: {
-                        orderBy: { index: 'asc' },
+                        orderBy: { index: "asc" },
                     },
                 },
             },
@@ -770,20 +770,20 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.reminder_listCreateInput,
         config: ReminderListRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.reminder_listCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle user relationship
         if (config.withUser) {
             data.user = {
-                connect: { id: config.withUser.userId }
+                connect: { id: config.withUser.userId },
             };
         }
 
         // Handle reminders
         if (config.withReminders) {
-            const reminderCount = typeof config.withReminders === 'number' ? config.withReminders : 1;
+            const reminderCount = typeof config.withReminders === "number" ? config.withReminders : 1;
             
             data.reminders = {
                 create: Array.from({ length: reminderCount }, (_, i) => ({
@@ -804,7 +804,7 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
         
         // Check user association
         if (!record.userId) {
-            violations.push('Reminder list must belong to a user');
+            violations.push("Reminder list must belong to a user");
         }
 
         // Check reminder ordering
@@ -812,7 +812,7 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
             const indexSet = new Set<number>();
             for (const reminder of record.reminders) {
                 if (indexSet.has(reminder.index)) {
-                    violations.push('Reminder indexes must be unique within a list');
+                    violations.push("Reminder indexes must be unique within a list");
                 }
                 indexSet.add(reminder.index);
             }
@@ -835,13 +835,13 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.reminder_list,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete reminders (which will cascade delete their items)
-        if (shouldDelete('reminders') && record.reminders?.length) {
+        if (shouldDelete("reminders") && record.reminders?.length) {
             await tx.reminder.deleteMany({
                 where: { reminderListId: record.id },
             });
@@ -853,7 +853,7 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
      */
     async createListWithReminders(
         userId: string,
-        reminders: Array<{ name: string; description?: string; itemCount?: number }>
+        reminders: Array<{ name: string; description?: string; itemCount?: number }>,
     ): Promise<Prisma.reminder_list> {
         return await this.createComplete({
             user: { connect: { id: userId } },
@@ -878,10 +878,10 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator functions
 export const createReminderDbFactory = (prisma: PrismaClient) => 
-    ReminderDbFactory.getInstance('Reminder', prisma);
+    ReminderDbFactory.getInstance("Reminder", prisma);
 
 export const createReminderListDbFactory = (prisma: PrismaClient) => 
-    ReminderListDbFactory.getInstance('ReminderList', prisma);
+    ReminderListDbFactory.getInstance("ReminderList", prisma);
 
 // Export the classes for type usage
 export { ReminderDbFactory as ReminderDbFactoryClass };

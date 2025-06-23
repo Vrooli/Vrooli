@@ -9,7 +9,7 @@ import type {
     CallDataCodeConfigObject,
     FormInputConfigObject,
     FormOutputConfigObject,
-    RoutineVersionConfigObject
+    RoutineVersionConfigObject,
 } from "@vrooli/shared";
 import { InputType, McpToolName, ResourceSubType } from "@vrooli/shared";
 import type { RoutineFixture, RoutineFixtureCollection } from "./types.js";
@@ -32,7 +32,7 @@ export const HIPAA_COMPLIANCE_CHECK: RoutineFixture = {
             schema: {
                 inputTemplate: {
                     text: "{{input.aiOutput}}",
-                    confidenceThreshold: "{{input.confidenceThreshold}}"
+                    confidenceThreshold: "{{input.confidenceThreshold}}",
                 },
                 outputMappings: [
                     {
@@ -41,11 +41,11 @@ export const HIPAA_COMPLIANCE_CHECK: RoutineFixture = {
                             phiDetected: "phiDetected",
                             detectedItems: "detectedItems",
                             confidenceScore: "confidenceScore",
-                            complianceStatus: "complianceStatus"
-                        }
-                    }
-                ]
-            }
+                            complianceStatus: "complianceStatus",
+                        },
+                    },
+                ],
+            },
         } as CallDataCodeConfigObject,
         formInput: {
             __version: "1.0",
@@ -59,8 +59,8 @@ export const HIPAA_COMPLIANCE_CHECK: RoutineFixture = {
                         type: InputType.Text,
                         isRequired: true,
                         props: {
-                            placeholder: "Paste AI output to scan for PHI..."
-                        }
+                            placeholder: "Paste AI output to scan for PHI...",
+                        },
                     },
                     {
                         fieldName: "confidenceThreshold",
@@ -72,11 +72,11 @@ export const HIPAA_COMPLIANCE_CHECK: RoutineFixture = {
                         props: {
                             min: 0.5,
                             max: 1.0,
-                            step: 0.05
-                        }
-                    }
-                ]
-            }
+                            step: 0.05,
+                        },
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -89,8 +89,8 @@ export const HIPAA_COMPLIANCE_CHECK: RoutineFixture = {
                         label: "PHI Detected",
                         type: InputType.Switch,
                         props: {
-                            disabled: true
-                        }
+                            disabled: true,
+                        },
                     },
                     {
                         fieldName: "detectedItems",
@@ -98,8 +98,8 @@ export const HIPAA_COMPLIANCE_CHECK: RoutineFixture = {
                         label: "Detected PHI Items",
                         type: InputType.JSON,
                         props: {
-                            disabled: true
-                        }
+                            disabled: true,
+                        },
                     },
                     {
                         fieldName: "confidenceScore",
@@ -109,8 +109,8 @@ export const HIPAA_COMPLIANCE_CHECK: RoutineFixture = {
                         props: {
                             disabled: true,
                             min: 0,
-                            max: 100
-                        }
+                            max: 100,
+                        },
                     },
                     {
                         fieldName: "complianceStatus",
@@ -118,11 +118,11 @@ export const HIPAA_COMPLIANCE_CHECK: RoutineFixture = {
                         label: "HIPAA Compliance Status",
                         type: InputType.Text,
                         props: {
-                            disabled: true
-                        }
-                    }
-                ]
-            }
+                            disabled: true,
+                        },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "deterministic" as const,
     } as RoutineVersionConfigObject,
@@ -147,7 +147,7 @@ export const API_SECURITY_SCAN: RoutineFixture = {
                 inputTemplate: {
                     logs: "{{input.apiLogs}}",
                     timeRange: "{{input.timeRange}}",
-                    knownIPs: "{{input.knownIPs}}"
+                    knownIPs: "{{input.knownIPs}}",
                 },
                 outputMappings: [
                     {
@@ -156,11 +156,11 @@ export const API_SECURITY_SCAN: RoutineFixture = {
                             threats: "threats",
                             anomalies: "anomalies",
                             recommendations: "recommendations",
-                            statistics: "statistics"
-                        }
-                    }
-                ]
-            }
+                            statistics: "statistics",
+                        },
+                    },
+                ],
+            },
         } as CallDataCodeConfigObject,
         formInput: {
             __version: "1.0",
@@ -173,7 +173,7 @@ export const API_SECURITY_SCAN: RoutineFixture = {
                         label: "API Request Logs",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "timeRange",
@@ -182,7 +182,7 @@ export const API_SECURITY_SCAN: RoutineFixture = {
                         type: InputType.Text,
                         isRequired: true,
                         defaultValue: "1h",
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "knownIPs",
@@ -191,10 +191,10 @@ export const API_SECURITY_SCAN: RoutineFixture = {
                         type: InputType.JSON,
                         isRequired: false,
                         defaultValue: [],
-                        props: {}
-                    }
-                ]
-            }
+                        props: {},
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -206,31 +206,31 @@ export const API_SECURITY_SCAN: RoutineFixture = {
                         id: "threats",
                         label: "Detected Threats",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "anomalies",
                         id: "anomalies",
                         label: "Anomalies",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "recommendations",
                         id: "recommendations",
                         label: "Security Recommendations",
                         type: InputType.Text,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "statistics",
                         id: "statistics",
                         label: "Request Statistics",
                         type: InputType.JSON,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "deterministic" as const,
     } as RoutineVersionConfigObject,
@@ -259,17 +259,17 @@ export const GDPR_DATA_AUDIT: RoutineFixture = {
                     filters: {
                         processingRecords: "{{input.processingRecords}}",
                         subjectRequests: "{{input.subjectRequests}}",
-                        retentionPolicies: "{{input.retentionPolicies}}"
+                        retentionPolicies: "{{input.retentionPolicies}}",
                     },
-                    limit: 100
+                    limit: 100,
                 }),
                 outputMapping: {
                     complianceScore: "complianceScore",
                     violations: "violations",
                     recommendations: "recommendations",
-                    auditReport: "auditReport"
-                }
-            }
+                    auditReport: "auditReport",
+                },
+            },
         } as CallDataActionConfigObject,
         formInput: {
             __version: "1.0",
@@ -282,7 +282,7 @@ export const GDPR_DATA_AUDIT: RoutineFixture = {
                         label: "Data Processing Records",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "subjectRequests",
@@ -290,7 +290,7 @@ export const GDPR_DATA_AUDIT: RoutineFixture = {
                         label: "Data Subject Requests",
                         type: InputType.JSON,
                         isRequired: false,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "retentionPolicies",
@@ -298,10 +298,10 @@ export const GDPR_DATA_AUDIT: RoutineFixture = {
                         label: "Retention Policies",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
-                    }
-                ]
-            }
+                        props: {},
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -313,31 +313,31 @@ export const GDPR_DATA_AUDIT: RoutineFixture = {
                         id: "compliance_score",
                         label: "GDPR Compliance Score",
                         type: InputType.IntegerInput,
-                        props: { disabled: true, min: 0, max: 100 }
+                        props: { disabled: true, min: 0, max: 100 },
                     },
                     {
                         fieldName: "violations",
                         id: "violations",
                         label: "Violations Found",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "recommendations",
                         id: "recommendations",
                         label: "Compliance Recommendations",
                         type: InputType.Text,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "auditReport",
                         id: "audit_report",
                         label: "Full Audit Report",
                         type: InputType.JSON,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "reasoning" as const,
     } as RoutineVersionConfigObject,
@@ -364,17 +364,17 @@ export const TRADING_PATTERN_ANALYSIS: RoutineFixture = {
                     routineId: "pattern_analysis_routine",
                     inputs: {
                         data: "{{input.tradingData}}",
-                        timeWindow: "{{input.timeWindow}}"
+                        timeWindow: "{{input.timeWindow}}",
                     },
-                    mode: "inline"
+                    mode: "inline",
                 }),
                 outputMapping: {
                     suspiciousPatterns: "patterns",
                     riskScore: "riskScore",
                     flaggedTransactions: "flaggedTransactions",
-                    recommendations: "recommendations"
-                }
-            }
+                    recommendations: "recommendations",
+                },
+            },
         } as CallDataActionConfigObject,
         formInput: {
             __version: "1.0",
@@ -387,7 +387,7 @@ export const TRADING_PATTERN_ANALYSIS: RoutineFixture = {
                         label: "Trading Data",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "timeWindow",
@@ -401,12 +401,12 @@ export const TRADING_PATTERN_ANALYSIS: RoutineFixture = {
                                 { label: "5 minutes", value: "5m" },
                                 { label: "1 hour", value: "1h" },
                                 { label: "24 hours", value: "24h" },
-                                { label: "7 days", value: "7d" }
-                            ]
-                        }
-                    }
-                ]
-            }
+                                { label: "7 days", value: "7d" },
+                            ],
+                        },
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -418,31 +418,31 @@ export const TRADING_PATTERN_ANALYSIS: RoutineFixture = {
                         id: "suspicious_patterns",
                         label: "Detected Patterns",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "riskScore",
                         id: "risk_score",
                         label: "Risk Score",
                         type: InputType.IntegerInput,
-                        props: { disabled: true, min: 0, max: 100 }
+                        props: { disabled: true, min: 0, max: 100 },
                     },
                     {
                         fieldName: "flaggedTransactions",
                         id: "flagged_transactions",
                         label: "Flagged Transactions",
                         type: InputType.JSON,
-                        props: { disabled: true }
+                        props: { disabled: true },
                     },
                     {
                         fieldName: "recommendations",
                         id: "recommendations",
                         label: "Recommendations",
                         type: InputType.Text,
-                        props: { disabled: true }
-                    }
-                ]
-            }
+                        props: { disabled: true },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "deterministic" as const,
     } as RoutineVersionConfigObject,

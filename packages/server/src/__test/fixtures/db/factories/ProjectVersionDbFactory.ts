@@ -32,7 +32,7 @@ export class ProjectVersionDbFactory extends DatabaseFixtureFactory<
     Prisma.ProjectVersionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('ProjectVersion', prisma);
+        super("ProjectVersion", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -119,7 +119,7 @@ export class ProjectVersionDbFactory extends DatabaseFixtureFactory<
                     versionIndex: true,
                 },
                 orderBy: {
-                    versionIndex: 'asc',
+                    versionIndex: "asc",
                 },
             },
             directories: {
@@ -136,7 +136,7 @@ export class ProjectVersionDbFactory extends DatabaseFixtureFactory<
                     },
                 },
                 orderBy: {
-                    childOrder: 'asc',
+                    childOrder: "asc",
                 },
             },
             resourceLists: {
@@ -169,9 +169,9 @@ export class ProjectVersionDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.ProjectVersionCreateInput,
         config: ProjectVersionRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ProjectVersionCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle project connection
         if (config.project) {
@@ -396,13 +396,13 @@ export class ProjectVersionDbFactory extends DatabaseFixtureFactory<
                 where: { id: record.projectId },
             });
             if (!project) {
-                violations.push('ProjectVersion must belong to a valid project');
+                violations.push("ProjectVersion must belong to a valid project");
             }
         }
 
         // Check version label format
         if (record.versionLabel && !/^\d+\.\d+\.\d+(-[\w.-]+)?$/.test(record.versionLabel)) {
-            violations.push('Version label must follow semantic versioning format');
+            violations.push("Version label must follow semantic versioning format");
         }
 
         // Check that only one version per project is marked as latest
@@ -416,7 +416,7 @@ export class ProjectVersionDbFactory extends DatabaseFixtureFactory<
             });
             
             if (otherLatestVersions > 0) {
-                violations.push('Only one version per project can be marked as latest');
+                violations.push("Only one version per project can be marked as latest");
             }
         }
 
@@ -428,14 +428,14 @@ export class ProjectVersionDbFactory extends DatabaseFixtureFactory<
             });
             
             if (project && !project.isPrivate && record.isPrivate) {
-                violations.push('Complete versions of public projects should not be private');
+                violations.push("Complete versions of public projects should not be private");
             }
         }
 
         // Check complexity range
         if (record.complexity !== null && record.complexity !== undefined) {
             if (record.complexity < 1 || record.complexity > 10) {
-                violations.push('Complexity must be between 1 and 10');
+                violations.push("Complexity must be between 1 and 10");
             }
         }
 
@@ -562,7 +562,7 @@ export class ProjectVersionDbFactory extends DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: Prisma.ProjectVersion,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete in order of dependencies
         
@@ -621,7 +621,7 @@ export class ProjectVersionDbFactory extends DatabaseFixtureFactory<
      */
     async createVersionSequence(
         projectId: string,
-        versions: Array<{ label: string; isLatest?: boolean; isComplete?: boolean }>
+        versions: Array<{ label: string; isLatest?: boolean; isComplete?: boolean }>,
     ): Promise<Prisma.ProjectVersion[]> {
         const createdVersions: Prisma.ProjectVersion[] = [];
         

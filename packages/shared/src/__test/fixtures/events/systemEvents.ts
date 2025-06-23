@@ -80,7 +80,28 @@ export class SystemHealthEventFactory extends BaseEventFactory<SystemEvent<Syste
     }
 
     get single(): SystemEvent<SystemHealthData> {
-        return this.create();
+        return {
+            event: "systemHealth",
+            data: {
+                status: "healthy",
+                timestamp: Date.now(),
+                severity: "low",
+                services: {
+                    api: "operational",
+                    database: "operational",
+                    cache: "operational",
+                    websocket: "operational",
+                },
+                metrics: {
+                    cpu: 25,
+                    memory: 60,
+                    activeConnections: 150,
+                    errorRate: 0.1,
+                    responseTime: 250,
+                },
+                ...this.options.defaults,
+            },
+        };
     }
 
     get sequence(): SystemEvent<SystemHealthData>[] {
@@ -315,7 +336,18 @@ export class MaintenanceEventFactory extends BaseEventFactory<SystemEvent<Mainte
     }
 
     get single(): SystemEvent<MaintenanceData> {
-        return this.create();
+        return {
+            event: "maintenanceNotice",
+            data: {
+                type: "scheduled",
+                title: "Scheduled Maintenance",
+                description: "System maintenance window",
+                affectedServices: ["api"],
+                impact: "partial",
+                status: "planned",
+                ...this.options.defaults,
+            },
+        };
     }
 
     get sequence(): SystemEvent<MaintenanceData>[] {
@@ -539,7 +571,21 @@ export class PerformanceEventFactory extends BaseEventFactory<SystemEvent<Perfor
     }
 
     get single(): SystemEvent<PerformanceData> {
-        return this.create();
+        return {
+            event: "performanceAlert",
+            data: {
+                type: "alert",
+                metric: "response_time",
+                current: 1500,
+                threshold: 2000,
+                unit: "ms",
+                service: "api",
+                timestamp: Date.now(),
+                message: "Performance metric alert",
+                trend: "stable",
+                ...this.options.defaults,
+            },
+        };
     }
 
     get sequence(): SystemEvent<PerformanceData>[] {
@@ -841,7 +887,21 @@ export class SecurityEventFactory extends BaseEventFactory<SystemEvent<SecurityD
     }
 
     get single(): SystemEvent<SecurityData> {
-        return this.create();
+        return {
+            event: "securityAlert",
+            data: {
+                type: "suspicious_activity",
+                severity: "medium",
+                description: "Security event detected",
+                source: "security_monitor",
+                timestamp: Date.now(),
+                details: {},
+                action: "Monitoring situation",
+                status: "detected",
+                impact: "low",
+                ...this.options.defaults,
+            },
+        };
     }
 
     get sequence(): SystemEvent<SecurityData>[] {
@@ -1165,6 +1225,22 @@ export const systemEventFixtures = {
     security: {
         alert: securityEventFactory.variants.suspiciousActivity as SystemEvent<SecurityData>,
         incident: securityEventFactory.variants.breachDetected as SystemEvent<SecurityData>,
+        resolved: securityEventFactory.create({
+            type: "breach_detected",
+            severity: "low",
+            description: "Security incident resolved - all systems secure",
+            source: "security_team",
+            timestamp: Date.now(),
+            details: {
+                incident_type: "resolved",
+                resolution_time: 3600000, // 1 hour
+                root_cause: "False positive detection",
+                preventive_measures: ["Updated detection rules", "Enhanced monitoring"],
+            },
+            action: "Security incident fully resolved",
+            status: "resolved",
+            impact: "none",
+        }),
         update: securityEventFactory.create({
             type: "breach_detected",
             severity: "critical",

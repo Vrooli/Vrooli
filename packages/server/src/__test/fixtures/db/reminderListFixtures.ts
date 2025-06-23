@@ -116,7 +116,7 @@ export const completeReminderListDb: Prisma.reminder_listCreateInput = {
 export class ReminderListDbFactory {
     static createMinimal(
         userId: string,
-        overrides?: Partial<Prisma.reminder_listCreateInput>
+        overrides?: Partial<Prisma.reminder_listCreateInput>,
     ): Prisma.reminder_listCreateInput {
         return {
             id: generatePK(),
@@ -128,7 +128,7 @@ export class ReminderListDbFactory {
     static createWithReminder(
         userId: string,
         reminderData?: Partial<Prisma.reminderCreateWithoutReminderListInput>,
-        overrides?: Partial<Prisma.reminder_listCreateInput>
+        overrides?: Partial<Prisma.reminder_listCreateInput>,
     ): Prisma.reminder_listCreateInput {
         return {
             id: generatePK(),
@@ -150,7 +150,7 @@ export class ReminderListDbFactory {
     static createWithMultipleReminders(
         userId: string,
         reminders: Array<Partial<Prisma.reminderCreateWithoutReminderListInput>>,
-        overrides?: Partial<Prisma.reminder_listCreateInput>
+        overrides?: Partial<Prisma.reminder_listCreateInput>,
     ): Prisma.reminder_listCreateInput {
         return {
             id: generatePK(),
@@ -170,7 +170,7 @@ export class ReminderListDbFactory {
 
     static createComplete(
         userId: string,
-        overrides?: Partial<Prisma.reminder_listCreateInput>
+        overrides?: Partial<Prisma.reminder_listCreateInput>,
     ): Prisma.reminder_listCreateInput {
         const baseData = { ...completeReminderListDb };
         baseData.user = { connect: { id: userId } };
@@ -199,7 +199,7 @@ export class ReminderListDbFactory {
      */
     static createWithDueDates(
         userId: string,
-        overrides?: Partial<Prisma.reminder_listCreateInput>
+        overrides?: Partial<Prisma.reminder_listCreateInput>,
     ): Prisma.reminder_listCreateInput {
         const now = new Date();
         const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -259,7 +259,7 @@ export async function seedReminderLists(
         count?: number;
         withReminders?: boolean;
         withItems?: boolean;
-    }
+    },
 ) {
     const lists = [];
     const count = options.count || 1;
@@ -277,7 +277,7 @@ export async function seedReminderLists(
                 [
                     { name: `Reminder ${i + 1}-1`, description: "First reminder" },
                     { name: `Reminder ${i + 1}-2`, description: "Second reminder" },
-                ]
+                ],
             );
         } else {
             // Create minimal list
@@ -306,7 +306,7 @@ export async function seedReminderLists(
  */
 export async function seedReminderListWithCompletionStates(
     prisma: any,
-    userId: string
+    userId: string,
 ) {
     const listData = ReminderListDbFactory.createWithMultipleReminders(
         userId,
@@ -341,7 +341,7 @@ export async function seedReminderListWithCompletionStates(
                     ],
                 },
             },
-        ]
+        ],
     );
 
     return prisma.reminder_list.create({

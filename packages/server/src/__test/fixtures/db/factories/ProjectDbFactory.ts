@@ -1,4 +1,5 @@
-import { generatePK, generatePublicId, nanoid, ResourceType } from "@vrooli/shared";
+import { ResourceType } from "@vrooli/shared";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
@@ -30,7 +31,7 @@ export class ProjectDbFactory extends DatabaseFixtureFactory<
     Prisma.resourceUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Resource', prisma);
+        super("resource", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -105,7 +106,7 @@ export class ProjectDbFactory extends DatabaseFixtureFactory<
                     createdAt: true,
                 },
                 orderBy: {
-                    versionIndex: 'desc',
+                    versionIndex: "desc",
                 },
             },
             tags: {
@@ -132,9 +133,9 @@ export class ProjectDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.resourceCreateInput,
         config: ProjectRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.resourceCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle owner (user or team)
         if (config.owner) {
@@ -321,7 +322,7 @@ export class ProjectDbFactory extends DatabaseFixtureFactory<
         
         // Check that resource type is Project
         if (record.resourceType !== ResourceType.Project) {
-            violations.push('Resource must be of type Project');
+            violations.push("Resource must be of type Project");
         }
 
         // Check that project has at least one version
@@ -330,7 +331,7 @@ export class ProjectDbFactory extends DatabaseFixtureFactory<
         });
         
         if (versions === 0) {
-            violations.push('Project must have at least one version');
+            violations.push("Project must have at least one version");
         }
 
         // Check that only one version is marked as latest
@@ -342,7 +343,7 @@ export class ProjectDbFactory extends DatabaseFixtureFactory<
         });
         
         if (latestVersions > 1) {
-            violations.push('Project can only have one latest version');
+            violations.push("Project can only have one latest version");
         }
 
         return violations;
@@ -394,7 +395,7 @@ export class ProjectDbFactory extends DatabaseFixtureFactory<
                 translations: {
                     create: Array.from({ length: 5 }, (_, i) => ({
                         id: generatePK(),
-                        language: ['en', 'es', 'fr', 'de', 'ja'][i],
+                        language: ["en", "es", "fr", "de", "ja"][i],
                         name: `Project Name ${i}`,
                         description: `Project description in language ${i}`,
                         instructions: `Project instructions in language ${i}`,
@@ -422,7 +423,7 @@ export class ProjectDbFactory extends DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: Prisma.resource,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete in order of dependencies
         

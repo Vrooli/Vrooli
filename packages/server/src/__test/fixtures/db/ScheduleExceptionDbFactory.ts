@@ -208,7 +208,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
 
     static createMinimal(
         scheduleId: string,
-        overrides?: Partial<Prisma.schedule_exceptionCreateInput>
+        overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         const factory = new ScheduleExceptionDbFactory();
         const data = factory.createMinimal(overrides);
@@ -217,7 +217,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
 
     static createComplete(
         scheduleId: string,
-        overrides?: Partial<Prisma.schedule_exceptionCreateInput>
+        overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         const factory = new ScheduleExceptionDbFactory();
         const data = factory.createComplete(overrides);
@@ -227,7 +227,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
     static createCancellation(
         scheduleId: string,
         originalTime: Date,
-        overrides?: Partial<Prisma.schedule_exceptionCreateInput>
+        overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         const factory = new ScheduleExceptionDbFactory();
         return factory.createMinimal({
@@ -244,13 +244,13 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
         originalTime: Date,
         newStartTime: Date,
         newEndTime: Date,
-        overrides?: Partial<Prisma.schedule_exceptionCreateInput>
+        overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         const factory = new ScheduleExceptionDbFactory();
         return factory.createMinimal({
             originalStartTime: originalTime,
-            newStartTime: newStartTime,
-            newEndTime: newEndTime,
+            newStartTime,
+            newEndTime,
             schedule: { connect: { id: scheduleId } },
             ...overrides,
         });
@@ -259,15 +259,15 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
     static createExtended(
         scheduleId: string,
         originalTime: Date,
-        extensionHours: number = 2,
-        overrides?: Partial<Prisma.schedule_exceptionCreateInput>
+        extensionHours = 2,
+        overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         const newEndTime = new Date(originalTime.getTime() + (extensionHours * 60 * 60 * 1000));
         const factory = new ScheduleExceptionDbFactory();
         return factory.createMinimal({
             originalStartTime: originalTime,
             newStartTime: originalTime, // Same start time
-            newEndTime: newEndTime,
+            newEndTime,
             schedule: { connect: { id: scheduleId } },
             ...overrides,
         });
@@ -276,8 +276,8 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
     static createMovedToNextDay(
         scheduleId: string,
         originalTime: Date,
-        durationHours: number = 8,
-        overrides?: Partial<Prisma.schedule_exceptionCreateInput>
+        durationHours = 8,
+        overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         const nextDay = new Date(originalTime);
         nextDay.setDate(nextDay.getDate() + 1);
@@ -287,7 +287,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
         return factory.createMinimal({
             originalStartTime: originalTime,
             newStartTime: nextDay,
-            newEndTime: newEndTime,
+            newEndTime,
             schedule: { connect: { id: scheduleId } },
             ...overrides,
         });
@@ -300,7 +300,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
         scheduleId: string,
         holidayDate: Date,
         holidayName?: string,
-        overrides?: Partial<Prisma.schedule_exceptionCreateInput>
+        overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         return ScheduleExceptionDbFactory.createCancellation(scheduleId, holidayDate, {
             // Could add metadata in future if schema supports it
@@ -314,40 +314,40 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
     static createBatch(
         scheduleId: string,
         exceptions: Array<{
-            type: 'cancel' | 'reschedule' | 'extend' | 'shorten';
+            type: "cancel" | "reschedule" | "extend" | "shorten";
             originalDate: Date;
             newStartTime?: Date;
             newEndTime?: Date;
             extensionHours?: number;
-        }>
+        }>,
     ): Prisma.schedule_exceptionCreateInput[] {
         return exceptions.map(exception => {
             switch (exception.type) {
-                case 'cancel':
+                case "cancel":
                     return ScheduleExceptionDbFactory.createCancellation(
                         scheduleId,
-                        exception.originalDate
+                        exception.originalDate,
                     );
-                case 'reschedule':
+                case "reschedule":
                     return ScheduleExceptionDbFactory.createRescheduled(
                         scheduleId,
                         exception.originalDate,
                         exception.newStartTime!,
-                        exception.newEndTime!
+                        exception.newEndTime!,
                     );
-                case 'extend':
+                case "extend":
                     return ScheduleExceptionDbFactory.createExtended(
                         scheduleId,
                         exception.originalDate,
-                        exception.extensionHours
+                        exception.extensionHours,
                     );
-                case 'shorten':
+                case "shorten":
                     const duration = 60 * 60 * 1000; // 1 hour default
                     return ScheduleExceptionDbFactory.createRescheduled(
                         scheduleId,
                         exception.originalDate,
                         exception.originalDate,
-                        new Date(exception.originalDate.getTime() + duration)
+                        new Date(exception.originalDate.getTime() + duration),
                     );
             }
         });
@@ -384,7 +384,7 @@ export const scheduleExceptionPatterns = {
     /**
      * Summer schedule - meetings shortened
      */
-    summerSchedule: (scheduleId: string, startDate: Date, weeks: number = 12) => {
+    summerSchedule: (scheduleId: string, startDate: Date, weeks = 12) => {
         const exceptions = [];
         for (let w = 0; w < weeks; w++) {
             const date = new Date(startDate);

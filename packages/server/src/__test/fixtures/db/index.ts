@@ -121,9 +121,8 @@ import {
     UserDbFactory, 
     seedTestUsers,
     createSessionUser,
-    userDbIds
+    userDbIds,
 } from "./userFixtures.js";
-
 import { BookmarkDbFactory, createBookmarkDbFactory } from "./BookmarkDbFactory.js";
 import { BookmarkListDbFactory, createBookmarkListDbFactory } from "./BookmarkListDbFactory.js";
 import { CommentDbFactory, createCommentDbFactory } from "./CommentDbFactory.js";
@@ -141,7 +140,6 @@ import { ProjectDbFactory, createProjectDbFactory } from "./ProjectDbFactory.js"
 import { ProjectVersionDbFactory, createProjectVersionDbFactory } from "./ProjectVersionDbFactory.js";
 import { RoutineDbFactory, createRoutineDbFactory } from "./RoutineDbFactory.js";
 import { RoutineVersionDbFactory, createRoutineVersionDbFactory } from "./RoutineVersionDbFactory.js";
-
 // Schedule and execution object imports
 import { ScheduleDbFactory, createScheduleDbFactory } from "./ScheduleDbFactory.js";
 import { ScheduleExceptionDbFactory, createScheduleExceptionDbFactory } from "./ScheduleExceptionDbFactory.js";
@@ -309,7 +307,7 @@ export const dbFixtureUtils = {
      * Get all available fixture categories across all models
      */
     getAllCategories(): string[] {
-        return ['minimal', 'complete', 'invalid', 'edgeCase', 'error'];
+        return ["minimal", "complete", "invalid", "edgeCase", "error"];
     },
 
     /**
@@ -396,7 +394,7 @@ export const commonTestPatterns = {
         return {
             admin: userFactory.createWithRelationships({ 
                 withAuth: true,
-                withRoles: [{ id: "admin-role", name: "Admin" }]
+                withRoles: [{ id: "admin-role", name: "Admin" }],
             }).data,
             member: userFactory.createWithRelationships({ withAuth: true }).data,
             guest: userFactory.createMinimal(),

@@ -38,6 +38,15 @@ const TRANSLATION_DESCRIPTION_LENGTH = 512;
 const TRANSLATION_DETAILS_LENGTH = 2048;
 const TRANSLATION_INSTRUCTIONS_LENGTH = 2048;
 
+// Date calculation constants
+const MILLISECONDS_PER_SECOND = 1000;
+const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
+const HOURS_PER_DAY = 24;
+const DAYS_30 = 30;
+const DAYS_7 = 7;
+const DAYS_2 = 2;
+
 // ========================================
 // Type-Safe Fixture Data
 // ========================================
@@ -240,9 +249,9 @@ const projectFixtureData = {
             pullRequestsCount: 1,
             versionsCount: 1,
             translatedName: "Complete Educational Project",
-            createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
-            updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-            completedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+            createdAt: new Date(Date.now() - DAYS_30 * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND).toISOString(), // 30 days ago
+            updatedAt: new Date(Date.now() - DAYS_2 * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND).toISOString(), // 2 days ago
+            completedAt: new Date(Date.now() - DAYS_7 * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND).toISOString(), // 7 days ago
             bookmarkedBy: [],
             createdBy: null,
             owner: null, // Would be populated with full User object in real scenario

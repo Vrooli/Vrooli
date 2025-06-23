@@ -17,11 +17,11 @@
  * - Health check algorithms (agents create sophisticated monitoring)
  */
 
-import { EventBus } from "../events/eventBus.js";
+import { type EventBus } from "../events/eventBus.js";
 import {
     CircuitState,
-    CircuitBreakerConfig,
-    CircuitBreakerState,
+    type CircuitBreakerConfig,
+    type CircuitBreakerState,
     ResilienceEventType,
 } from "@vrooli/shared";
 

@@ -109,24 +109,24 @@ export const yearlyStatsResourceDb: Prisma.stats_resourceCreateInput = {
 export class StatsResourceDbFactory {
     static createMinimal(
         resourceId: string,
-        overrides?: Partial<Prisma.stats_resourceCreateInput>
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
     ): Prisma.stats_resourceCreateInput {
         return {
             ...minimalStatsResourceDb,
             id: generatePK(),
-            resourceId: resourceId,
+            resourceId,
             ...overrides,
         };
     }
 
     static createComplete(
         resourceId: string,
-        overrides?: Partial<Prisma.stats_resourceCreateInput>
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
     ): Prisma.stats_resourceCreateInput {
         return {
             ...completeStatsResourceDb,
             id: generatePK(),
-            resourceId: resourceId,
+            resourceId,
             ...overrides,
         };
     }
@@ -134,7 +134,7 @@ export class StatsResourceDbFactory {
     static createDaily(
         resourceId: string,
         date: Date = new Date("2024-03-15"),
-        overrides?: Partial<Prisma.stats_resourceCreateInput>
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
     ): Prisma.stats_resourceCreateInput {
         const periodStart = new Date(date);
         periodStart.setHours(0, 0, 0, 0);
@@ -144,7 +144,7 @@ export class StatsResourceDbFactory {
         return {
             ...dailyStatsResourceDb,
             id: generatePK(),
-            resourceId: resourceId,
+            resourceId,
             periodStart,
             periodEnd,
             periodType: PeriodType.Daily,
@@ -155,7 +155,7 @@ export class StatsResourceDbFactory {
     static createWeekly(
         resourceId: string,
         weekStart: Date = new Date("2024-03-01"),
-        overrides?: Partial<Prisma.stats_resourceCreateInput>
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
     ): Prisma.stats_resourceCreateInput {
         const periodStart = new Date(weekStart);
         periodStart.setHours(0, 0, 0, 0);
@@ -166,7 +166,7 @@ export class StatsResourceDbFactory {
         return {
             ...weeklyStatsResourceDb,
             id: generatePK(),
-            resourceId: resourceId,
+            resourceId,
             periodStart,
             periodEnd,
             periodType: PeriodType.Weekly,
@@ -176,9 +176,9 @@ export class StatsResourceDbFactory {
 
     static createMonthly(
         resourceId: string,
-        year: number = 2024,
-        month: number = 2, // 1-based month
-        overrides?: Partial<Prisma.stats_resourceCreateInput>
+        year = 2024,
+        month = 2, // 1-based month
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
     ): Prisma.stats_resourceCreateInput {
         const periodStart = new Date(year, month - 1, 1); // month is 0-based in Date constructor
         const periodEnd = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
@@ -186,7 +186,7 @@ export class StatsResourceDbFactory {
         return {
             ...completeStatsResourceDb,
             id: generatePK(),
-            resourceId: resourceId,
+            resourceId,
             periodStart,
             periodEnd,
             periodType: PeriodType.Monthly,
@@ -196,8 +196,8 @@ export class StatsResourceDbFactory {
 
     static createYearly(
         resourceId: string,
-        year: number = 2024,
-        overrides?: Partial<Prisma.stats_resourceCreateInput>
+        year = 2024,
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
     ): Prisma.stats_resourceCreateInput {
         const periodStart = new Date(year, 0, 1); // January 1st
         const periodEnd = new Date(year, 11, 31, 23, 59, 59, 999); // December 31st
@@ -205,7 +205,7 @@ export class StatsResourceDbFactory {
         return {
             ...yearlyStatsResourceDb,
             id: generatePK(),
-            resourceId: resourceId,
+            resourceId,
             periodStart,
             periodEnd,
             periodType: PeriodType.Yearly,
@@ -218,7 +218,7 @@ export class StatsResourceDbFactory {
      */
     static createHighPerformance(
         resourceId: string,
-        overrides?: Partial<Prisma.stats_resourceCreateInput>
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
     ): Prisma.stats_resourceCreateInput {
         return {
             ...this.createComplete(resourceId),
@@ -237,7 +237,7 @@ export class StatsResourceDbFactory {
      */
     static createLowPerformance(
         resourceId: string,
-        overrides?: Partial<Prisma.stats_resourceCreateInput>
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
     ): Prisma.stats_resourceCreateInput {
         return {
             ...this.createComplete(resourceId),
@@ -256,7 +256,7 @@ export class StatsResourceDbFactory {
      */
     static createNoActivity(
         resourceId: string,
-        overrides?: Partial<Prisma.stats_resourceCreateInput>
+        overrides?: Partial<Prisma.stats_resourceCreateInput>,
     ): Prisma.stats_resourceCreateInput {
         return {
             ...this.createMinimal(resourceId),
@@ -283,7 +283,7 @@ export async function seedResourceStatsHistory(
         periodType?: PeriodType;
         includeNoActivity?: boolean;
         basePerformance?: "high" | "low" | "normal";
-    }
+    },
 ) {
     const {
         startDate = new Date("2024-01-01"),

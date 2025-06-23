@@ -2,6 +2,7 @@ import type { ChatMessageCreateInput, ChatMessageUpdateInput } from "../../../ap
 import { type MessageConfigObject, type ToolFunctionCall } from "../../../shape/configs/message.js";
 import { type ModelTestFixtures, type TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { chatMessageValidation } from "../../../validation/models/chatMessage.js";
+import { messageConfigFixtures, createSuccessfulToolCall, createFailedToolCall } from "../config/messageConfigFixtures.js";
 
 // Magic number constants for testing
 const TEXT_MAX_LENGTH = 32768;
@@ -20,52 +21,14 @@ const validIds = {
     toolCallId2: "123456789012345686",
 };
 
-// Helper to create valid message config
-function createValidConfig(overrides: Partial<MessageConfigObject> = {}): MessageConfigObject {
-    return {
-        __version: "1.0.0",
-        resources: [],
-        ...overrides,
-    };
-}
-
-// Helper for tool function calls
-function createToolCall(overrides: Partial<ToolFunctionCall> = {}): ToolFunctionCall {
-    return {
-        id: validIds.toolCallId1,
-        function: {
-            name: "test_function",
-            arguments: JSON.stringify({ param: "value" }),
-        },
-        ...overrides,
-    };
-}
-
-// Helper for successful tool result
-function createSuccessResult(output = "success output"): { success: true; output: string } {
-    return {
-        success: true,
-        output,
-    };
-}
-
-// Helper for error tool result
-function createErrorResult(code = "ERROR_CODE", message = "Error message"): { success: false; error: { code: string; message: string } } {
-    return {
-        success: false,
-        error: { code, message },
-    };
-}
 
 // Shared chatMessage test fixtures
 export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, ChatMessageUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
-            config: createValidConfig(),
+            config: messageConfigFixtures.minimal,
             chatConnect: validIds.chatId1,
-            language: "en",
-            text: "Test message",
             userConnect: validIds.userId1,
             versionIndex: 0,
         },
@@ -77,30 +40,52 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
         create: {
             id: validIds.id2,
             versionIndex: 1,
-            config: createValidConfig({
-                contextHints: ["hint1", "hint2"],
-                eventTopic: "chat.message",
-                respondingBots: ["@all", "bot1"],
-                role: "user",
-                turnId: 123,
-                toolCalls: [
-                    createToolCall({
-                        result: createSuccessResult("Tool executed successfully"),
-                    }),
-                ],
-            }),
+            config: messageConfigFixtures.complete,
             chatConnect: validIds.chatId2,
             userConnect: validIds.userId1,
-            language: "en",
-            text: "Hello, how are you?",
+            translationsCreate: [{
+                id: validIds.id3,
+                language: "en",
+                text: "Hello, how are you?",
+            }],
         },
         update: {
             id: validIds.id2,
-            config: createValidConfig({
-                role: "assistant",
-                turnId: 124,
-            }),
-            text: "Updated message text",
+            config: messageConfigFixtures.variants.assistantWithTools,
+            translationsUpdate: [{
+                id: validIds.id3,
+                language: "en",
+                text: "Updated message text",
+            }],
+        },
+    },
+    invalidConfigs: {
+        missingVersion: {
+            create: {
+                id: validIds.id1,
+                config: messageConfigFixtures.invalid.missingVersion as MessageConfigObject,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
+            },
+        },
+        invalidVersion: {
+            create: {
+                id: validIds.id2,
+                config: messageConfigFixtures.invalid.invalidVersion as MessageConfigObject,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
+            },
+        },
+        malformedStructure: {
+            create: {
+                id: validIds.id3,
+                config: messageConfigFixtures.invalid.malformedStructure as MessageConfigObject,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
+            },
         },
     },
     invalid: {
@@ -111,7 +96,7 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
             } as ChatMessageCreateInput,
             update: {
                 // Missing id
-                config: createValidConfig(),
+                config: messageConfigFixtures.minimal,
             } as ChatMessageUpdateInput,
         },
         invalidTypes: {
@@ -151,48 +136,34 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
             create: {
                 id: validIds.id1,
                 versionIndex: -1, // Should be >= 0
-                config: createValidConfig(),
+                config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId1,
             } as ChatMessageCreateInput,
         },
         invalidToolCall: {
             create: {
                 id: validIds.id1,
-                config: createValidConfig({
-                    toolCalls: [
-                        {
-                            // Missing required id and function
-                            result: createSuccessResult(),
-                        } as unknown as ToolFunctionCall,
-                    ],
-                }),
+                config: messageConfigFixtures.invalid.invalidTypes as MessageConfigObject,
                 chatConnect: validIds.chatId1,
             } as ChatMessageCreateInput,
         },
         invalidToolResult: {
             create: {
                 id: validIds.id1,
-                config: createValidConfig({
+                config: {
+                    ...messageConfigFixtures.minimal,
                     toolCalls: [
-                        createToolCall({
-                            result: {
-                                success: true,
-                                // Missing output when success is true
-                                error: { code: "CODE", message: "msg" }, // Should not have error when success is true
-                            } as any,
-                        }),
+                        createFailedToolCall("test_function", { param: "value" }, "CODE", "msg"),
                     ],
-                }),
+                },
                 chatConnect: validIds.chatId1,
             } as ChatMessageCreateInput,
         },
         invalidTranslationText: {
             create: {
                 id: validIds.id1,
-                config: createValidConfig(),
+                config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId1,
-                language: "en",
-                text: "Base message text",
                 userConnect: validIds.userId1,
                 versionIndex: 0,
                 translationsCreate: [
@@ -204,13 +175,29 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 ],
             } as ChatMessageCreateInput,
         },
+        textTooLong: {
+            create: {
+                id: validIds.id1,
+                config: messageConfigFixtures.minimal,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
+                translationsCreate: [
+                    {
+                        id: validIds.id3,
+                        language: "en",
+                        text: "x".repeat(TEXT_TOO_LONG_LENGTH), // Over max length - should fail validation
+                    },
+                ],
+            } as ChatMessageCreateInput,
+        },
     },
     edgeCases: {
         maxVersionIndex: {
             create: {
                 id: validIds.id1,
                 versionIndex: 999999,
-                config: createValidConfig(),
+                config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId1,
             },
         },
@@ -218,78 +205,80 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
             create: {
                 id: validIds.id1,
                 versionIndex: 0,
-                config: createValidConfig(),
+                config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId1,
-                language: "en",
-                text: "Test message with zero version index",
                 userConnect: validIds.userId1,
             },
         },
         allRoles: [
             {
                 id: validIds.id1,
-                config: createValidConfig({ role: "user" }),
+                config: messageConfigFixtures.variants.userMessage,
                 chatConnect: validIds.chatId1,
             },
             {
                 id: validIds.id2,
-                config: createValidConfig({ role: "assistant" }),
+                config: messageConfigFixtures.variants.assistantWithTools,
                 chatConnect: validIds.chatId1,
             },
             {
                 id: validIds.id3,
-                config: createValidConfig({ role: "system" }),
+                config: messageConfigFixtures.variants.systemMessage,
                 chatConnect: validIds.chatId1,
             },
             {
                 id: validIds.id1,
-                config: createValidConfig({ role: "tool" }),
+                config: messageConfigFixtures.variants.toolErrorMessage,
                 chatConnect: validIds.chatId1,
             },
         ],
         toolCallWithSuccessResult: {
             create: {
                 id: validIds.id1,
-                config: createValidConfig({
+                config: {
+                    ...messageConfigFixtures.minimal,
                     toolCalls: [
-                        createToolCall({
-                            result: createSuccessResult(JSON.stringify({ data: "complex output" })),
-                        }),
+                        createSuccessfulToolCall("test_function", { param: "value" }, JSON.stringify({ data: "complex output" })),
                     ],
-                }),
+                },
                 chatConnect: validIds.chatId1,
             },
         },
         toolCallWithErrorResult: {
             create: {
                 id: validIds.id1,
-                config: createValidConfig({
+                config: {
+                    ...messageConfigFixtures.minimal,
                     toolCalls: [
-                        createToolCall({
-                            result: createErrorResult("TOOL_ERROR", "Tool execution failed"),
-                        }),
+                        createFailedToolCall("test_function", { param: "value" }, "TOOL_ERROR", "Tool execution failed"),
                     ],
-                }),
+                },
                 chatConnect: validIds.chatId1,
             },
         },
         toolCallWithoutResult: {
             create: {
                 id: validIds.id1,
-                config: createValidConfig({
+                config: {
+                    ...messageConfigFixtures.minimal,
                     toolCalls: [
-                        createToolCall({
+                        {
+                            id: validIds.toolCallId1,
+                            function: {
+                                name: "test_function",
+                                arguments: JSON.stringify({ param: "value" }),
+                            },
                             // No result field - should be optional
-                        }),
+                        },
                     ],
-                }),
+                },
                 chatConnect: validIds.chatId1,
             },
         },
         maxLengthText: {
             create: {
                 id: validIds.id1,
-                config: createValidConfig(),
+                config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId1,
                 translationsCreate: [
                     {
@@ -300,74 +289,39 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 ],
             },
         },
-        textTooLong: {
-            create: {
-                id: validIds.id1,
-                config: createValidConfig(),
-                chatConnect: validIds.chatId1,
-                language: "en",
-                text: "Base message text",
-                userConnect: validIds.userId1,
-                versionIndex: 0,
-                translationsCreate: [
-                    {
-                        id: validIds.id3,
-                        language: "en",
-                        text: "x".repeat(TEXT_TOO_LONG_LENGTH), // Over max length
-                    },
-                ],
-            } as ChatMessageCreateInput,
-        },
         complexConfig: {
             create: {
                 id: validIds.id1,
-                config: createValidConfig({
-                    resources: [
-                        {
-                            link: "https://example.com/resource1",
-                            usedFor: "Context" as const,
-                            translations: [{ language: "en", name: "Resource 1" }],
-                        },
-                        {
-                            link: "https://example.com/resource2",
-                            usedFor: "Context" as const,
-                            translations: [{ language: "en", name: "Resource 2" }],
-                        },
-                    ],
-                    contextHints: ["context1", "context2", "context3"],
-                    eventTopic: "complex.event.topic",
-                    respondingBots: ["@all", "bot1", "bot2"],
-                    role: "assistant",
-                    turnId: null, // Explicitly null
-                    toolCalls: [
-                        createToolCall({
-                            id: validIds.toolCallId1,
-                            function: {
-                                name: "complex_function",
-                                arguments: JSON.stringify({
-                                    param1: "value1",
-                                    param2: 123,
-                                    param3: { nested: "object" },
-                                }),
-                            },
-                            result: createSuccessResult(JSON.stringify({
-                                complexOutput: {
-                                    data: [1, 2, 3],
-                                    status: "completed",
-                                },
-                            })),
-                        }),
-                        createToolCall({
-                            id: validIds.toolCallId2,
-                            function: {
-                                name: "another_function",
-                                arguments: "{}",
-                            },
-                        }),
-                    ],
-                }),
+                config: messageConfigFixtures.complete,
                 chatConnect: validIds.chatId1,
                 userConnect: validIds.userId1,
+            },
+        },
+        messageWithMultipleRuns: {
+            create: {
+                id: validIds.id1,
+                config: messageConfigFixtures.variants.messageWithMultipleRuns,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
+            },
+        },
+        broadcastMessage: {
+            create: {
+                id: validIds.id2,
+                config: messageConfigFixtures.variants.broadcastMessage,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
+            },
+        },
+        eventDrivenMessage: {
+            create: {
+                id: validIds.id3,
+                config: messageConfigFixtures.variants.eventDrivenMessage,
+                chatConnect: validIds.chatId1,
+                userConnect: validIds.userId1,
+                versionIndex: 0,
             },
         },
     },

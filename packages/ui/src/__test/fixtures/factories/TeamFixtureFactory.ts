@@ -13,17 +13,17 @@ import type {
     Member,
     User,
     MemberInvite,
-    Resource
+    Resource,
 } from "@vrooli/shared";
 import { 
     teamValidation,
     shapeTeam,
-    MemberRole
+    MemberRole,
 } from "@vrooli/shared";
 import type { 
     FixtureFactory, 
     ValidationResult, 
-    MSWHandlers
+    MSWHandlers,
 } from "../types.js";
 import { rest } from "msw";
 
@@ -108,7 +108,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                 return {
                     handle: this.generateHandle(),
                     name: "Test Team",
-                    isPrivate: false
+                    isPrivate: false,
                 };
 
             case "complete":
@@ -117,7 +117,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     name: "Complete Test Team",
                     bio: "This is a fully configured test team with all optional fields",
                     isPrivate: false,
-                    tags: ["testing", "development", "collaboration"]
+                    tags: ["testing", "development", "collaboration"],
                 };
 
             case "invalid":
@@ -125,7 +125,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     handle: "t", // Too short
                     name: "", // Empty name
                     // @ts-expect-error - Testing invalid data
-                    isPrivate: "yes" // Should be boolean
+                    isPrivate: "yes", // Should be boolean
                 };
 
             case "withMembers":
@@ -133,7 +133,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     handle: this.generateHandle(),
                     name: "Team With Members",
                     bio: "A team that will have multiple members",
-                    isPrivate: false
+                    isPrivate: false,
                 };
 
             case "privateTeam":
@@ -141,7 +141,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     handle: this.generateHandle(),
                     name: "Private Team",
                     bio: "This team is private and requires invitation",
-                    isPrivate: true
+                    isPrivate: true,
                 };
 
             case "withProjects":
@@ -150,7 +150,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     name: "Project Team",
                     bio: "A team focused on managing multiple projects",
                     isPrivate: false,
-                    tags: ["projects", "management"]
+                    tags: ["projects", "management"],
                 };
 
             case "withInvites":
@@ -158,7 +158,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     handle: this.generateHandle(),
                     name: "Team With Pending Invites",
                     bio: "This team has pending member invitations",
-                    isPrivate: false
+                    isPrivate: false,
                 };
 
             case "largeTeam":
@@ -167,7 +167,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     name: "Large Organization",
                     bio: "A large team with many members and complex structure",
                     isPrivate: false,
-                    tags: ["enterprise", "large-scale"]
+                    tags: ["enterprise", "large-scale"],
                 };
 
             default:
@@ -190,15 +190,15 @@ export class TeamFixtureFactory implements FixtureFactory<
                 __typename: "TeamTranslation" as const,
                 id: this.generateId(),
                 language: "en",
-                bio: formData.bio
+                bio: formData.bio,
             }] : null,
             tags: formData.tags?.map(tag => ({
                 __typename: "Tag" as const,
                 id: this.generateId(),
-                tag
+                tag,
             })) || null,
             profileImage: formData.profileImage,
-            bannerImage: formData.bannerImage
+            bannerImage: formData.bannerImage,
         };
 
         // Use real shape function from @vrooli/shared
@@ -220,7 +220,7 @@ export class TeamFixtureFactory implements FixtureFactory<
             updateInput.translationsUpdate = [{
                 id: this.generateId(),
                 language: "en",
-                bio: updates.bio
+                bio: updates.bio,
             }];
         }
 
@@ -261,7 +261,7 @@ export class TeamFixtureFactory implements FixtureFactory<
             permissions: JSON.stringify({
                 canUpdate: true,
                 canDelete: true,
-                canInviteMembers: true
+                canInviteMembers: true,
             }),
             tags: [],
             tagsCount: 0,
@@ -269,7 +269,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                 __typename: "TeamTranslation",
                 id: this.generateId(),
                 language: "en",
-                bio: "A test team for development"
+                bio: "A test team for development",
             }],
             translationsCount: 1,
             members: [{
@@ -281,7 +281,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                 permissions: JSON.stringify({
                     admin: true,
                     manageMembers: true,
-                    manageProjects: true
+                    manageProjects: true,
                 }),
                 isOwner: true,
                 user: {
@@ -313,15 +313,15 @@ export class TeamFixtureFactory implements FixtureFactory<
                         reactionSummary: {
                             __typename: "ReactionSummary",
                             emotion: null,
-                            count: 0
-                        }
-                    }
+                            count: 0,
+                        },
+                    },
                 },
                 you: {
                     __typename: "MemberYou",
                     canDelete: true,
-                    canUpdate: true
-                }
+                    canUpdate: true,
+                },
             }],
             membersCount: 1,
             projects: [],
@@ -348,7 +348,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                 codesCount: 0,
                 apisCount: 0,
                 questionsAskedCount: 0,
-                questionsAnsweredCount: 0
+                questionsAnsweredCount: 0,
             },
             you: {
                 __typename: "TeamYou",
@@ -360,13 +360,13 @@ export class TeamFixtureFactory implements FixtureFactory<
                 isBookmarked: false,
                 isReacted: false,
                 reaction: null,
-                yourMemberRole: MemberRole.Owner
-            }
+                yourMemberRole: MemberRole.Owner,
+            },
         };
 
         return {
             ...defaultTeam,
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -392,7 +392,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                         acc[err.path].push(err.message);
                     }
                     return acc;
-                }, {})
+                }, {}),
             };
         }
     }
@@ -401,7 +401,7 @@ export class TeamFixtureFactory implements FixtureFactory<
      * Create MSW handlers for different scenarios
      */
     createMSWHandlers(): MSWHandlers {
-        const baseUrl = process.env.VITE_SERVER_URL || 'http://localhost:3000';
+        const baseUrl = process.env.VITE_SERVER_URL || "http://localhost:3000";
 
         return {
             success: [
@@ -416,8 +416,8 @@ export class TeamFixtureFactory implements FixtureFactory<
                             ctx.status(400),
                             ctx.json({ 
                                 errors: validation.errors,
-                                fieldErrors: validation.fieldErrors 
-                            })
+                                fieldErrors: validation.fieldErrors, 
+                            }),
                         );
                     }
 
@@ -425,12 +425,12 @@ export class TeamFixtureFactory implements FixtureFactory<
                     const mockTeam = this.createMockResponse({
                         handle: body.handle,
                         name: body.name,
-                        isPrivate: body.isPrivate
+                        isPrivate: body.isPrivate,
                     });
 
                     return res(
                         ctx.status(201),
-                        ctx.json(mockTeam)
+                        ctx.json(mockTeam),
                     );
                 }),
 
@@ -442,12 +442,12 @@ export class TeamFixtureFactory implements FixtureFactory<
                     const mockTeam = this.createMockResponse({ 
                         id: id as string,
                         ...body,
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date().toISOString(),
                     });
 
                     return res(
                         ctx.status(200),
-                        ctx.json(mockTeam)
+                        ctx.json(mockTeam),
                     );
                 }),
 
@@ -455,12 +455,12 @@ export class TeamFixtureFactory implements FixtureFactory<
                 rest.get(`${baseUrl}/api/team/:handle`, (req, res, ctx) => {
                     const { handle } = req.params;
                     const mockTeam = this.createMockResponse({ 
-                        handle: handle as string 
+                        handle: handle as string, 
                     });
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(mockTeam)
+                        ctx.json(mockTeam),
                     );
                 }),
 
@@ -506,29 +506,29 @@ export class TeamFixtureFactory implements FixtureFactory<
                                 reactionSummary: {
                                     __typename: "ReactionSummary",
                                     emotion: null,
-                                    count: 0
-                                }
-                            }
+                                    count: 0,
+                                },
+                            },
                         },
                         you: {
                             __typename: "MemberYou",
                             canDelete: true,
-                            canUpdate: true
-                        }
+                            canUpdate: true,
+                        },
                     };
 
                     return res(
                         ctx.status(201),
-                        ctx.json(newMember)
+                        ctx.json(newMember),
                     );
                 }),
 
                 // Delete team
                 rest.delete(`${baseUrl}/api/team/:id`, (req, res, ctx) => {
                     return res(
-                        ctx.status(204)
+                        ctx.status(204),
                     );
-                })
+                }),
             ],
 
             error: [
@@ -536,9 +536,9 @@ export class TeamFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(409),
                         ctx.json({ 
-                            message: 'Team handle already exists',
-                            code: 'HANDLE_EXISTS' 
-                        })
+                            message: "Team handle already exists",
+                            code: "HANDLE_EXISTS", 
+                        }),
                     );
                 }),
 
@@ -546,9 +546,9 @@ export class TeamFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(403),
                         ctx.json({ 
-                            message: 'You do not have permission to update this team',
-                            code: 'PERMISSION_DENIED' 
-                        })
+                            message: "You do not have permission to update this team",
+                            code: "PERMISSION_DENIED", 
+                        }),
                     );
                 }),
 
@@ -556,11 +556,11 @@ export class TeamFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(404),
                         ctx.json({ 
-                            message: 'Team not found',
-                            code: 'TEAM_NOT_FOUND' 
-                        })
+                            message: "Team not found",
+                            code: "TEAM_NOT_FOUND", 
+                        }),
                     );
-                })
+                }),
             ],
 
             loading: [
@@ -568,16 +568,16 @@ export class TeamFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.delay(2000), // 2 second delay
                         ctx.status(201),
-                        ctx.json(this.createMockResponse())
+                        ctx.json(this.createMockResponse()),
                     );
-                })
+                }),
             ],
 
             networkError: [
                 rest.post(`${baseUrl}/api/team`, (req, res, ctx) => {
-                    return res.networkError('Network connection failed');
-                })
-            ]
+                    return res.networkError("Network connection failed");
+                }),
+            ],
         };
     }
 
@@ -586,7 +586,7 @@ export class TeamFixtureFactory implements FixtureFactory<
      */
     createUIState(
         state: "loading" | "error" | "success" | "empty" | "memberView" | "ownerView" = "empty", 
-        data?: any
+        data?: any,
     ): TeamUIState {
         switch (state) {
             case "loading":
@@ -597,7 +597,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     members: [],
                     pendingInvites: [],
                     canManageMembers: false,
-                    canUpdateTeam: false
+                    canUpdateTeam: false,
                 };
 
             case "error":
@@ -608,7 +608,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     members: [],
                     pendingInvites: [],
                     canManageMembers: false,
-                    canUpdateTeam: false
+                    canUpdateTeam: false,
                 };
 
             case "success":
@@ -622,7 +622,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     pendingInvites: [],
                     userRole: MemberRole.Member,
                     canManageMembers: false,
-                    canUpdateTeam: false
+                    canUpdateTeam: false,
                 };
 
             case "ownerView":
@@ -635,7 +635,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     pendingInvites: data?.invites || [],
                     userRole: MemberRole.Owner,
                     canManageMembers: true,
-                    canUpdateTeam: true
+                    canUpdateTeam: true,
                 };
 
             case "empty":
@@ -647,7 +647,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     members: [],
                     pendingInvites: [],
                     canManageMembers: false,
-                    canUpdateTeam: false
+                    canUpdateTeam: false,
                 };
         }
     }
@@ -655,7 +655,7 @@ export class TeamFixtureFactory implements FixtureFactory<
     /**
      * Create a team with multiple members
      */
-    createWithMembers(memberCount: number = 3): Team {
+    createWithMembers(memberCount = 3): Team {
         const members: Member[] = Array.from({ length: memberCount }, (_, i) => ({
             __typename: "Member",
             id: this.generateId(),
@@ -665,7 +665,7 @@ export class TeamFixtureFactory implements FixtureFactory<
             permissions: JSON.stringify({
                 admin: i <= 1,
                 manageMembers: i <= 1,
-                manageProjects: true
+                manageProjects: true,
             }),
             isOwner: i === 0,
             user: {
@@ -697,27 +697,27 @@ export class TeamFixtureFactory implements FixtureFactory<
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             you: {
                 __typename: "MemberYou",
                 canDelete: i === 0,
-                canUpdate: i === 0
-            }
+                canUpdate: i === 0,
+            },
         }));
 
         return this.createMockResponse({
             members,
-            membersCount: memberCount
+            membersCount: memberCount,
         });
     }
 
     /**
      * Create a team with projects
      */
-    createWithProjects(projectCount: number = 2): Team {
+    createWithProjects(projectCount = 2): Team {
         const projects: Resource[] = Array.from({ length: projectCount }, (_, i) => ({
             __typename: "Resource",
             id: this.generateId(),
@@ -738,13 +738,13 @@ export class TeamFixtureFactory implements FixtureFactory<
                 canReport: false,
                 isBookmarked: false,
                 isReacted: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         }));
 
         return this.createMockResponse({
             projects,
-            projectsCount: projectCount
+            projectsCount: projectCount,
         });
     }
 
@@ -754,11 +754,11 @@ export class TeamFixtureFactory implements FixtureFactory<
     createMemberFormData(role: MemberRole = MemberRole.Member): TeamMemberFormData {
         return {
             userId: this.generateId(),
-            userEmail: `newmember@example.com`,
+            userEmail: "newmember@example.com",
             role,
             permissions: role === MemberRole.Admin ? 
                 ["manageMembers", "manageProjects"] : 
-                ["viewProjects"]
+                ["viewProjects"],
         };
     }
 
@@ -770,30 +770,30 @@ export class TeamFixtureFactory implements FixtureFactory<
             {
                 name: "Valid team creation",
                 formData: this.createFormData("minimal"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Complete team profile",
                 formData: this.createFormData("complete"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Invalid handle",
                 formData: { ...this.createFormData("minimal"), handle: "a" },
                 shouldSucceed: false,
-                expectedError: "handle must be at least"
+                expectedError: "handle must be at least",
             },
             {
                 name: "Empty name",
                 formData: { ...this.createFormData("minimal"), name: "" },
                 shouldSucceed: false,
-                expectedError: "name is a required field"
+                expectedError: "name is a required field",
             },
             {
                 name: "Private team",
                 formData: this.createFormData("privateTeam"),
-                shouldSucceed: true
-            }
+                shouldSucceed: true,
+            },
         ];
     }
 }
@@ -841,5 +841,5 @@ export const teamTestScenarios = {
     successHandlers: () => teamFixtures.createMSWHandlers().success,
     errorHandlers: () => teamFixtures.createMSWHandlers().error,
     loadingHandlers: () => teamFixtures.createMSWHandlers().loading,
-    networkErrorHandlers: () => teamFixtures.createMSWHandlers().networkError
+    networkErrorHandlers: () => teamFixtures.createMSWHandlers().networkError,
 };

@@ -143,7 +143,7 @@ export class PullRequestDbFactory {
      */
     static createWithStatus(
         status: PullRequestStatus,
-        overrides?: Partial<Prisma.pull_requestCreateInput>
+        overrides?: Partial<Prisma.pull_requestCreateInput>,
     ): Prisma.pull_requestCreateInput {
         const baseData = this.createMinimal(overrides);
         const closedStatuses = [PullRequestStatus.Merged, PullRequestStatus.Rejected, PullRequestStatus.Canceled];
@@ -160,7 +160,7 @@ export class PullRequestDbFactory {
      */
     static createWithUser(
         userId: string,
-        overrides?: Partial<Prisma.pull_requestCreateInput>
+        overrides?: Partial<Prisma.pull_requestCreateInput>,
     ): Prisma.pull_requestCreateInput {
         return {
             ...this.createMinimal(overrides),
@@ -174,7 +174,7 @@ export class PullRequestDbFactory {
     static createWithResources(
         fromResourceVersionId: string,
         toResourceId: string,
-        overrides?: Partial<Prisma.pull_requestCreateInput>
+        overrides?: Partial<Prisma.pull_requestCreateInput>,
     ): Prisma.pull_requestCreateInput {
         return {
             ...this.createComplete(overrides),
@@ -187,9 +187,9 @@ export class PullRequestDbFactory {
      * Create pull request with comments
      */
     static createWithComments(
-        commentCount: number = 2,
+        commentCount = 2,
         userId: string,
-        overrides?: Partial<Prisma.pull_requestCreateInput>
+        overrides?: Partial<Prisma.pull_requestCreateInput>,
     ): Prisma.pull_requestCreateInput {
         const comments = Array.from({ length: commentCount }, (_, i) => ({
             id: generatePK(),
@@ -220,7 +220,7 @@ export class PullRequestDbFactory {
             userId?: string;
             toResourceId?: string;
             statuses?: PullRequestStatus[];
-        }
+        },
     ): Prisma.pull_requestCreateInput[] {
         const statuses = options?.statuses || [
             PullRequestStatus.Open,
@@ -271,7 +271,7 @@ export async function seedPullRequests(
         toResourceId?: string;
         withComments?: boolean;
         statuses?: PullRequestStatus[];
-    } = {}
+    } = {},
 ) {
     const pullRequests = [];
     const count = options.count || 3;
@@ -285,7 +285,7 @@ export async function seedPullRequests(
                 {
                     createdBy: options.userId ? { connect: { id: options.userId } } : undefined,
                     status: options.statuses ? options.statuses[i % options.statuses.length] : PullRequestStatus.Open,
-                }
+                },
             );
 
             const pr = await prisma.pull_request.create({
@@ -330,7 +330,7 @@ export async function seedPullRequests(
 export async function linkPullRequestToResourceVersion(
     prisma: any,
     pullRequestId: string,
-    resourceVersionId: string
+    resourceVersionId: string,
 ) {
     return await prisma.resource_version.update({
         where: { id: resourceVersionId },

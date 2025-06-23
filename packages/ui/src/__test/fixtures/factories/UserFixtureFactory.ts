@@ -10,18 +10,18 @@ import type {
     UserCreateInput, 
     UserUpdateInput,
     UserTranslation,
-    Wallet
+    Wallet,
 } from "@vrooli/shared";
 import { 
     userValidation,
     shapeUser,
     emailSignUpFormValidation,
-    AccountStatus
+    AccountStatus,
 } from "@vrooli/shared";
 import type { 
     FixtureFactory, 
     ValidationResult, 
-    MSWHandlers
+    MSWHandlers,
 } from "../types.js";
 import { rest } from "msw";
 
@@ -122,7 +122,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     confirmPassword: basePassword,
                     handle: this.generateHandle(),
                     name: "Test User",
-                    agreeToTerms: true
+                    agreeToTerms: true,
                 };
 
             case "complete":
@@ -136,7 +136,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     theme: "light",
                     isPrivate: false,
                     agreeToTerms: true,
-                    marketingEmails: true
+                    marketingEmails: true,
                 };
 
             case "invalid":
@@ -146,7 +146,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     confirmPassword: "different", // Doesn't match
                     handle: "a", // Too short
                     name: "", // Empty name
-                    agreeToTerms: false // Must agree to terms
+                    agreeToTerms: false, // Must agree to terms
                 };
 
             case "withBio":
@@ -157,7 +157,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     handle: this.generateHandle(),
                     name: "User With Bio",
                     bio: "I am a test user with a detailed biography. I enjoy testing applications and finding bugs.",
-                    agreeToTerms: true
+                    agreeToTerms: true,
                 };
 
             case "privateUser":
@@ -168,7 +168,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     handle: this.generateHandle(),
                     name: "Private User",
                     isPrivate: true,
-                    agreeToTerms: true
+                    agreeToTerms: true,
                 };
 
             case "withTranslations":
@@ -179,7 +179,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     handle: this.generateHandle(),
                     name: "Multilingual User",
                     bio: "A user who speaks multiple languages",
-                    agreeToTerms: true
+                    agreeToTerms: true,
                 };
 
             case "withWallets":
@@ -190,7 +190,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     handle: this.generateHandle(),
                     name: "Crypto User",
                     bio: "I use cryptocurrency wallets",
-                    agreeToTerms: true
+                    agreeToTerms: true,
                 };
 
             case "premiumUser":
@@ -201,7 +201,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     handle: this.generateHandle(),
                     name: "Premium User",
                     bio: "I have a premium account",
-                    agreeToTerms: true
+                    agreeToTerms: true,
                 };
 
             default:
@@ -216,7 +216,7 @@ export class UserFixtureFactory implements FixtureFactory<
         switch (scenario) {
             case "minimal":
                 return {
-                    name: "Updated Name"
+                    name: "Updated Name",
                 };
 
             case "complete":
@@ -225,7 +225,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     name: "Fully Updated User",
                     bio: "Updated biography with new information",
                     theme: "dark",
-                    isPrivate: false
+                    isPrivate: false,
                 };
 
             case "withImages":
@@ -233,7 +233,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     name: "User With Images",
                     bio: "Updated with profile and banner images",
                     profileImage: "profile.jpg", // In real tests, this would be a File object
-                    bannerImage: "banner.jpg"
+                    bannerImage: "banner.jpg",
                 };
 
             default:
@@ -259,8 +259,8 @@ export class UserFixtureFactory implements FixtureFactory<
                 __typename: "UserTranslation" as const,
                 id: this.generateId(),
                 language: "en",
-                bio: formData.bio
-            }] : null
+                bio: formData.bio,
+            }] : null,
         };
 
         // Use real shape function from @vrooli/shared
@@ -283,7 +283,7 @@ export class UserFixtureFactory implements FixtureFactory<
             updateInput.translationsUpdate = [{
                 id: this.generateId(),
                 language: "en",
-                bio: updates.bio
+                bio: updates.bio,
             }];
         }
 
@@ -338,7 +338,7 @@ export class UserFixtureFactory implements FixtureFactory<
                 __typename: "Email",
                 id: this.generateId(),
                 emailAddress: this.generateEmail(),
-                verified: true
+                verified: true,
             }],
             wallets: [],
             walletsCount: 0,
@@ -346,7 +346,7 @@ export class UserFixtureFactory implements FixtureFactory<
                 __typename: "UserTranslation",
                 id: this.generateId(),
                 language: "en",
-                bio: null
+                bio: null,
             }],
             translationsCount: 1,
             roles: [],
@@ -368,7 +368,7 @@ export class UserFixtureFactory implements FixtureFactory<
                 codeCompletedCount: 0,
                 routineCommentCount: 0,
                 chatsCount: 0,
-                totalVotes: 0
+                totalVotes: 0,
             },
             you: {
                 __typename: "UserYou",
@@ -382,14 +382,14 @@ export class UserFixtureFactory implements FixtureFactory<
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         };
 
         return {
             ...defaultUser,
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -407,8 +407,8 @@ export class UserFixtureFactory implements FixtureFactory<
                     isValid: false,
                     errors: ["Passwords do not match"],
                     fieldErrors: {
-                        confirmPassword: ["Passwords do not match"]
-                    }
+                        confirmPassword: ["Passwords do not match"],
+                    },
                 };
             }
 
@@ -418,8 +418,8 @@ export class UserFixtureFactory implements FixtureFactory<
                     isValid: false,
                     errors: ["You must agree to the terms and conditions"],
                     fieldErrors: {
-                        agreeToTerms: ["You must agree to the terms and conditions"]
-                    }
+                        agreeToTerms: ["You must agree to the terms and conditions"],
+                    },
                 };
             }
             
@@ -434,7 +434,7 @@ export class UserFixtureFactory implements FixtureFactory<
                         acc[err.path].push(err.message);
                     }
                     return acc;
-                }, {})
+                }, {}),
             };
         }
     }
@@ -457,7 +457,7 @@ export class UserFixtureFactory implements FixtureFactory<
                         acc[err.path].push(err.message);
                     }
                     return acc;
-                }, {})
+                }, {}),
             };
         }
     }
@@ -466,7 +466,7 @@ export class UserFixtureFactory implements FixtureFactory<
      * Create MSW handlers for different scenarios
      */
     createMSWHandlers(): MSWHandlers {
-        const baseUrl = process.env.VITE_SERVER_URL || 'http://localhost:3000';
+        const baseUrl = process.env.VITE_SERVER_URL || "http://localhost:3000";
 
         return {
             success: [
@@ -481,8 +481,8 @@ export class UserFixtureFactory implements FixtureFactory<
                             ctx.status(400),
                             ctx.json({ 
                                 errors: validation.errors,
-                                fieldErrors: validation.fieldErrors 
-                            })
+                                fieldErrors: validation.fieldErrors, 
+                            }),
                         );
                     }
 
@@ -491,15 +491,15 @@ export class UserFixtureFactory implements FixtureFactory<
                         email: body.email,
                         handle: body.handle,
                         name: body.name,
-                        emailVerified: false // New users need to verify email
+                        emailVerified: false, // New users need to verify email
                     });
 
                     return res(
                         ctx.status(201),
                         ctx.json({
                             user: mockUser,
-                            sessionToken: `test_session_${Date.now()}`
-                        })
+                            sessionToken: `test_session_${Date.now()}`,
+                        }),
                     );
                 }),
 
@@ -508,15 +508,15 @@ export class UserFixtureFactory implements FixtureFactory<
                     const body = await req.json();
 
                     const mockUser = this.createMockResponse({
-                        email: body.email
+                        email: body.email,
                     });
 
                     return res(
                         ctx.status(200),
                         ctx.json({
                             user: mockUser,
-                            sessionToken: `test_session_${Date.now()}`
-                        })
+                            sessionToken: `test_session_${Date.now()}`,
+                        }),
                     );
                 }),
 
@@ -531,20 +531,20 @@ export class UserFixtureFactory implements FixtureFactory<
                             ctx.status(400),
                             ctx.json({ 
                                 errors: validation.errors,
-                                fieldErrors: validation.fieldErrors 
-                            })
+                                fieldErrors: validation.fieldErrors, 
+                            }),
                         );
                     }
 
                     const mockUser = this.createMockResponse({ 
                         id: id as string,
                         ...body,
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date().toISOString(),
                     });
 
                     return res(
                         ctx.status(200),
-                        ctx.json(mockUser)
+                        ctx.json(mockUser),
                     );
                 }),
 
@@ -555,18 +555,18 @@ export class UserFixtureFactory implements FixtureFactory<
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(mockUser)
+                        ctx.json(mockUser),
                     );
                 }),
 
                 // Current user
                 rest.get(`${baseUrl}/api/auth/me`, (req, res, ctx) => {
-                    const authHeader = req.headers.get('Authorization');
+                    const authHeader = req.headers.get("Authorization");
                     
-                    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                    if (!authHeader || !authHeader.startsWith("Bearer ")) {
                         return res(
                             ctx.status(401),
-                            ctx.json({ error: 'Unauthorized' })
+                            ctx.json({ error: "Unauthorized" }),
                         );
                     }
 
@@ -574,9 +574,9 @@ export class UserFixtureFactory implements FixtureFactory<
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(mockUser)
+                        ctx.json(mockUser),
                     );
-                })
+                }),
             ],
 
             error: [
@@ -584,9 +584,9 @@ export class UserFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(409),
                         ctx.json({ 
-                            message: 'Email already exists',
-                            code: 'EMAIL_EXISTS' 
-                        })
+                            message: "Email already exists",
+                            code: "EMAIL_EXISTS", 
+                        }),
                     );
                 }),
 
@@ -594,9 +594,9 @@ export class UserFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(401),
                         ctx.json({ 
-                            message: 'Invalid credentials',
-                            code: 'INVALID_CREDENTIALS' 
-                        })
+                            message: "Invalid credentials",
+                            code: "INVALID_CREDENTIALS", 
+                        }),
                     );
                 }),
 
@@ -604,11 +604,11 @@ export class UserFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(403),
                         ctx.json({ 
-                            message: 'Forbidden: Cannot update other users',
-                            code: 'FORBIDDEN' 
-                        })
+                            message: "Forbidden: Cannot update other users",
+                            code: "FORBIDDEN", 
+                        }),
                     );
-                })
+                }),
             ],
 
             loading: [
@@ -618,20 +618,20 @@ export class UserFixtureFactory implements FixtureFactory<
                         ctx.status(201),
                         ctx.json({
                             user: this.createMockResponse(),
-                            sessionToken: `test_session_${Date.now()}`
-                        })
+                            sessionToken: `test_session_${Date.now()}`,
+                        }),
                     );
-                })
+                }),
             ],
 
             networkError: [
                 rest.post(`${baseUrl}/api/auth/register`, (req, res, ctx) => {
-                    return res.networkError('Network connection failed');
+                    return res.networkError("Network connection failed");
                 }),
                 rest.post(`${baseUrl}/api/auth/login`, (req, res, ctx) => {
-                    return res.networkError('Network connection failed');
-                })
-            ]
+                    return res.networkError("Network connection failed");
+                }),
+            ],
         };
     }
 
@@ -646,7 +646,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     user: null,
                     error: null,
                     isAuthenticated: false,
-                    isEmailVerified: false
+                    isEmailVerified: false,
                 };
 
             case "error":
@@ -655,7 +655,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     user: null,
                     error: data?.message || "Authentication failed",
                     isAuthenticated: false,
-                    isEmailVerified: false
+                    isEmailVerified: false,
                 };
 
             case "authenticated":
@@ -666,7 +666,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     error: null,
                     isAuthenticated: true,
                     isEmailVerified: user.emailVerified,
-                    sessionToken: `test_session_${Date.now()}`
+                    sessionToken: `test_session_${Date.now()}`,
                 };
 
             case "emailUnverified":
@@ -677,7 +677,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     error: null,
                     isAuthenticated: true,
                     isEmailVerified: false,
-                    sessionToken: `test_session_${Date.now()}`
+                    sessionToken: `test_session_${Date.now()}`,
                 };
 
             case "unauthenticated":
@@ -687,7 +687,7 @@ export class UserFixtureFactory implements FixtureFactory<
                     user: null,
                     error: null,
                     isAuthenticated: false,
-                    isEmailVerified: false
+                    isEmailVerified: false,
                 };
         }
     }
@@ -701,30 +701,30 @@ export class UserFixtureFactory implements FixtureFactory<
                 __typename: "Role" as const,
                 id: this.generateId(),
                 name: role,
-                permissions: []
+                permissions: [],
             })),
-            rolesCount: roles.length
+            rolesCount: roles.length,
         });
     }
 
     /**
      * Create a premium user
      */
-    createPremiumUser(expirationDays: number = 30): User {
+    createPremiumUser(expirationDays = 30): User {
         const expiration = new Date();
         expiration.setDate(expiration.getDate() + expirationDays);
         
         return this.createMockResponse({
             hasPremium: true,
             premium: true,
-            premiumExpiration: expiration.toISOString()
+            premiumExpiration: expiration.toISOString(),
         });
     }
 
     /**
      * Create a user with wallets
      */
-    createWithWallets(walletCount: number = 1): User {
+    createWithWallets(walletCount = 1): User {
         const wallets: Wallet[] = Array.from({ length: walletCount }, (_, i) => ({
             __typename: "Wallet",
             id: this.generateId(),
@@ -733,12 +733,12 @@ export class UserFixtureFactory implements FixtureFactory<
             stakingAddress: null,
             verified: true,
             createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
         }));
 
         return this.createMockResponse({
             wallets,
-            walletsCount: walletCount
+            walletsCount: walletCount,
         });
     }
 
@@ -750,37 +750,37 @@ export class UserFixtureFactory implements FixtureFactory<
             {
                 name: "Valid registration",
                 formData: this.createFormData("minimal"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Complete profile",
                 formData: this.createFormData("complete"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Invalid email",
                 formData: { ...this.createFormData("minimal"), email: "not-an-email" },
                 shouldSucceed: false,
-                expectedError: "email must be a valid email"
+                expectedError: "email must be a valid email",
             },
             {
                 name: "Weak password",
                 formData: { ...this.createFormData("minimal"), password: "123", confirmPassword: "123" },
                 shouldSucceed: false,
-                expectedError: "password must be at least"
+                expectedError: "password must be at least",
             },
             {
                 name: "Password mismatch",
                 formData: { ...this.createFormData("minimal"), confirmPassword: "different" },
                 shouldSucceed: false,
-                expectedError: "Passwords do not match"
+                expectedError: "Passwords do not match",
             },
             {
                 name: "Terms not agreed",
                 formData: { ...this.createFormData("minimal"), agreeToTerms: false },
                 shouldSucceed: false,
-                expectedError: "You must agree to the terms"
-            }
+                expectedError: "You must agree to the terms",
+            },
         ];
     }
 }
@@ -825,5 +825,5 @@ export const userTestScenarios = {
     successHandlers: () => userFixtures.createMSWHandlers().success,
     errorHandlers: () => userFixtures.createMSWHandlers().error,
     loadingHandlers: () => userFixtures.createMSWHandlers().loading,
-    networkErrorHandlers: () => userFixtures.createMSWHandlers().networkError
+    networkErrorHandlers: () => userFixtures.createMSWHandlers().networkError,
 };

@@ -1,0 +1,21 @@
+{
+    "extends": "../../.eslintrc",
+    "parserOptions": {
+        "ecmaVersion": 2018,
+        "sourceType": "module",
+        "project": "./tsconfig.json",
+        "tsconfigRootDir": "/root/Vrooli/packages/integration"
+    },
+    "rules": {
+        // Allow console in tests
+        "no-console": "off",
+        // Allow any in test files
+        "@typescript-eslint/no-explicit-any": "off",
+        // Allow non-null assertions in tests
+        "@typescript-eslint/no-non-null-assertion": "off",
+        // Relax magic numbers in tests
+        "no-magic-numbers": "off",
+        // Temporarily disable type imports rule due to bug with test files
+        "@typescript-eslint/consistent-type-imports": "off"
+    }
+}

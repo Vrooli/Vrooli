@@ -216,7 +216,7 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
         }
 
         // Check business logic - must have exactly one viewed object
-        const viewableFields = ['resourceId', 'resourceVersionId', 'teamId', 'userId'];
+        const viewableFields = ["resourceId", "resourceVersionId", "teamId", "userId"];
         const connectedObjects = viewableFields.filter(field => data[field as keyof Prisma.viewUncheckedCreateInput]);
         
         if (connectedObjects.length === 0) {
@@ -236,7 +236,7 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
     // Static methods for backward compatibility
     static createMinimal(
         byId: string,
-        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         const factory = new ViewDbFactory();
         return factory.createMinimal({
@@ -249,21 +249,21 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
         byId: string,
         objectId: string,
         objectType: ViewFor | "Issue" | "Resource" | "Team" | "User",
-        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         const factory = new ViewDbFactory();
         
         // Map ViewFor enum and legacy types to field names
         const typeMapping: Record<string, string> = {
-            [ViewFor.Resource]: 'resourceId',
-            [ViewFor.ResourceVersion]: 'resourceVersionId',
-            [ViewFor.Team]: 'teamId',
-            [ViewFor.User]: 'userId',
+            [ViewFor.Resource]: "resourceId",
+            [ViewFor.ResourceVersion]: "resourceVersionId",
+            [ViewFor.Team]: "teamId",
+            [ViewFor.User]: "userId",
             // Legacy mappings
-            'Issue': 'issueId',
-            'Resource': 'resourceId',
-            'Team': 'teamId',
-            'User': 'userId',
+            "Issue": "issueId",
+            "Resource": "resourceId",
+            "Team": "teamId",
+            "User": "userId",
         };
 
         const fieldName = typeMapping[objectType];
@@ -283,18 +283,18 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
         sessionId: string,
         objectId: string,
         objectType: ViewFor | "Issue" | "Resource" | "Team" | "User",
-        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         const factory = new ViewDbFactory();
         const typeMapping: Record<string, string> = {
-            [ViewFor.Resource]: 'resourceId',
-            [ViewFor.ResourceVersion]: 'resourceVersionId',
-            [ViewFor.Team]: 'teamId',
-            [ViewFor.User]: 'userId',
-            'Issue': 'issueId',
-            'Resource': 'resourceId',
-            'Team': 'teamId',
-            'User': 'userId',
+            [ViewFor.Resource]: "resourceId",
+            [ViewFor.ResourceVersion]: "resourceVersionId",
+            [ViewFor.Team]: "teamId",
+            [ViewFor.User]: "userId",
+            "Issue": "issueId",
+            "Resource": "resourceId",
+            "Team": "teamId",
+            "User": "userId",
         };
 
         const fieldName = typeMapping[objectType];
@@ -314,7 +314,7 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
     static createWithTimestamp(
         byId: string,
         viewedAt: Date,
-        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         return this.createMinimal(byId, {
             lastViewedAt: viewedAt,
@@ -324,19 +324,19 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
 
     static createViewHistory(
         byId: string,
-        objects: Array<{ id: string; type: ViewFor | "Issue" | "Resource" | "Team" | "User"; viewedAt?: Date }>
+        objects: Array<{ id: string; type: ViewFor | "Issue" | "Resource" | "Team" | "User"; viewedAt?: Date }>,
     ): Prisma.viewUncheckedCreateInput[] {
         return objects.map((obj, index) => 
             this.createForObject(byId, obj.id, obj.type, {
                 lastViewedAt: obj.viewedAt || new Date(Date.now() - (index * 60000)), // 1 minute intervals
-            })
+            }),
         );
     }
 
     static createForIssue(
         byId: string,
         issueId: string,
-        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         return this.createForObject(byId, issueId, "Issue", overrides);
     }
@@ -344,7 +344,7 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
     static createForResource(
         byId: string,
         resourceId: string,
-        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         return this.createForObject(byId, resourceId, ViewFor.Resource, overrides);
     }
@@ -352,7 +352,7 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
     static createForTeam(
         byId: string,
         teamId: string,
-        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         return this.createForObject(byId, teamId, ViewFor.Team, overrides);
     }
@@ -360,7 +360,7 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
     static createForUser(
         byId: string,
         userId: string,
-        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         return this.createForObject(byId, userId, ViewFor.User, overrides);
     }
@@ -376,7 +376,7 @@ export async function seedViews(
         bySessionId?: string;
         objects: Array<{ id: string; type: ViewFor | "Issue" | "Resource" | "Team" | "User" }>;
         withTimestamps?: boolean;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const views = [];
 
@@ -393,7 +393,7 @@ export async function seedViews(
                 obj.type,
                 options.withTimestamps ? {
                     lastViewedAt: new Date(Date.now() - (i * 60000)), // 1 minute intervals
-                } : undefined
+                } : undefined,
             )
             : ViewDbFactory.createAnonymousView(
                 options.bySessionId!,
@@ -401,7 +401,7 @@ export async function seedViews(
                 obj.type,
                 options.withTimestamps ? {
                     lastViewedAt: new Date(Date.now() - (i * 60000)),
-                } : undefined
+                } : undefined,
             );
 
         const view = await prisma.view.create({
@@ -435,7 +435,7 @@ export async function seedViews(
 export async function seedRecentActivity(
     prisma: any,
     userId: string,
-    count: number = 5
+    count = 5,
 ): Promise<BulkSeedResult<any>> {
     const activities = [];
     const now = new Date();
@@ -448,7 +448,7 @@ export async function seedRecentActivity(
             viewedAt,
             {
                 name: `Recent Activity ${i + 1}`,
-            }
+            },
         );
 
         const activity = await prisma.view.create({
@@ -481,7 +481,7 @@ export async function seedViewAnalytics(
         sessionIds?: string[];
         daysBack?: number;
         viewsPerDay?: number;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const views = [];
     const { viewerIds = [], sessionIds = [], daysBack = 7, viewsPerDay = 3 } = options;
@@ -496,7 +496,7 @@ export async function seedViewAnalytics(
         for (let view = 0; view < viewsPerDay; view++) {
             const useSession = sessionIds.length > 0 && (viewerIds.length === 0 || Math.random() > 0.5);
             const viewedAt = new Date(
-                now.getTime() - (day * 24 * 60 * 60 * 1000) - (view * 60 * 60 * 1000)
+                now.getTime() - (day * 24 * 60 * 60 * 1000) - (view * 60 * 60 * 1000),
             );
 
             const viewData = useSession
@@ -507,7 +507,7 @@ export async function seedViewAnalytics(
                     {
                         lastViewedAt: viewedAt,
                         name: `Analytics View Day ${day + 1} #${view + 1} (Anonymous)`,
-                    }
+                    },
                 )
                 : ViewDbFactory.createForObject(
                     viewerIds[view % viewerIds.length],
@@ -516,7 +516,7 @@ export async function seedViewAnalytics(
                     {
                         lastViewedAt: viewedAt,
                         name: `Analytics View Day ${day + 1} #${view + 1}`,
-                    }
+                    },
                 );
 
             if (useSession) anonymousCount++;
@@ -553,7 +553,7 @@ export async function seedViewsByDateRange(
         startDate: Date;
         endDate: Date;
         viewsPerDay?: number;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const views = [];
     const { userId, objectId, objectType, startDate, endDate, viewsPerDay = 1 } = options;
@@ -563,7 +563,7 @@ export async function seedViewsByDateRange(
     for (let day = 0; day < days; day++) {
         for (let viewNum = 0; viewNum < viewsPerDay; viewNum++) {
             const viewedAt = new Date(
-                startDate.getTime() + (day * 24 * 60 * 60 * 1000) + (viewNum * 60 * 60 * 1000)
+                startDate.getTime() + (day * 24 * 60 * 60 * 1000) + (viewNum * 60 * 60 * 1000),
             );
             
             if (viewedAt > endDate) break;
@@ -575,7 +575,7 @@ export async function seedViewsByDateRange(
                 {
                     lastViewedAt: viewedAt,
                     name: `Date Range View Day ${day + 1} #${viewNum + 1}`,
-                }
+                },
             );
             
             const view = await prisma.view.create({ data: viewData });

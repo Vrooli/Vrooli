@@ -9,7 +9,7 @@ export class MemberInviteDbFactory {
     static createMinimal(
         teamId: string,
         userId: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>
+        overrides?: Partial<Prisma.MemberInviteCreateInput>,
     ): Prisma.MemberInviteCreateInput {
         return {
             id: generatePK(),
@@ -25,7 +25,7 @@ export class MemberInviteDbFactory {
         teamId: string,
         userId: string,
         message: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>
+        overrides?: Partial<Prisma.MemberInviteCreateInput>,
     ): Prisma.MemberInviteCreateInput {
         return this.createMinimal(teamId, userId, {
             message,
@@ -36,7 +36,7 @@ export class MemberInviteDbFactory {
     static createAccepted(
         teamId: string,
         userId: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>
+        overrides?: Partial<Prisma.MemberInviteCreateInput>,
     ): Prisma.MemberInviteCreateInput {
         return this.createMinimal(teamId, userId, {
             status: "Accepted",
@@ -47,7 +47,7 @@ export class MemberInviteDbFactory {
     static createDeclined(
         teamId: string,
         userId: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>
+        overrides?: Partial<Prisma.MemberInviteCreateInput>,
     ): Prisma.MemberInviteCreateInput {
         return this.createMinimal(teamId, userId, {
             status: "Declined",
@@ -67,7 +67,7 @@ export async function seedMemberInvites(
         status?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
         messagePrefix?: string;
-    }
+    },
 ) {
     const invites = [];
 
@@ -84,7 +84,7 @@ export async function seedMemberInvites(
             inviteData = MemberInviteDbFactory.createWithMessage(
                 options.teamId,
                 userId,
-                `${messagePrefix} for user ${i + 1}`
+                `${messagePrefix} for user ${i + 1}`,
             );
         } else {
             inviteData = MemberInviteDbFactory.createMinimal(options.teamId, userId);
@@ -113,7 +113,7 @@ export async function createTeamWithInvites(
         invitedUserIds: string[];
         inviteStatus?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
-    }
+    },
 ) {
     // Create the team first
     const team = await prisma.team.create({

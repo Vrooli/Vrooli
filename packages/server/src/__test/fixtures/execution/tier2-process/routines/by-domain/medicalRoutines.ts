@@ -33,8 +33,8 @@ export const MEDICAL_DIAGNOSIS_VALIDATION: RoutineFixture = {
                 maxTokens: 1000,
                 model: null,
                 prompt: "Validate the following medical diagnosis:\n\nDiagnosis: {{input.diagnosis}}\nPatient Demographics: {{input.demographics}}\nSymptoms: {{input.symptoms}}\n\nCheck for:\n1. Clinical accuracy against latest guidelines\n2. Potential demographic bias\n3. Missing critical symptoms\n4. Safety concerns\n\nProvide a detailed validation report.",
-                respondingBot: null
-            }
+                respondingBot: null,
+            },
         } as CallDataGenerateConfigObject,
         formInput: {
             __version: "1.0",
@@ -47,7 +47,7 @@ export const MEDICAL_DIAGNOSIS_VALIDATION: RoutineFixture = {
                         label: "AI Diagnosis",
                         type: InputType.Text,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "demographics",
@@ -55,7 +55,7 @@ export const MEDICAL_DIAGNOSIS_VALIDATION: RoutineFixture = {
                         label: "Patient Demographics",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {}
+                        props: {},
                     },
                     {
                         fieldName: "symptoms",
@@ -63,10 +63,10 @@ export const MEDICAL_DIAGNOSIS_VALIDATION: RoutineFixture = {
                         label: "Symptoms",
                         type: InputType.Text,
                         isRequired: true,
-                        props: {}
-                    }
-                ]
-            }
+                        props: {},
+                    },
+                ],
+            },
         } as FormInputConfigObject,
         formOutput: {
             __version: "1.0",
@@ -79,11 +79,11 @@ export const MEDICAL_DIAGNOSIS_VALIDATION: RoutineFixture = {
                         label: "Validation Report",
                         type: InputType.Text,
                         props: {
-                            disabled: true
-                        }
-                    }
-                ]
-            }
+                            disabled: true,
+                        },
+                    },
+                ],
+            },
         } as FormOutputConfigObject,
         executionStrategy: "reasoning" as const,
     } as RoutineVersionConfigObject,

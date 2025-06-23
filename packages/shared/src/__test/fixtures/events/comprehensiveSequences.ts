@@ -296,18 +296,18 @@ export const systemReliabilitySequences = {
         { delay: 30000 }, // 30 second lockdown
 
         // Investigation and resolution
-        systemEventFixtures.security.investigating,
+        systemEventFixtures.security.incident,
         { delay: 60000 }, // 1 minute investigation
         systemEventFixtures.security.resolved,
         { delay: 5000 },
 
         // Service restoration
-        systemEventFixtures.health.healthy,
+        systemEventFixtures.status.healthy,
         { delay: 2000 },
 
         // Users can reconnect
         socketEventFixtures.connection.connected,
-        notificationEventFixtures.notifications.serviceRestored,
+        notificationEventFixtures.notifications.systemUpdate,
     ],
 };
 
@@ -328,19 +328,19 @@ export const performanceTestSequences = {
 
         // System responds to load
         { delay: 1000 },
-        systemEventFixtures.performance.highThroughput,
+        systemEventFixtures.performance.alert,
         { delay: 2000 },
-        systemEventFixtures.performance.memoryPressure,
+        systemEventFixtures.performance.critical,
         { delay: 3000 },
 
         // Load balancing kicks in
-        systemEventFixtures.performance.scalingUp,
+        systemEventFixtures.performance.alert,
         { delay: 5000 },
-        systemEventFixtures.performance.loadBalanced,
+        systemEventFixtures.performance.recovered,
         { delay: 2000 },
 
         // Performance stabilizes
-        systemEventFixtures.performance.optimized,
+        systemEventFixtures.performance.recovered,
     ],
 
     /**
@@ -368,13 +368,13 @@ export const performanceTestSequences = {
         { delay: 500 },
 
         // Resource contention
-        systemEventFixtures.performance.cpuPressure,
+        systemEventFixtures.performance.critical,
         { delay: 2000 },
-        swarmEventFixtures.resources.contention,
+        swarmEventFixtures.resources.lowResources,
         { delay: 1000 },
 
         // Resource allocation optimization
-        swarmEventFixtures.resources.rebalancing,
+        swarmEventFixtures.resources.consumptionUpdate,
         { delay: 3000 },
 
         // Swarms complete staggered
@@ -386,7 +386,7 @@ export const performanceTestSequences = {
 
         // System resources normalize
         { delay: 1000 },
-        systemEventFixtures.performance.optimized,
+        systemEventFixtures.performance.recovered,
     ],
 };
 
@@ -399,7 +399,7 @@ export const errorRecoverySequences = {
      */
     cascadingFailure: [
         // Initial failure
-        systemEventFixtures.health.degraded,
+        systemEventFixtures.status.degraded,
         { delay: 1000 },
 
         // Chat service affected
@@ -411,11 +411,11 @@ export const errorRecoverySequences = {
         { delay: 1000 },
 
         // Database connection issues
-        systemEventFixtures.performance.databaseSlow,
+        systemEventFixtures.performance.critical,
         { delay: 2000 },
 
         // Full outage
-        systemEventFixtures.health.outage,
+        systemEventFixtures.status.critical,
         { delay: 500 },
 
         // User disconnections
@@ -428,15 +428,15 @@ export const errorRecoverySequences = {
         { delay: 5000 },
 
         // Recovery begins
-        systemEventFixtures.health.recovering,
+        systemEventFixtures.status.degraded,
         { delay: 10000 }, // 10 second recovery
 
         // Services restore gradually
-        systemEventFixtures.performance.normalizing,
+        systemEventFixtures.performance.recovered,
         { delay: 3000 },
         swarmEventFixtures.state.running,
         { delay: 2000 },
-        systemEventFixtures.health.healthy,
+        systemEventFixtures.status.healthy,
         { delay: 1000 },
 
         // Users reconnect
@@ -447,7 +447,7 @@ export const errorRecoverySequences = {
         chatEventFixtures.messages.textMessage,
         { delay: 100 },
         chatEventFixtures.responseStream.streamStart,
-        notificationEventFixtures.notifications.serviceRestored,
+        notificationEventFixtures.notifications.systemUpdate,
     ],
 
     /**
@@ -460,20 +460,20 @@ export const errorRecoverySequences = {
 
         // First timeout
         { delay: 30000 },
-        collaborationEventFixtures.runTask.taskTimeout,
+        collaborationEventFixtures.runTask.taskFailed,
         { delay: 1000 },
 
         // Retry with backoff
-        collaborationEventFixtures.runTask.taskRetrying,
+        collaborationEventFixtures.runTask.taskCreated,
         { delay: 2000 },
 
         // Second timeout
         { delay: 30000 },
-        collaborationEventFixtures.runTask.taskTimeout,
+        collaborationEventFixtures.runTask.taskFailed,
         { delay: 2000 },
 
         // Final retry with longer timeout
-        collaborationEventFixtures.runTask.taskRetrying,
+        collaborationEventFixtures.runTask.taskCreated,
         { delay: 5000 },
 
         // Success
@@ -527,7 +527,7 @@ export const businessWorkflowSequences = {
 
         // Session complete
         collaborationEventFixtures.runTask.taskCompleted,
-        notificationEventFixtures.notifications.supportResolved,
+        notificationEventFixtures.notifications.taskComplete,
     ],
 
     /**
@@ -539,45 +539,45 @@ export const businessWorkflowSequences = {
         { delay: 200 },
 
         // AI swarm assembles
-        swarmEventFixtures.configuration.configUpdate,
+        swarmEventFixtures.config.configUpdate,
         { delay: 500 },
         swarmEventFixtures.state.starting,
         { delay: 1000 },
-        swarmEventFixtures.team.forming,
+        swarmEventFixtures.team.initialTeam,
         { delay: 500 },
         swarmEventFixtures.state.running,
         { delay: 1000 },
 
         // Research phase
-        swarmEventFixtures.resources.allocating,
+        swarmEventFixtures.resources.initialAllocation,
         { delay: 2000 },
-        collaborationEventFixtures.runTask.researchPhase,
+        collaborationEventFixtures.runTask.taskInProgress,
         { delay: 10000 }, // Research takes time
 
         // Writing phase
-        collaborationEventFixtures.runTask.writingPhase,
+        collaborationEventFixtures.runTask.taskInProgress,
         { delay: 15000 }, // Writing takes longer
 
         // Review required
-        collaborationEventFixtures.decisionRequest.reviewRequired,
+        collaborationEventFixtures.decisionRequest.approvalDecision,
         { delay: 30000 }, // User reviews
-        collaborationEventFixtures.decisionRequest.changesRequested,
+        collaborationEventFixtures.decisionRequest.approvalDecision,
         { delay: 5000 },
 
         // Revision phase
-        collaborationEventFixtures.runTask.revisionPhase,
+        collaborationEventFixtures.runTask.taskInProgress,
         { delay: 8000 },
 
         // Final approval
-        collaborationEventFixtures.decisionRequest.finalApproval,
+        collaborationEventFixtures.decisionRequest.approvalDecision,
         { delay: 10000 },
-        collaborationEventFixtures.decisionRequest.approved,
+        collaborationEventFixtures.decisionRequest.approvalDecision,
         { delay: 500 },
 
         // Project complete
         swarmEventFixtures.state.completed,
         collaborationEventFixtures.runTask.taskCompleted,
-        notificationEventFixtures.notifications.projectCompleted,
+        notificationEventFixtures.notifications.taskComplete,
     ],
 };
 
@@ -674,26 +674,33 @@ export class SequenceOrchestrator {
  */
 export const comprehensiveScenarios = {
     // Full-scale application simulation
-    fullScale: new SequenceOrchestrator().combineSequences([
-        { name: "system_startup", sequence: systemReliabilitySequences.plannedMaintenance.slice(-5), delay: 1000 },
-        { name: "user_onboarding", sequence: userJourneySequences.newUserOnboarding, delay: 2000 },
-        { name: "advanced_workflow", sequence: userJourneySequences.advancedUserWorkflow, delay: 5000 },
-        { name: "multi_user", sequence: userJourneySequences.multiUserCollaboration, delay: 3000 },
-    ]),
+    fullScale: [
+        ...systemReliabilitySequences.plannedMaintenance.slice(-5),
+        { delay: 1000 },
+        ...userJourneySequences.newUserOnboarding,
+        { delay: 2000 },
+        ...userJourneySequences.advancedUserWorkflow,
+        { delay: 5000 },
+        ...userJourneySequences.multiUserCollaboration,
+    ],
 
-    // Stress testing scenario
-    stressTest: new SequenceOrchestrator().createParallelScenario([
-        { name: "high_load_chat", sequence: performanceTestSequences.highLoadChat, userContext: "user_1" },
-        { name: "concurrent_swarms", sequence: performanceTestSequences.concurrentSwarms, userContext: "user_2" },
-        { name: "customer_support", sequence: businessWorkflowSequences.customerSupport, userContext: "user_3" },
-    ]),
+    // Stress testing scenario (simplified)
+    stressTest: [
+        ...performanceTestSequences.highLoadChat,
+        { delay: 3000 },
+        ...performanceTestSequences.concurrentSwarms,
+        { delay: 2000 },
+        ...businessWorkflowSequences.customerSupport,
+    ],
 
     // Disaster recovery scenario
-    disasterRecovery: new SequenceOrchestrator().combineSequences([
-        { name: "normal_operation", sequence: userJourneySequences.advancedUserWorkflow.slice(0, 10), delay: 5000 },
-        { name: "cascading_failure", sequence: errorRecoverySequences.cascadingFailure, delay: 2000 },
-        { name: "full_recovery", sequence: userJourneySequences.newUserOnboarding.slice(-5), delay: 10000 },
-    ]),
+    disasterRecovery: [
+        ...userJourneySequences.advancedUserWorkflow.slice(0, 10),
+        { delay: 5000 },
+        ...errorRecoverySequences.cascadingFailure,
+        { delay: 2000 },
+        ...userJourneySequences.newUserOnboarding.slice(-5),
+    ],
 };
 
 // Export all sequence collections

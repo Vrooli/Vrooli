@@ -151,7 +151,7 @@ export class EventAgent {
     ): Promise<AgentResponse> {
         // Default response based on agent capabilities and analysis
         let status: AgentResponse["status"] = "OK";
-        let confidence = analysis.confidence;
+        const confidence = analysis.confidence;
         let reasoning = "Event processed successfully";
         const suggestedActions: string[] = [];
 

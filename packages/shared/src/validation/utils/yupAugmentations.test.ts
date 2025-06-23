@@ -206,13 +206,13 @@ describe("Yup Augmentations Tests", () => {
         it("should work with both augmentations in a schema", () => {
             const schema = yup.object({
                 name: yup.string().removeEmptyString().required("Name is required"),
-                isActive: yup.bool().toBool().required("Active status is required")
+                isActive: yup.bool().toBool().required("Active status is required"),
             });
 
             // Valid data
             const validData = {
                 name: "John Doe",
-                isActive: "true"
+                isActive: "true",
             };
             expect(() => schema.validateSync(validData)).not.toThrow();
             
@@ -223,7 +223,7 @@ describe("Yup Augmentations Tests", () => {
             // Invalid data - empty name
             const invalidData = {
                 name: "   ",
-                isActive: "1"
+                isActive: "1",
             };
             expect(() => schema.validateSync(invalidData)).toThrow("Name is required");
         });
@@ -234,14 +234,14 @@ describe("Yup Augmentations Tests", () => {
             const schema = yup.object({
                 username: yup.string().removeEmptyString().required(),
                 bio: yup.string().removeEmptyString(), // optional
-                newsletter: yup.bool().toBool().default(false)
+                newsletter: yup.bool().toBool().default(false),
             });
 
             // User submits form with empty optional field
             const formData = {
                 username: "john_doe",
                 bio: "   ", // empty whitespace
-                newsletter: "yes"
+                newsletter: "yes",
             };
 
             const result = schema.validateSync(formData);
@@ -255,7 +255,7 @@ describe("Yup Augmentations Tests", () => {
                 id: yup.number().required(),
                 isVerified: yup.bool().toBool(),
                 isPremium: yup.bool().toBool(),
-                hasNotifications: yup.bool().toBool()
+                hasNotifications: yup.bool().toBool(),
             });
 
             // API returns string representations of booleans
@@ -263,7 +263,7 @@ describe("Yup Augmentations Tests", () => {
                 id: 123,
                 isVerified: "1",
                 isPremium: "false",
-                hasNotifications: "yes"
+                hasNotifications: "yes",
             };
 
             const result = apiResponseSchema.validateSync(apiResponse);
@@ -275,20 +275,20 @@ describe("Yup Augmentations Tests", () => {
         it("should clean up user input strings", () => {
             const searchSchema = yup.object({
                 query: yup.string().removeEmptyString().required("Search is required").min(2, "Search must be at least 2 characters"),
-                includeArchived: yup.bool().toBool().default(false)
+                includeArchived: yup.bool().toBool().default(false),
             });
 
             // User types only spaces - should fail validation due to required field
             // removeEmptyString transforms "  " to undefined, then required() fails
             expect(() => searchSchema.validateSync({
                 query: "  ",
-                includeArchived: "true"
+                includeArchived: "true",
             })).toThrow();
 
             // Valid search
             const result = searchSchema.validateSync({
                 query: "typescript",
-                includeArchived: "1"
+                includeArchived: "1",
             });
             expect(result.query).toBe("typescript");
             expect(result.includeArchived).toBe(true);
@@ -298,14 +298,14 @@ describe("Yup Augmentations Tests", () => {
             const dbRecordSchema = yup.object({
                 enabled: yup.bool().toBool(),
                 deleted: yup.bool().toBool(),
-                published: yup.bool().toBool()
+                published: yup.bool().toBool(),
             });
 
             // Database might return 1/0 for booleans
             const dbRecord = {
                 enabled: 1,
                 deleted: 0,
-                published: 1
+                published: 1,
             };
 
             const result = dbRecordSchema.validateSync(dbRecord);

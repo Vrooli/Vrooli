@@ -22,7 +22,7 @@ export class UserDbFactoryTemplate extends EnhancedDatabaseFactory<
     Prisma.userUpdateInput          // Update input - Prisma namespace
 > {
     constructor(prisma: PrismaClient) {
-        super('user', prisma);
+        super("user", prisma);
     }
 
     protected getPrismaDelegate() {

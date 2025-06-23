@@ -204,6 +204,14 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                 }],
             } as unknown as ScheduleCreateInput,
         },
+        onlyEndTime: {
+            create: {
+                id: validIds.id1,
+                timezone: "America/New_York",
+                endTime: new Date("2025-12-31T23:59:59Z"),
+                // No start time - should fail validation
+            } as ScheduleCreateInput,
+        },
     },
     edgeCases: {
         emptySchedule: {
@@ -226,14 +234,6 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                 startTime: new Date("2025-01-01T00:00:00Z"),
                 // No end time
             },
-        },
-        onlyEndTime: {
-            create: {
-                id: validIds.id1,
-                timezone: "America/New_York",
-                endTime: new Date("2025-12-31T23:59:59Z"),
-                // No start time - should fail validation
-            } as ScheduleCreateInput,
         },
         maxLengthTimezone: {
             create: {

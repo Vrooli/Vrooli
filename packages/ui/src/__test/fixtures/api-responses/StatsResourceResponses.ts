@@ -5,15 +5,15 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     StatsResource,
     StatsResourceSearchInput,
-    PeriodType
-} from '@vrooli/shared';
+    PeriodType,
+} from "@vrooli/shared";
 import { 
-    PeriodType as PeriodTypeEnum 
-} from '@vrooli/shared';
+    PeriodType as PeriodTypeEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -65,7 +65,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class StatsResourceResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -92,14 +92,14 @@ export class StatsResourceResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/stats/resource/${stats.id}`,
                     related: {
-                        resource: `${this.baseUrl}/api/resource/${stats.resource?.id}`
-                    }
-                }
-            }
+                        resource: `${this.baseUrl}/api/resource/${stats.resource?.id}`,
+                    },
+                },
+            },
         };
     }
     
@@ -114,7 +114,7 @@ export class StatsResourceResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: statsList.length,
-            totalCount: statsList.length
+            totalCount: statsList.length,
         };
         
         return {
@@ -122,17 +122,17 @@ export class StatsResourceResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/stats/resource?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/stats/resource?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -142,16 +142,16 @@ export class StatsResourceResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/resource'
-            }
+                path: "/api/stats/resource",
+            },
         };
     }
     
@@ -161,16 +161,16 @@ export class StatsResourceResponseFactory {
     createNotFoundErrorResponse(resourceId: string): APIErrorResponse {
         return {
             error: {
-                code: 'RESOURCE_STATS_NOT_FOUND',
+                code: "RESOURCE_STATS_NOT_FOUND",
                 message: `Resource statistics for ID '${resourceId}' were not found`,
                 details: {
                     resourceId,
-                    searchCriteria: { resourceId }
+                    searchCriteria: { resourceId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/stats/resource/${resourceId}`
-            }
+                path: `/api/stats/resource/${resourceId}`,
+            },
         };
     }
     
@@ -180,17 +180,17 @@ export class StatsResourceResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} resource statistics`,
                 details: {
                     operation,
-                    requiredPermissions: ['stats:read'],
-                    userPermissions: []
+                    requiredPermissions: ["stats:read"],
+                    userPermissions: [],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/resource'
-            }
+                path: "/api/stats/resource",
+            },
         };
     }
     
@@ -200,17 +200,17 @@ export class StatsResourceResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/resource'
-            }
+                path: "/api/stats/resource",
+            },
         };
     }
     
@@ -220,17 +220,17 @@ export class StatsResourceResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/stats/resource'
-            }
+                path: "/api/stats/resource",
+            },
         };
     }
     
@@ -269,14 +269,14 @@ export class StatsResourceResponseFactory {
                     canReport: false,
                     isBookmarked: false,
                     isReacted: false,
-                    reaction: null
-                }
-            }
+                    reaction: null,
+                },
+            },
         };
         
         return {
             ...defaultStats,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -290,22 +290,22 @@ export class StatsResourceResponseFactory {
                 downloads: 500,
                 bookmarks: 150,
                 uses: 800,
-                periodType: PeriodTypeEnum.Month
+                periodType: PeriodTypeEnum.Month,
             }),
             this.createMockStats({
                 views: 1800,
                 downloads: 350,
                 bookmarks: 120,
                 uses: 600,
-                periodType: PeriodTypeEnum.Month
+                periodType: PeriodTypeEnum.Month,
             }),
             this.createMockStats({
                 views: 1200,
                 downloads: 200,
                 bookmarks: 80,
                 uses: 400,
-                periodType: PeriodTypeEnum.Month
-            })
+                periodType: PeriodTypeEnum.Month,
+            }),
         ];
     }
     
@@ -316,8 +316,8 @@ export class StatsResourceResponseFactory {
         const baseStats = this.createMockStats({
             resource: {
                 ...this.createMockStats().resource,
-                id: resourceId
-            }
+                id: resourceId,
+            },
         });
         
         return {
@@ -328,7 +328,7 @@ export class StatsResourceResponseFactory {
                 views: 45,
                 downloads: 8,
                 bookmarks: 3,
-                uses: 12
+                uses: 12,
             },
             [PeriodTypeEnum.Week]: {
                 ...baseStats,
@@ -337,7 +337,7 @@ export class StatsResourceResponseFactory {
                 views: 320,
                 downloads: 65,
                 bookmarks: 25,
-                uses: 95
+                uses: 95,
             },
             [PeriodTypeEnum.Month]: {
                 ...baseStats,
@@ -346,7 +346,7 @@ export class StatsResourceResponseFactory {
                 views: 1500,
                 downloads: 280,
                 bookmarks: 110,
-                uses: 450
+                uses: 450,
             },
             [PeriodTypeEnum.Year]: {
                 ...baseStats,
@@ -355,7 +355,7 @@ export class StatsResourceResponseFactory {
                 views: 18000,
                 downloads: 3500,
                 bookmarks: 1200,
-                uses: 5800
+                uses: 5800,
             },
             [PeriodTypeEnum.AllTime]: {
                 ...baseStats,
@@ -364,15 +364,15 @@ export class StatsResourceResponseFactory {
                 views: 35000,
                 downloads: 7200,
                 bookmarks: 2500,
-                uses: 12000
-            }
+                uses: 12000,
+            },
         };
     }
     
     /**
      * Create time series data for resource analytics
      */
-    createTimeSeriesStats(resourceId: string, days: number = 30): StatsResource[] {
+    createTimeSeriesStats(resourceId: string, days = 30): StatsResource[] {
         const oneDay = 24 * 60 * 60 * 1000;
         const baseTime = Date.now();
         
@@ -383,7 +383,7 @@ export class StatsResourceResponseFactory {
             return this.createMockStats({
                 resource: {
                     ...this.createMockStats().resource,
-                    id: resourceId
+                    id: resourceId,
                 },
                 periodType: PeriodTypeEnum.Day,
                 periodStart: new Date(dayStart).toISOString(),
@@ -391,7 +391,7 @@ export class StatsResourceResponseFactory {
                 views: Math.floor(Math.random() * 100) + 10,
                 downloads: Math.floor(Math.random() * 20) + 1,
                 bookmarks: Math.floor(Math.random() * 10),
-                uses: Math.floor(Math.random() * 30) + 5
+                uses: Math.floor(Math.random() * 30) + 5,
             });
         });
     }
@@ -404,14 +404,14 @@ export class StatsResourceResponseFactory {
             this.createMockStats({
                 resource: {
                     ...this.createMockStats().resource,
-                    id: resourceId
+                    id: resourceId,
                 },
                 periodType: PeriodTypeEnum.Month,
                 views: Math.floor(Math.random() * 2000) + 100,
                 downloads: Math.floor(Math.random() * 400) + 20,
                 bookmarks: Math.floor(Math.random() * 150) + 10,
-                uses: Math.floor(Math.random() * 600) + 50
-            })
+                uses: Math.floor(Math.random() * 600) + 50,
+            }),
         );
     }
 }
@@ -432,10 +432,10 @@ export class StatsResourceMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get resource statistics by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/resource/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
-                const period = url.searchParams.get('period') as PeriodType;
+                const period = url.searchParams.get("period") as PeriodType;
                 
                 if (period) {
                     const statsByPeriod = this.responseFactory.createStatsByPeriod(id as string);
@@ -444,30 +444,30 @@ export class StatsResourceMSWHandlers {
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(response)
+                        ctx.json(response),
                     );
                 }
                 
                 const stats = this.responseFactory.createMockStats({
                     resource: {
                         ...this.responseFactory.createMockStats().resource,
-                        id: id as string
-                    }
+                        id: id as string,
+                    },
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Search resource statistics
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/resource/search`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, async (req, res, ctx) => {
                 const body = await req.json() as StatsResourceSearchInput;
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 let statsList: StatsResource[] = [];
                 
@@ -481,7 +481,7 @@ export class StatsResourceMSWHandlers {
                 if (body.periodType) {
                     statsList = statsList.map(stats => ({
                         ...stats,
-                        periodType: body.periodType!
+                        periodType: body.periodType!,
                     }));
                 }
                 
@@ -494,21 +494,21 @@ export class StatsResourceMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: statsList.length
-                    }
+                        totalCount: statsList.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get trending resources
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/resource/trending`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/trending`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const period = url.searchParams.get('period') as PeriodType || PeriodTypeEnum.Month;
-                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
+                const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 const trendingStats = this.responseFactory.createTrendingResourceStats()
                     .map(stats => ({ ...stats, periodType: period }))
@@ -518,27 +518,27 @@ export class StatsResourceMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get time series data for resource
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/resource/:id/timeseries`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id/timeseries`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
-                const days = parseInt(url.searchParams.get('days') || '30');
+                const days = parseInt(url.searchParams.get("days") || "30");
                 
                 const timeSeriesData = this.responseFactory.createTimeSeriesStats(id as string, days);
                 const response = this.responseFactory.createStatsListResponse(timeSeriesData);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get aggregated statistics for multiple resources
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/resource/aggregate`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/aggregate`, async (req, res, ctx) => {
                 const { resourceIds, periodType } = await req.json() as {
                     resourceIds: string[];
                     periodType: PeriodType;
@@ -551,9 +551,9 @@ export class StatsResourceMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -563,53 +563,53 @@ export class StatsResourceMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/resource/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/resource/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('view'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("view")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/resource/search`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/resource/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const stats = this.responseFactory.createMockStats({
                     resource: {
                         ...this.responseFactory.createMockStats().resource,
-                        id: id as string
-                    }
+                        id: id as string,
+                    },
                 });
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -618,13 +618,13 @@ export class StatsResourceMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/stats/resource/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory['baseUrl']}/api/stats/resource/search`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
-            })
+            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
+            }),
         ];
     }
     
@@ -633,13 +633,13 @@ export class StatsResourceMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -661,14 +661,14 @@ export const statsResourceResponseScenarios = {
     getSuccess: (stats?: StatsResource) => {
         const factory = new StatsResourceResponseFactory();
         return factory.createSuccessResponse(
-            stats || factory.createMockStats()
+            stats || factory.createMockStats(),
         );
     },
     
     searchSuccess: (statsList?: StatsResource[]) => {
         const factory = new StatsResourceResponseFactory();
         return factory.createStatsListResponse(
-            statsList || factory.createTrendingResourceStats()
+            statsList || factory.createTrendingResourceStats(),
         );
     },
     
@@ -684,14 +684,14 @@ export const statsResourceResponseScenarios = {
     timeSeriesData: (resourceId?: string, days?: number) => {
         const factory = new StatsResourceResponseFactory();
         return factory.createStatsListResponse(
-            factory.createTimeSeriesStats(resourceId || 'resource-123', days)
+            factory.createTimeSeriesStats(resourceId || "resource-123", days),
         );
     },
     
     comparativeStats: (resourceIds?: string[]) => {
         const factory = new StatsResourceResponseFactory();
         return factory.createStatsListResponse(
-            factory.createComparativeStats(resourceIds || ['resource-1', 'resource-2', 'resource-3'])
+            factory.createComparativeStats(resourceIds || ["resource-1", "resource-2", "resource-3"]),
         );
     },
     
@@ -699,14 +699,14 @@ export const statsResourceResponseScenarios = {
     notFoundError: (resourceId?: string) => {
         const factory = new StatsResourceResponseFactory();
         return factory.createNotFoundErrorResponse(
-            resourceId || 'non-existent-id'
+            resourceId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new StatsResourceResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'view'
+            operation || "view",
         );
     },
     
@@ -719,7 +719,7 @@ export const statsResourceResponseScenarios = {
     successHandlers: () => new StatsResourceMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new StatsResourceMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new StatsResourceMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new StatsResourceMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new StatsResourceMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

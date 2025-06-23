@@ -24,8 +24,8 @@ export const customerInquiryV1: RoutineFixture = {
         reasoning: {
             approach: "Full chain-of-thought for every inquiry",
             contextWindow: "Entire conversation history",
-            toolUsage: "Dynamic tool selection based on reasoning"
-        }
+            toolUsage: "Dynamic tool selection based on reasoning",
+        },
     },
     
     // Example execution flow
@@ -33,23 +33,23 @@ export const customerInquiryV1: RoutineFixture = {
         {
             name: "Understand Inquiry",
             prompt: "Analyze the customer's message to understand their intent, emotional state, and urgency level.",
-            expectedTime: "10-15s"
+            expectedTime: "10-15s",
         },
         {
             name: "Gather Context",
             prompt: "Review customer history, previous interactions, and account details to build complete context.",
-            expectedTime: "10-15s"
+            expectedTime: "10-15s",
         },
         {
             name: "Formulate Response",
             prompt: "Generate a personalized response addressing all aspects of the inquiry with empathy and clarity.",
-            expectedTime: "15-20s"
+            expectedTime: "15-20s",
         },
         {
             name: "Verify Solution",
             prompt: "Double-check the response for accuracy, completeness, and alignment with company policies.",
-            expectedTime: "10s"
-        }
+            expectedTime: "10s",
+        },
     ],
     
     // Performance metrics from production
@@ -58,7 +58,7 @@ export const customerInquiryV1: RoutineFixture = {
         avgCost: "$0.14",
         accuracy: "92%",
         customerSatisfaction: "85%",
-        scalabilityIssues: "High latency under load"
+        scalabilityIssues: "High latency under load",
     },
     
     // Identified optimization opportunities
@@ -66,6 +66,6 @@ export const customerInquiryV1: RoutineFixture = {
         "60% of inquiries follow predictable patterns",
         "Context gathering often retrieves unused data",
         "Verification step rarely changes the response",
-        "Common inquiries could use templates"
-    ]
+        "Common inquiries could use templates",
+    ],
 };

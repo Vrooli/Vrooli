@@ -167,7 +167,7 @@ export class BaseAPIFixtureFactory<
     
     // Test helper methods
     generateUniqueCreate = (): TCreateInput => {
-        return this.createFactory({ id: this.generateId() } as any);
+        return this.createFactory({ id: this.generateId() } as Partial<TCreateInput>);
     };
     
     generateUniqueUpdate = (id?: string): TUpdateInput => {

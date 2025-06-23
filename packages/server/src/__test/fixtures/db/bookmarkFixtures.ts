@@ -255,7 +255,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
         if (!data.publicId) errors.push("Bookmark publicId is required");
 
         // Check business logic - must have exactly one bookmarkable object
-        const bookmarkableFields = ['api', 'code', 'comment', 'issue', 'note', 'post', 'project', 'prompt', 'question', 'quiz', 'routine', 'runProject', 'runRoutine', 'smartContract', 'standard', 'team', 'user'];
+        const bookmarkableFields = ["api", "code", "comment", "issue", "note", "post", "project", "prompt", "question", "quiz", "routine", "runProject", "runRoutine", "smartContract", "standard", "team", "user"];
         const connectedObjects = bookmarkableFields.filter(field => data[field as keyof Prisma.BookmarkCreateInput]);
         
         if (connectedObjects.length === 0) {
@@ -266,8 +266,8 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
 
         // Check for self-bookmark
         if (data.by && data.user && 
-            typeof data.by === 'object' && 'connect' in data.by &&
-            typeof data.user === 'object' && 'connect' in data.user &&
+            typeof data.by === "object" && "connect" in data.by &&
+            typeof data.user === "object" && "connect" in data.user &&
             data.by.connect.id === data.user.connect.id) {
             warnings.push("User is bookmarking themselves");
         }
@@ -278,7 +278,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
     // Static methods for backward compatibility
     static createMinimal(
         byId: string,
-        overrides?: Partial<Prisma.BookmarkCreateInput>
+        overrides?: Partial<Prisma.BookmarkCreateInput>,
     ): Prisma.BookmarkCreateInput {
         const factory = new BookmarkDbFactory();
         return factory.createMinimal({
@@ -291,7 +291,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
         byId: string,
         objectId: string,
         objectType: BookmarkFor | string,
-        overrides?: Partial<Prisma.BookmarkCreateInput>
+        overrides?: Partial<Prisma.BookmarkCreateInput>,
     ): Prisma.BookmarkCreateInput {
         const baseBookmark = this.createMinimal(byId, overrides);
         
@@ -335,7 +335,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
         listId: string,
         objectId: string,
         objectType: string,
-        overrides?: Partial<Prisma.BookmarkCreateInput>
+        overrides?: Partial<Prisma.BookmarkCreateInput>,
     ): Prisma.BookmarkCreateInput {
         return {
             ...this.createForObject(byId, objectId, objectType, overrides),
@@ -413,7 +413,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
     // Static methods for backward compatibility
     static createMinimal(
         createdById: string,
-        overrides?: Partial<Prisma.BookmarkListCreateInput>
+        overrides?: Partial<Prisma.BookmarkListCreateInput>,
     ): Prisma.BookmarkListCreateInput {
         const factory = new BookmarkListDbFactory();
         return factory.createMinimal({
@@ -426,7 +426,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
     static createWithTranslations(
         createdById: string,
         translations: Array<{ language: string; name: string; description?: string }>,
-        overrides?: Partial<Prisma.BookmarkListCreateInput>
+        overrides?: Partial<Prisma.BookmarkListCreateInput>,
     ): Prisma.BookmarkListCreateInput {
         return {
             ...this.createMinimal(createdById, overrides),
@@ -444,17 +444,17 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
     static createWithBookmarks(
         createdById: string,
         bookmarks: Array<{ objectId: string; objectType: BookmarkFor | string }>,
-        overrides?: Partial<Prisma.BookmarkListCreateInput>
+        overrides?: Partial<Prisma.BookmarkListCreateInput>,
     ): Prisma.BookmarkListCreateInput {
         return {
             ...this.createWithTranslations(
                 createdById,
                 [{ language: "en", name: "Test Bookmark List" }],
-                overrides
+                overrides,
             ),
             bookmarks: {
                 create: bookmarks.map(b => 
-                    BookmarkDbFactory.createForObject(createdById, b.objectId, b.objectType)
+                    BookmarkDbFactory.createForObject(createdById, b.objectId, b.objectType),
                 ),
             },
         };
@@ -465,7 +465,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
      */
     static createPrivateList(
         createdById: string,
-        overrides?: Partial<Prisma.BookmarkListCreateInput>
+        overrides?: Partial<Prisma.BookmarkListCreateInput>,
     ): Prisma.BookmarkListCreateInput {
         return this.createMinimal(createdById, {
             isPrivate: true,
@@ -480,7 +480,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
         createdById: string,
         name: string,
         collaboratorIds: string[],
-        overrides?: Partial<Prisma.BookmarkListCreateInput>
+        overrides?: Partial<Prisma.BookmarkListCreateInput>,
     ): Prisma.BookmarkListCreateInput {
         return this.createWithTranslations(
             createdById,
@@ -488,7 +488,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
             {
                 isPrivate: false,
                 ...overrides,
-            }
+            },
         );
     }
 }
@@ -503,7 +503,7 @@ export async function seedBookmarks(
         objects: Array<{ id: string; type: string }>;
         withList?: boolean;
         listName?: string;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const bookmarks = [];
     let listCount = 0;
@@ -522,7 +522,7 @@ export async function seedBookmarks(
                             name: options.listName || "My Bookmarks",
                         }],
                     },
-                }
+                },
             ),
             include: { bookmarks: true },
         });
@@ -545,7 +545,7 @@ export async function seedBookmarks(
                 data: BookmarkDbFactory.createForObject(
                     options.userId,
                     obj.id,
-                    obj.type
+                    obj.type,
                 ),
             });
             bookmarks.push(bookmark);

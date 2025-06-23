@@ -96,7 +96,7 @@ export class PushDeviceDbFactory {
 
     static createMinimal(
         userId: string,
-        overrides?: Partial<Prisma.push_deviceCreateInput>
+        overrides?: Partial<Prisma.push_deviceCreateInput>,
     ): Prisma.push_deviceCreateInput {
         return {
             id: generatePK(),
@@ -110,8 +110,8 @@ export class PushDeviceDbFactory {
 
     static createWithExpiration(
         userId: string,
-        daysUntilExpiration: number = 30,
-        overrides?: Partial<Prisma.push_deviceCreateInput>
+        daysUntilExpiration = 30,
+        overrides?: Partial<Prisma.push_deviceCreateInput>,
     ): Prisma.push_deviceCreateInput {
         return {
             ...this.createMinimal(userId),
@@ -122,7 +122,7 @@ export class PushDeviceDbFactory {
 
     static createExpired(
         userId: string,
-        overrides?: Partial<Prisma.push_deviceCreateInput>
+        overrides?: Partial<Prisma.push_deviceCreateInput>,
     ): Prisma.push_deviceCreateInput {
         return {
             ...this.createMinimal(userId),
@@ -134,7 +134,7 @@ export class PushDeviceDbFactory {
     static createNamed(
         userId: string,
         name: string,
-        overrides?: Partial<Prisma.push_deviceCreateInput>
+        overrides?: Partial<Prisma.push_deviceCreateInput>,
     ): Prisma.push_deviceCreateInput {
         return {
             ...this.createMinimal(userId),
@@ -148,11 +148,11 @@ export class PushDeviceDbFactory {
      */
     static createMultiple(
         userId: string,
-        count: number = 3,
+        count = 3,
         options?: {
             withNames?: boolean;
             withExpiration?: boolean;
-        }
+        },
     ): Prisma.push_deviceCreateInput[] {
         const devices: Prisma.push_deviceCreateInput[] = [];
         const deviceNames = [
@@ -195,7 +195,7 @@ export async function seedPushDevices(
         count?: number;
         includeExpired?: boolean;
         includeNamed?: boolean;
-    }
+    },
 ) {
     const devices = [];
     const count = options.count || 1;
@@ -207,7 +207,7 @@ export async function seedPushDevices(
         {
             withNames: options.includeNamed,
             withExpiration: true,
-        }
+        },
     );
 
     for (const deviceData of regularDevices) {
@@ -233,7 +233,7 @@ export async function seedPushDevices(
  */
 export async function cleanupPushDevices(
     prisma: any,
-    deviceIds: string[]
+    deviceIds: string[],
 ) {
     await prisma.push_device.deleteMany({
         where: { id: { in: deviceIds } },
@@ -251,7 +251,7 @@ export async function verifyPushDeviceState(
         name?: string;
         expires?: Date;
         userId?: string;
-    }
+    },
 ) {
     const device = await prisma.push_device.findUnique({
         where: { id: deviceId },

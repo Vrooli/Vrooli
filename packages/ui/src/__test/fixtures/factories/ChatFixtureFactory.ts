@@ -14,17 +14,17 @@ import type {
     ChatMessage,
     Team,
     User,
-    ChatInvite
+    ChatInvite,
 } from "@vrooli/shared";
 import { 
     chatValidation,
     shapeChat,
-    ChatType
+    ChatType,
 } from "@vrooli/shared";
 import type { 
     FixtureFactory, 
     ValidationResult, 
-    MSWHandlers
+    MSWHandlers,
 } from "../types.js";
 import { rest } from "msw";
 
@@ -95,7 +95,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     name: "Test Chat",
                     chatType: ChatType.Direct,
                     isPrivate: false,
-                    participantIds: [this.generateId()]
+                    participantIds: [this.generateId()],
                 };
 
             case "complete":
@@ -105,7 +105,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     chatType: ChatType.Group,
                     isPrivate: false,
                     participantIds: [this.generateId(), this.generateId(), this.generateId()],
-                    welcomeMessage: "Welcome to our test chat! Feel free to ask questions."
+                    welcomeMessage: "Welcome to our test chat! Feel free to ask questions.",
                 };
 
             case "invalid":
@@ -113,7 +113,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     name: "", // Empty name
                     // @ts-expect-error - Testing invalid chat type
                     chatType: "InvalidType",
-                    participantIds: [] // No participants
+                    participantIds: [], // No participants
                 };
 
             case "directMessage":
@@ -121,7 +121,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     name: "Direct Message",
                     chatType: ChatType.Direct,
                     isPrivate: true,
-                    participantIds: [this.generateId()]
+                    participantIds: [this.generateId()],
                 };
 
             case "groupChat":
@@ -131,7 +131,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     chatType: ChatType.Group,
                     isPrivate: false,
                     participantIds: [this.generateId(), this.generateId(), this.generateId(), this.generateId()],
-                    welcomeMessage: "Welcome to the group!"
+                    welcomeMessage: "Welcome to the group!",
                 };
 
             case "teamChat":
@@ -141,7 +141,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     chatType: ChatType.Group,
                     isPrivate: false,
                     teamId: this.generateId(),
-                    participantIds: []
+                    participantIds: [],
                 };
 
             case "privateChat":
@@ -150,7 +150,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     description: "Invite-only private chat",
                     chatType: ChatType.Group,
                     isPrivate: true,
-                    participantIds: [this.generateId(), this.generateId()]
+                    participantIds: [this.generateId(), this.generateId()],
                 };
 
             case "largeChat":
@@ -159,7 +159,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     description: "Large community discussion",
                     chatType: ChatType.Group,
                     isPrivate: false,
-                    participantIds: Array.from({ length: 20 }, () => this.generateId())
+                    participantIds: Array.from({ length: 20 }, () => this.generateId()),
                 };
 
             default:
@@ -183,10 +183,10 @@ export class ChatFixtureFactory implements FixtureFactory<
                 __typename: "ChatTranslation" as const,
                 id: this.generateId(),
                 language: "en",
-                description: formData.description
+                description: formData.description,
             }] : null,
             participantsConnect: formData.participantIds || [],
-            welcomeMessage: formData.welcomeMessage
+            welcomeMessage: formData.welcomeMessage,
         };
 
         // Use real shape function from @vrooli/shared
@@ -207,7 +207,7 @@ export class ChatFixtureFactory implements FixtureFactory<
             updateInput.translationsUpdate = [{
                 id: this.generateId(),
                 language: "en",
-                description: updates.description
+                description: updates.description,
             }];
         }
 
@@ -268,9 +268,9 @@ export class ChatFixtureFactory implements FixtureFactory<
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             team: null,
             teamId: null,
@@ -278,7 +278,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                 __typename: "ChatTranslation",
                 id: this.generateId(),
                 language: "en",
-                description: "A test chat for development"
+                description: "A test chat for development",
             }],
             translationsCount: 1,
             participants: [{
@@ -316,10 +316,10 @@ export class ChatFixtureFactory implements FixtureFactory<
                         reactionSummary: {
                             __typename: "ReactionSummary",
                             emotion: null,
-                            count: 0
-                        }
-                    }
-                }
+                            count: 0,
+                        },
+                    },
+                },
             }],
             participantsCount: 1,
             messages: [],
@@ -339,13 +339,13 @@ export class ChatFixtureFactory implements FixtureFactory<
                 hasUnread: false,
                 isBookmarked: false,
                 isMuted: false,
-                isPinned: false
-            }
+                isPinned: false,
+            },
         };
 
         return {
             ...defaultChat,
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -366,8 +366,8 @@ export class ChatFixtureFactory implements FixtureFactory<
                     isValid: false,
                     errors: ["Direct messages can only have one other participant"],
                     fieldErrors: {
-                        participantIds: ["Direct messages can only have one other participant"]
-                    }
+                        participantIds: ["Direct messages can only have one other participant"],
+                    },
                 };
             }
             
@@ -382,7 +382,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                         acc[err.path].push(err.message);
                     }
                     return acc;
-                }, {})
+                }, {}),
             };
         }
     }
@@ -391,7 +391,7 @@ export class ChatFixtureFactory implements FixtureFactory<
      * Create MSW handlers for different scenarios
      */
     createMSWHandlers(): MSWHandlers {
-        const baseUrl = process.env.VITE_SERVER_URL || 'http://localhost:3000';
+        const baseUrl = process.env.VITE_SERVER_URL || "http://localhost:3000";
 
         return {
             success: [
@@ -406,8 +406,8 @@ export class ChatFixtureFactory implements FixtureFactory<
                             ctx.status(400),
                             ctx.json({ 
                                 errors: validation.errors,
-                                fieldErrors: validation.fieldErrors 
-                            })
+                                fieldErrors: validation.fieldErrors, 
+                            }),
                         );
                     }
 
@@ -415,12 +415,12 @@ export class ChatFixtureFactory implements FixtureFactory<
                     const mockChat = this.createMockResponse({
                         name: body.name,
                         chatType: body.chatType,
-                        isPrivate: body.isPrivate
+                        isPrivate: body.isPrivate,
                     });
 
                     return res(
                         ctx.status(201),
-                        ctx.json(mockChat)
+                        ctx.json(mockChat),
                     );
                 }),
 
@@ -432,12 +432,12 @@ export class ChatFixtureFactory implements FixtureFactory<
                     const mockChat = this.createMockResponse({ 
                         id: id as string,
                         ...body,
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date().toISOString(),
                     });
 
                     return res(
                         ctx.status(200),
-                        ctx.json(mockChat)
+                        ctx.json(mockChat),
                     );
                 }),
 
@@ -448,7 +448,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(mockChat)
+                        ctx.json(mockChat),
                     );
                 }),
 
@@ -458,22 +458,22 @@ export class ChatFixtureFactory implements FixtureFactory<
                         this.createMockResponse(),
                         this.createMockResponse({ 
                             name: "Team Chat",
-                            chatType: ChatType.Group 
-                        })
+                            chatType: ChatType.Group, 
+                        }),
                     ];
                     
                     return res(
                         ctx.status(200),
-                        ctx.json({ data: chats })
+                        ctx.json({ data: chats }),
                     );
                 }),
 
                 // Delete chat
                 rest.delete(`${baseUrl}/api/chat/:id`, (req, res, ctx) => {
                     return res(
-                        ctx.status(204)
+                        ctx.status(204),
                     );
-                })
+                }),
             ],
 
             error: [
@@ -481,9 +481,9 @@ export class ChatFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(400),
                         ctx.json({ 
-                            message: 'Invalid chat configuration',
-                            code: 'INVALID_CHAT' 
-                        })
+                            message: "Invalid chat configuration",
+                            code: "INVALID_CHAT", 
+                        }),
                     );
                 }),
 
@@ -491,9 +491,9 @@ export class ChatFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(403),
                         ctx.json({ 
-                            message: 'You do not have permission to update this chat',
-                            code: 'PERMISSION_DENIED' 
-                        })
+                            message: "You do not have permission to update this chat",
+                            code: "PERMISSION_DENIED", 
+                        }),
                     );
                 }),
 
@@ -501,11 +501,11 @@ export class ChatFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(404),
                         ctx.json({ 
-                            message: 'Chat not found',
-                            code: 'CHAT_NOT_FOUND' 
-                        })
+                            message: "Chat not found",
+                            code: "CHAT_NOT_FOUND", 
+                        }),
                     );
-                })
+                }),
             ],
 
             loading: [
@@ -513,16 +513,16 @@ export class ChatFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.delay(2000), // 2 second delay
                         ctx.status(201),
-                        ctx.json(this.createMockResponse())
+                        ctx.json(this.createMockResponse()),
                     );
-                })
+                }),
             ],
 
             networkError: [
                 rest.post(`${baseUrl}/api/chat`, (req, res, ctx) => {
-                    return res.networkError('Network connection failed');
-                })
-            ]
+                    return res.networkError("Network connection failed");
+                }),
+            ],
         };
     }
 
@@ -531,7 +531,7 @@ export class ChatFixtureFactory implements FixtureFactory<
      */
     createUIState(
         state: "loading" | "error" | "success" | "empty" | "withMessages" | "typing" = "empty", 
-        data?: any
+        data?: any,
     ): ChatUIState {
         switch (state) {
             case "loading":
@@ -545,7 +545,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     isTyping: [],
                     unreadCount: 0,
                     canSendMessage: false,
-                    canInviteMembers: false
+                    canInviteMembers: false,
                 };
 
             case "error":
@@ -559,7 +559,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     isTyping: [],
                     unreadCount: 0,
                     canSendMessage: false,
-                    canInviteMembers: false
+                    canInviteMembers: false,
                 };
 
             case "success":
@@ -575,7 +575,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     isTyping: [],
                     unreadCount: 0,
                     canSendMessage: true,
-                    canInviteMembers: chat.chatType === ChatType.Group
+                    canInviteMembers: chat.chatType === ChatType.Group,
                 };
 
             case "typing":
@@ -590,7 +590,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     isTyping: data?.typingUsers || [this.generateId()],
                     unreadCount: 0,
                     canSendMessage: true,
-                    canInviteMembers: typingChat.chatType === ChatType.Group
+                    canInviteMembers: typingChat.chatType === ChatType.Group,
                 };
 
             case "empty":
@@ -605,7 +605,7 @@ export class ChatFixtureFactory implements FixtureFactory<
                     isTyping: [],
                     unreadCount: 0,
                     canSendMessage: false,
-                    canInviteMembers: false
+                    canInviteMembers: false,
                 };
         }
     }
@@ -613,7 +613,7 @@ export class ChatFixtureFactory implements FixtureFactory<
     /**
      * Create a chat with multiple participants
      */
-    createWithParticipants(participantCount: number = 3): Chat {
+    createWithParticipants(participantCount = 3): Chat {
         const participants: ChatParticipant[] = Array.from({ length: participantCount }, (_, i) => ({
             __typename: "ChatParticipant",
             id: this.generateId(),
@@ -649,23 +649,23 @@ export class ChatFixtureFactory implements FixtureFactory<
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
-            }
+                        count: 0,
+                    },
+                },
+            },
         }));
 
         return this.createMockResponse({
             chatType: ChatType.Group,
             participants,
-            participantsCount: participantCount
+            participantsCount: participantCount,
         });
     }
 
     /**
      * Create a team chat
      */
-    createTeamChat(teamId: string, teamName: string = "Test Team"): Chat {
+    createTeamChat(teamId: string, teamName = "Test Team"): Chat {
         return this.createMockResponse({
             name: `${teamName} Chat`,
             chatType: ChatType.Group,
@@ -705,10 +705,10 @@ export class ChatFixtureFactory implements FixtureFactory<
                     isBookmarked: false,
                     isReacted: false,
                     reaction: null,
-                    yourMemberRole: null
-                }
+                    yourMemberRole: null,
+                },
             },
-            teamId
+            teamId,
         });
     }
 
@@ -720,35 +720,35 @@ export class ChatFixtureFactory implements FixtureFactory<
             {
                 name: "Valid chat creation",
                 formData: this.createFormData("minimal"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Complete chat profile",
                 formData: this.createFormData("complete"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Empty name",
                 formData: { ...this.createFormData("minimal"), name: "" },
                 shouldSucceed: false,
-                expectedError: "name is a required field"
+                expectedError: "name is a required field",
             },
             {
                 name: "No participants",
                 formData: { ...this.createFormData("minimal"), participantIds: [] },
                 shouldSucceed: false,
-                expectedError: "At least one participant required"
+                expectedError: "At least one participant required",
             },
             {
                 name: "Direct message",
                 formData: this.createFormData("directMessage"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Group chat",
                 formData: this.createFormData("groupChat"),
-                shouldSucceed: true
-            }
+                shouldSucceed: true,
+            },
         ];
     }
 }
@@ -794,5 +794,5 @@ export const chatTestScenarios = {
     successHandlers: () => chatFixtures.createMSWHandlers().success,
     errorHandlers: () => chatFixtures.createMSWHandlers().error,
     loadingHandlers: () => chatFixtures.createMSWHandlers().loading,
-    networkErrorHandlers: () => chatFixtures.createMSWHandlers().networkError
+    networkErrorHandlers: () => chatFixtures.createMSWHandlers().networkError,
 };

@@ -53,7 +53,7 @@ export abstract class EnhancedDatabaseFactory<
     static getInstance<T extends EnhancedDatabaseFactory<any, any>>(
         this: new (modelName: string, prisma: PrismaClient) => T,
         modelName: string,
-        prisma: PrismaClient
+        prisma: PrismaClient,
     ): T {
         const key = `${modelName}_${prisma}`;
         if (!this.instances.has(key)) {
@@ -93,7 +93,7 @@ export abstract class EnhancedDatabaseFactory<
         const data = this.generateMinimalData(overrides);
         const result = await this.getPrismaDelegate().create({ 
             data,
-            include: this.getDefaultInclude()
+            include: this.getDefaultInclude(),
         });
         this.trackCreatedId(result.id);
         return result as TPrismaModel;
@@ -106,7 +106,7 @@ export abstract class EnhancedDatabaseFactory<
         const data = this.generateCompleteData(overrides);
         const result = await this.getPrismaDelegate().create({ 
             data,
-            include: this.getDefaultInclude()
+            include: this.getDefaultInclude(),
         });
         this.trackCreatedId(result.id);
         return result as TPrismaModel;
@@ -127,7 +127,7 @@ export abstract class EnhancedDatabaseFactory<
             const txDelegate = this.getTxPrismaDelegate(tx);
             const result = await txDelegate.create({ 
                 data: dataWithRelations,
-                include: this.getDefaultInclude()
+                include: this.getDefaultInclude(),
             });
             
             this.trackCreatedId(result.id);
@@ -157,7 +157,7 @@ export abstract class EnhancedDatabaseFactory<
             const ids = dataArray.map(d => (d as any).id);
             const created = await this.getPrismaDelegate().findMany({
                 where: { id: { in: ids } },
-                include: this.getDefaultInclude()
+                include: this.getDefaultInclude(),
             });
             
             created.forEach((r: any) => this.trackCreatedId(r.id));
@@ -167,7 +167,7 @@ export abstract class EnhancedDatabaseFactory<
             for (const data of dataArray) {
                 const record = await this.getPrismaDelegate().create({ 
                     data,
-                    include: this.getDefaultInclude()
+                    include: this.getDefaultInclude(),
                 });
                 this.trackCreatedId(record.id);
                 records.push(record as TPrismaModel);
@@ -180,7 +180,7 @@ export abstract class EnhancedDatabaseFactory<
      * Create a complex test scenario
      */
     async seedScenario(scenario: TestScenario | string): Promise<ScenarioResult> {
-        const scenarioConfig = typeof scenario === 'string' 
+        const scenarioConfig = typeof scenario === "string" 
             ? this.getScenario(scenario)
             : scenario;
 
@@ -193,7 +193,7 @@ export abstract class EnhancedDatabaseFactory<
             return {
                 id: mainRecord.id,
                 scenario: scenarioConfig.name,
-                relatedIds
+                relatedIds,
             };
         });
     }
@@ -210,7 +210,7 @@ export abstract class EnhancedDatabaseFactory<
             // Get current record
             const current = await txDelegate.findUnique({ 
                 where: { id: parentId },
-                include: this.getDefaultInclude()
+                include: this.getDefaultInclude(),
             });
             
             if (!current) {
@@ -223,7 +223,7 @@ export abstract class EnhancedDatabaseFactory<
             if (Object.keys(updates).length > 0) {
                 await txDelegate.update({
                     where: { id: parentId },
-                    data: updates
+                    data: updates,
                 });
             }
         });
@@ -238,18 +238,18 @@ export abstract class EnhancedDatabaseFactory<
         for (const [field, connection] of Object.entries(relations)) {
             if (Array.isArray(connection)) {
                 updates[field] = {
-                    connect: connection
+                    connect: connection,
                 };
             } else {
                 updates[field] = {
-                    connect: connection
+                    connect: connection,
                 };
             }
         }
         
         await this.getPrismaDelegate().update({
             where: { id },
-            data: updates
+            data: updates,
         });
     }
 
@@ -261,7 +261,7 @@ export abstract class EnhancedDatabaseFactory<
     async verifyState(id: string, expected: Partial<TPrismaModel>): Promise<void> {
         const actual = await this.getPrismaDelegate().findUnique({
             where: { id },
-            include: this.getDefaultInclude()
+            include: this.getDefaultInclude(),
         });
         
         if (!actual) {
@@ -276,7 +276,7 @@ export abstract class EnhancedDatabaseFactory<
                 throw new Error(
                     `${this.modelName} state mismatch for field '${key}': ` +
                     `expected ${JSON.stringify(expectedValue)}, ` +
-                    `got ${JSON.stringify(actualValue)}`
+                    `got ${JSON.stringify(actualValue)}`,
                 );
             }
         }
@@ -288,7 +288,7 @@ export abstract class EnhancedDatabaseFactory<
     async verifyRelationships(id: string, expectedCounts: RelationCounts): Promise<void> {
         const record = await this.getPrismaDelegate().findUnique({
             where: { id },
-            include: this.getRelationshipCountInclude(expectedCounts)
+            include: this.getRelationshipCountInclude(expectedCounts),
         });
         
         if (!record) {
@@ -301,7 +301,7 @@ export abstract class EnhancedDatabaseFactory<
             if (actualCount !== expectedCount) {
                 throw new Error(
                     `${this.modelName} relationship count mismatch for '${relation}': ` +
-                    `expected ${expectedCount}, got ${actualCount}`
+                    `expected ${expectedCount}, got ${actualCount}`,
                 );
             }
         }
@@ -316,7 +316,7 @@ export abstract class EnhancedDatabaseFactory<
         try {
             const record = await this.getPrismaDelegate().findUnique({
                 where: { id },
-                include: this.getDefaultInclude()
+                include: this.getDefaultInclude(),
             });
             
             if (!record) {
@@ -329,12 +329,12 @@ export abstract class EnhancedDatabaseFactory<
             violations.push(...modelViolations);
             
         } catch (error) {
-            violations.push(`Database error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            violations.push(`Database error: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
         
         return {
             valid: violations.length === 0,
-            violations
+            violations,
         };
     }
 
@@ -348,7 +348,7 @@ export abstract class EnhancedDatabaseFactory<
         
         try {
             await this.getPrismaDelegate().deleteMany({
-                where: { id: { in: ids } }
+                where: { id: { in: ids } },
             });
             
             // Remove from tracking
@@ -432,7 +432,7 @@ export abstract class EnhancedDatabaseFactory<
             }
             return { 
                 valid: false, 
-                errors: [error instanceof Error ? error.message : 'Unknown error'] 
+                errors: [error instanceof Error ? error.message : "Unknown error"], 
             };
         }
     }
@@ -475,7 +475,7 @@ export abstract class EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: TPrismaCreateInput,
         config: RelationConfig,
-        tx: any
+        tx: any,
     ): Promise<TPrismaCreateInput> {
         // Default implementation - subclasses should override
         return baseData;
@@ -486,7 +486,7 @@ export abstract class EnhancedDatabaseFactory<
      */
     protected async buildRelationshipUpdates(
         config: RelationConfig,
-        tx: any
+        tx: any,
     ): Promise<any> {
         // Default implementation - subclasses should override
         return {};
@@ -507,22 +507,22 @@ export abstract class EnhancedDatabaseFactory<
         // Default implementation - just regenerate IDs
         const uniqueData = { ...data } as any;
         
-        if ('id' in uniqueData) {
+        if ("id" in uniqueData) {
             uniqueData.id = generatePK();
         }
         
-        if ('publicId' in uniqueData) {
+        if ("publicId" in uniqueData) {
             uniqueData.publicId = generatePublicId();
         }
         
         // Make handles unique if present
-        if ('handle' in uniqueData && uniqueData.handle) {
+        if ("handle" in uniqueData && uniqueData.handle) {
             uniqueData.handle = `${uniqueData.handle}_${index}`;
         }
         
         // Make emails unique if present
-        if ('email' in uniqueData && uniqueData.email) {
-            const [localPart, domain] = uniqueData.email.split('@');
+        if ("email" in uniqueData && uniqueData.email) {
+            const [localPart, domain] = uniqueData.email.split("@");
             uniqueData.email = `${localPart}+${index}@${domain}`;
         }
         
@@ -550,14 +550,14 @@ export abstract class EnhancedDatabaseFactory<
     protected async createScenarioRecord(
         scenario: TestScenario,
         tx: any,
-        relatedIds: Record<string, string[]>
+        relatedIds: Record<string, string[]>,
     ): Promise<TPrismaModel> {
         // Default implementation - subclasses should override for complex scenarios
         const data = this.generateMinimalData(scenario.config as Partial<TPrismaCreateInput>);
         const txDelegate = this.getTxPrismaDelegate(tx);
         const result = await txDelegate.create({ 
             data,
-            include: this.getDefaultInclude()
+            include: this.getDefaultInclude(),
         });
         this.trackCreatedId(result.id);
         return result as TPrismaModel;
@@ -569,8 +569,8 @@ export abstract class EnhancedDatabaseFactory<
     protected getRelationshipCountInclude(expectedCounts: RelationCounts): any {
         const include: any = {
             _count: {
-                select: {}
-            }
+                select: {},
+            },
         };
         
         for (const relation of Object.keys(expectedCounts)) {
@@ -587,7 +587,7 @@ export abstract class EnhancedDatabaseFactory<
         id: string, 
         depth: number, 
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         if (depth <= 0) {
             // Just delete this record
@@ -601,7 +601,7 @@ export abstract class EnhancedDatabaseFactory<
         const txDelegate = this.getTxPrismaDelegate(tx);
         const record = await txDelegate.findUnique({
             where: { id },
-            include: this.getCascadeInclude(includeOnly)
+            include: this.getCascadeInclude(includeOnly),
         });
         
         if (!record) return;
@@ -629,7 +629,7 @@ export abstract class EnhancedDatabaseFactory<
         record: TPrismaModel,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Subclasses should implement based on their relationships
     }
@@ -644,7 +644,7 @@ export abstract class EnhancedDatabaseFactory<
      */
     protected registerRelationshipHandler(
         relationName: string,
-        handler: (parentId: string, config: any, tx: any) => Promise<void>
+        handler: (parentId: string, config: any, tx: any) => Promise<void>,
     ): void {
         this.relationshipHandlers[relationName] = handler;
     }
@@ -655,10 +655,10 @@ export abstract class EnhancedDatabaseFactory<
     protected async executeRelationshipHandlers(
         parentId: string,
         config: RelationConfig,
-        tx: any
+        tx: any,
     ): Promise<void> {
         for (const [relation, relationConfig] of Object.entries(config)) {
-            if (relation === 'overrides') continue;
+            if (relation === "overrides") continue;
             
             const handler = this.relationshipHandlers[relation];
             if (handler) {

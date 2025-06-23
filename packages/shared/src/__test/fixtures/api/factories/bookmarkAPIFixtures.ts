@@ -50,12 +50,12 @@ const bookmarkFixtureData = {
             to: {
                 __typename: "Team" as const,
                 id: validIds.project1,
-            } as any,
+            } as unknown,
             list: null,
             by: {
                 __typename: "User" as const,
                 id: validIds.user1,
-            } as any,
+            } as unknown,
             createdAt: "2024-01-01T00:00:00Z",
             updatedAt: "2024-01-01T00:00:00Z",
         } satisfies Bookmark,
@@ -91,7 +91,7 @@ const bookmarkFixtureData = {
                 bookmarks: 0,
                 commentsCount: 0,
                 createdAt: "2024-01-01T00:00:00Z",
-            } as any,
+            } as unknown,
             list: {
                 __typename: "BookmarkList" as const,
                 id: validIds.list1,
@@ -107,7 +107,7 @@ const bookmarkFixtureData = {
                 name: "Test User",
                 handle: "testuser",
                 isBot: false,
-            } as any,
+            } as unknown,
             createdAt: "2024-01-01T00:00:00Z",
             updatedAt: "2024-01-01T00:00:00Z",
         } satisfies Bookmark,
@@ -243,7 +243,7 @@ const bookmarkCustomizers: FactoryCustomizers<BookmarkCreateInput, BookmarkUpdat
         return {
             id: overrides?.id || base.id || generatePK().toString(),
             forConnect: overrides?.forConnect || base.forConnect || validIds.project1,
-            bookmarkFor: (overrides?.bookmarkFor || base.bookmarkFor || BookmarkFor.Team) as any,
+            bookmarkFor: (overrides?.bookmarkFor || base.bookmarkFor || BookmarkFor.Team) as unknown,
             ...base,
             ...overrides,
         };
@@ -293,7 +293,7 @@ export class BookmarkAPIFixtureFactory extends BaseAPIFixtureFactory<
             },
         };
         
-        super(config as any, bookmarkCustomizers);
+        super(config as unknown, bookmarkCustomizers);
     }
     
     // Override relationship helpers for bookmark-specific logic
@@ -301,15 +301,15 @@ export class BookmarkAPIFixtureFactory extends BaseAPIFixtureFactory<
         const result = { ...base };
         
         if (relations.list && typeof relations.list === "object") {
-            result.list = relations.list as any;
+            result.list = relations.list as unknown;
         }
         
         if (relations.by && typeof relations.by === "object") {
-            result.by = relations.by as any;
+            result.by = relations.by as unknown;
         }
         
         if (relations.to && typeof relations.to === "object") {
-            result.to = relations.to as any;
+            result.to = relations.to as unknown;
         }
         
         return result;

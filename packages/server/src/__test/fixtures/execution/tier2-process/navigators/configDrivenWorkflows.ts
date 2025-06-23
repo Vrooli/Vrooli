@@ -91,8 +91,8 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
             pattern: "patient_registration_form",
             conditions: {
                 requiredFields: ["name", "dob", "symptoms", "insurance"],
-                privacyConsent: true
-            }
+                privacyConsent: true,
+            },
         },
         
         stages: [
@@ -105,14 +105,14 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
                     validationPatterns: {
                         ssn: "^\\d{3}-\\d{2}-\\d{4}$",
                         phone: "^\\d{10}$",
-                        email: "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$"
+                        email: "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$",
                     },
                     dataQualityChecks: {
                         dobReasonable: "age_between_0_120",
                         symptomsDescriptive: "min_length_10_chars",
-                        insuranceValid: "verify_provider_network"
-                    }
-                }
+                        insuranceValid: "verify_provider_network",
+                    },
+                },
             },
             {
                 name: "hipaa_compliance_scan",
@@ -124,8 +124,8 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
                     auditTrail: true,
                     encryptionRequired: true,
                     accessLogging: "detailed",
-                    retentionPolicy: "7_years_medical_records"
-                }
+                    retentionPolicy: "7_years_medical_records",
+                },
             },
             {
                 name: "symptom_analysis",
@@ -148,8 +148,8 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
                     initialTests: "array:string",
                     redFlags: "array:string",
                     confidence: "number:0-1",
-                    reasoning: "string"
-                }
+                    reasoning: "string",
+                },
             },
             {
                 name: "insurance_verification",
@@ -160,8 +160,8 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
                     verifyEligibility: true,
                     checkCoverage: ["office_visits", "diagnostics", "specialist_referrals"],
                     estimateCosts: true,
-                    priorAuthRequired: "check_procedure_codes"
-                }
+                    priorAuthRequired: "check_procedure_codes",
+                },
             },
             {
                 name: "appointment_scheduling",
@@ -174,15 +174,15 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
                         urgencyWeight: "{{urgency}}",
                         patientPreferences: "{{preferences}}",
                         providerAvailability: "realtime_check",
-                        insurance: "{{insurance_verification_result}}"
+                        insurance: "{{insurance_verification_result}}",
                     },
                     optimizationCriteria: [
                         "earliest_available_time",
                         "patient_convenience",
                         "provider_expertise_match",
-                        "cost_efficiency"
-                    ]
-                }
+                        "cost_efficiency",
+                    ],
+                },
             },
             {
                 name: "emergency_protocol",
@@ -194,15 +194,15 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
                         "notify_emergency_department",
                         "prepare_emergency_record",
                         "alert_on_call_physician",
-                        "coordinate_ambulance_if_needed"
+                        "coordinate_ambulance_if_needed",
                     ],
                     escalationMatrix: {
                         cardiac: "cardiologist_on_call",
                         neurological: "neurologist_on_call",
                         trauma: "trauma_team",
-                        pediatric: "pediatric_emergency"
-                    }
-                }
+                        pediatric: "pediatric_emergency",
+                    },
+                },
             },
             {
                 name: "care_coordination",
@@ -214,15 +214,15 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
                         includeAllFindings: true,
                         prioritizeByUrgency: true,
                         considerInsuranceLimits: true,
-                        patientEducationMaterials: true
+                        patientEducationMaterials: true,
                     },
                     communicationPlan: {
                         patientNotification: "automated_secure_message",
                         providerBriefing: "structured_handoff",
-                        familyUpdates: "privacy_compliant_summary"
-                    }
-                }
-            }
+                        familyUpdates: "privacy_compliant_summary",
+                    },
+                },
+            },
         ],
         
         emergentCapabilities: [
@@ -231,7 +231,7 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
             "Creates efficient scheduling optimization algorithms",
             "Builds personalized patient communication strategies",
             "Evolves emergency detection accuracy over time",
-            "Optimizes resource allocation across the healthcare network"
+            "Optimizes resource allocation across the healthcare network",
         ],
         
         learningEnabled: true,
@@ -240,24 +240,24 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
             {
                 condition: "appointment_no_shows > 15%",
                 adaptation: "improve_reminder_strategy",
-                learningWeight: 0.8
+                learningWeight: 0.8,
             },
             {
                 condition: "emergency_false_positives > 5%",
                 adaptation: "refine_emergency_detection_criteria",
-                learningWeight: 0.9
+                learningWeight: 0.9,
             },
             {
                 condition: "patient_satisfaction < 85%",
                 adaptation: "optimize_communication_approach",
-                learningWeight: 0.7
+                learningWeight: 0.7,
             },
             {
                 condition: "processing_time > 10_minutes",
                 adaptation: "increase_parallelization",
-                learningWeight: 0.6
-            }
-        ]
+                learningWeight: 0.6,
+            },
+        ],
     },
     
     emergentBehaviors: [
@@ -266,29 +266,29 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
             description: "System learns to predict emergencies from subtle symptom patterns",
             emergesFrom: ["symptom_analysis", "emergency_protocol", "historical_outcomes"],
             confidence: 0.0, // Grows over time
-            timeToEmerge: "2-3 months with 1000+ cases"
+            timeToEmerge: "2-3 months with 1000+ cases",
         },
         {
             name: "Optimal Specialist Matching",
             description: "AI learns which specialists achieve best outcomes for specific symptom clusters",
             emergesFrom: ["symptom_analysis", "appointment_scheduling", "outcome_tracking"],
             confidence: 0.0,
-            timeToEmerge: "1-2 months with 500+ appointments"
+            timeToEmerge: "1-2 months with 500+ appointments",
         },
         {
             name: "Insurance Approval Prediction",
             description: "System predicts likelihood of insurance approval for different treatment paths",
             emergesFrom: ["insurance_verification", "care_coordination", "approval_history"],
             confidence: 0.0,
-            timeToEmerge: "3-4 months with 2000+ cases"
+            timeToEmerge: "3-4 months with 2000+ cases",
         },
         {
             name: "Personalized Patient Communication",
             description: "AI adapts communication style based on patient demographics and preferences",
             emergesFrom: ["care_coordination", "patient_feedback", "communication_effectiveness"],
             confidence: 0.0,
-            timeToEmerge: "1 month with 200+ interactions"
-        }
+            timeToEmerge: "1 month with 200+ interactions",
+        },
     ],
     
     evolutionTimeline: [
@@ -297,8 +297,8 @@ export const PATIENT_INTAKE_WORKFLOW: ConfigDrivenWorkflow = {
         { time: "T+1 month", capability: "Communication optimization", confidence: 0.82, description: "Adapts to patient communication preferences" },
         { time: "T+2 months", capability: "Specialist matching intelligence", confidence: 0.88, description: "Learns optimal specialist assignments" },
         { time: "T+3 months", capability: "Emergency prediction", confidence: 0.85, description: "Predicts emergencies from symptom patterns" },
-        { time: "T+6 months", capability: "Full healthcare intelligence", confidence: 0.92, description: "Comprehensive healthcare optimization system" }
-    ]
+        { time: "T+6 months", capability: "Full healthcare intelligence", confidence: 0.92, description: "Comprehensive healthcare optimization system" },
+    ],
 };
 
 /**
@@ -317,8 +317,8 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
             conditions: {
                 marketHours: true,
                 validSecurity: true,
-                authorizedUser: true
-            }
+                authorizedUser: true,
+            },
         },
         
         stages: [
@@ -330,14 +330,14 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
                         quantity: "positive_integer",
                         price: "positive_number",
                         security: "valid_ticker",
-                        action: "enum:BUY,SELL,SHORT"
+                        action: "enum:BUY,SELL,SHORT",
                     },
                     regulatoryChecks: {
                         dayTradingRules: "check_pdt_status",
                         marginRequirements: "verify_buying_power",
-                        settlementRules: "t_plus_2_compliance"
-                    }
-                }
+                        settlementRules: "t_plus_2_compliance",
+                    },
+                },
             },
             {
                 name: "market_analysis",
@@ -349,15 +349,15 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
                         priceAction: "last_24h_trends",
                         volume: "unusual_volume_detection",
                         volatility: "implied_vs_historical",
-                        marketSentiment: "news_sentiment_analysis"
+                        marketSentiment: "news_sentiment_analysis",
                     },
                     technicalIndicators: [
                         "relative_strength_index",
                         "moving_averages",
                         "bollinger_bands", 
-                        "volume_weighted_average_price"
-                    ]
-                }
+                        "volume_weighted_average_price",
+                    ],
+                },
             },
             {
                 name: "risk_assessment",
@@ -395,8 +395,8 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
                     riskAdjustedReturn: "number",
                     recommendedAction: "enum:APPROVE,MODIFY,REJECT",
                     modifications: "array:string",
-                    reasoning: "string"
-                }
+                    reasoning: "string",
+                },
             },
             {
                 name: "compliance_check",
@@ -407,14 +407,14 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
                     regulatoryRules: {
                         sec: ["wash_sale", "insider_trading", "market_manipulation"],
                         finra: ["pattern_day_trading", "margin_requirements", "suitability"],
-                        firm: ["position_limits", "concentration_limits", "restricted_securities"]
+                        firm: ["position_limits", "concentration_limits", "restricted_securities"],
                     },
                     monitoringFlags: {
                         unusualActivity: "volume_price_divergence",
                         patternDetection: "pump_dump_schemes",
-                        accountBehavior: "suspicious_trading_patterns"
-                    }
-                }
+                        accountBehavior: "suspicious_trading_patterns",
+                    },
+                },
             },
             {
                 name: "portfolio_optimization",
@@ -426,15 +426,15 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
                         "risk_adjusted_return_maximization",
                         "portfolio_diversification",
                         "correlation_minimization",
-                        "volatility_targeting"
+                        "volatility_targeting",
                     ],
                     constraints: {
                         maxPositionSize: 0.1, // 10% of portfolio
                         maxSectorConcentration: 0.25, // 25% per sector
                         minCash: 0.05, // 5% cash buffer
-                        riskBudget: "dynamic_based_on_vix"
-                    }
-                }
+                        riskBudget: "dynamic_based_on_vix",
+                    },
+                },
             },
             {
                 name: "execution_strategy",
@@ -446,15 +446,15 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
                         largeOrders: "volume_weighted_average_price",
                         urgentOrders: "market_on_close",
                         discreteOrders: "iceberg_algorithm",
-                        volatileMarkets: "implementation_shortfall"
+                        volatileMarkets: "implementation_shortfall",
                     },
                     slippageMinimization: {
                         enabled: true,
                         maxSlippage: 0.005, // 0.5%
-                        adaptiveRouting: true
-                    }
-                }
-            }
+                        adaptiveRouting: true,
+                    },
+                },
+            },
         ],
         
         emergentCapabilities: [
@@ -463,7 +463,7 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
             "Creates adaptive portfolio optimization strategies",
             "Builds execution algorithms that minimize slippage",
             "Evolves compliance monitoring with regulatory changes",
-            "Optimizes risk-return profiles through machine learning"
+            "Optimizes risk-return profiles through machine learning",
         ],
         
         learningEnabled: true,
@@ -472,19 +472,19 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
             {
                 condition: "average_slippage > 0.3%",
                 adaptation: "optimize_execution_algorithms",
-                learningWeight: 0.9
+                learningWeight: 0.9,
             },
             {
                 condition: "risk_predictions_accuracy < 80%",
                 adaptation: "enhance_risk_models",
-                learningWeight: 0.85
+                learningWeight: 0.85,
             },
             {
                 condition: "portfolio_sharpe_ratio < market_benchmark",
                 adaptation: "improve_optimization_strategy",
-                learningWeight: 0.8
-            }
-        ]
+                learningWeight: 0.8,
+            },
+        ],
     },
     
     emergentBehaviors: [
@@ -493,22 +493,22 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
             description: "System learns to identify different market regimes and adapt strategies",
             emergesFrom: ["market_analysis", "execution_results", "volatility_patterns"],
             confidence: 0.0,
-            timeToEmerge: "3-6 months with diverse market conditions"
+            timeToEmerge: "3-6 months with diverse market conditions",
         },
         {
             name: "Predictive Risk Modeling",
             description: "AI develops models to predict risk before it materializes",
             emergesFrom: ["risk_assessment", "market_analysis", "historical_outcomes"],
             confidence: 0.0,
-            timeToEmerge: "6-12 months with 10,000+ trades"
+            timeToEmerge: "6-12 months with 10,000+ trades",
         },
         {
             name: "Adaptive Execution Intelligence",
             description: "Execution algorithms adapt to changing market microstructure",
             emergesFrom: ["execution_strategy", "slippage_analysis", "order_flow_data"],
             confidence: 0.0,
-            timeToEmerge: "2-4 months with high-frequency data"
-        }
+            timeToEmerge: "2-4 months with high-frequency data",
+        },
     ],
     
     evolutionTimeline: [
@@ -516,8 +516,8 @@ export const TRADING_RISK_WORKFLOW: ConfigDrivenWorkflow = {
         { time: "T+1 month", capability: "Pattern-based risk detection", confidence: 0.72, description: "Identifies recurring risk patterns" },
         { time: "T+3 months", capability: "Market regime adaptation", confidence: 0.78, description: "Adapts strategies to market conditions" },
         { time: "T+6 months", capability: "Predictive risk intelligence", confidence: 0.85, description: "Predicts risks before they materialize" },
-        { time: "T+12 months", capability: "Full trading intelligence", confidence: 0.91, description: "Comprehensive trading optimization system" }
-    ]
+        { time: "T+12 months", capability: "Full trading intelligence", confidence: 0.91, description: "Comprehensive trading optimization system" },
+    ],
 };
 
 /**
@@ -536,8 +536,8 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
             conditions: {
                 businessHours: "flexible", // Can handle after-hours
                 urgency: "any",
-                channel: ["email", "chat", "phone", "social"]
-            }
+                channel: ["email", "chat", "phone", "social"],
+            },
         },
         
         stages: [
@@ -567,8 +567,8 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
                     expertiseRequired: "array:string",
                     estimatedTime: "number:minutes",
                     emotionState: "enum:frustrated,neutral,happy,angry",
-                    confidence: "number:0-1"
-                }
+                    confidence: "number:0-1",
+                },
             },
             {
                 name: "knowledge_retrieval",
@@ -579,16 +579,16 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
                     searchStrategy: {
                         primary: "semantic_similarity",
                         fallback: "keyword_matching",
-                        context: "customer_history_aware"
+                        context: "customer_history_aware",
                     },
                     sources: [
                         "internal_knowledge_base",
                         "previous_resolutions",
                         "product_documentation",
-                        "troubleshooting_guides"
+                        "troubleshooting_guides",
                     ],
-                    relevanceThreshold: 0.8
-                }
+                    relevanceThreshold: 0.8,
+                },
             },
             {
                 name: "solution_generation",
@@ -598,14 +598,14 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
                     approachSelection: {
                         simple: "direct_answer_from_kb",
                         moderate: "guided_troubleshooting",
-                        complex: "expert_consultation_preparation"
+                        complex: "expert_consultation_preparation",
                     },
                     personalization: {
                         customerTier: "adjust_response_detail",
                         emotionState: "adapt_communication_tone",
-                        preferredChannel: "optimize_for_medium"
-                    }
-                }
+                        preferredChannel: "optimize_for_medium",
+                    },
+                },
             },
             {
                 name: "response_optimization",
@@ -616,14 +616,14 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
                         "clarity_and_comprehension",
                         "empathy_and_emotion_acknowledgment",
                         "actionability_of_steps",
-                        "follow_up_prevention"
+                        "follow_up_prevention",
                     ],
                     adaptiveElements: {
                         tone: "match_customer_communication_style",
                         technicality: "adjust_for_customer_expertise",
-                        length: "optimize_for_channel_and_urgency"
-                    }
-                }
+                        length: "optimize_for_channel_and_urgency",
+                    },
+                },
             },
             {
                 name: "escalation_decision",
@@ -635,15 +635,15 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
                         technical: "requires_engineering_input",
                         policy: "requires_management_override",
                         billing: "requires_finance_approval",
-                        legal: "requires_legal_review"
+                        legal: "requires_legal_review",
                     },
                     handoffPreparation: {
                         contextSummary: "detailed_issue_brief",
                         customerProfile: "comprehensive_history",
                         attemptedSolutions: "what_was_tried_and_results",
-                        recommendedApproach: "expert_guidance"
-                    }
-                }
+                        recommendedApproach: "expert_guidance",
+                    },
+                },
             },
             {
                 name: "quality_assurance",
@@ -656,15 +656,15 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
                         "customer_satisfaction_prediction",
                         "response_completeness",
                         "brand_voice_consistency",
-                        "policy_compliance"
+                        "policy_compliance",
                     ],
                     feedbackLoop: {
                         enabled: true,
                         realtime: true,
-                        learningWeight: 0.7
-                    }
-                }
-            }
+                        learningWeight: 0.7,
+                    },
+                },
+            },
         ],
         
         emergentCapabilities: [
@@ -673,7 +673,7 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
             "Creates predictive models for customer satisfaction",
             "Builds automated quality improvement mechanisms",
             "Evolves escalation decision intelligence",
-            "Optimizes resource allocation across support channels"
+            "Optimizes resource allocation across support channels",
         ],
         
         learningEnabled: true,
@@ -682,19 +682,19 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
             {
                 condition: "customer_satisfaction < 85%",
                 adaptation: "improve_solution_quality",
-                learningWeight: 0.9
+                learningWeight: 0.9,
             },
             {
                 condition: "resolution_time > target_sla",
                 adaptation: "optimize_process_efficiency",
-                learningWeight: 0.8
+                learningWeight: 0.8,
             },
             {
                 condition: "escalation_rate > 15%",
                 adaptation: "enhance_first_level_capabilities",
-                learningWeight: 0.85
-            }
-        ]
+                learningWeight: 0.85,
+            },
+        ],
     },
     
     emergentBehaviors: [
@@ -703,22 +703,22 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
             description: "System predicts solutions before full issue description",
             emergesFrom: ["inquiry_classification", "knowledge_retrieval", "resolution_patterns"],
             confidence: 0.0,
-            timeToEmerge: "2-3 months with 1000+ interactions"
+            timeToEmerge: "2-3 months with 1000+ interactions",
         },
         {
             name: "Proactive Customer Care",
             description: "AI identifies potential issues before customers report them",
             emergesFrom: ["customer_usage_patterns", "product_telemetry", "issue_trends"],
             confidence: 0.0,
-            timeToEmerge: "6-9 months with comprehensive data integration"
+            timeToEmerge: "6-9 months with comprehensive data integration",
         },
         {
             name: "Dynamic Quality Optimization",
             description: "System continuously improves response quality through learning",
             emergesFrom: ["quality_assurance", "customer_feedback", "outcome_tracking"],
             confidence: 0.0,
-            timeToEmerge: "1-2 months with feedback loops"
-        }
+            timeToEmerge: "1-2 months with feedback loops",
+        },
     ],
     
     evolutionTimeline: [
@@ -726,8 +726,8 @@ export const CUSTOMER_SERVICE_EVOLUTION: ConfigDrivenWorkflow = {
         { time: "T+2 weeks", capability: "Knowledge matching", confidence: 0.74, description: "Improved solution retrieval" },
         { time: "T+1 month", capability: "Communication optimization", confidence: 0.79, description: "Personalized response style" },
         { time: "T+3 months", capability: "Predictive resolution", confidence: 0.86, description: "Anticipates solutions" },
-        { time: "T+6 months", capability: "Proactive care intelligence", confidence: 0.89, description: "Prevents issues before they occur" }
-    ]
+        { time: "T+6 months", capability: "Proactive care intelligence", confidence: 0.89, description: "Prevents issues before they occur" },
+    ],
 };
 
 /**
@@ -753,5 +753,5 @@ export const CONFIG_DRIVEN_PRINCIPLES = {
     emergentIntelligence: "Sophisticated capabilities emerge over time",
     autonomousLearning: "Systems improve themselves through use",
     domainAgnostic: "Same patterns work across all industries",
-    scalableComplexity: "Simple rules → complex emergent behaviors"
+    scalableComplexity: "Simple rules → complex emergent behaviors",
 } as const;

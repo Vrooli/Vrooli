@@ -360,7 +360,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
      */
     static createWithParticipants(
         userIds: string[], 
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
         return factory.createMinimal({
@@ -380,7 +380,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
     static createWithInvites(
         creatorId: string,
         inviteMessages: string[] = ["Join our discussion!"],
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
         return factory.createMinimal({
@@ -400,7 +400,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
      */
     static createWithMessages(
         messages: Array<{ userId: string; text: string; language?: string }>,
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
         return factory.createMinimal({
@@ -425,12 +425,12 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
      */
     static createWithTeam(
         teamId: string,
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
         return factory.createWithRelationships({ 
             withTeams: [{ teamId, role: "Member" }], 
-            overrides 
+            overrides, 
         }).data;
     }
 
@@ -440,7 +440,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
     static createPrivateDM(
         user1Id: string,
         user2Id: string,
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
         return factory.createMinimal({
@@ -482,7 +482,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
             isPrivate?: boolean;
             withHighLimits?: boolean;
         },
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
         const chatConfig = config.withHighLimits 
@@ -512,7 +512,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
     static createPublicChat(
         name: string,
         creatorId: string,
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
         return factory.createMinimal({
@@ -554,7 +554,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
             goal?: string;
             preferredModel?: string;
         },
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
         const chatConfig = {
@@ -602,10 +602,10 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
             withMessages?: boolean;
             withInvites?: boolean;
         },
-        overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+        overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
-        let baseData = factory.createMinimal(overrides);
+        const baseData = factory.createMinimal(overrides);
 
         if (options.teamId) {
             baseData.teamId = BigInt(options.teamId);
@@ -651,7 +651,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
  */
 export function createTeamChat(
     teamId: string,
-    overrides?: Partial<Prisma.chatUpsertArgs["create"]>
+    overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
 ): Prisma.chatUpsertArgs["create"] {
     return {
         ...ChatDbFactory.createMinimal(overrides),
@@ -664,13 +664,13 @@ export function createTeamChat(
  */
 export async function seedTestChats(
     prisma: any,
-    count: number = 3,
+    count = 3,
     options?: BulkSeedOptions & {
         isPrivate?: boolean;
         withMessages?: boolean;
         withInvites?: boolean;
         userIds?: string[];
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const factory = new ChatDbFactory();
     const chats = [];
@@ -760,7 +760,7 @@ export async function seedTestChat(
         withMessages?: boolean;
         withInvites?: boolean;
         teamId?: string;
-    }
+    },
 ) {
     const chatData = ChatDbFactory.createWithRelations(
         {
@@ -771,7 +771,7 @@ export async function seedTestChat(
         },
         {
             isPrivate: options.isPrivate ?? false,
-        }
+        },
     );
 
     return await prisma.chat.create({ data: chatData });

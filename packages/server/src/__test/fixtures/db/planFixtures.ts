@@ -156,7 +156,7 @@ export class PlanDbFactory {
      */
     static createUserPlan(
         userId: bigint,
-        durationDays: number = 30,
+        durationDays = 30,
         overrides?: Partial<Prisma.PlanCreateInput>,
     ): Prisma.PlanCreateInput {
         return {
@@ -173,7 +173,7 @@ export class PlanDbFactory {
      */
     static createTeamPlan(
         teamId: bigint,
-        durationDays: number = 30,
+        durationDays = 30,
         overrides?: Partial<Prisma.PlanCreateInput>,
     ): Prisma.PlanCreateInput {
         return {
@@ -190,7 +190,7 @@ export class PlanDbFactory {
      */
     static createTrial(
         userId: bigint,
-        trialStartDaysAgo: number = 0,
+        trialStartDaysAgo = 0,
         overrides?: Partial<Prisma.PlanCreateInput>,
     ): Prisma.PlanCreateInput {
         return {
@@ -206,7 +206,7 @@ export class PlanDbFactory {
      */
     static createExpired(
         userId: bigint,
-        expiredDaysAgo: number = 5,
+        expiredDaysAgo = 5,
         overrides?: Partial<Prisma.PlanCreateInput>,
     ): Prisma.PlanCreateInput {
         return {

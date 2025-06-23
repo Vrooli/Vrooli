@@ -15,18 +15,18 @@ import type {
     ResourceVersionTranslation,
     Tag,
     Team,
-    User
+    User,
 } from "@vrooli/shared";
 import { 
     resourceValidation,
     shapeResource,
     ResourceType,
-    MemberRole
+    MemberRole,
 } from "@vrooli/shared";
 import type { 
     FixtureFactory, 
     ValidationResult, 
-    MSWHandlers
+    MSWHandlers,
 } from "../types.js";
 import { rest } from "msw";
 
@@ -105,13 +105,13 @@ export class ProjectFixtureFactory implements FixtureFactory<
             version: 1,
             formConfig: {
                 version: 1,
-                sections: []
+                sections: [],
             },
             resourceConfig: {
                 version: 1,
                 listOrTree: "list" as const,
-                resources: []
-            }
+                resources: [],
+            },
         };
     }
 
@@ -125,7 +125,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     handle: this.generateHandle(),
                     name: "Test Project",
                     versionLabel: "1.0.0",
-                    isPrivate: false
+                    isPrivate: false,
                 };
 
             case "complete":
@@ -139,7 +139,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     isPrivate: false,
                     tags: ["testing", "development", "documentation"],
                     hasSupporting: true,
-                    supportingUrls: ["https://example.com/docs", "https://example.com/tutorial"]
+                    supportingUrls: ["https://example.com/docs", "https://example.com/tutorial"],
                 };
 
             case "invalid":
@@ -148,7 +148,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     name: "", // Empty name
                     // @ts-expect-error - Testing invalid version label
                     versionLabel: null,
-                    isPrivate: false
+                    isPrivate: false,
                 };
 
             case "privateProject":
@@ -157,7 +157,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     name: "Private Project",
                     description: "This project is private and not publicly accessible",
                     versionLabel: "0.1.0",
-                    isPrivate: true
+                    isPrivate: true,
                 };
 
             case "teamProject":
@@ -168,7 +168,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     versionLabel: "1.0.0",
                     isPrivate: false,
                     teamId: this.generateId(),
-                    tags: ["team", "collaboration"]
+                    tags: ["team", "collaboration"],
                 };
 
             case "completedProject":
@@ -179,7 +179,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     versionLabel: "2.0.0",
                     isPrivate: false,
                     completedAt: new Date(),
-                    tags: ["completed", "archived"]
+                    tags: ["completed", "archived"],
                 };
 
             case "withTags":
@@ -189,7 +189,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     description: "A project with multiple tags",
                     versionLabel: "1.0.0",
                     isPrivate: false,
-                    tags: ["ai", "machine-learning", "nlp", "research", "open-source"]
+                    tags: ["ai", "machine-learning", "nlp", "research", "open-source"],
                 };
 
             case "multiVersion":
@@ -199,7 +199,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     description: "A project with multiple versions",
                     versionLabel: "3.2.1",
                     isPrivate: false,
-                    details: "This version includes breaking changes from v2"
+                    details: "This version includes breaking changes from v2",
                 };
 
             default:
@@ -219,7 +219,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
             name: formData.name,
             description: formData.description || null,
             details: formData.details || null,
-            instructions: formData.instructions || null
+            instructions: formData.instructions || null,
         };
 
         // Create resource version
@@ -254,8 +254,8 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     canReport: false,
                     isBookmarked: false,
                     isReacted: false,
-                    reaction: null
-                }
+                    reaction: null,
+                },
             })) || [],
             resourcesCount: formData.supportingUrls?.length || 0,
             you: {
@@ -270,8 +270,8 @@ export class ProjectFixtureFactory implements FixtureFactory<
                 canReact: true,
                 isBookmarked: false,
                 isReacted: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         };
 
         // Create the resource shape that matches the expected API structure
@@ -287,8 +287,8 @@ export class ProjectFixtureFactory implements FixtureFactory<
             tags: formData.tags?.map(tag => ({
                 __typename: "Tag" as const,
                 id: this.generateId(),
-                tag
-            })) || null
+                tag,
+            })) || null,
         };
 
         // Use real shape function from @vrooli/shared
@@ -315,8 +315,8 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     name: updates.name,
                     description: updates.description,
                     details: updates.details,
-                    instructions: updates.instructions
-                }]
+                    instructions: updates.instructions,
+                }],
             }];
         }
 
@@ -376,14 +376,14 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             permissions: JSON.stringify({
                 canUpdate: true,
                 canDelete: true,
-                canTransfer: true
+                canTransfer: true,
             }),
             resourceType: ResourceType.Project,
             tags: [],
@@ -407,7 +407,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     name: "Test Project",
                     description: "A test project for development",
                     details: null,
-                    instructions: null
+                    instructions: null,
                 }],
                 translationsCount: 1,
                 resources: [],
@@ -424,8 +424,8 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     canReact: true,
                     isBookmarked: false,
                     isReacted: false,
-                    reaction: null
-                }
+                    reaction: null,
+                },
             }],
             versionsCount: 1,
             you: {
@@ -435,13 +435,13 @@ export class ProjectFixtureFactory implements FixtureFactory<
                 canReport: false,
                 isBookmarked: false,
                 isReacted: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         };
 
         return {
             ...defaultProject,
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -467,7 +467,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                         acc[err.path].push(err.message);
                     }
                     return acc;
-                }, {})
+                }, {}),
             };
         }
     }
@@ -476,7 +476,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
      * Create MSW handlers for different scenarios
      */
     createMSWHandlers(): MSWHandlers {
-        const baseUrl = process.env.VITE_SERVER_URL || 'http://localhost:3000';
+        const baseUrl = process.env.VITE_SERVER_URL || "http://localhost:3000";
 
         return {
             success: [
@@ -491,8 +491,8 @@ export class ProjectFixtureFactory implements FixtureFactory<
                             ctx.status(400),
                             ctx.json({ 
                                 errors: validation.errors,
-                                fieldErrors: validation.fieldErrors 
-                            })
+                                fieldErrors: validation.fieldErrors, 
+                            }),
                         );
                     }
 
@@ -504,14 +504,14 @@ export class ProjectFixtureFactory implements FixtureFactory<
                             translations: [{
                                 ...this.createMockResponse().versions[0].translations[0],
                                 name: body.name,
-                                description: body.description
-                            }]
-                        }]
+                                description: body.description,
+                            }],
+                        }],
                     });
 
                     return res(
                         ctx.status(201),
-                        ctx.json(mockProject)
+                        ctx.json(mockProject),
                     );
                 }),
 
@@ -522,12 +522,12 @@ export class ProjectFixtureFactory implements FixtureFactory<
 
                     const mockProject = this.createMockResponse({ 
                         id: id as string,
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date().toISOString(),
                     });
 
                     return res(
                         ctx.status(200),
-                        ctx.json(mockProject)
+                        ctx.json(mockProject),
                     );
                 }),
 
@@ -535,12 +535,12 @@ export class ProjectFixtureFactory implements FixtureFactory<
                 rest.get(`${baseUrl}/api/project/:handle`, (req, res, ctx) => {
                     const { handle } = req.params;
                     const mockProject = this.createMockResponse({ 
-                        handle: handle as string 
+                        handle: handle as string, 
                     });
                     
                     return res(
                         ctx.status(200),
-                        ctx.json(mockProject)
+                        ctx.json(mockProject),
                     );
                 }),
 
@@ -553,22 +553,22 @@ export class ProjectFixtureFactory implements FixtureFactory<
                         versions: [{
                             ...this.createMockResponse().versions[0],
                             isComplete: true,
-                            completedAt: new Date().toISOString()
-                        }]
+                            completedAt: new Date().toISOString(),
+                        }],
                     });
 
                     return res(
                         ctx.status(200),
-                        ctx.json(mockProject)
+                        ctx.json(mockProject),
                     );
                 }),
 
                 // Delete project
                 rest.delete(`${baseUrl}/api/project/:id`, (req, res, ctx) => {
                     return res(
-                        ctx.status(204)
+                        ctx.status(204),
                     );
-                })
+                }),
             ],
 
             error: [
@@ -576,9 +576,9 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(409),
                         ctx.json({ 
-                            message: 'Project handle already exists',
-                            code: 'HANDLE_EXISTS' 
-                        })
+                            message: "Project handle already exists",
+                            code: "HANDLE_EXISTS", 
+                        }),
                     );
                 }),
 
@@ -586,9 +586,9 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(403),
                         ctx.json({ 
-                            message: 'You do not have permission to update this project',
-                            code: 'PERMISSION_DENIED' 
-                        })
+                            message: "You do not have permission to update this project",
+                            code: "PERMISSION_DENIED", 
+                        }),
                     );
                 }),
 
@@ -596,11 +596,11 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.status(404),
                         ctx.json({ 
-                            message: 'Project not found',
-                            code: 'PROJECT_NOT_FOUND' 
-                        })
+                            message: "Project not found",
+                            code: "PROJECT_NOT_FOUND", 
+                        }),
                     );
-                })
+                }),
             ],
 
             loading: [
@@ -608,16 +608,16 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     return res(
                         ctx.delay(2000), // 2 second delay
                         ctx.status(201),
-                        ctx.json(this.createMockResponse())
+                        ctx.json(this.createMockResponse()),
                     );
-                })
+                }),
             ],
 
             networkError: [
                 rest.post(`${baseUrl}/api/project`, (req, res, ctx) => {
-                    return res.networkError('Network connection failed');
-                })
-            ]
+                    return res.networkError("Network connection failed");
+                }),
+            ],
         };
     }
 
@@ -626,7 +626,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
      */
     createUIState(
         state: "loading" | "error" | "success" | "empty" | "ownerView" | "viewerView" = "empty", 
-        data?: any
+        data?: any,
     ): ProjectUIState {
         switch (state) {
             case "loading":
@@ -638,7 +638,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     isOwner: false,
                     canEdit: false,
                     canDelete: false,
-                    completionPercentage: 0
+                    completionPercentage: 0,
                 };
 
             case "error":
@@ -650,7 +650,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     isOwner: false,
                     canEdit: false,
                     canDelete: false,
-                    completionPercentage: 0
+                    completionPercentage: 0,
                 };
 
             case "success":
@@ -664,7 +664,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     isOwner: false,
                     canEdit: false,
                     canDelete: false,
-                    completionPercentage: project.versions[0].isComplete ? 100 : 0
+                    completionPercentage: project.versions[0].isComplete ? 100 : 0,
                 };
 
             case "ownerView":
@@ -677,7 +677,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     isOwner: true,
                     canEdit: true,
                     canDelete: true,
-                    completionPercentage: ownedProject.versions[0].isComplete ? 100 : 50
+                    completionPercentage: ownedProject.versions[0].isComplete ? 100 : 50,
                 };
 
             case "empty":
@@ -690,7 +690,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     isOwner: false,
                     canEdit: false,
                     canDelete: false,
-                    completionPercentage: 0
+                    completionPercentage: 0,
                 };
         }
     }
@@ -698,7 +698,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
     /**
      * Create a team-owned project
      */
-    createTeamProject(teamId: string, teamName: string = "Test Team"): Resource {
+    createTeamProject(teamId: string, teamName = "Test Team"): Resource {
         return this.createMockResponse({
             owner: {
                 __typename: "Team",
@@ -713,7 +713,7 @@ export class ProjectFixtureFactory implements FixtureFactory<
                 permissions: JSON.stringify({
                     canUpdate: true,
                     canDelete: true,
-                    canInviteMembers: true
+                    canInviteMembers: true,
                 }),
                 tags: [],
                 tagsCount: 0,
@@ -740,9 +740,9 @@ export class ProjectFixtureFactory implements FixtureFactory<
                     isBookmarked: false,
                     isReacted: false,
                     reaction: null,
-                    yourMemberRole: MemberRole.Owner
-                }
-            }
+                    yourMemberRole: MemberRole.Owner,
+                },
+            },
         });
     }
 
@@ -759,13 +759,13 @@ export class ProjectFixtureFactory implements FixtureFactory<
     /**
      * Create a project with multiple versions
      */
-    createWithVersions(versionCount: number = 3): Resource {
+    createWithVersions(versionCount = 3): Resource {
         const project = this.createMockResponse();
         const additionalVersions = Array.from({ length: versionCount - 1 }, (_, i) => ({
             ...project.versions[0],
             id: this.generateId(),
             versionLabel: `${i + 2}.0.0`,
-            createdAt: new Date(Date.now() - (i + 1) * 86400000).toISOString() // Each version 1 day older
+            createdAt: new Date(Date.now() - (i + 1) * 86400000).toISOString(), // Each version 1 day older
         }));
         
         project.versions = [project.versions[0], ...additionalVersions];
@@ -781,35 +781,35 @@ export class ProjectFixtureFactory implements FixtureFactory<
             {
                 name: "Valid project creation",
                 formData: this.createFormData("minimal"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Complete project profile",
                 formData: this.createFormData("complete"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Empty handle",
                 formData: { ...this.createFormData("minimal"), handle: "" },
                 shouldSucceed: false,
-                expectedError: "handle is a required field"
+                expectedError: "handle is a required field",
             },
             {
                 name: "Empty name",
                 formData: { ...this.createFormData("minimal"), name: "" },
                 shouldSucceed: false,
-                expectedError: "name is a required field"
+                expectedError: "name is a required field",
             },
             {
                 name: "Private project",
                 formData: this.createFormData("privateProject"),
-                shouldSucceed: true
+                shouldSucceed: true,
             },
             {
                 name: "Team project",
                 formData: this.createFormData("teamProject"),
-                shouldSucceed: true
-            }
+                shouldSucceed: true,
+            },
         ];
     }
 }
@@ -855,5 +855,5 @@ export const projectTestScenarios = {
     successHandlers: () => projectFixtures.createMSWHandlers().success,
     errorHandlers: () => projectFixtures.createMSWHandlers().error,
     loadingHandlers: () => projectFixtures.createMSWHandlers().loading,
-    networkErrorHandlers: () => projectFixtures.createMSWHandlers().networkError
+    networkErrorHandlers: () => projectFixtures.createMSWHandlers().networkError,
 };

@@ -44,7 +44,7 @@ export function getMockUrlNested(endpointConfig: { endpoint: string }): string {
  * // getMockEndpoint(endpointsResource.findDataStructureVersion.findOne)
  */
 export function getMockEndpoint(endpointOrNested: { endpoint: string } | { findOne: { endpoint: string } }): string {
-    if ('endpoint' in endpointOrNested) {
+    if ("endpoint" in endpointOrNested) {
         return `${API_URL}/v2${endpointOrNested.endpoint}`;
     }
     return `${API_URL}/v2${endpointOrNested.findOne.endpoint}`;
@@ -106,6 +106,6 @@ export function getStoryRoutePathWithQuery(mockData: any, queryParams: Record<st
  */
 export function getMockApiUrl(endpoint: string): string {
     // Ensure endpoint starts with /
-    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     return `${API_URL}/v2${normalizedEndpoint}`;
 }

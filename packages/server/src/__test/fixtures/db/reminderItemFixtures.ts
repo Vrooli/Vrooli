@@ -73,7 +73,7 @@ export const completeReminderItemDb: Omit<Prisma.reminder_itemCreateInput, "remi
 export class ReminderItemDbFactory {
     static createMinimal(
         reminderId: string,
-        overrides?: Partial<Prisma.reminder_itemCreateInput>
+        overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
         return {
             ...minimalReminderItemDb,
@@ -85,7 +85,7 @@ export class ReminderItemDbFactory {
 
     static createWithDescription(
         reminderId: string,
-        overrides?: Partial<Prisma.reminder_itemCreateInput>
+        overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
         return {
             ...reminderItemWithDescriptionDb,
@@ -97,8 +97,8 @@ export class ReminderItemDbFactory {
 
     static createWithDueDate(
         reminderId: string,
-        daysFromNow: number = 7,
-        overrides?: Partial<Prisma.reminder_itemCreateInput>
+        daysFromNow = 7,
+        overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
         return {
             ...reminderItemWithDueDateDb,
@@ -111,7 +111,7 @@ export class ReminderItemDbFactory {
 
     static createCompleted(
         reminderId: string,
-        overrides?: Partial<Prisma.reminder_itemCreateInput>
+        overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
         return {
             ...completedReminderItemDb,
@@ -124,7 +124,7 @@ export class ReminderItemDbFactory {
 
     static createComplete(
         reminderId: string,
-        overrides?: Partial<Prisma.reminder_itemCreateInput>
+        overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
         return {
             ...completeReminderItemDb,
@@ -144,7 +144,7 @@ export class ReminderItemDbFactory {
             withDescriptions?: boolean;
             withDueDates?: boolean;
             someCompleted?: boolean;
-        }
+        },
     ): Prisma.reminder_itemCreateInput[] {
         const items: Prisma.reminder_itemCreateInput[] = [];
 
@@ -203,7 +203,7 @@ export async function seedReminderItems(
             dueDate?: Date;
             completed?: boolean;
         }>;
-    } = {}
+    } = {},
 ) {
     const reminderItems = [];
 
@@ -248,7 +248,7 @@ export async function seedReminderItems(
 export async function createChecklistReminder(
     prisma: any,
     reminderId: string,
-    checklist: string[]
+    checklist: string[],
 ) {
     const items = [];
     

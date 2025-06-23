@@ -29,6 +29,7 @@ import type { APIFixtureFactory, FactoryCustomizers } from "../types.js";
 // Magic number constants for testing
 const TEAM_NAME_MAX_LENGTH = 50;
 const TEAM_BIO_MAX_LENGTH = 2000;
+const TEAM_HANDLE_MAX_LENGTH = 16;
 
 // ========================================
 // Type-Safe Fixture Data
@@ -755,7 +756,7 @@ export class TeamAPIFixtureFactory extends BaseAPIFixtureFactory<
      */
     createPublicTeam = (name: string, overrides?: Partial<TeamCreateInput>): TeamCreateInput => {
         return this.createFactory({
-            handle: name.toLowerCase().replace(/[^a-z0-9_]/g, "_").substring(0, 16),
+            handle: name.toLowerCase().replace(/[^a-z0-9_]/g, "_").substring(0, TEAM_HANDLE_MAX_LENGTH),
             isPrivate: false,
             isOpenToNewMembers: true,
             translationsCreate: [
@@ -774,7 +775,7 @@ export class TeamAPIFixtureFactory extends BaseAPIFixtureFactory<
      */
     createPrivateTeam = (name: string, overrides?: Partial<TeamCreateInput>): TeamCreateInput => {
         return this.createFactory({
-            handle: name.toLowerCase().replace(/[^a-z0-9_]/g, "_").substring(0, 16),
+            handle: name.toLowerCase().replace(/[^a-z0-9_]/g, "_").substring(0, TEAM_HANDLE_MAX_LENGTH),
             isPrivate: true,
             isOpenToNewMembers: false,
             translationsCreate: [
@@ -998,7 +999,7 @@ export class TeamAPIFixtureFactory extends BaseAPIFixtureFactory<
 
         const createInput = this.createFactory({
             id: teamId,
-            handle: scenarioName.toLowerCase().replace(/[^a-z0-9_]/g, "_").substring(0, 16),
+            handle: scenarioName.toLowerCase().replace(/[^a-z0-9_]/g, "_").substring(0, TEAM_HANDLE_MAX_LENGTH),
             translationsCreate: [
                 {
                     id: generatePK().toString(),
@@ -1025,7 +1026,7 @@ export class TeamAPIFixtureFactory extends BaseAPIFixtureFactory<
             profileImage: `${scenarioName}-profile.png`,
             translationsUpdate: [
                 {
-                    id: createInput.translationsCreate![0].id,
+                    id: createInput.translationsCreate?.[0]?.id ?? generatePK().toString(),
                     language: "en",
                     name: `Updated ${scenarioName} Team`,
                     bio: `Updated team for ${scenarioName} testing scenario`,

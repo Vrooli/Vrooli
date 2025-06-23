@@ -5,20 +5,20 @@
  * including React Hook Form integration and user interaction simulation.
  */
 
-import { useForm, type UseFormReturn, type FieldErrors } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { act, waitFor } from '@testing-library/react';
+import { useForm, type UseFormReturn, type FieldErrors } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import { act, waitFor } from "@testing-library/react";
 import type { 
     BookmarkFor,
     BookmarkCreateInput,
-    BookmarkUpdateInput 
-} from '@vrooli/shared';
+    BookmarkUpdateInput, 
+} from "@vrooli/shared";
 import { 
     BookmarkFor as BookmarkForEnum,
-    bookmarkValidation 
-} from '@vrooli/shared';
-import type { BookmarkFormData } from '../types.js';
+    bookmarkValidation, 
+} from "@vrooli/shared";
+import type { BookmarkFormData } from "../types.js";
 
 /**
  * Extended form state with additional UI-specific properties
@@ -33,7 +33,7 @@ export interface BookmarkFormState {
     isValidating?: boolean;
     
     // UI-specific state
-    autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+    autoSaveStatus?: "idle" | "saving" | "saved" | "error";
     lastAutoSave?: Date;
     hasUnsavedChanges?: boolean;
     
@@ -53,8 +53,8 @@ export interface BookmarkFormState {
  * Form validation configuration
  */
 interface FormValidationConfig {
-    mode: 'onChange' | 'onBlur' | 'onSubmit';
-    reValidateMode: 'onChange' | 'onBlur' | 'onSubmit';
+    mode: "onChange" | "onBlur" | "onSubmit";
+    reValidateMode: "onChange" | "onBlur" | "onSubmit";
     shouldFocusError: boolean;
     delayError?: number;
 }
@@ -63,12 +63,12 @@ interface FormValidationConfig {
  * User interaction event types
  */
 export type FormInteractionEvent = 
-    | { type: 'FIELD_FOCUS'; field: keyof BookmarkFormData }
-    | { type: 'FIELD_BLUR'; field: keyof BookmarkFormData }
-    | { type: 'FIELD_CHANGE'; field: keyof BookmarkFormData; value: any }
-    | { type: 'FORM_SUBMIT' }
-    | { type: 'FORM_RESET' }
-    | { type: 'AUTO_SAVE_TRIGGER' };
+    | { type: "FIELD_FOCUS"; field: keyof BookmarkFormData }
+    | { type: "FIELD_BLUR"; field: keyof BookmarkFormData }
+    | { type: "FIELD_CHANGE"; field: keyof BookmarkFormData; value: any }
+    | { type: "FORM_SUBMIT" }
+    | { type: "FORM_RESET" }
+    | { type: "AUTO_SAVE_TRIGGER" };
 
 /**
  * Bookmark form data factory with React Hook Form integration
@@ -82,19 +82,19 @@ export class BookmarkFormDataFactory {
             bookmarkFor: yup
                 .mixed<BookmarkFor>()
                 .oneOf(Object.values(BookmarkForEnum))
-                .required('Bookmark type is required'),
+                .required("Bookmark type is required"),
                 
             forConnect: yup
                 .string()
-                .required('Target object is required')
-                .min(1, 'Target object ID cannot be empty'),
+                .required("Target object is required")
+                .min(1, "Target object ID cannot be empty"),
                 
             listId: yup
                 .string()
-                .when('createNewList', {
+                .when("createNewList", {
                     is: (val: boolean) => !val,
-                    then: (schema) => schema.required('Please select a list or create a new one'),
-                    otherwise: (schema) => schema.optional()
+                    then: (schema) => schema.required("Please select a list or create a new one"),
+                    otherwise: (schema) => schema.optional(),
                 }),
                 
             createNewList: yup
@@ -103,19 +103,19 @@ export class BookmarkFormDataFactory {
                 
             newListLabel: yup
                 .string()
-                .when('createNewList', {
+                .when("createNewList", {
                     is: true,
                     then: (schema) => schema
-                        .required('List name is required')
-                        .min(1, 'List name cannot be empty')
-                        .max(50, 'List name cannot exceed 50 characters')
-                        .matches(/^[a-zA-Z0-9\s\-_]+$/, 'List name contains invalid characters'),
-                    otherwise: (schema) => schema.optional()
+                        .required("List name is required")
+                        .min(1, "List name cannot be empty")
+                        .max(50, "List name cannot exceed 50 characters")
+                        .matches(/^[a-zA-Z0-9\s\-_]+$/, "List name contains invalid characters"),
+                    otherwise: (schema) => schema.optional(),
                 }),
                 
             isPrivate: yup
                 .boolean()
-                .optional()
+                .optional(),
         }).defined();
     }
     
@@ -129,59 +129,59 @@ export class BookmarkFormDataFactory {
     /**
      * Create form data for different scenarios
      */
-    createFormData(scenario: 'empty' | 'minimal' | 'complete' | 'invalid' | 'withNewList' | 'withExistingList' | 'partiallyCompleted'): BookmarkFormData {
+    createFormData(scenario: "empty" | "minimal" | "complete" | "invalid" | "withNewList" | "withExistingList" | "partiallyCompleted"): BookmarkFormData {
         switch (scenario) {
-            case 'empty':
+            case "empty":
                 return {
                     bookmarkFor: BookmarkForEnum.Resource,
-                    forConnect: ''
+                    forConnect: "",
                 };
                 
-            case 'minimal':
+            case "minimal":
                 return {
                     bookmarkFor: BookmarkForEnum.Resource,
-                    forConnect: this.generateId()
+                    forConnect: this.generateId(),
                 };
                 
-            case 'complete':
+            case "complete":
                 return {
                     bookmarkFor: BookmarkForEnum.Resource,
                     forConnect: this.generateId(),
                     listId: this.generateId(),
-                    isPrivate: false
+                    isPrivate: false,
                 };
                 
-            case 'invalid':
+            case "invalid":
                 return {
-                    bookmarkFor: '' as any, // Invalid bookmark type
-                    forConnect: '', // Missing required field
+                    bookmarkFor: "" as any, // Invalid bookmark type
+                    forConnect: "", // Missing required field
                     createNewList: true,
-                    newListLabel: '' // Missing when createNewList is true
+                    newListLabel: "", // Missing when createNewList is true
                 };
                 
-            case 'withNewList':
+            case "withNewList":
                 return {
                     bookmarkFor: BookmarkForEnum.User,
                     forConnect: this.generateId(),
                     createNewList: true,
-                    newListLabel: 'My New Bookmarks',
-                    isPrivate: true
+                    newListLabel: "My New Bookmarks",
+                    isPrivate: true,
                 };
                 
-            case 'withExistingList':
+            case "withExistingList":
                 return {
                     bookmarkFor: BookmarkForEnum.Team,
                     forConnect: this.generateId(),
                     listId: this.generateId(),
-                    isPrivate: false
+                    isPrivate: false,
                 };
                 
-            case 'partiallyCompleted':
+            case "partiallyCompleted":
                 return {
                     bookmarkFor: BookmarkForEnum.Comment,
                     forConnect: this.generateId(),
                     createNewList: true,
-                    newListLabel: '' // Incomplete - missing list name
+                    newListLabel: "", // Incomplete - missing list name
                 };
                 
             default:
@@ -192,21 +192,21 @@ export class BookmarkFormDataFactory {
     /**
      * Create form state for different scenarios
      */
-    createFormState(scenario: 'pristine' | 'dirty' | 'submitting' | 'withErrors' | 'valid' | 'autoSaving'): BookmarkFormState {
-        const baseFormData = this.createFormData('complete');
+    createFormState(scenario: "pristine" | "dirty" | "submitting" | "withErrors" | "valid" | "autoSaving"): BookmarkFormState {
+        const baseFormData = this.createFormData("complete");
         
         switch (scenario) {
-            case 'pristine':
+            case "pristine":
                 return {
-                    values: this.createFormData('empty'),
+                    values: this.createFormData("empty"),
                     errors: {},
                     touched: {},
                     isDirty: false,
                     isSubmitting: false,
-                    isValid: false
+                    isValid: false,
                 };
                 
-            case 'dirty':
+            case "dirty":
                 return {
                     values: baseFormData,
                     errors: {},
@@ -214,44 +214,34 @@ export class BookmarkFormDataFactory {
                     isDirty: true,
                     isSubmitting: false,
                     isValid: true,
-                    hasUnsavedChanges: true
+                    hasUnsavedChanges: true,
                 };
                 
-            case 'submitting':
+            case "submitting":
                 return {
                     values: baseFormData,
                     errors: {},
                     touched: { forConnect: true, listId: true },
                     isDirty: true,
                     isSubmitting: true,
-                    isValid: true
+                    isValid: true,
                 };
                 
-            case 'withErrors':
+            case "withErrors":
                 return {
-                    values: this.createFormData('invalid'),
+                    values: this.createFormData("invalid"),
                     errors: {
-                        bookmarkFor: 'Bookmark type is required',
-                        forConnect: 'Target object is required',
-                        newListLabel: 'List name is required'
+                        bookmarkFor: "Bookmark type is required",
+                        forConnect: "Target object is required",
+                        newListLabel: "List name is required",
                     },
                     touched: { bookmarkFor: true, forConnect: true, newListLabel: true },
                     isDirty: true,
                     isSubmitting: false,
-                    isValid: false
+                    isValid: false,
                 };
                 
-            case 'valid':
-                return {
-                    values: baseFormData,
-                    errors: {},
-                    touched: { forConnect: true, listId: true },
-                    isDirty: true,
-                    isSubmitting: false,
-                    isValid: true
-                };
-                
-            case 'autoSaving':
+            case "valid":
                 return {
                     values: baseFormData,
                     errors: {},
@@ -259,8 +249,18 @@ export class BookmarkFormDataFactory {
                     isDirty: true,
                     isSubmitting: false,
                     isValid: true,
-                    autoSaveStatus: 'saving',
-                    hasUnsavedChanges: true
+                };
+                
+            case "autoSaving":
+                return {
+                    values: baseFormData,
+                    errors: {},
+                    touched: { forConnect: true, listId: true },
+                    isDirty: true,
+                    isSubmitting: false,
+                    isValid: true,
+                    autoSaveStatus: "saving",
+                    hasUnsavedChanges: true,
                 };
                 
             default:
@@ -273,19 +273,19 @@ export class BookmarkFormDataFactory {
      */
     createFormInstance(
         initialData?: Partial<BookmarkFormData>,
-        config?: Partial<FormValidationConfig>
+        config?: Partial<FormValidationConfig>,
     ): UseFormReturn<BookmarkFormData> {
         const defaultValues: BookmarkFormData = {
             bookmarkFor: BookmarkForEnum.Resource,
-            forConnect: '',
-            ...initialData
+            forConnect: "",
+            ...initialData,
         };
         
         const validationConfig: FormValidationConfig = {
-            mode: 'onChange',
-            reValidateMode: 'onChange',
+            mode: "onChange",
+            reValidateMode: "onChange",
             shouldFocusError: true,
-            ...config
+            ...config,
         };
         
         return useForm<BookmarkFormData>({
@@ -293,7 +293,7 @@ export class BookmarkFormDataFactory {
             reValidateMode: validationConfig.reValidateMode,
             shouldFocusError: validationConfig.shouldFocusError,
             defaultValues,
-            resolver: yupResolver(this.createValidationSchema())
+            resolver: yupResolver(this.createValidationSchema()),
         });
     }
     
@@ -315,7 +315,7 @@ export class BookmarkFormDataFactory {
             
             return {
                 isValid: true,
-                apiInput
+                apiInput,
             };
         } catch (error: any) {
             const errors: Record<string, string> = {};
@@ -333,7 +333,7 @@ export class BookmarkFormDataFactory {
             
             return {
                 isValid: false,
-                errors
+                errors,
             };
         }
     }
@@ -345,13 +345,13 @@ export class BookmarkFormDataFactory {
         const apiInput: BookmarkCreateInput = {
             id: this.generateId(),
             bookmarkFor: formData.bookmarkFor,
-            forConnect: formData.forConnect
+            forConnect: formData.forConnect,
         };
         
         if (formData.createNewList && formData.newListLabel) {
             apiInput.listCreate = {
                 id: this.generateId(),
-                label: formData.newListLabel
+                label: formData.newListLabel,
             };
         } else if (formData.listId) {
             apiInput.listConnect = formData.listId;
@@ -365,7 +365,7 @@ export class BookmarkFormDataFactory {
  * Form interaction simulator for testing user behavior
  */
 export class BookmarkFormInteractionSimulator {
-    private interactionDelay: number = 100;
+    private interactionDelay = 100;
     
     constructor(delay?: number) {
         this.interactionDelay = delay || 100;
@@ -378,7 +378,7 @@ export class BookmarkFormInteractionSimulator {
         formInstance: UseFormReturn<BookmarkFormData>,
         fieldName: keyof BookmarkFormData,
         value: any,
-        options?: { shouldValidate?: boolean; shouldTouch?: boolean }
+        options?: { shouldValidate?: boolean; shouldTouch?: boolean },
     ): Promise<void> {
         const { shouldValidate = true, shouldTouch = true } = options || {};
         
@@ -386,7 +386,7 @@ export class BookmarkFormInteractionSimulator {
             formInstance.setValue(fieldName, value, {
                 shouldDirty: true,
                 shouldTouch,
-                shouldValidate
+                shouldValidate,
             });
         });
         
@@ -405,18 +405,18 @@ export class BookmarkFormInteractionSimulator {
         formInstance: UseFormReturn<BookmarkFormData>,
         fieldName: keyof BookmarkFormData,
         text: string,
-        options?: { charDelay?: number; shouldValidateOnChange?: boolean }
+        options?: { charDelay?: number; shouldValidateOnChange?: boolean },
     ): Promise<void> {
         const { charDelay = 50, shouldValidateOnChange = true } = options || {};
         
         // Clear field first
-        await this.fillField(formInstance, fieldName, '', { shouldValidate: false });
+        await this.fillField(formInstance, fieldName, "", { shouldValidate: false });
         
         // Type each character
         for (let i = 1; i <= text.length; i++) {
             const partialText = text.substring(0, i);
             await this.fillField(formInstance, fieldName, partialText, { 
-                shouldValidate: shouldValidateOnChange && i === text.length 
+                shouldValidate: shouldValidateOnChange && i === text.length, 
             });
             
             if (charDelay > 0) {
@@ -431,7 +431,7 @@ export class BookmarkFormInteractionSimulator {
     async simulateFieldFocus(
         formInstance: UseFormReturn<BookmarkFormData>,
         fieldName: keyof BookmarkFormData,
-        duration: number = 1000
+        duration = 1000,
     ): Promise<void> {
         // Simulate focus
         act(() => {
@@ -452,7 +452,7 @@ export class BookmarkFormInteractionSimulator {
     async simulateFormSubmission(
         formInstance: UseFormReturn<BookmarkFormData>,
         onSubmit?: (data: BookmarkFormData) => Promise<void> | void,
-        onError?: (errors: FieldErrors<BookmarkFormData>) => void
+        onError?: (errors: FieldErrors<BookmarkFormData>) => void,
     ): Promise<{ success: boolean; data?: BookmarkFormData; errors?: FieldErrors<BookmarkFormData> }> {
         return new Promise((resolve) => {
             const handleSubmit = async (data: BookmarkFormData) => {
@@ -462,7 +462,7 @@ export class BookmarkFormInteractionSimulator {
                     }
                     resolve({ success: true, data });
                 } catch (error) {
-                    resolve({ success: false, errors: { root: { type: 'submit', message: 'Submission failed' } } });
+                    resolve({ success: false, errors: { root: { type: "submit", message: "Submission failed" } } });
                 }
             };
             
@@ -489,19 +489,19 @@ export class BookmarkFormInteractionSimulator {
             withTypingDelay?: boolean;
             withValidationPauses?: boolean;
             withFieldFocus?: boolean;
-        }
+        },
     ): Promise<void> {
         const { 
             withTypingDelay = true, 
             withValidationPauses = true, 
-            withFieldFocus = true 
+            withFieldFocus = true, 
         } = options || {};
         
         // Fill bookmark type
         if (withFieldFocus) {
-            await this.simulateFieldFocus(formInstance, 'bookmarkFor', 200);
+            await this.simulateFieldFocus(formInstance, "bookmarkFor", 200);
         }
-        await this.fillField(formInstance, 'bookmarkFor', formData.bookmarkFor);
+        await this.fillField(formInstance, "bookmarkFor", formData.bookmarkFor);
         
         if (withValidationPauses) {
             await new Promise(resolve => setTimeout(resolve, 200));
@@ -509,13 +509,13 @@ export class BookmarkFormInteractionSimulator {
         
         // Fill target object
         if (withFieldFocus) {
-            await this.simulateFieldFocus(formInstance, 'forConnect', 300);
+            await this.simulateFieldFocus(formInstance, "forConnect", 300);
         }
         
-        if (withTypingDelay && typeof formData.forConnect === 'string') {
-            await this.simulateTyping(formInstance, 'forConnect', formData.forConnect);
+        if (withTypingDelay && typeof formData.forConnect === "string") {
+            await this.simulateTyping(formInstance, "forConnect", formData.forConnect);
         } else {
-            await this.fillField(formInstance, 'forConnect', formData.forConnect);
+            await this.fillField(formInstance, "forConnect", formData.forConnect);
         }
         
         if (withValidationPauses) {
@@ -524,26 +524,26 @@ export class BookmarkFormInteractionSimulator {
         
         // Handle list selection or creation
         if (formData.createNewList) {
-            await this.fillField(formInstance, 'createNewList', true);
+            await this.fillField(formInstance, "createNewList", true);
             
             if (formData.newListLabel) {
                 if (withFieldFocus) {
-                    await this.simulateFieldFocus(formInstance, 'newListLabel', 250);
+                    await this.simulateFieldFocus(formInstance, "newListLabel", 250);
                 }
                 
                 if (withTypingDelay) {
-                    await this.simulateTyping(formInstance, 'newListLabel', formData.newListLabel);
+                    await this.simulateTyping(formInstance, "newListLabel", formData.newListLabel);
                 } else {
-                    await this.fillField(formInstance, 'newListLabel', formData.newListLabel);
+                    await this.fillField(formInstance, "newListLabel", formData.newListLabel);
                 }
             }
         } else if (formData.listId) {
-            await this.fillField(formInstance, 'listId', formData.listId);
+            await this.fillField(formInstance, "listId", formData.listId);
         }
         
         // Set privacy if specified
         if (formData.isPrivate !== undefined) {
-            await this.fillField(formInstance, 'isPrivate', formData.isPrivate);
+            await this.fillField(formInstance, "isPrivate", formData.isPrivate);
         }
         
         // Final validation pause
@@ -558,10 +558,10 @@ export class BookmarkFormInteractionSimulator {
     async simulateErrorRecovery(
         formInstance: UseFormReturn<BookmarkFormData>,
         errorField: keyof BookmarkFormData,
-        correctValue: any
+        correctValue: any,
     ): Promise<void> {
         // First, ensure the field has an error
-        await this.fillField(formInstance, errorField, '');
+        await this.fillField(formInstance, errorField, "");
         
         // Wait for error to appear
         await waitFor(() => {
@@ -589,25 +589,25 @@ export class BookmarkFormInteractionSimulator {
  */
 export const bookmarkFormScenarios = {
     // Basic scenarios
-    emptyForm: () => new BookmarkFormDataFactory().createFormState('pristine'),
-    validForm: () => new BookmarkFormDataFactory().createFormState('valid'),
-    formWithErrors: () => new BookmarkFormDataFactory().createFormState('withErrors'),
-    submittingForm: () => new BookmarkFormDataFactory().createFormState('submitting'),
+    emptyForm: () => new BookmarkFormDataFactory().createFormState("pristine"),
+    validForm: () => new BookmarkFormDataFactory().createFormState("valid"),
+    formWithErrors: () => new BookmarkFormDataFactory().createFormState("withErrors"),
+    submittingForm: () => new BookmarkFormDataFactory().createFormState("submitting"),
     
     // Specific data scenarios
-    minimalBookmark: () => new BookmarkFormDataFactory().createFormData('minimal'),
-    completeBookmark: () => new BookmarkFormDataFactory().createFormData('complete'),
-    bookmarkWithNewList: () => new BookmarkFormDataFactory().createFormData('withNewList'),
-    bookmarkWithExistingList: () => new BookmarkFormDataFactory().createFormData('withExistingList'),
-    invalidBookmark: () => new BookmarkFormDataFactory().createFormData('invalid'),
+    minimalBookmark: () => new BookmarkFormDataFactory().createFormData("minimal"),
+    completeBookmark: () => new BookmarkFormDataFactory().createFormData("complete"),
+    bookmarkWithNewList: () => new BookmarkFormDataFactory().createFormData("withNewList"),
+    bookmarkWithExistingList: () => new BookmarkFormDataFactory().createFormData("withExistingList"),
+    invalidBookmark: () => new BookmarkFormDataFactory().createFormData("invalid"),
     
     // Interactive scenarios
-    autoSavingForm: () => new BookmarkFormDataFactory().createFormState('autoSaving'),
+    autoSavingForm: () => new BookmarkFormDataFactory().createFormState("autoSaving"),
     partiallyCompletedForm: () => {
         const factory = new BookmarkFormDataFactory();
         return {
-            ...factory.createFormState('dirty'),
-            values: factory.createFormData('partiallyCompleted')
+            ...factory.createFormState("dirty"),
+            values: factory.createFormData("partiallyCompleted"),
         };
     },
     
@@ -615,12 +615,12 @@ export const bookmarkFormScenarios = {
     async completeFormFillWorkflow(formInstance: UseFormReturn<BookmarkFormData>) {
         const simulator = new BookmarkFormInteractionSimulator(50);
         const factory = new BookmarkFormDataFactory();
-        const formData = factory.createFormData('complete');
+        const formData = factory.createFormData("complete");
         
         await simulator.simulateCompleteFormFilling(formInstance, formData, {
             withTypingDelay: true,
             withValidationPauses: true,
-            withFieldFocus: true
+            withFieldFocus: true,
         });
         
         return formData;
@@ -632,18 +632,18 @@ export const bookmarkFormScenarios = {
         // Simulate error in forConnect field
         await simulator.simulateErrorRecovery(
             formInstance, 
-            'forConnect', 
-            'resource-123'
+            "forConnect", 
+            "resource-123",
         );
         
         // Simulate error in newListLabel field
-        await simulator.fillField(formInstance, 'createNewList', true);
+        await simulator.fillField(formInstance, "createNewList", true);
         await simulator.simulateErrorRecovery(
             formInstance, 
-            'newListLabel', 
-            'My Corrected List Name'
+            "newListLabel", 
+            "My Corrected List Name",
         );
-    }
+    },
 };
 
 // Export factory instances for easy use

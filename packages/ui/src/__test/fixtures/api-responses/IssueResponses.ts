@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     Issue, 
     IssueCreateInput, 
@@ -15,13 +15,13 @@ import type {
     IssueTranslation,
     User,
     Team,
-    Resource
-} from '@vrooli/shared';
+    Resource,
+} from "@vrooli/shared";
 import { 
     issueValidation,
     IssueFor as IssueForEnum,
-    IssueStatus as IssueStatusEnum
-} from '@vrooli/shared';
+    IssueStatus as IssueStatusEnum,
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -73,7 +73,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class IssueResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -100,7 +100,7 @@ export class IssueResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/issue/${issue.id}`,
                     related: {
@@ -108,10 +108,10 @@ export class IssueResponseFactory {
                         createdBy: issue.createdBy ? `${this.baseUrl}/api/user/${issue.createdBy.id}` : undefined,
                         closedBy: issue.closedBy ? `${this.baseUrl}/api/user/${issue.closedBy.id}` : undefined,
                         comments: `${this.baseUrl}/api/issue/${issue.id}/comments`,
-                        reports: `${this.baseUrl}/api/issue/${issue.id}/reports`
-                    }
-                }
-            }
+                        reports: `${this.baseUrl}/api/issue/${issue.id}/reports`,
+                    },
+                },
+            },
         };
     }
     
@@ -126,7 +126,7 @@ export class IssueResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: issues.length,
-            totalCount: issues.length
+            totalCount: issues.length,
         };
         
         return {
@@ -134,17 +134,17 @@ export class IssueResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/issue?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/issue?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -154,16 +154,16 @@ export class IssueResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/issue'
-            }
+                path: "/api/issue",
+            },
         };
     }
     
@@ -173,16 +173,16 @@ export class IssueResponseFactory {
     createNotFoundErrorResponse(issueId: string): APIErrorResponse {
         return {
             error: {
-                code: 'ISSUE_NOT_FOUND',
+                code: "ISSUE_NOT_FOUND",
                 message: `Issue with ID '${issueId}' was not found`,
                 details: {
                     issueId,
-                    searchCriteria: { id: issueId }
+                    searchCriteria: { id: issueId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/issue/${issueId}`
-            }
+                path: `/api/issue/${issueId}`,
+            },
         };
     }
     
@@ -192,17 +192,17 @@ export class IssueResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this issue`,
                 details: {
                     operation,
-                    requiredPermissions: ['issue:write'],
-                    userPermissions: ['issue:read']
+                    requiredPermissions: ["issue:write"],
+                    userPermissions: ["issue:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/issue'
-            }
+                path: "/api/issue",
+            },
         };
     }
     
@@ -212,17 +212,17 @@ export class IssueResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/issue'
-            }
+                path: "/api/issue",
+            },
         };
     }
     
@@ -232,17 +232,17 @@ export class IssueResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/issue'
-            }
+                path: "/api/issue",
+            },
         };
     }
     
@@ -252,17 +252,17 @@ export class IssueResponseFactory {
     createStatusConflictErrorResponse(currentStatus: IssueStatus, attemptedStatus: IssueStatus): APIErrorResponse {
         return {
             error: {
-                code: 'STATUS_CONFLICT',
+                code: "STATUS_CONFLICT",
                 message: `Cannot change issue status from ${currentStatus} to ${attemptedStatus}`,
                 details: {
                     currentStatus,
                     attemptedStatus,
-                    allowedTransitions: this.getAllowedStatusTransitions(currentStatus)
+                    allowedTransitions: this.getAllowedStatusTransitions(currentStatus),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/issue'
-            }
+                path: "/api/issue",
+            },
         };
     }
     
@@ -337,9 +337,9 @@ export class IssueResponseFactory {
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             closedBy: null,
             to: {
@@ -360,8 +360,8 @@ export class IssueResponseFactory {
                     canReport: false,
                     isBookmarked: false,
                     isReacted: false,
-                    reaction: null
-                }
+                    reaction: null,
+                },
             },
             translations: [
                 {
@@ -369,8 +369,8 @@ export class IssueResponseFactory {
                     id: `translation_${id}`,
                     language: "en",
                     name: "Sample Issue",
-                    description: "This is a sample issue description for testing purposes."
-                }
+                    description: "This is a sample issue description for testing purposes.",
+                },
             ],
             comments: [],
             reports: [],
@@ -385,13 +385,13 @@ export class IssueResponseFactory {
                 canReport: true,
                 canUpdate: false,
                 isBookmarked: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         };
         
         return {
             ...defaultIssue,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -428,8 +428,8 @@ export class IssueResponseFactory {
                     canUpdate: false,
                     isBookmarked: false,
                     isReacted: false,
-                    role: null
-                }
+                    role: null,
+                },
             } as Team;
         }
         
@@ -440,7 +440,7 @@ export class IssueResponseFactory {
                 id: t.id,
                 language: t.language,
                 name: t.name,
-                description: t.description || null
+                description: t.description || null,
             }));
             issue.translationsCount = issue.translations.length;
         }
@@ -469,7 +469,7 @@ export class IssueResponseFactory {
                     ...issue.createdBy!,
                     id: `closer_${index}`,
                     handle: "issueCloser",
-                    name: "Issue Closer"
+                    name: "Issue Closer",
                 };
             }
             
@@ -511,8 +511,8 @@ export class IssueResponseFactory {
                         canUpdate: false,
                         isBookmarked: false,
                         isReacted: false,
-                        role: null
-                    }
+                        role: null,
+                    },
                 } as Team;
             }
             
@@ -532,7 +532,7 @@ export class IssueResponseFactory {
             { name: "High", score: 75, description: "High priority issue" },
             { name: "Medium", score: 50, description: "Medium priority issue" },
             { name: "Low", score: 25, description: "Low priority issue" },
-            { name: "Enhancement", score: 10, description: "Enhancement request" }
+            { name: "Enhancement", score: 10, description: "Enhancement request" },
         ];
         
         return severityLevels.map((severity, index) => {
@@ -571,7 +571,7 @@ export class IssueResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -601,7 +601,7 @@ export class IssueResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -623,7 +623,7 @@ export class IssueMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create issue
-            rest.post(`${this.responseFactory['baseUrl']}/api/issue`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
                 const body = await req.json() as IssueCreateInput;
                 
                 // Validate input
@@ -631,7 +631,7 @@ export class IssueMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -641,12 +641,12 @@ export class IssueMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get issue by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/issue/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const issue = this.responseFactory.createMockIssue({ id: id as string });
@@ -654,12 +654,12 @@ export class IssueMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update issue
-            rest.put(`${this.responseFactory['baseUrl']}/api/issue/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/issue/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as IssueUpdateInput;
                 
@@ -668,25 +668,25 @@ export class IssueMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
                 const issue = this.responseFactory.createMockIssue({ 
                     id: id as string,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(issue);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Close issue
-            rest.patch(`${this.responseFactory['baseUrl']}/api/issue/:id/close`, async (req, res, ctx) => {
+            rest.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as { status: IssueStatus };
                 
@@ -694,29 +694,29 @@ export class IssueMSWHandlers {
                     id: id as string,
                     status: body.status,
                     closedAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(issue);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete issue
-            rest.delete(`${this.responseFactory['baseUrl']}/api/issue/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List issues
-            rest.get(`${this.responseFactory['baseUrl']}/api/issue`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const status = url.searchParams.get('status') as IssueStatus;
-                const issueFor = url.searchParams.get('issueFor') as IssueFor;
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as IssueStatus;
+                const issueFor = url.searchParams.get("issueFor") as IssueFor;
                 
                 let issues: Issue[] = [];
                 
@@ -732,7 +732,7 @@ export class IssueMSWHandlers {
                     issues = [
                         ...this.responseFactory.createIssuesWithAllStatuses(),
                         ...this.responseFactory.createIssuesForAllTypes(),
-                        ...this.responseFactory.createIssuesWithDifferentSeverity()
+                        ...this.responseFactory.createIssuesWithDifferentSeverity(),
                     ];
                 }
                 
@@ -745,15 +745,15 @@ export class IssueMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: issues.length
-                    }
+                        totalCount: issues.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -763,61 +763,61 @@ export class IssueMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/issue`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        forConnect: 'Target object ID is required',
-                        issueFor: 'Issue type must be specified',
-                        'translationsCreate.0.name': 'Issue name is required'
-                    }))
+                        forConnect: "Target object ID is required",
+                        issueFor: "Issue type must be specified",
+                        "translationsCreate.0.name": "Issue name is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/issue/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/issue`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Status conflict error
-            rest.patch(`${this.responseFactory['baseUrl']}/api/issue/:id/close`, (req, res, ctx) => {
+            rest.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
                     ctx.json(this.responseFactory.createStatusConflictErrorResponse(
                         IssueStatusEnum.ClosedResolved,
-                        IssueStatusEnum.Draft
-                    ))
+                        IssueStatusEnum.Draft,
+                    )),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/issue`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/issue`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
                 const body = await req.json() as IssueCreateInput;
                 const issue = this.responseFactory.createIssueFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(issue);
@@ -825,20 +825,20 @@ export class IssueMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/issue`, async (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
                 const issues = this.responseFactory.createIssuesWithAllStatuses();
                 const response = this.responseFactory.createIssueListResponse(issues);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -847,17 +847,17 @@ export class IssueMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/issue`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/issue/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/issue`, (req, res, ctx) => {
-                return res.networkError('Service unavailable');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+                return res.networkError("Service unavailable");
+            }),
         ];
     }
     
@@ -866,13 +866,13 @@ export class IssueMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -894,14 +894,14 @@ export const issueResponseScenarios = {
     createSuccess: (issue?: Issue) => {
         const factory = new IssueResponseFactory();
         return factory.createSuccessResponse(
-            issue || factory.createMockIssue()
+            issue || factory.createMockIssue(),
         );
     },
     
     listSuccess: (issues?: Issue[]) => {
         const factory = new IssueResponseFactory();
         return factory.createIssueListResponse(
-            issues || factory.createIssuesWithAllStatuses()
+            issues || factory.createIssuesWithAllStatuses(),
         );
     },
     
@@ -920,7 +920,7 @@ export const issueResponseScenarios = {
     listBySeverity: () => {
         const factory = new IssueResponseFactory();
         return factory.createIssueListResponse(
-            factory.createIssuesWithDifferentSeverity()
+            factory.createIssuesWithDifferentSeverity(),
         );
     },
     
@@ -929,24 +929,24 @@ export const issueResponseScenarios = {
         const factory = new IssueResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                forConnect: 'Target object is required',
-                issueFor: 'Issue type must be specified',
-                'translationsCreate.0.name': 'Issue name is required'
-            }
+                forConnect: "Target object is required",
+                issueFor: "Issue type must be specified",
+                "translationsCreate.0.name": "Issue name is required",
+            },
         );
     },
     
     notFoundError: (issueId?: string) => {
         const factory = new IssueResponseFactory();
         return factory.createNotFoundErrorResponse(
-            issueId || 'non-existent-issue-id'
+            issueId || "non-existent-issue-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new IssueResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -954,7 +954,7 @@ export const issueResponseScenarios = {
         const factory = new IssueResponseFactory();
         return factory.createStatusConflictErrorResponse(
             currentStatus || IssueStatusEnum.ClosedResolved,
-            attemptedStatus || IssueStatusEnum.Draft
+            attemptedStatus || IssueStatusEnum.Draft,
         );
     },
     
@@ -967,7 +967,7 @@ export const issueResponseScenarios = {
     successHandlers: () => new IssueMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new IssueMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new IssueMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new IssueMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new IssueMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

@@ -202,20 +202,20 @@ export interface EnhancedAPIFixtureFactory<TCreateInput, TUpdateInput, TFindResu
 /**
  * Utility type to extract create input type from an API fixture factory
  */
-export type ExtractCreateInput<T> = T extends APIFixtureFactory<infer TCreateInput, any, any> 
+export type ExtractCreateInput<T> = T extends APIFixtureFactory<infer TCreateInput, unknown, unknown> 
     ? TCreateInput 
     : never;
 
 /**
  * Utility type to extract update input type from an API fixture factory
  */
-export type ExtractUpdateInput<T> = T extends APIFixtureFactory<any, infer TUpdateInput, any> 
+export type ExtractUpdateInput<T> = T extends APIFixtureFactory<unknown, infer TUpdateInput, unknown> 
     ? TUpdateInput 
     : never;
 
 /**
  * Utility type to extract find result type from an API fixture factory
  */
-export type ExtractFindResult<T> = T extends APIFixtureFactory<any, any, infer TFindResult> 
+export type ExtractFindResult<T> = T extends APIFixtureFactory<unknown, unknown, infer TFindResult> 
     ? TFindResult 
     : never;

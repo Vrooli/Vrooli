@@ -1,5 +1,5 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { type user_auth, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
 
@@ -13,13 +13,13 @@ interface AuthRelationConfig extends RelationConfig {
  * Handles authentication records including password and OAuth providers
  */
 export class AuthDbFactory extends DatabaseFixtureFactory<
-    Prisma.user_auth,
+    user_auth,
     Prisma.user_authCreateInput,
     Prisma.user_authInclude,
     Prisma.user_authUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('user_auth', prisma);
+        super("user_auth", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -54,8 +54,8 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
      */
     async createOAuth(
         provider: "Google" | "GitHub" | "Twitter" | "Discord",
-        overrides?: Partial<Prisma.user_authCreateInput>
-    ): Promise<Prisma.user_auth> {
+        overrides?: Partial<Prisma.user_authCreateInput>,
+    ): Promise<user_auth> {
         const data: Prisma.user_authCreateInput = {
             id: generatePK(),
             provider,
@@ -65,18 +65,19 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
             token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
             granted_scopes: this.getDefaultScopesForProvider(provider),
             last_used_at: new Date(),
+            user: { connect: { id: generatePK() } },
             ...overrides,
         };
         
         const result = await this.prisma.user_auth.create({ data });
-        this.trackCreatedId(result.id);
+        this.trackCreatedId(result.id.toString());
         return result;
     }
 
     /**
      * Create locked account authentication
      */
-    async createLocked(overrides?: Partial<Prisma.user_authCreateInput>): Promise<Prisma.user_auth> {
+    async createLocked(overrides?: Partial<Prisma.user_authCreateInput>): Promise<user_auth> {
         return this.createMinimal({
             hashed_password: "$2b$10$locked.account.password.hash",
             lastResetPasswordRequestAttempt: new Date(), // Recent attempt
@@ -87,7 +88,7 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
     /**
      * Create auth with pending password reset
      */
-    async createWithPasswordReset(overrides?: Partial<Prisma.user_authCreateInput>): Promise<Prisma.user_auth> {
+    async createWithPasswordReset(overrides?: Partial<Prisma.user_authCreateInput>): Promise<user_auth> {
         return this.createComplete({
             resetPasswordCode: `reset_${nanoid(32)}`,
             lastResetPasswordRequestAttempt: new Date(Date.now() - 10 * 60 * 1000), // 10 minutes ago
@@ -99,7 +100,7 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
         return {
             user: true,
             sessions: {
-                orderBy: { createdAt: 'desc' },
+                orderBy: { createdAt: "desc" },
                 take: 5,
             },
             _count: {
@@ -113,9 +114,9 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.user_authCreateInput,
         config: AuthRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.user_authCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle user connection (required)
         if (config.withUser || !data.user) {
@@ -136,7 +137,7 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
 
         // Handle sessions
         if (config.withSessions) {
-            const sessionCount = typeof config.withSessions === 'number' ? config.withSessions : 1;
+            const sessionCount = typeof config.withSessions === "number" ? config.withSessions : 1;
             data.sessions = {
                 create: Array.from({ length: sessionCount }, (_, i) => ({
                     id: generatePK(),
@@ -168,7 +169,7 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
     /**
      * Create test scenarios
      */
-    async createMultiAuthUser(): Promise<Prisma.user_auth[]> {
+    async createMultiAuthUser(): Promise<user_auth[]> {
         const user = await this.prisma.user.create({
             data: {
                 id: generatePK(),
@@ -191,14 +192,14 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
         return auths;
     }
 
-    async createExpiredOAuth(): Promise<Prisma.user_auth> {
+    async createExpiredOAuth(): Promise<user_auth> {
         return this.createOAuth("Google", {
             token_expires_at: new Date(Date.now() - 24 * 60 * 60 * 1000), // Expired 1 day ago
             last_used_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // Last used 2 days ago
         });
     }
 
-    protected async checkModelConstraints(record: Prisma.user_auth): Promise<string[]> {
+    protected async checkModelConstraints(record: user_auth): Promise<string[]> {
         const violations: string[] = [];
         
         // Check provider is valid
@@ -209,18 +210,18 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
 
         // Check password auth has hashed password
         if (record.provider === "Password" && !record.hashed_password) {
-            violations.push('Password provider must have hashed_password');
+            violations.push("Password provider must have hashed_password");
         }
 
         // Check OAuth has provider_user_id
         if (record.provider !== "Password" && !record.provider_user_id) {
-            violations.push('OAuth provider must have provider_user_id');
+            violations.push("OAuth provider must have provider_user_id");
         }
 
         // Check token expiry is in future for active OAuth
         if (record.access_token && record.token_expires_at) {
             if (record.token_expires_at < new Date()) {
-                violations.push('OAuth tokens appear to be expired');
+                violations.push("OAuth tokens appear to be expired");
             }
         }
 
@@ -229,7 +230,7 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
             where: { id: record.user_id },
         });
         if (!user) {
-            violations.push('Associated user not found');
+            violations.push("Associated user not found");
         }
 
         return violations;
@@ -320,9 +321,11 @@ export class AuthDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.user_auth,
+        record: user_auth & {
+            sessions?: any[];
+        },
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete sessions
         if (record.sessions?.length) {

@@ -42,7 +42,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
     Prisma.ProjectUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Project', prisma);
+        super("Project", prisma);
         this.initializeScenarios();
     }
 
@@ -124,7 +124,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
                 maxLengthHandle: {
                     id: generatePK().toString(),
                     publicId: generatePublicId(),
-                    handle: 'proj_' + 'a'.repeat(45), // Max length handle
+                    handle: "proj_" + "a".repeat(45), // Max length handle
                     isPrivate: false,
                 },
                 unicodeNameProject: {
@@ -167,7 +167,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
                             id: generatePK().toString(),
-                            language: ['en', 'es', 'fr', 'de', 'ja'][i],
+                            language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Project Name ${i}`,
                             description: `Project description in language ${i}`,
                         })),
@@ -408,7 +408,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
                     createdAt: true,
                 },
                 orderBy: {
-                    versionIndex: 'desc',
+                    versionIndex: "desc",
                 },
             },
             tags: {
@@ -435,9 +435,9 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.ProjectCreateInput,
         config: ProjectRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.ProjectCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle owner (user or team)
         if (config.owner) {
@@ -534,7 +534,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
      * Create a public project with multiple versions
      */
     async createPublicProjectWithVersions(): Promise<Prisma.Project> {
-        return this.seedScenario('versionedProject');
+        return this.seedScenario("versionedProject");
     }
 
     /**
@@ -570,19 +570,19 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
      * Create specific project types
      */
     async createOpenSourceProject(): Promise<Prisma.Project> {
-        return this.seedScenario('openSourceProject');
+        return this.seedScenario("openSourceProject");
     }
 
     async createEducationalProject(): Promise<Prisma.Project> {
-        return this.seedScenario('educationalProject');
+        return this.seedScenario("educationalProject");
     }
 
     async createResearchProject(): Promise<Prisma.Project> {
-        return this.seedScenario('researchProject');
+        return this.seedScenario("researchProject");
     }
 
     async createCommercialProject(): Promise<Prisma.Project> {
-        return this.seedScenario('commercialProject');
+        return this.seedScenario("commercialProject");
     }
 
     protected async checkModelConstraints(record: Prisma.Project): Promise<string[]> {
@@ -597,13 +597,13 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
                 },
             });
             if (duplicate) {
-                violations.push('Handle must be unique');
+                violations.push("Handle must be unique");
             }
         }
 
         // Check handle format
         if (record.handle && !/^[a-zA-Z0-9_]+$/.test(record.handle)) {
-            violations.push('Handle contains invalid characters');
+            violations.push("Handle contains invalid characters");
         }
 
         // Check that project has at least one version
@@ -612,7 +612,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (versions === 0) {
-            violations.push('Project must have at least one version');
+            violations.push("Project must have at least one version");
         }
 
         // Check that only one version is marked as latest
@@ -624,21 +624,21 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
         });
         
         if (latestVersions > 1) {
-            violations.push('Project can only have one latest version');
+            violations.push("Project can only have one latest version");
         }
 
         // Check ownership
         if (!record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Project must have an owner (user or team)');
+            violations.push("Project must have an owner (user or team)");
         }
 
         if (record.ownedByUserId && record.ownedByTeamId) {
-            violations.push('Project cannot be owned by both user and team');
+            violations.push("Project cannot be owned by both user and team");
         }
 
         // Check private project has owner
         if (record.isPrivate && !record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Private project must have an owner');
+            violations.push("Private project must have an owner");
         }
 
         return violations;
@@ -663,7 +663,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.Project,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
@@ -672,7 +672,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
         
         // Delete project versions (cascade will handle their related records)
-        if (shouldDelete('versions') && record.versions?.length) {
+        if (shouldDelete("versions") && record.versions?.length) {
             for (const version of record.versions) {
                 // Delete version translations
                 if (version.translations?.length) {
@@ -688,35 +688,35 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Delete bookmarks
-        if (shouldDelete('bookmarks') && record.bookmarks?.length) {
+        if (shouldDelete("bookmarks") && record.bookmarks?.length) {
             await tx.bookmark.deleteMany({
                 where: { projectId: record.id },
             });
         }
 
         // Delete views
-        if (shouldDelete('views') && record.views?.length) {
+        if (shouldDelete("views") && record.views?.length) {
             await tx.view.deleteMany({
                 where: { projectId: record.id },
             });
         }
 
         // Delete votes/reactions
-        if (shouldDelete('votes') && record.votes?.length) {
+        if (shouldDelete("votes") && record.votes?.length) {
             await tx.reaction.deleteMany({
                 where: { projectId: record.id },
             });
         }
 
         // Delete tag relationships
-        if (shouldDelete('tags') && record.tags?.length) {
+        if (shouldDelete("tags") && record.tags?.length) {
             await tx.projectTag.deleteMany({
                 where: { projectId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.projectTranslation.deleteMany({
                 where: { projectId: record.id },
             });
@@ -726,9 +726,9 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create project collection for testing
      */
-    async createProjectCollection(ownerId: string, count: number = 3): Promise<Prisma.Project[]> {
+    async createProjectCollection(ownerId: string, count = 3): Promise<Prisma.Project[]> {
         const projects: Prisma.Project[] = [];
-        const types = ['opensource', 'educational', 'research', 'commercial'];
+        const types = ["opensource", "educational", "research", "commercial"];
         
         for (let i = 0; i < count; i++) {
             const type = types[i % types.length];
@@ -742,7 +742,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createProjectDbFactory = (prisma: PrismaClient) => 
-    ProjectDbFactory.getInstance('Project', prisma);
+    ProjectDbFactory.getInstance("Project", prisma);
 
 // Export the class for type usage
 export { ProjectDbFactory as ProjectDbFactoryClass };

@@ -31,7 +31,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
     Prisma.awardUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('award', prisma);
+        super("award", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -83,7 +83,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     category: "invalid_progress",
                     progress: -10,
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },
@@ -93,7 +93,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     category: "beginner_badge",
                     progress: 0,
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 partialProgress: {
@@ -101,7 +101,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     category: "collaboration_expert",
                     progress: 75,
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 maxProgress: {
@@ -110,7 +110,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     progress: 999999,
                     tierCompletedAt: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 recentCompletion: {
@@ -119,7 +119,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     progress: 100,
                     tierCompletedAt: new Date(Date.now() - 3600000), // 1 hour ago
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 longTimeAchievement: {
@@ -128,7 +128,7 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
                     progress: 100,
                     tierCompletedAt: new Date(Date.now() - 365 * 24 * 3600000), // 1 year ago
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },

@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     MeetingInvite, 
     MeetingInviteCreateInput, 
@@ -14,12 +14,12 @@ import type {
     Meeting,
     User,
     MeetingInviteYou,
-    MeetingInviteSortBy
-} from '@vrooli/shared';
+    MeetingInviteSortBy,
+} from "@vrooli/shared";
 import { 
     meetingInviteValidation,
-    MeetingInviteStatus as MeetingInviteStatusEnum 
-} from '@vrooli/shared';
+    MeetingInviteStatus as MeetingInviteStatusEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -71,7 +71,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class MeetingInviteResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -98,15 +98,15 @@ export class MeetingInviteResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/meeting-invite/${meetingInvite.id}`,
                     related: {
                         meeting: `${this.baseUrl}/api/meeting/${meetingInvite.meeting.id}`,
-                        user: `${this.baseUrl}/api/user/${meetingInvite.user.id}`
-                    }
-                }
-            }
+                        user: `${this.baseUrl}/api/user/${meetingInvite.user.id}`,
+                    },
+                },
+            },
         };
     }
     
@@ -121,7 +121,7 @@ export class MeetingInviteResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: meetingInvites.length,
-            totalCount: meetingInvites.length
+            totalCount: meetingInvites.length,
         };
         
         return {
@@ -129,17 +129,17 @@ export class MeetingInviteResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/meeting-invite?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/meeting-invite?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -149,16 +149,16 @@ export class MeetingInviteResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/meeting-invite'
-            }
+                path: "/api/meeting-invite",
+            },
         };
     }
     
@@ -168,16 +168,16 @@ export class MeetingInviteResponseFactory {
     createNotFoundErrorResponse(meetingInviteId: string): APIErrorResponse {
         return {
             error: {
-                code: 'MEETING_INVITE_NOT_FOUND',
+                code: "MEETING_INVITE_NOT_FOUND",
                 message: `Meeting invite with ID '${meetingInviteId}' was not found`,
                 details: {
                     meetingInviteId,
-                    searchCriteria: { id: meetingInviteId }
+                    searchCriteria: { id: meetingInviteId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/meeting-invite/${meetingInviteId}`
-            }
+                path: `/api/meeting-invite/${meetingInviteId}`,
+            },
         };
     }
     
@@ -187,17 +187,17 @@ export class MeetingInviteResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this meeting invite`,
                 details: {
                     operation,
-                    requiredPermissions: ['meeting:manage'],
-                    userPermissions: ['meeting:read']
+                    requiredPermissions: ["meeting:manage"],
+                    userPermissions: ["meeting:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/meeting-invite'
-            }
+                path: "/api/meeting-invite",
+            },
         };
     }
     
@@ -207,17 +207,17 @@ export class MeetingInviteResponseFactory {
     createRSVPConflictErrorResponse(currentStatus: MeetingInviteStatus, requestedStatus: MeetingInviteStatus): APIErrorResponse {
         return {
             error: {
-                code: 'RSVP_STATUS_CONFLICT',
+                code: "RSVP_STATUS_CONFLICT",
                 message: `Cannot change RSVP status from ${currentStatus} to ${requestedStatus}`,
                 details: {
                     currentStatus,
                     requestedStatus,
-                    validTransitions: ['Pending -> Accepted', 'Pending -> Declined', 'Accepted -> Declined', 'Declined -> Accepted']
+                    validTransitions: ["Pending -> Accepted", "Pending -> Declined", "Accepted -> Declined", "Declined -> Accepted"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/meeting-invite'
-            }
+                path: "/api/meeting-invite",
+            },
         };
     }
     
@@ -227,17 +227,17 @@ export class MeetingInviteResponseFactory {
     createMeetingCapacityErrorResponse(currentCount: number, maxCapacity: number): APIErrorResponse {
         return {
             error: {
-                code: 'MEETING_CAPACITY_EXCEEDED',
-                message: 'Meeting has reached maximum capacity',
+                code: "MEETING_CAPACITY_EXCEEDED",
+                message: "Meeting has reached maximum capacity",
                 details: {
                     currentAttendees: currentCount,
                     maxCapacity,
-                    waitingListAvailable: true
+                    waitingListAvailable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/meeting-invite'
-            }
+                path: "/api/meeting-invite",
+            },
         };
     }
     
@@ -247,17 +247,17 @@ export class MeetingInviteResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/meeting-invite'
-            }
+                path: "/api/meeting-invite",
+            },
         };
     }
     
@@ -267,17 +267,17 @@ export class MeetingInviteResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/meeting-invite'
-            }
+                path: "/api/meeting-invite",
+            },
         };
     }
     
@@ -324,8 +324,8 @@ export class MeetingInviteResponseFactory {
                 you: {
                     __typename: "ScheduleYou",
                     canDelete: true,
-                    canUpdate: true
-                }
+                    canUpdate: true,
+                },
             },
             showOnTeamProfile: true,
             team: {
@@ -393,9 +393,9 @@ export class MeetingInviteResponseFactory {
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             translations: [],
             translationsCount: 0,
@@ -403,13 +403,13 @@ export class MeetingInviteResponseFactory {
                 __typename: "MeetingYou",
                 canDelete: false,
                 canInvite: false,
-                canUpdate: false
-            }
+                canUpdate: false,
+            },
         };
         
         return {
             ...defaultMeeting,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -449,14 +449,14 @@ export class MeetingInviteResponseFactory {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         };
         
         return {
             ...defaultUser,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -479,13 +479,13 @@ export class MeetingInviteResponseFactory {
             you: {
                 __typename: "MeetingInviteYou",
                 canDelete: true,
-                canUpdate: true
-            }
+                canUpdate: true,
+            },
         };
         
         return {
             ...defaultMeetingInvite,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -518,9 +518,9 @@ export class MeetingInviteResponseFactory {
                 user: this.createMockUser({
                     id: `user_${this.generateId()}_${index}`,
                     handle: `user${index + 1}`,
-                    name: `User ${index + 1}`
-                })
-            })
+                    name: `User ${index + 1}`,
+                }),
+            }),
         );
     }
     
@@ -532,23 +532,23 @@ export class MeetingInviteResponseFactory {
             {
                 meetingName: "Weekly Team Standup",
                 message: "Join us for our weekly standup to discuss progress and blockers.",
-                isUrgent: false
+                isUrgent: false,
             },
             {
                 meetingName: "Quarterly Planning Session",
                 message: "Important quarterly planning session - attendance required.",
-                isUrgent: true
+                isUrgent: true,
             },
             {
                 meetingName: "Product Demo",
                 message: "Demo of new features - optional attendance.",
-                isUrgent: false
+                isUrgent: false,
             },
             {
                 meetingName: "Emergency Bug Triage",
                 message: "Urgent bug triage meeting - immediate attention required.",
-                isUrgent: true
-            }
+                isUrgent: true,
+            },
         ];
         
         return contexts.map((context, index) => 
@@ -562,11 +562,11 @@ export class MeetingInviteResponseFactory {
                         id: `trans_${this.generateId()}_${index}`,
                         language: "en",
                         name: context.meetingName,
-                        description: context.message
-                    }]
+                        description: context.message,
+                    }],
                 }),
-                status: context.isUrgent ? MeetingInviteStatusEnum.Pending : MeetingInviteStatusEnum.Accepted
-            })
+                status: context.isUrgent ? MeetingInviteStatusEnum.Pending : MeetingInviteStatusEnum.Accepted,
+            }),
         );
     }
     
@@ -595,7 +595,7 @@ export class MeetingInviteResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -625,7 +625,7 @@ export class MeetingInviteResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -647,7 +647,7 @@ export class MeetingInviteMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create meeting invite
-            rest.post(`${this.responseFactory['baseUrl']}/api/meeting-invite`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, async (req, res, ctx) => {
                 const body = await req.json() as MeetingInviteCreateInput;
                 
                 // Validate input
@@ -655,7 +655,7 @@ export class MeetingInviteMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -665,12 +665,12 @@ export class MeetingInviteMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get meeting invite by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const meetingInvite = this.responseFactory.createMockMeetingInvite({ id: id as string });
@@ -678,12 +678,12 @@ export class MeetingInviteMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update meeting invite
-            rest.put(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as MeetingInviteUpdateInput;
                 
@@ -692,56 +692,56 @@ export class MeetingInviteMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
                 const meetingInvite = this.responseFactory.createMockMeetingInvite({ 
                     id: id as string,
                     message: body.message,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(meetingInvite);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // RSVP to meeting invite (accept/decline)
-            rest.patch(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
+            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as { status: MeetingInviteStatus };
                 
                 const meetingInvite = this.responseFactory.createMockMeetingInvite({ 
                     id: id as string,
                     status: body.status,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(meetingInvite);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete meeting invite
-            rest.delete(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List meeting invites
-            rest.get(`${this.responseFactory['baseUrl']}/api/meeting-invite`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const status = url.searchParams.get('status') as MeetingInviteStatus;
-                const meetingId = url.searchParams.get('meetingId');
-                const userId = url.searchParams.get('userId');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as MeetingInviteStatus;
+                const meetingId = url.searchParams.get("meetingId");
+                const userId = url.searchParams.get("userId");
                 
                 let meetingInvites = this.responseFactory.createMeetingInvitesForAllStatuses();
                 
@@ -769,27 +769,27 @@ export class MeetingInviteMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: meetingInvites.length
-                    }
+                        totalCount: meetingInvites.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get meeting invites for specific meeting
-            rest.get(`${this.responseFactory['baseUrl']}/api/meeting/:meetingId/invites`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting/:meetingId/invites`, (req, res, ctx) => {
                 const { meetingId } = req.params;
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
                 
                 const meetingInvites = this.responseFactory.createMeetingInvitesForAllStatuses()
                     .map(invite => ({
                         ...invite,
-                        meeting: { ...invite.meeting, id: meetingId as string }
+                        meeting: { ...invite.meeting, id: meetingId as string },
                     }));
                 
                 // Paginate
@@ -801,15 +801,15 @@ export class MeetingInviteMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: meetingInvites.length
-                    }
+                        totalCount: meetingInvites.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -819,69 +819,69 @@ export class MeetingInviteMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/meeting-invite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        meetingConnect: 'Meeting ID is required',
-                        userConnect: 'User ID is required'
-                    }))
+                        meetingConnect: "Meeting ID is required",
+                        userConnect: "User ID is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/meeting-invite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // RSVP conflict error
-            rest.patch(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
+            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
                 const body = await req.json() as { status: MeetingInviteStatus };
                 return res(
                     ctx.status(409),
                     ctx.json(this.responseFactory.createRSVPConflictErrorResponse(
                         MeetingInviteStatusEnum.Accepted,
-                        body.status
-                    ))
+                        body.status,
+                    )),
                 );
             }),
             
             // Meeting capacity error
-            rest.patch(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id/rsvp`, (req, res, ctx) => {
+            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
-                    ctx.json(this.responseFactory.createMeetingCapacityErrorResponse(100, 100))
+                    ctx.json(this.responseFactory.createMeetingCapacityErrorResponse(100, 100)),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/meeting-invite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/meeting-invite`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, async (req, res, ctx) => {
                 const body = await req.json() as MeetingInviteCreateInput;
                 const meetingInvite = this.responseFactory.createMeetingInviteFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(meetingInvite);
@@ -889,18 +889,18 @@ export class MeetingInviteMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
-            rest.patch(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
+            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as { status: MeetingInviteStatus };
                 
                 const meetingInvite = this.responseFactory.createMockMeetingInvite({ 
                     id: id as string,
                     status: body.status,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(meetingInvite);
@@ -908,9 +908,9 @@ export class MeetingInviteMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -919,17 +919,17 @@ export class MeetingInviteMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/meeting-invite`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.patch(`${this.responseFactory['baseUrl']}/api/meeting-invite/:id/rsvp`, (req, res, ctx) => {
-                return res.networkError('RSVP update failed - network error');
-            })
+            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, (req, res, ctx) => {
+                return res.networkError("RSVP update failed - network error");
+            }),
         ];
     }
     
@@ -938,13 +938,13 @@ export class MeetingInviteMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -966,21 +966,21 @@ export const meetingInviteResponseScenarios = {
     createSuccess: (meetingInvite?: MeetingInvite) => {
         const factory = new MeetingInviteResponseFactory();
         return factory.createSuccessResponse(
-            meetingInvite || factory.createMockMeetingInvite()
+            meetingInvite || factory.createMockMeetingInvite(),
         );
     },
     
     listSuccess: (meetingInvites?: MeetingInvite[]) => {
         const factory = new MeetingInviteResponseFactory();
         return factory.createMeetingInviteListResponse(
-            meetingInvites || factory.createMeetingInvitesForAllStatuses()
+            meetingInvites || factory.createMeetingInvitesForAllStatuses(),
         );
     },
     
     rsvpSuccess: (status: MeetingInviteStatus) => {
         const factory = new MeetingInviteResponseFactory();
         return factory.createSuccessResponse(
-            factory.createMockMeetingInvite({ status })
+            factory.createMockMeetingInvite({ status }),
         );
     },
     
@@ -989,23 +989,23 @@ export const meetingInviteResponseScenarios = {
         const factory = new MeetingInviteResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                meetingConnect: 'Meeting ID is required',
-                userConnect: 'User ID is required'
-            }
+                meetingConnect: "Meeting ID is required",
+                userConnect: "User ID is required",
+            },
         );
     },
     
     notFoundError: (meetingInviteId?: string) => {
         const factory = new MeetingInviteResponseFactory();
         return factory.createNotFoundErrorResponse(
-            meetingInviteId || 'non-existent-id'
+            meetingInviteId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new MeetingInviteResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -1013,7 +1013,7 @@ export const meetingInviteResponseScenarios = {
         const factory = new MeetingInviteResponseFactory();
         return factory.createRSVPConflictErrorResponse(
             currentStatus || MeetingInviteStatusEnum.Accepted,
-            requestedStatus || MeetingInviteStatusEnum.Pending
+            requestedStatus || MeetingInviteStatusEnum.Pending,
         );
     },
     
@@ -1021,7 +1021,7 @@ export const meetingInviteResponseScenarios = {
         const factory = new MeetingInviteResponseFactory();
         return factory.createMeetingCapacityErrorResponse(
             currentCount || 50,
-            maxCapacity || 50
+            maxCapacity || 50,
         );
     },
     
@@ -1063,7 +1063,7 @@ export const meetingInviteResponseScenarios = {
         const invites = factory.createMeetingInvitesWithVariedContexts()
             .filter(invite => invite.status === MeetingInviteStatusEnum.Pending);
         return factory.createMeetingInviteListResponse(invites);
-    }
+    },
 };
 
 // Export factory instances for easy use

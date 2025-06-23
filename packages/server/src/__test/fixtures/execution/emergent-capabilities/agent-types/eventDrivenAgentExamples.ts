@@ -136,14 +136,14 @@ export const PERFORMANCE_BOTTLENECK_HANDLER: AgentEventHandler = {
                 action: "PROPOSE_IMPROVEMENT",
                 proposal,
                 confidence: pattern.confidence,
-                reasoning: `Detected performance regression: execution time ${isSlowdown ? 'slow' : 'ok'}, cost ${isCostly ? 'high' : 'ok'}, quality ${isLowQuality ? 'low' : 'ok'}. Pattern analysis suggests ${pattern.suggestedStrategy} strategy could improve performance by ${proposal.expectedImprovement.executionTime}%.`
+                reasoning: `Detected performance regression: execution time ${isSlowdown ? "slow" : "ok"}, cost ${isCostly ? "high" : "ok"}, quality ${isLowQuality ? "low" : "ok"}. Pattern analysis suggests ${pattern.suggestedStrategy} strategy could improve performance by ${proposal.expectedImprovement.executionTime}%.`,
             };
         }
         
         return {
             action: "CONTINUE_MONITORING",
             confidence: 0.8,
-            reasoning: "Performance within acceptable range, continuing to collect data"
+            reasoning: "Performance within acceptable range, continuing to collect data",
         };
     },
     
@@ -156,7 +156,7 @@ export const PERFORMANCE_BOTTLENECK_HANDLER: AgentEventHandler = {
             successRate: 0.94,
             commonFailures: ["timeout", "memory_limit"],
             usagePatterns: ["peak_hours", "batch_processing"],
-            lastOptimized: new Date("2024-10-01")
+            lastOptimized: new Date("2024-10-01"),
         };
     },
     
@@ -168,7 +168,7 @@ export const PERFORMANCE_BOTTLENECK_HANDLER: AgentEventHandler = {
             optimizationOpportunities: ["caching", "strategy_evolution", "prompt_optimization"],
             suggestedStrategy: "reasoning",
             confidence: 0.87,
-            dataQuality: 0.92
+            dataQuality: 0.92,
         };
     },
     
@@ -182,7 +182,7 @@ export const PERFORMANCE_BOTTLENECK_HANDLER: AgentEventHandler = {
                 executionTime: 45, // 45% faster
                 cost: 35, // 35% cheaper
                 quality: 8, // 8% better quality
-                reliability: 12 // 12% more reliable
+                reliability: 12, // 12% more reliable
             },
             implementation: {
                 configChanges: {
@@ -190,22 +190,22 @@ export const PERFORMANCE_BOTTLENECK_HANDLER: AgentEventHandler = {
                     caching: { enabled: true, ttl: 3600 },
                     promptOptimization: { 
                         enabled: true, 
-                        templates: ["structured_reasoning"] 
-                    }
+                        templates: ["structured_reasoning"], 
+                    },
                 },
                 testCases: [
                     "verify_execution_time_improvement",
                     "validate_quality_maintained", 
-                    "test_cost_reduction"
-                ]
+                    "test_cost_reduction",
+                ],
             },
             evidence: {
                 dataPoints: 150,
                 confidenceLevel: 0.87,
-                historicalComparison: "Based on 150 execution samples over 30 days, showing consistent performance degradation pattern"
-            }
+                historicalComparison: "Based on 150 execution samples over 30 days, showing consistent performance degradation pattern",
+            },
         };
-    }
+    },
 };
 
 /**
@@ -235,38 +235,38 @@ export const SECURITY_THREAT_HANDLER: AgentEventHandler = {
                     "Block source IP immediately",
                     "Increase monitoring on affected resources", 
                     "Review access patterns for similar threats",
-                    "Update threat detection patterns"
+                    "Update threat detection patterns",
                 ],
-                automaticResponse: "IP_BLOCK_ACTIVATED"
+                automaticResponse: "IP_BLOCK_ACTIVATED",
             };
             
             return {
                 action: "ALERT_TEAM",
                 alert,
                 confidence: analysis.confidence,
-                reasoning: `High-confidence threat detection (${analysis.confidence}). Automatic response activated based on learned threat patterns.`
+                reasoning: `High-confidence threat detection (${analysis.confidence}). Automatic response activated based on learned threat patterns.`,
             };
         }
         
         // Learn from lower-severity threats
         const pattern: LearnedPattern = {
             id: TestIdFactory.event(3002),
-            pattern: `${threatType}_from_${sourceIP.split('.')[0]}.*`,
+            pattern: `${threatType}_from_${sourceIP.split(".")[0]}.*`,
             confidence: analysis.confidence,
             occurrences: 1,
             context: {
                 timeOfDay: new Date().getHours(),
                 dayOfWeek: new Date().getDay(),
-                targetResources: affectedResources
+                targetResources: affectedResources,
             },
-            applicableScenarios: ["similar_ip_ranges", "same_threat_type", "resource_targeting"]
+            applicableScenarios: ["similar_ip_ranges", "same_threat_type", "resource_targeting"],
         };
         
         return {
             action: "LEARN_PATTERN",
             pattern,
             confidence: analysis.confidence,
-            reasoning: `Learning threat pattern for future detection improvement. Building defense intelligence.`
+            reasoning: "Learning threat pattern for future detection improvement. Building defense intelligence.",
         };
     },
     
@@ -278,7 +278,7 @@ export const SECURITY_THREAT_HANDLER: AgentEventHandler = {
             successRate: 0.96,
             commonFailures: ["false_positive", "delayed_detection"],
             usagePatterns: ["automated_scanning", "realtime_monitoring"],
-            lastOptimized: new Date("2024-11-15")
+            lastOptimized: new Date("2024-11-15"),
         };
     },
     
@@ -289,7 +289,7 @@ export const SECURITY_THREAT_HANDLER: AgentEventHandler = {
             optimizationOpportunities: ["ml_classification", "realtime_learning"],
             suggestedStrategy: "reasoning",
             confidence: 0.91,
-            dataQuality: 0.88
+            dataQuality: 0.88,
         };
     },
     
@@ -303,28 +303,28 @@ export const SECURITY_THREAT_HANDLER: AgentEventHandler = {
                 executionTime: 25, // 25% faster detection
                 cost: 15, // 15% lower cost
                 quality: 18, // 18% better accuracy
-                reliability: 22 // 22% fewer false positives
+                reliability: 22, // 22% fewer false positives
             },
             implementation: {
                 configChanges: {
                     executionStrategy: "reasoning",
                     mlClassification: { enabled: true, model: "threat_classifier_v2" },
                     contextualAnalysis: { enabled: true, lookbackWindow: "24h" },
-                    adaptiveLearning: { enabled: true, updateFrequency: "hourly" }
+                    adaptiveLearning: { enabled: true, updateFrequency: "hourly" },
                 },
                 testCases: [
                     "verify_detection_accuracy",
                     "test_false_positive_reduction",
-                    "validate_response_time"
-                ]
+                    "validate_response_time",
+                ],
             },
             evidence: {
                 dataPoints: 2847,
                 confidenceLevel: 0.91,
-                historicalComparison: "Analysis of 2,847 security events shows 18% improvement potential with reasoning strategy"
-            }
+                historicalComparison: "Analysis of 2,847 security events shows 18% improvement potential with reasoning strategy",
+            },
         };
-    }
+    },
 };
 
 /**
@@ -354,32 +354,32 @@ export const COST_OPTIMIZATION_HANDLER: AgentEventHandler = {
                     caching: {
                         enabled: true,
                         strategy: "semantic_similarity",
-                        ttl: 7200 // 2 hours
+                        ttl: 7200, // 2 hours
                     },
                     batching: {
                         enabled: true,
                         batchSize: 10,
-                        maxWaitTime: 5000 // 5 seconds
+                        maxWaitTime: 5000, // 5 seconds
                     },
                     fallback: {
                         strategy: "deterministic",
-                        threshold: 0.9 // Use when confidence > 90%
-                    }
-                }
+                        threshold: 0.9, // Use when confidence > 90%
+                    },
+                },
             };
             
             return {
                 action: "OPTIMIZE_RESOURCE",
                 optimization,
                 confidence: 0.83,
-                reasoning: `Detected cost inefficiency: ${efficiency < baseline.avgQuality * 0.85 ? 'low efficiency' : 'acceptable efficiency'}, ${cost > baseline.avgCost * 1.2 ? 'high cost' : 'acceptable cost'}. Proposed optimization could reduce usage by 25% through intelligent caching and batching.`
+                reasoning: `Detected cost inefficiency: ${efficiency < baseline.avgQuality * 0.85 ? "low efficiency" : "acceptable efficiency"}, ${cost > baseline.avgCost * 1.2 ? "high cost" : "acceptable cost"}. Proposed optimization could reduce usage by 25% through intelligent caching and batching.`,
             };
         }
         
         return {
             action: "CONTINUE_MONITORING",
             confidence: 0.75,
-            reasoning: "Resource usage within optimal range"
+            reasoning: "Resource usage within optimal range",
         };
     },
     
@@ -391,7 +391,7 @@ export const COST_OPTIMIZATION_HANDLER: AgentEventHandler = {
             successRate: 0.91,
             commonFailures: ["cache_miss", "batch_timeout"],
             usagePatterns: ["burst_usage", "steady_background"],
-            lastOptimized: new Date("2024-11-20")
+            lastOptimized: new Date("2024-11-20"),
         };
     },
     
@@ -402,7 +402,7 @@ export const COST_OPTIMIZATION_HANDLER: AgentEventHandler = {
             optimizationOpportunities: ["semantic_caching", "request_batching", "strategy_switching"],
             suggestedStrategy: "deterministic",
             confidence: 0.83,
-            dataQuality: 0.89
+            dataQuality: 0.89,
         };
     },
     
@@ -416,7 +416,7 @@ export const COST_OPTIMIZATION_HANDLER: AgentEventHandler = {
                 executionTime: 35, // 35% faster
                 cost: 60, // 60% cost reduction
                 quality: -2, // Slight quality trade-off
-                reliability: 5 // 5% more reliable
+                reliability: 5, // 5% more reliable
             },
             implementation: {
                 configChanges: {
@@ -424,23 +424,23 @@ export const COST_OPTIMIZATION_HANDLER: AgentEventHandler = {
                     costOptimization: {
                         enabled: true,
                         aggressiveness: "moderate",
-                        qualityThreshold: 0.85
+                        qualityThreshold: 0.85,
                     },
-                    caching: analysis.optimizationOpportunities.includes("semantic_caching")
+                    caching: analysis.optimizationOpportunities.includes("semantic_caching"),
                 },
                 testCases: [
                     "verify_cost_reduction",
                     "maintain_quality_threshold",
-                    "test_cache_effectiveness"
-                ]
+                    "test_cache_effectiveness",
+                ],
             },
             evidence: {
                 dataPoints: 412,
                 confidenceLevel: 0.83,
-                historicalComparison: "412 similar optimization cases show average 58% cost reduction with 3% quality trade-off"
-            }
+                historicalComparison: "412 similar optimization cases show average 58% cost reduction with 3% quality trade-off",
+            },
         };
-    }
+    },
 };
 
 /**
@@ -471,7 +471,7 @@ export const QUALITY_MONITORING_HANDLER: AgentEventHandler = {
                 action: "PROPOSE_IMPROVEMENT",
                 proposal,
                 confidence: analysis.confidence,
-                reasoning: `Quality issues detected: quality ${hasQualityIssue ? 'below threshold' : 'acceptable'}, bias ${hasBiasIssue ? 'too high' : 'acceptable'}, accuracy ${hasAccuracyIssue ? 'below threshold' : 'acceptable'}. Proposed improvements target these specific issues.`
+                reasoning: `Quality issues detected: quality ${hasQualityIssue ? "below threshold" : "acceptable"}, bias ${hasBiasIssue ? "too high" : "acceptable"}, accuracy ${hasAccuracyIssue ? "below threshold" : "acceptable"}. Proposed improvements target these specific issues.`,
             };
         }
         
@@ -486,16 +486,16 @@ export const QUALITY_MONITORING_HANDLER: AgentEventHandler = {
                 qualityScore,
                 biasScore,
                 accuracyScore,
-                timestamp: new Date()
+                timestamp: new Date(),
             },
-            applicableScenarios: [outputType, "similar_content_types", "quality_optimization"]
+            applicableScenarios: [outputType, "similar_content_types", "quality_optimization"],
         };
         
         return {
             action: "LEARN_PATTERN",
             pattern,
             confidence: qualityScore,
-            reasoning: `Learning from high-quality output pattern for future improvement reference`
+            reasoning: "Learning from high-quality output pattern for future improvement reference",
         };
     },
     
@@ -507,7 +507,7 @@ export const QUALITY_MONITORING_HANDLER: AgentEventHandler = {
             successRate: 0.89,
             commonFailures: ["bias_detection", "accuracy_validation"],
             usagePatterns: ["continuous_monitoring", "post_generation_analysis"],
-            lastOptimized: new Date("2024-11-10")
+            lastOptimized: new Date("2024-11-10"),
         };
     },
     
@@ -518,7 +518,7 @@ export const QUALITY_MONITORING_HANDLER: AgentEventHandler = {
             optimizationOpportunities: ["prompt_engineering", "model_selection", "post_processing"],
             suggestedStrategy: "reasoning", // Already optimal for quality
             confidence: 0.78,
-            dataQuality: 0.91
+            dataQuality: 0.91,
         };
     },
     
@@ -532,33 +532,33 @@ export const QUALITY_MONITORING_HANDLER: AgentEventHandler = {
                 executionTime: -8, // 8% slower for better quality
                 cost: 12, // 12% more expensive for quality
                 quality: 25, // 25% quality improvement
-                reliability: 15 // 15% more consistent
+                reliability: 15, // 15% more consistent
             },
             implementation: {
                 configChanges: {
                     qualityEnhancements: {
                         biasReduction: { enabled: true, threshold: 0.2 },
                         accuracyValidation: { enabled: true, multiPass: true },
-                        promptEngineering: { enabled: true, qualityFocused: true }
+                        promptEngineering: { enabled: true, qualityFocused: true },
                     },
                     postProcessing: {
                         enabled: true,
-                        steps: ["bias_check", "accuracy_validation", "quality_scoring"]
-                    }
+                        steps: ["bias_check", "accuracy_validation", "quality_scoring"],
+                    },
                 },
                 testCases: [
                     "verify_bias_reduction",
                     "validate_accuracy_improvement",
-                    "test_overall_quality_increase"
-                ]
+                    "test_overall_quality_increase",
+                ],
             },
             evidence: {
                 dataPoints: 234,
                 confidenceLevel: 0.78,
-                historicalComparison: "234 quality improvement cases show average 23% quality increase with acceptable cost trade-off"
-            }
+                historicalComparison: "234 quality improvement cases show average 23% quality increase with acceptable cost trade-off",
+            },
         };
-    }
+    },
 };
 
 /**
@@ -580,40 +580,40 @@ export const EVENT_PROCESSING_TIMELINE = [
         timestamp: new Date("2024-12-01T10:00:00Z"),
         event: {
             type: "routine/execution/completed",
-            data: { routineId: "customer_support_v2", executionTime: 4500, cost: 0.25, qualityScore: 0.82 }
+            data: { routineId: "customer_support_v2", executionTime: 4500, cost: 0.25, qualityScore: 0.82 },
         },
         agent: "routine_performance_analyzer",
         response: { action: "PROPOSE_IMPROVEMENT", confidence: 0.87 },
-        outcome: "Strategy evolution proposal generated"
+        outcome: "Strategy evolution proposal generated",
     },
     {
         timestamp: new Date("2024-12-01T10:05:00Z"),
         event: {
             type: "security/threat/detected",
-            data: { threatType: "injection_attempt", severity: "high", sourceIP: "192.168.1.100" }
+            data: { threatType: "injection_attempt", severity: "high", sourceIP: "192.168.1.100" },
         },
         agent: "adaptive_security_monitor",
         response: { action: "ALERT_TEAM", confidence: 0.91 },
-        outcome: "Automatic IP block + team notification"
+        outcome: "Automatic IP block + team notification",
     },
     {
         timestamp: new Date("2024-12-01T10:10:00Z"),
         event: {
             type: "resource/usage/high",
-            data: { resourceType: "credits", usage: 850, cost: 0.12, efficiency: 0.68 }
+            data: { resourceType: "credits", usage: 850, cost: 0.12, efficiency: 0.68 },
         },
         agent: "cost_optimization_specialist",
         response: { action: "OPTIMIZE_RESOURCE", confidence: 0.83 },
-        outcome: "Caching strategy implemented, 25% cost reduction"
+        outcome: "Caching strategy implemented, 25% cost reduction",
     },
     {
         timestamp: new Date("2024-12-01T10:15:00Z"),
         event: {
             type: "output/quality/low",
-            data: { qualityScore: 0.78, biasScore: 0.35, accuracyScore: 0.85 }
+            data: { qualityScore: 0.78, biasScore: 0.35, accuracyScore: 0.85 },
         },
         agent: "output_quality_monitor", 
         response: { action: "PROPOSE_IMPROVEMENT", confidence: 0.78 },
-        outcome: "Quality enhancement pipeline proposed"
-    }
+        outcome: "Quality enhancement pipeline proposed",
+    },
 ];

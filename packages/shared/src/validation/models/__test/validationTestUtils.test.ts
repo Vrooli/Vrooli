@@ -52,7 +52,7 @@ describe("validationTestUtils", () => {
         it("should throw when validation fails but should pass", async () => {
             const invalidData = { name: "John" }; // missing age
             await expect(
-                testValidation(simpleSchema, invalidData, true)
+                testValidation(simpleSchema, invalidData, true),
             ).rejects.toThrow("Expected validation to pass but got error");
         });
 

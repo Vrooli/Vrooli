@@ -9,7 +9,7 @@ export class ReportDbFactory {
     static createMinimal(
         createdById: string,
         reason: string,
-        overrides?: Partial<Prisma.ReportCreateInput>
+        overrides?: Partial<Prisma.ReportCreateInput>,
     ): Prisma.ReportCreateInput {
         return {
             id: generatePK(),
@@ -27,7 +27,7 @@ export class ReportDbFactory {
         objectId: string,
         objectType: string,
         reason: string,
-        overrides?: Partial<Prisma.ReportCreateInput>
+        overrides?: Partial<Prisma.ReportCreateInput>,
     ): Prisma.ReportCreateInput {
         const base = this.createMinimal(createdById, reason, overrides);
         
@@ -62,7 +62,7 @@ export class ReportDbFactory {
         createdById: string,
         reason: string,
         details: string,
-        overrides?: Partial<Prisma.ReportCreateInput>
+        overrides?: Partial<Prisma.ReportCreateInput>,
     ): Prisma.ReportCreateInput {
         return this.createMinimal(createdById, reason, {
             details,
@@ -78,7 +78,7 @@ export class ReportResponseDbFactory {
     static createMinimal(
         createdById: string,
         reportId: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return {
             id: generatePK(),
@@ -96,7 +96,7 @@ export class ReportResponseDbFactory {
         reportId: string,
         actionSuggested: string,
         details: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>
+        overrides?: Partial<Prisma.ReportResponseCreateInput>,
     ): Prisma.ReportResponseCreateInput {
         return this.createMinimal(createdById, reportId, {
             actionSuggested,
@@ -115,7 +115,7 @@ export async function seedReports(
         createdById: string;
         objects: Array<{ id: string; type: string; reason: string; details?: string }>;
         withResponses?: Array<{ responderId: string; action: string; details?: string }>;
-    }
+    },
 ) {
     const reports = [];
     const responses = [];
@@ -127,13 +127,13 @@ export async function seedReports(
                 obj.id,
                 obj.type,
                 obj.reason,
-                { details: obj.details }
+                { details: obj.details },
             )
             : ReportDbFactory.createForObject(
                 options.createdById,
                 obj.id,
                 obj.type,
-                obj.reason
+                obj.reason,
             );
 
         const report = await prisma.report.create({ data: reportData });
@@ -147,12 +147,12 @@ export async function seedReports(
                         respData.responderId,
                         report.id,
                         respData.action,
-                        respData.details
+                        respData.details,
                     )
                     : ReportResponseDbFactory.createMinimal(
                         respData.responderId,
                         report.id,
-                        { actionSuggested: respData.action }
+                        { actionSuggested: respData.action },
                     );
 
                 const response = await prisma.reportResponse.create({ data: responseData });

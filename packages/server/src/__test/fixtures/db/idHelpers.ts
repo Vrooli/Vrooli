@@ -28,7 +28,7 @@ export function generatePK(): bigint {
  */
 export function generatePublicId(length: number = PUBLIC_ID_LENGTH): string {
     const chars = ALPHABET;
-    let result = '';
+    let result = "";
     for (let i = 0; i < length; i++) {
         result += chars[Math.floor(Math.random() * chars.length)];
     }
@@ -50,15 +50,15 @@ export function nanoid(size: number = PUBLIC_ID_LENGTH): string {
 export async function getSharedIdFunctions() {
     try {
         // Try to import the actual functions at runtime
-        const sharedModule = await import('@vrooli/shared') as any;
+        const sharedModule = await import("@vrooli/shared") as any;
         return {
-            generatePK: (sharedModule?.generatePK && typeof sharedModule.generatePK === 'function') ? sharedModule.generatePK : generatePK,
-            generatePublicId: (sharedModule?.generatePublicId && typeof sharedModule.generatePublicId === 'function') ? sharedModule.generatePublicId : generatePublicId,
-            nanoid: (sharedModule?.nanoid && typeof sharedModule.nanoid === 'function') ? sharedModule.nanoid : nanoid,
+            generatePK: (sharedModule?.generatePK && typeof sharedModule.generatePK === "function") ? sharedModule.generatePK : generatePK,
+            generatePublicId: (sharedModule?.generatePublicId && typeof sharedModule.generatePublicId === "function") ? sharedModule.generatePublicId : generatePublicId,
+            nanoid: (sharedModule?.nanoid && typeof sharedModule.nanoid === "function") ? sharedModule.nanoid : nanoid,
         };
     } catch (error) {
         // Fallback to local implementations
-        console.warn('Failed to import @vrooli/shared, using local implementations');
+        console.warn("Failed to import @vrooli/shared, using local implementations");
         return {
             generatePK,
             generatePublicId,

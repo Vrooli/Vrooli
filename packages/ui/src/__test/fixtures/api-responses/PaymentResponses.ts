@@ -5,15 +5,16 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
-import type { 
-    Payment, 
+import { rest, type RestHandler } from "msw";
+import { 
     PaymentStatus,
-    PaymentType,
+    PaymentType} from "@vrooli/shared";
+import type { 
+    Payment,
     PaymentSortBy,
     User,
-    Team
-} from '@vrooli/shared';
+    Team,
+} from "@vrooli/shared";
 
 /**
  * Payment create input (mock structure since not available in shared)
@@ -86,7 +87,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class PaymentResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -120,16 +121,16 @@ export class PaymentResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/payment/${payment.id}`,
                     related: {
                         user: `${this.baseUrl}/api/user/${payment.user.id}`,
                         team: payment.team ? `${this.baseUrl}/api/team/${payment.team.id}` : undefined,
-                        receipt: `${this.baseUrl}/api/payment/${payment.id}/receipt`
-                    }
-                }
-            }
+                        receipt: `${this.baseUrl}/api/payment/${payment.id}/receipt`,
+                    },
+                },
+            },
         };
     }
     
@@ -144,7 +145,7 @@ export class PaymentResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: payments.length,
-            totalCount: payments.length
+            totalCount: payments.length,
         };
         
         return {
@@ -152,17 +153,17 @@ export class PaymentResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/payment?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/payment?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -172,16 +173,16 @@ export class PaymentResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The payment request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The payment request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/payment'
-            }
+                path: "/api/payment",
+            },
         };
     }
     
@@ -191,16 +192,16 @@ export class PaymentResponseFactory {
     createNotFoundErrorResponse(paymentId: string): APIErrorResponse {
         return {
             error: {
-                code: 'PAYMENT_NOT_FOUND',
+                code: "PAYMENT_NOT_FOUND",
                 message: `Payment with ID '${paymentId}' was not found`,
                 details: {
                     paymentId,
-                    searchCriteria: { id: paymentId }
+                    searchCriteria: { id: paymentId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/payment/${paymentId}`
-            }
+                path: `/api/payment/${paymentId}`,
+            },
         };
     }
     
@@ -210,17 +211,17 @@ export class PaymentResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this payment`,
                 details: {
                     operation,
-                    requiredPermissions: ['payment:write'],
-                    userPermissions: ['payment:read']
+                    requiredPermissions: ["payment:write"],
+                    userPermissions: ["payment:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/payment'
-            }
+                path: "/api/payment",
+            },
         };
     }
 
@@ -230,17 +231,17 @@ export class PaymentResponseFactory {
     createPaymentFailedErrorResponse(reason: string): APIErrorResponse {
         return {
             error: {
-                code: 'PAYMENT_FAILED',
+                code: "PAYMENT_FAILED",
                 message: `Payment processing failed: ${reason}`,
                 details: {
                     reason,
                     retryable: true,
-                    supportContact: 'support@vrooli.com'
+                    supportContact: "support@vrooli.com",
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/payment'
-            }
+                path: "/api/payment",
+            },
         };
     }
 
@@ -250,16 +251,16 @@ export class PaymentResponseFactory {
     createSubscriptionErrorResponse(message: string): APIErrorResponse {
         return {
             error: {
-                code: 'SUBSCRIPTION_ERROR',
+                code: "SUBSCRIPTION_ERROR",
                 message,
                 details: {
                     billingPortalUrl: `${this.baseUrl}/billing`,
-                    supportEmail: 'billing@vrooli.com'
+                    supportEmail: "billing@vrooli.com",
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/payment/subscription'
-            }
+                path: "/api/payment/subscription",
+            },
         };
     }
     
@@ -269,17 +270,17 @@ export class PaymentResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/payment'
-            }
+                path: "/api/payment",
+            },
         };
     }
     
@@ -289,18 +290,18 @@ export class PaymentResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred during payment processing',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred during payment processing",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
                     retryable: true,
-                    contactSupport: true
+                    contactSupport: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/payment'
-            }
+                path: "/api/payment",
+            },
         };
     }
     
@@ -340,14 +341,14 @@ export class PaymentResponseFactory {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         };
         
         return {
             ...defaultUser,
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -385,14 +386,14 @@ export class PaymentResponseFactory {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         };
         
         return {
             ...defaultTeam,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -419,12 +420,12 @@ export class PaymentResponseFactory {
             paymentType: PaymentType.PremiumMonthly,
             status: PaymentStatus.Paid,
             user: this.createMockUser(),
-            team: this.createMockTeam()
+            team: this.createMockTeam(),
         };
         
         return {
             ...defaultPayment,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -467,21 +468,21 @@ export class PaymentResponseFactory {
                 paymentType: PaymentType.PremiumMonthly,
                 amount: 999, // $9.99
                 description: "Premium Monthly Subscription",
-                status: PaymentStatus.Paid
+                status: PaymentStatus.Paid,
             }),
             
             credits: this.createMockPayment({
                 paymentType: PaymentType.Credits,
                 amount: 2000, // $20.00
                 description: "1000 Credits Purchase",
-                status: PaymentStatus.Paid
+                status: PaymentStatus.Paid,
             }),
             
             donation: this.createMockPayment({
                 paymentType: PaymentType.Donation,
                 amount: 500, // $5.00
                 description: "Support Vrooli Development",
-                status: PaymentStatus.Paid
+                status: PaymentStatus.Paid,
             }),
             
             failed: this.createMockPayment({
@@ -491,22 +492,22 @@ export class PaymentResponseFactory {
                 status: PaymentStatus.Failed,
                 cardLast4: null,
                 cardType: null,
-                cardExpDate: null
+                cardExpDate: null,
             }),
             
             pending: this.createMockPayment({
                 paymentType: PaymentType.PremiumYearly,
                 amount: 9999, // $99.99
                 description: "Premium Yearly Subscription",
-                status: PaymentStatus.Pending
+                status: PaymentStatus.Pending,
             }),
             
             refunded: this.createMockPayment({
                 paymentType: PaymentType.Credits,
                 amount: -1000, // Negative amount for refund
                 description: "Refund for Credits Purchase",
-                status: PaymentStatus.Paid
-            })
+                status: PaymentStatus.Paid,
+            }),
         };
     }
     
@@ -527,7 +528,7 @@ export class PaymentResponseFactory {
                 updatedAt: date.toISOString(),
                 paymentType: PaymentType.PremiumMonthly,
                 amount: 999,
-                description: `Premium Monthly Subscription - ${date.toLocaleDateString()}`
+                description: `Premium Monthly Subscription - ${date.toLocaleDateString()}`,
             }));
         }
         
@@ -542,7 +543,7 @@ export class PaymentResponseFactory {
                 updatedAt: date.toISOString(),
                 paymentType: PaymentType.Credits,
                 amount: 2000,
-                description: `1000 Credits Purchase - ${date.toLocaleDateString()}`
+                description: `1000 Credits Purchase - ${date.toLocaleDateString()}`,
             }));
         }
         
@@ -560,44 +561,44 @@ export class PaymentResponseFactory {
         
         // Amount validation
         if (!input.amount || input.amount <= 0) {
-            errors.amount = 'Amount must be greater than 0';
+            errors.amount = "Amount must be greater than 0";
         }
         
         if (input.amount && input.amount > 100000000) { // $1M limit
-            errors.amount = 'Amount exceeds maximum limit';
+            errors.amount = "Amount exceeds maximum limit";
         }
         
         // Currency validation
         if (!input.currency) {
-            errors.currency = 'Currency is required';
-        } else if (!['USD', 'EUR', 'GBP'].includes(input.currency)) {
-            errors.currency = 'Unsupported currency';
+            errors.currency = "Currency is required";
+        } else if (!["USD", "EUR", "GBP"].includes(input.currency)) {
+            errors.currency = "Unsupported currency";
         }
         
         // Description validation
         if (!input.description || input.description.trim().length === 0) {
-            errors.description = 'Description is required';
+            errors.description = "Description is required";
         } else if (input.description.length > 500) {
-            errors.description = 'Description must be 500 characters or less';
+            errors.description = "Description must be 500 characters or less";
         }
         
         // Payment method validation
         if (!input.paymentMethod) {
-            errors.paymentMethod = 'Payment method is required';
-        } else if (!['card', 'bank_transfer', 'digital_wallet'].includes(input.paymentMethod)) {
-            errors.paymentMethod = 'Invalid payment method';
+            errors.paymentMethod = "Payment method is required";
+        } else if (!["card", "bank_transfer", "digital_wallet"].includes(input.paymentMethod)) {
+            errors.paymentMethod = "Invalid payment method";
         }
         
         // Payment type validation
         if (!input.paymentType) {
-            errors.paymentType = 'Payment type is required';
+            errors.paymentType = "Payment type is required";
         } else if (!Object.values(PaymentType).includes(input.paymentType)) {
-            errors.paymentType = 'Invalid payment type';
+            errors.paymentType = "Invalid payment type";
         }
         
         return {
             valid: Object.keys(errors).length === 0,
-            errors: Object.keys(errors).length > 0 ? errors : undefined
+            errors: Object.keys(errors).length > 0 ? errors : undefined,
         };
     }
 }
@@ -618,7 +619,7 @@ export class PaymentMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create payment
-            rest.post(`${this.responseFactory['baseUrl']}/api/payment`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, async (req, res, ctx) => {
                 const body = await req.json() as PaymentCreateInput;
                 
                 // Validate input
@@ -626,7 +627,7 @@ export class PaymentMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -636,12 +637,12 @@ export class PaymentMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get payment by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/payment/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const payment = this.responseFactory.createMockPayment({ id: id as string });
@@ -649,12 +650,12 @@ export class PaymentMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update payment
-            rest.put(`${this.responseFactory['baseUrl']}/api/payment/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/payment/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as PaymentUpdateInput;
                 
@@ -662,24 +663,24 @@ export class PaymentMSWHandlers {
                     id: id as string,
                     status: body.status,
                     description: body.description,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(payment);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // List payments
-            rest.get(`${this.responseFactory['baseUrl']}/api/payment`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const status = url.searchParams.get('status') as PaymentStatus;
-                const paymentType = url.searchParams.get('paymentType') as PaymentType;
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as PaymentStatus;
+                const paymentType = url.searchParams.get("paymentType") as PaymentType;
                 
                 let payments = this.responseFactory.createPaymentHistory();
                 
@@ -702,25 +703,25 @@ export class PaymentMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: payments.length
-                    }
+                        totalCount: payments.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
 
             // Get payment receipt
-            rest.get(`${this.responseFactory['baseUrl']}/api/payment/:id/receipt`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/payment/:id/receipt`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const receipt = {
                     paymentId: id,
                     receiptNumber: `RCP-${Date.now()}`,
-                    downloadUrl: `${this.responseFactory['baseUrl']}/api/payment/${id}/receipt/download`,
-                    generatedAt: new Date().toISOString()
+                    downloadUrl: `${this.responseFactory["baseUrl"]}/api/payment/${id}/receipt/download`,
+                    generatedAt: new Date().toISOString(),
                 };
                 
                 return res(
@@ -729,31 +730,31 @@ export class PaymentMSWHandlers {
                         data: receipt,
                         meta: {
                             timestamp: new Date().toISOString(),
-                            requestId: this.responseFactory['generateRequestId'](),
-                            version: '1.0'
-                        }
-                    })
+                            requestId: this.responseFactory["generateRequestId"](),
+                            version: "1.0",
+                        },
+                    }),
                 );
             }),
 
             // Process refund
-            rest.post(`${this.responseFactory['baseUrl']}/api/payment/:id/refund`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/payment/:id/refund`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const refundPayment = this.responseFactory.createMockPayment({
                     id: `refund_${id}`,
                     amount: -999, // Negative amount for refund
-                    description: 'Refund for Premium Monthly Subscription',
-                    status: PaymentStatus.Paid
+                    description: "Refund for Premium Monthly Subscription",
+                    status: PaymentStatus.Paid,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(refundPayment);
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -763,66 +764,66 @@ export class PaymentMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/payment`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        amount: 'Amount must be greater than 0',
-                        currency: 'Currency is required',
-                        paymentType: 'Payment type must be specified'
-                    }))
+                        amount: "Amount must be greater than 0",
+                        currency: "Currency is required",
+                        paymentType: "Payment type must be specified",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/payment/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/payment`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
 
             // Payment failed error
-            rest.post(`${this.responseFactory['baseUrl']}/api/payment`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 return res(
                     ctx.status(402),
-                    ctx.json(this.responseFactory.createPaymentFailedErrorResponse('Card declined'))
+                    ctx.json(this.responseFactory.createPaymentFailedErrorResponse("Card declined")),
                 );
             }),
 
             // Subscription error
-            rest.post(`${this.responseFactory['baseUrl']}/api/payment/subscription`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/payment/subscription`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
-                    ctx.json(this.responseFactory.createSubscriptionErrorResponse('User already has an active subscription'))
+                    ctx.json(this.responseFactory.createSubscriptionErrorResponse("User already has an active subscription")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/payment`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 3000): RestHandler[] {
+    createLoadingHandlers(delay = 3000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/payment`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, async (req, res, ctx) => {
                 const body = await req.json() as PaymentCreateInput;
                 const payment = this.responseFactory.createPaymentFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(payment);
@@ -830,9 +831,9 @@ export class PaymentMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -841,13 +842,13 @@ export class PaymentMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/payment`, (req, res, ctx) => {
-                return res.networkError('Payment service unavailable');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
+                return res.networkError("Payment service unavailable");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/payment/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -856,13 +857,13 @@ export class PaymentMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -884,14 +885,14 @@ export const paymentResponseScenarios = {
     createSuccess: (payment?: Payment) => {
         const factory = new PaymentResponseFactory();
         return factory.createSuccessResponse(
-            payment || factory.createMockPayment()
+            payment || factory.createMockPayment(),
         );
     },
     
     listSuccess: (payments?: Payment[]) => {
         const factory = new PaymentResponseFactory();
         return factory.createPaymentListResponse(
-            payments || factory.createPaymentHistory()
+            payments || factory.createPaymentHistory(),
         );
     },
 
@@ -918,38 +919,38 @@ export const paymentResponseScenarios = {
         const factory = new PaymentResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                amount: 'Amount must be greater than 0',
-                currency: 'Currency is required',
-                paymentType: 'Payment type must be specified'
-            }
+                amount: "Amount must be greater than 0",
+                currency: "Currency is required",
+                paymentType: "Payment type must be specified",
+            },
         );
     },
     
     notFoundError: (paymentId?: string) => {
         const factory = new PaymentResponseFactory();
         return factory.createNotFoundErrorResponse(
-            paymentId || 'non-existent-payment-id'
+            paymentId || "non-existent-payment-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new PaymentResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
 
     paymentFailedError: (reason?: string) => {
         const factory = new PaymentResponseFactory();
         return factory.createPaymentFailedErrorResponse(
-            reason || 'Card declined'
+            reason || "Card declined",
         );
     },
 
     subscriptionError: (message?: string) => {
         const factory = new PaymentResponseFactory();
         return factory.createSubscriptionErrorResponse(
-            message || 'User already has an active subscription'
+            message || "User already has an active subscription",
         );
     },
     
@@ -962,7 +963,7 @@ export const paymentResponseScenarios = {
     successHandlers: () => new PaymentMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new PaymentMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new PaymentMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new PaymentMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new PaymentMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

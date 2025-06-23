@@ -125,7 +125,7 @@ async function batchResources(
             finalizeResult: (result) => {
                 // Calculate averages by type
                 Object.entries(result).forEach(([userId, currResult]) => {
-                    if (!currResult || typeof userId !== 'string') return;
+                    if (!currResult || typeof userId !== "string") return;
                     
                     Object.entries(currResult.resourceCompletionTimeAverageByType!).forEach(([resourceType, totalTime]) => {
                         const completedCount = currResult.resourcesCompletedByType![resourceType];
@@ -204,7 +204,7 @@ async function batchRuns(
             finalizeResult: (result) => {
                 // For the averages, divide by the number of runs completed
                 Object.entries(result).forEach(([userId, currResult]) => {
-                    if (!currResult || typeof userId !== 'string') return;
+                    if (!currResult || typeof userId !== "string") return;
                     if (currResult.runsCompleted > 0) {
                         currResult.runCompletionTimeAverage /= currResult.runsCompleted;
                         currResult.runContextSwitchesAverage /= currResult.runsCompleted;

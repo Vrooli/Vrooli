@@ -6,7 +6,7 @@ import type {
     DbFactoryResult, 
     DbFixtureValidation,
     BulkSeedOptions,
-    BulkSeedResult
+    BulkSeedResult,
 } from "./types.js";
 
 // Relationship configuration types
@@ -105,7 +105,7 @@ export abstract class DatabaseFixtureFactory<
             const txDelegate = this.getTxPrismaDelegate(tx);
             const result = await txDelegate.create({ 
                 data: dataWithRelations,
-                include: this.getDefaultInclude()
+                include: this.getDefaultInclude(),
             });
             
             this.trackCreatedId(result.id);
@@ -133,7 +133,7 @@ export abstract class DatabaseFixtureFactory<
             // Fetch the created records
             const ids = dataArray.map(d => (d as any).id);
             const created = await this.getPrismaDelegate().findMany({
-                where: { id: { in: ids } }
+                where: { id: { in: ids } },
             });
             created.forEach((r: any) => this.trackCreatedId(r.id));
             return created;
@@ -161,7 +161,7 @@ export abstract class DatabaseFixtureFactory<
             return {
                 id: mainRecord.id,
                 scenario: scenario.name,
-                relatedIds
+                relatedIds,
             };
         });
     }
@@ -178,7 +178,7 @@ export abstract class DatabaseFixtureFactory<
             // Get current record
             const current = await txDelegate.findUnique({ 
                 where: { id: parentId },
-                include: this.getDefaultInclude()
+                include: this.getDefaultInclude(),
             });
             
             if (!current) {
@@ -191,7 +191,7 @@ export abstract class DatabaseFixtureFactory<
             if (Object.keys(updates).length > 0) {
                 await txDelegate.update({
                     where: { id: parentId },
-                    data: updates
+                    data: updates,
                 });
             }
         });
@@ -206,18 +206,18 @@ export abstract class DatabaseFixtureFactory<
         for (const [field, connection] of Object.entries(relations)) {
             if (Array.isArray(connection)) {
                 updates[field] = {
-                    connect: connection
+                    connect: connection,
                 };
             } else {
                 updates[field] = {
-                    connect: connection
+                    connect: connection,
                 };
             }
         }
         
         await this.getPrismaDelegate().update({
             where: { id },
-            data: updates
+            data: updates,
         });
     }
 
@@ -229,7 +229,7 @@ export abstract class DatabaseFixtureFactory<
     async verifyState(id: string, expected: Partial<TPrismaModel>): Promise<void> {
         const actual = await this.getPrismaDelegate().findUnique({
             where: { id },
-            include: this.getDefaultInclude()
+            include: this.getDefaultInclude(),
         });
         
         if (!actual) {
@@ -244,7 +244,7 @@ export abstract class DatabaseFixtureFactory<
                 throw new Error(
                     `${this.modelName} state mismatch for field '${key}': ` +
                     `expected ${JSON.stringify(expectedValue)}, ` +
-                    `got ${JSON.stringify(actualValue)}`
+                    `got ${JSON.stringify(actualValue)}`,
                 );
             }
         }
@@ -256,7 +256,7 @@ export abstract class DatabaseFixtureFactory<
     async verifyRelationships(id: string, expectedCounts: RelationCounts): Promise<void> {
         const record = await this.getPrismaDelegate().findUnique({
             where: { id },
-            include: this.getRelationshipCountInclude(expectedCounts)
+            include: this.getRelationshipCountInclude(expectedCounts),
         });
         
         if (!record) {
@@ -269,7 +269,7 @@ export abstract class DatabaseFixtureFactory<
             if (actualCount !== expectedCount) {
                 throw new Error(
                     `${this.modelName} relationship count mismatch for '${relation}': ` +
-                    `expected ${expectedCount}, got ${actualCount}`
+                    `expected ${expectedCount}, got ${actualCount}`,
                 );
             }
         }
@@ -284,7 +284,7 @@ export abstract class DatabaseFixtureFactory<
         try {
             const record = await this.getPrismaDelegate().findUnique({
                 where: { id },
-                include: this.getDefaultInclude()
+                include: this.getDefaultInclude(),
             });
             
             if (!record) {
@@ -297,12 +297,12 @@ export abstract class DatabaseFixtureFactory<
             violations.push(...modelViolations);
             
         } catch (error) {
-            violations.push(`Database error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            violations.push(`Database error: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
         
         return {
             valid: violations.length === 0,
-            violations
+            violations,
         };
     }
 
@@ -316,7 +316,7 @@ export abstract class DatabaseFixtureFactory<
         
         try {
             await this.getPrismaDelegate().deleteMany({
-                where: { id: { in: ids } }
+                where: { id: { in: ids } },
             });
             
             // Remove from tracking
@@ -337,7 +337,7 @@ export abstract class DatabaseFixtureFactory<
     /**
      * Clean up a record and all its related data
      */
-    async cleanupRelated(id: string, depth: number = 1): Promise<void> {
+    async cleanupRelated(id: string, depth = 1): Promise<void> {
         await this.prisma.$transaction(async (tx) => {
             await this.cascadeDelete(id, depth, tx);
         });
@@ -381,7 +381,7 @@ export abstract class DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: TPrismaCreateInput,
         config: RelationConfig,
-        tx: any
+        tx: any,
     ): Promise<TPrismaCreateInput> {
         // Default implementation - subclasses should override
         return baseData;
@@ -392,7 +392,7 @@ export abstract class DatabaseFixtureFactory<
      */
     protected async buildRelationshipUpdates(
         config: RelationConfig,
-        tx: any
+        tx: any,
     ): Promise<any> {
         // Default implementation - subclasses should override
         return {};
@@ -439,7 +439,7 @@ export abstract class DatabaseFixtureFactory<
     protected async createScenarioRecord(
         scenario: TestScenario,
         tx: any,
-        relatedIds: Record<string, string[]>
+        relatedIds: Record<string, string[]>,
     ): Promise<any> {
         // Default implementation - subclasses should override
         const data = this.getMinimalData(scenario.config);
@@ -453,8 +453,8 @@ export abstract class DatabaseFixtureFactory<
     protected getRelationshipCountInclude(expectedCounts: RelationCounts): any {
         const include: any = {
             _count: {
-                select: {}
-            }
+                select: {},
+            },
         };
         
         for (const relation of Object.keys(expectedCounts)) {
@@ -479,7 +479,7 @@ export abstract class DatabaseFixtureFactory<
         const txDelegate = this.getTxPrismaDelegate(tx);
         const record = await txDelegate.findUnique({
             where: { id },
-            include: this.getCascadeInclude()
+            include: this.getCascadeInclude(),
         });
         
         if (!record) return;
@@ -506,7 +506,7 @@ export abstract class DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: TPrismaModel,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Subclasses should implement based on their relationships
     }

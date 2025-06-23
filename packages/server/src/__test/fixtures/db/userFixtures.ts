@@ -514,7 +514,7 @@ export class UserDbFactory extends EnhancedDbFactory<Prisma.UserCreateInput> {
 
     static createWithRoles(
         roles: Array<{ id: string; name: string }>,
-        overrides?: Partial<Prisma.UserCreateInput>
+        overrides?: Partial<Prisma.UserCreateInput>,
     ): Prisma.UserCreateInput {
         const factory = new UserDbFactory();
         return factory.createWithRelationships({ withAuth: true, withRoles: roles, overrides }).data;
@@ -522,7 +522,7 @@ export class UserDbFactory extends EnhancedDbFactory<Prisma.UserCreateInput> {
 
     static createWithTeams(
         teams: Array<{ teamId: string; role: string }>,
-        overrides?: Partial<Prisma.UserCreateInput>
+        overrides?: Partial<Prisma.UserCreateInput>,
     ): Prisma.UserCreateInput {
         const factory = new UserDbFactory();
         return factory.createWithRelationships({ withAuth: true, withTeams: teams, overrides }).data;
@@ -550,8 +550,8 @@ export function createSessionUser(overrides?: Partial<Prisma.UserCreateInput>) {
  */
 export async function seedTestUsers(
     prisma: any,
-    count: number = 3,
-    options?: BulkSeedOptions
+    count = 3,
+    options?: BulkSeedOptions,
 ): Promise<BulkSeedResult<any>> {
     const factory = new UserDbFactory();
     const users = [];
@@ -567,7 +567,7 @@ export async function seedTestUsers(
         if (options?.withAuth) {
             userData = factory.createWithRelationships({ 
                 withAuth: true, 
-                overrides 
+                overrides, 
             }).data;
             authCount++;
         } else {

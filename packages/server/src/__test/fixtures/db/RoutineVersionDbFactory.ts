@@ -46,7 +46,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     Prisma.RoutineVersionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('RoutineVersion', prisma);
+        super("RoutineVersion", prisma);
         this.initializeScenarios();
     }
 
@@ -229,7 +229,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
                             id: generatePK().toString(),
-                            language: ['en', 'es', 'fr', 'de', 'ja'][i],
+                            language: ["en", "es", "fr", "de", "ja"][i],
                             name: `Routine Version ${i}`,
                             description: `Description in language ${i}`,
                         })),
@@ -483,7 +483,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     data: true,
                 },
                 orderBy: {
-                    coordinateX: 'asc',
+                    coordinateX: "asc",
                 },
             },
             nodeLinks: {
@@ -519,9 +519,9 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.RoutineVersionCreateInput,
         config: RoutineVersionRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.RoutineVersionCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle root routine connection
         if (config.root?.routineId) {
@@ -615,7 +615,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
      * Create a complex workflow version
      */
     async createComplexWorkflowVersion(routineId: string): Promise<Prisma.RoutineVersion> {
-        return this.seedScenario('complexWorkflowVersion');
+        return this.seedScenario("complexWorkflowVersion");
     }
 
     /**
@@ -644,7 +644,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
      * Create a manual process version
      */
     async createManualProcessVersion(routineId: string): Promise<Prisma.RoutineVersion> {
-        return this.seedScenario('manualProcessVersion');
+        return this.seedScenario("manualProcessVersion");
     }
 
     /**
@@ -715,7 +715,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         // Create links after nodes are created
         const createdNodes = await this.prisma.routineVersionNode.findMany({
             where: { routineVersionId: version.id },
-            orderBy: { coordinateX: 'asc' },
+            orderBy: { coordinateX: "asc" },
         });
 
         if (createdNodes.length >= 3) {
@@ -747,27 +747,27 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Check complexity range
         if (record.complexity !== null && (record.complexity < 1 || record.complexity > 10)) {
-            violations.push('Complexity must be between 1 and 10');
+            violations.push("Complexity must be between 1 and 10");
         }
 
         // Check simplicity range
         if (record.simplicity !== null && (record.simplicity < 1 || record.simplicity > 10)) {
-            violations.push('Simplicity must be between 1 and 10');
+            violations.push("Simplicity must be between 1 and 10");
         }
 
         // Check version index is non-negative
         if (record.versionIndex < 0) {
-            violations.push('Version index must be non-negative');
+            violations.push("Version index must be non-negative");
         }
 
         // Check that version belongs to a routine
         if (!record.rootId) {
-            violations.push('RoutineVersion must belong to a Routine');
+            violations.push("RoutineVersion must belong to a Routine");
         }
 
         // Check version label format
         if (record.versionLabel && !/^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$/.test(record.versionLabel)) {
-            violations.push('Version label should follow semantic versioning format');
+            violations.push("Version label should follow semantic versioning format");
         }
 
         // Check that only one version is marked as latest per routine
@@ -780,15 +780,15 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 },
             });
             if (otherLatest > 0) {
-                violations.push('Only one version can be marked as latest per routine');
+                violations.push("Only one version can be marked as latest per routine");
             }
         }
 
         // Check routineConfig structure
         if (record.routineConfig && 
             (!record.routineConfig.__version || 
-             typeof record.routineConfig.__version !== 'string')) {
-            violations.push('Routine config must have a valid __version field');
+             typeof record.routineConfig.__version !== "string")) {
+            violations.push("Routine config must have a valid __version field");
         }
 
         return violations;
@@ -807,35 +807,35 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.RoutineVersion,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete runs
-        if (shouldDelete('runs') && record.runs?.length) {
+        if (shouldDelete("runs") && record.runs?.length) {
             await tx.run.deleteMany({
                 where: { routineVersionId: record.id },
             });
         }
 
         // Delete node links
-        if (shouldDelete('nodeLinks') && record.nodeLinks?.length) {
+        if (shouldDelete("nodeLinks") && record.nodeLinks?.length) {
             await tx.routineVersionNodeLink.deleteMany({
                 where: { routineVersionId: record.id },
             });
         }
 
         // Delete nodes
-        if (shouldDelete('nodes') && record.nodes?.length) {
+        if (shouldDelete("nodes") && record.nodes?.length) {
             await tx.routineVersionNode.deleteMany({
                 where: { routineVersionId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.routineVersionTranslation.deleteMany({
                 where: { routineVersionId: record.id },
             });
@@ -845,7 +845,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create version history for testing
      */
-    async createVersionHistory(routineId: string, count: number = 3): Promise<Prisma.RoutineVersion[]> {
+    async createVersionHistory(routineId: string, count = 3): Promise<Prisma.RoutineVersion[]> {
         const versions: Prisma.RoutineVersion[] = [];
         const configs = [
             routineConfigFixtures.action.simple,
@@ -882,7 +882,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createRoutineVersionDbFactory = (prisma: PrismaClient) => 
-    RoutineVersionDbFactory.getInstance('RoutineVersion', prisma);
+    RoutineVersionDbFactory.getInstance("RoutineVersion", prisma);
 
 // Export the class for type usage
 export { RoutineVersionDbFactory as RoutineVersionDbFactoryClass };

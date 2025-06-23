@@ -1,6 +1,7 @@
-import type { ChatCreateInput, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput } from "../../../api/types.js";
+import type { ChatCreateInput, ChatInviteCreateInput, ChatMessageUpdateInput, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
-import { chatValidation } from "../../../validation/models/chat.js";
+import { chatTranslationValidation, chatValidation } from "../../../validation/models/chat.js";
+import { messageConfigFixtures } from "../config/messageConfigFixtures.js";
 
 // Magic number constants for testing
 const NAME_MAX_LENGTH = 50;
@@ -44,10 +45,7 @@ export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> =
             }],
             messagesCreate: [{
                 id: validIds.messageId1,
-                config: {
-                    __version: "1.0.0",
-                    resources: [],
-                },
+                config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId2,
                 userConnect: validIds.userId1,
                 language: "en",
@@ -78,10 +76,7 @@ export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> =
             invitesDelete: [validIds.inviteId1],
             messagesCreate: [{
                 id: validIds.messageId2,
-                config: {
-                    __version: "1.0.0",
-                    resources: [],
-                },
+                config: messageConfigFixtures.minimal,
                 chatConnect: validIds.chatId2,
                 userConnect: validIds.userId2,
                 language: "en",
@@ -90,10 +85,7 @@ export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> =
             }],
             messagesUpdate: [{
                 id: validIds.messageId1,
-                config: {
-                    __version: "1.0.0",
-                    resources: [],
-                },
+                config: messageConfigFixtures.minimal,
                 text: "Updated message content",
             }],
             messagesDelete: [validIds.messageId1],
@@ -145,14 +137,14 @@ export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> =
                 invitesCreate: [{
                     // Missing required fields for invite
                     message: "Invalid invite",
-                } as any],
+                } as Partial<ChatInviteCreateInput>],
             } as ChatCreateInput,
             update: {
                 id: validIds.chatId1,
                 messagesUpdate: [{
                     // Missing id for update
                     text: "Updated content",
-                } as any],
+                } as Partial<ChatMessageUpdateInput>],
             } as ChatUpdateInput,
         },
         invalidTranslations: {
@@ -161,7 +153,7 @@ export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> =
                 translationsCreate: [{
                     // Missing required fields
                     name: "Chat name",
-                } as any],
+                } as Partial<ChatTranslationCreateInput>],
             } as ChatCreateInput,
             update: {
                 id: validIds.chatId1,
@@ -169,7 +161,7 @@ export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> =
                     // Missing id
                     language: "en",
                     name: "Updated name",
-                } as any],
+                } as Partial<ChatTranslationUpdateInput>],
             } as ChatUpdateInput,
         },
     },
@@ -313,3 +305,16 @@ export const chatTranslationFixtures: ModelTestFixtures<ChatTranslationCreateInp
         },
     },
 };
+
+// Export factory for chat translation test data
+export const chatTranslationTestDataFactory = new TypedTestDataFactory(chatTranslationFixtures, chatTranslationValidation, {
+    create: (base: ChatTranslationCreateInput): ChatTranslationCreateInput => ({
+        id: validIds.chatId1,
+        language: "en",
+        ...base,
+    }),
+    update: (base: ChatTranslationUpdateInput): ChatTranslationUpdateInput => ({
+        id: validIds.chatId1,
+        ...base,
+    }),
+});

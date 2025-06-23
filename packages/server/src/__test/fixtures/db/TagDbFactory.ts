@@ -34,7 +34,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     Prisma.tagUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('tag', prisma);
+        super("tag", prisma);
         this.initializeScenarios();
     }
 
@@ -94,7 +94,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 },
                 exceedsTagLength: {
                     id: generatePK().toString(),
-                    tag: 'a'.repeat(129), // Exceeds 128 character limit
+                    tag: "a".repeat(129), // Exceeds 128 character limit
                     createdById: generatePK().toString(),
                 },
                 invalidTagFormat: {
@@ -110,7 +110,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 },
                 maxLengthTag: {
                     id: generatePK().toString(),
-                    tag: 'a'.repeat(128), // Max length tag
+                    tag: "a".repeat(128), // Max length tag
                 },
                 unicodeTag: {
                     id: generatePK().toString(),
@@ -337,7 +337,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
      */
     async createCategoryTag(name: string, description?: string): Promise<Prisma.tag> {
         return await this.createMinimal({
-            tag: name.toLowerCase().replace(/\s+/g, '-'),
+            tag: name.toLowerCase().replace(/\s+/g, "-"),
             translations: description ? {
                 create: [{
                     id: generatePK().toString(),
@@ -377,7 +377,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create multiple related tags
      */
-    async createTagSet(baseName: string, count: number = 5): Promise<Prisma.tag[]> {
+    async createTagSet(baseName: string, count = 5): Promise<Prisma.tag[]> {
         const tags: Prisma.tag[] = [];
         
         for (let i = 0; i < count; i++) {
@@ -450,13 +450,13 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.tagCreateInput,
         config: TagRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.tagCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle createdBy relationship
         if (config.withCreatedBy) {
-            const createdById = typeof config.withCreatedBy === 'string' ? config.withCreatedBy : generatePK().toString();
+            const createdById = typeof config.withCreatedBy === "string" ? config.withCreatedBy : generatePK().toString();
             data.createdById = createdById;
         }
 
@@ -481,7 +481,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
         
         // Check tag length
         if (record.tag && record.tag.length > 128) {
-            violations.push('Tag exceeds maximum length of 128 characters');
+            violations.push("Tag exceeds maximum length of 128 characters");
         }
 
         // Check tag uniqueness
@@ -494,7 +494,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             });
             
             if (duplicate) {
-                violations.push('Tag name must be unique');
+                violations.push("Tag name must be unique");
             }
         }
 
@@ -503,13 +503,13 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             // Example: tags should be lowercase, no spaces, alphanumeric with hyphens/underscores
             const validFormat = /^[a-z0-9_-]+$/.test(record.tag);
             if (!validFormat) {
-                violations.push('Tag should be lowercase alphanumeric with hyphens or underscores only');
+                violations.push("Tag should be lowercase alphanumeric with hyphens or underscores only");
             }
         }
 
         // Check bookmark count is not negative
         if (record.bookmarks < 0) {
-            violations.push('Bookmark count cannot be negative');
+            violations.push("Bookmark count cannot be negative");
         }
 
         return violations;
@@ -529,42 +529,42 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.tag,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
         const shouldDelete = (relation: string) => 
             !includeOnly || includeOnly.includes(relation);
 
         // Delete translations
-        if (shouldDelete('translations') && record.translations?.length) {
+        if (shouldDelete("translations") && record.translations?.length) {
             await tx.tag_translation.deleteMany({
                 where: { tagId: record.id },
             });
         }
 
         // Delete resource associations
-        if (shouldDelete('resources') && record.resources?.length) {
+        if (shouldDelete("resources") && record.resources?.length) {
             await tx.resource_tag.deleteMany({
                 where: { tagId: record.id },
             });
         }
 
         // Delete team associations
-        if (shouldDelete('teams') && record.teams?.length) {
+        if (shouldDelete("teams") && record.teams?.length) {
             await tx.team_tag.deleteMany({
                 where: { tagId: record.id },
             });
         }
 
         // Delete bookmarks
-        if (shouldDelete('bookmarkedBy') && record.bookmarkedBy?.length) {
+        if (shouldDelete("bookmarkedBy") && record.bookmarkedBy?.length) {
             await tx.bookmark.deleteMany({
                 where: { tagId: record.id },
             });
         }
 
         // Delete reports
-        if (shouldDelete('reports') && record.reports?.length) {
+        if (shouldDelete("reports") && record.reports?.length) {
             await tx.report.deleteMany({
                 where: { tagId: record.id },
             });
@@ -597,7 +597,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Search tags by prefix
      */
-    async searchTags(prefix: string, limit: number = 10): Promise<Prisma.tag[]> {
+    async searchTags(prefix: string, limit = 10): Promise<Prisma.tag[]> {
         return await this.prisma.tag.findMany({
             where: {
                 tag: {
@@ -615,8 +615,8 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                 },
             },
             orderBy: [
-                { bookmarks: 'desc' },
-                { tag: 'asc' },
+                { bookmarks: "desc" },
+                { tag: "asc" },
             ],
             take: limit,
         });
@@ -625,13 +625,13 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get popular tags
      */
-    async getPopularTags(limit: number = 20): Promise<Prisma.tag[]> {
+    async getPopularTags(limit = 20): Promise<Prisma.tag[]> {
         return await this.prisma.tag.findMany({
             where: {
                 bookmarks: { gt: 0 },
             },
             include: this.getDefaultInclude(),
-            orderBy: { bookmarks: 'desc' },
+            orderBy: { bookmarks: "desc" },
             take: limit,
         });
     }
@@ -701,7 +701,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
 
 // Export factory creator function
 export const createTagDbFactory = (prisma: PrismaClient) => 
-    TagDbFactory.getInstance('tag', prisma);
+    TagDbFactory.getInstance("tag", prisma);
 
 // Export the class for type usage
 export { TagDbFactory as TagDbFactoryClass };

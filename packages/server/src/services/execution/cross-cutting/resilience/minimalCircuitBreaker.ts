@@ -17,8 +17,8 @@
 
 import { type Logger } from "winston";
 import { type EventBus } from "../events/eventBus.js";
-import { ExecutionEventEmitter, ComponentEventEmitter } from "../monitoring/ExecutionEventEmitter.js";
-import { ErrorHandler, ComponentErrorHandler } from "../../shared/ErrorHandler.js";
+import { ExecutionEventEmitter, type ComponentEventEmitter } from "../monitoring/ExecutionEventEmitter.js";
+import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 import { CircuitState, DegradationMode } from "@vrooli/shared";
 
 /**
@@ -52,12 +52,12 @@ export class MinimalCircuitBreaker {
         const executionEmitter = new ExecutionEventEmitter(logger, eventBus);
         this.eventEmitter = executionEmitter.createComponentEmitter(
             "cross-cutting", 
-            `circuit-breaker:${config.service}:${config.operation}`
+            `circuit-breaker:${config.service}:${config.operation}`,
         );
         
         const errorHandler = new ErrorHandler(logger, executionEmitter.eventPublisher);
         this.errorHandler = errorHandler.createComponentHandler(
-            `CircuitBreaker:${config.service}:${config.operation}`
+            `CircuitBreaker:${config.service}:${config.operation}`,
         );
     }
     
@@ -67,7 +67,7 @@ export class MinimalCircuitBreaker {
      */
     async execute<T>(
         operation: () => Promise<T>,
-        metadata?: Record<string, unknown>
+        metadata?: Record<string, unknown>,
     ): Promise<T> {
         const executionId = `${this.config.service}:${this.config.operation}:${Date.now()}`;
         
@@ -75,7 +75,7 @@ export class MinimalCircuitBreaker {
         if (this.state === CircuitState.OPEN) {
             await this.emitExecutionEvent(executionId, "rejected", { 
                 state: this.state,
-                ...metadata 
+                ...metadata, 
             });
             
             throw new Error(`Circuit breaker OPEN for ${this.config.service}:${this.config.operation}`);
@@ -94,7 +94,7 @@ export class MinimalCircuitBreaker {
             await this.emitExecutionEvent(executionId, "success", {
                 state: this.state,
                 duration,
-                ...metadata
+                ...metadata,
             });
             
             return result;
@@ -108,7 +108,7 @@ export class MinimalCircuitBreaker {
                 duration,
                 error: error instanceof Error ? error.message : String(error),
                 errorType: error instanceof Error ? error.constructor.name : "UnknownError",
-                ...metadata
+                ...metadata,
             });
             
             throw error;
@@ -190,13 +190,13 @@ export class MinimalCircuitBreaker {
      */
     private async executeWithTimeout<T>(
         operation: () => Promise<T>,
-        timeoutMs: number
+        timeoutMs: number,
     ): Promise<T> {
         return Promise.race([
             operation(),
             new Promise<T>((_, reject) => 
-                setTimeout(() => reject(new Error("Operation timeout")), timeoutMs)
-            )
+                setTimeout(() => reject(new Error("Operation timeout")), timeoutMs),
+            ),
         ]);
     }
     
@@ -206,7 +206,7 @@ export class MinimalCircuitBreaker {
     private async emitExecutionEvent(
         executionId: string,
         event: "success" | "failure" | "rejected",
-        metadata: Record<string, unknown>
+        metadata: Record<string, unknown>,
     ): Promise<void> {
         await this.eventEmitter.emitMetric(
             "safety",
@@ -217,8 +217,8 @@ export class MinimalCircuitBreaker {
                 service: this.config.service,
                 operation: this.config.operation,
                 executionId,
-                ...metadata
-            }
+                ...metadata,
+            },
         );
     }
     
@@ -228,7 +228,7 @@ export class MinimalCircuitBreaker {
     private async emitStateChange(
         oldState: CircuitState,
         newState: CircuitState,
-        metadata: Record<string, unknown>
+        metadata: Record<string, unknown>,
     ): Promise<void> {
         await this.eventEmitter.emitMetric(
             "safety",
@@ -240,8 +240,8 @@ export class MinimalCircuitBreaker {
                 operation: this.config.operation,
                 oldState,
                 newState,
-                ...metadata
-            }
+                ...metadata,
+            },
         );
     }
 }

@@ -1,6 +1,7 @@
 import type { TeamCreateInput, TeamTranslationCreateInput, TeamUpdateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { teamValidation } from "../../../validation/models/team.js";
+import { teamConfigFixtures } from "../config/teamConfigFixtures.js";
 
 // Magic number constants for testing
 const NAME_MAX_LENGTH = 50;
@@ -37,7 +38,7 @@ export const teamFixtures: ModelTestFixtures<TeamCreateInput, TeamUpdateInput> =
         create: {
             id: validIds.id1,
             bannerImage: "team-banner.jpg",
-            config: { theme: "dark", notifications: true },
+            config: teamConfigFixtures.variants.simpleTeam,
             handle: "awesome_team",
             isOpenToNewMembers: true,
             isPrivate: false,
@@ -82,7 +83,7 @@ export const teamFixtures: ModelTestFixtures<TeamCreateInput, TeamUpdateInput> =
         update: {
             id: validIds.id1,
             bannerImage: "new-banner.jpg",
-            config: { theme: "light", notifications: false },
+            config: teamConfigFixtures.variants.startupTeam,
             handle: "updated_team",
             isOpenToNewMembers: false,
             isPrivate: true,
@@ -394,19 +395,7 @@ export const teamFixtures: ModelTestFixtures<TeamCreateInput, TeamUpdateInput> =
             create: {
                 id: validIds.id1,
                 isPrivate: false,
-                config: {
-                    theme: "dark",
-                    notifications: {
-                        email: true,
-                        push: false,
-                        sms: true,
-                    },
-                    features: ["collaboration", "analytics", "reporting"],
-                    settings: {
-                        autoAcceptMembers: false,
-                        maxMembers: 50,
-                    },
-                },
+                config: teamConfigFixtures.complete,
                 translationsCreate: [
                     {
                         id: validIds.id2,

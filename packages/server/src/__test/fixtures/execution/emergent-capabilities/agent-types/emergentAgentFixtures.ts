@@ -144,7 +144,7 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
             "ai/medical/*",
             "data/patient/*",
             "api/medical/*",
-            "audit/medical/*"
+            "audit/medical/*",
         ],
         priority: 9,
         capabilities: {
@@ -155,9 +155,9 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "medical_record_numbers", 
                     "patient_names_with_medical_context",
                     "detailed_medical_histories",
-                    "specific_treatment_details"
+                    "specific_treatment_details",
                 ],
-                confidenceThreshold: 0.85
+                confidenceThreshold: 0.85,
             },
             auditTrailGeneration: {
                 description: "Automatically generate HIPAA-compliant audit documentation",
@@ -165,8 +165,8 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "who_accessed_what_when",
                     "purpose_of_access",
                     "data_transformation_tracking",
-                    "compliance_validation_results"
-                ]
+                    "compliance_validation_results",
+                ],
             },
             violationResponse: {
                 description: "Immediate response to potential HIPAA violations",
@@ -174,15 +174,15 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "quarantine_potentially_exposed_data",
                     "notify_privacy_officer",
                     "generate_incident_report",
-                    "recommend_remediation_steps"
-                ]
-            }
+                    "recommend_remediation_steps",
+                ],
+            },
         },
         learningPatterns: {
             medicalContextRecognition: "Learn to distinguish PHI from general medical knowledge",
             falsePositiveReduction: "Reduce alerts on legitimate medical education content",
-            newPHIPatterns: "Identify emerging PHI exposure patterns in AI outputs"
-        }
+            newPHIPatterns: "Identify emerging PHI exposure patterns in AI outputs",
+        },
     },
     
     // Medical AI Quality & Safety Agent
@@ -195,7 +195,7 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
             "ai/diagnosis/*",
             "ai/treatment/*",
             "ai/drug_interaction/*",
-            "ai/medical_writing/*"
+            "ai/medical_writing/*",
         ],
         priority: 9,
         safetyChecks: {
@@ -204,37 +204,37 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "pubmed_latest_research",
                     "clinical_guidelines_database", 
                     "fda_drug_interaction_database",
-                    "medical_consensus_protocols"
+                    "medical_consensus_protocols",
                 ],
-                accuracyThreshold: 0.95
+                accuracyThreshold: 0.95,
             },
             biasDetection: {
                 biasTypes: [
                     "demographic_bias_in_diagnosis",
                     "socioeconomic_treatment_bias",
                     "gender_based_symptom_interpretation",
-                    "racial_disparities_in_recommendations"
+                    "racial_disparities_in_recommendations",
                 ],
                 interventions: [
                     "flag_potentially_biased_recommendations",
                     "suggest_bias_neutral_alternatives",
-                    "require_human_review_for_high_risk"
-                ]
+                    "require_human_review_for_high_risk",
+                ],
             },
             harmPrevention: {
                 riskCategories: [
                     "contraindicated_medication_combinations",
                     "inappropriate_dosage_recommendations",
                     "missed_critical_symptoms",
-                    "delayed_care_suggestions"
+                    "delayed_care_suggestions",
                 ],
                 responses: [
                     "immediate_alert_to_medical_team",
                     "block_dangerous_recommendations",
-                    "suggest_safer_alternatives"
-                ]
-            }
-        }
+                    "suggest_safer_alternatives",
+                ],
+            },
+        },
     },
     
     // Trading Fraud Detection Agent
@@ -248,7 +248,7 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
             "trading/execution",
             "account/access/*",
             "api/trading_calls",
-            "market/unusual_activity"
+            "market/unusual_activity",
         ],
         priority: 9,
         fraudDetection: {
@@ -259,10 +259,10 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     indicators: [
                         "rapid_buy_sell_same_security",
                         "minimal_price_movement",
-                        "coordinated_account_activity"
+                        "coordinated_account_activity",
                     ],
                     severity: "high",
-                    action: "immediate_investigation"
+                    action: "immediate_investigation",
                 },
                 {
                     name: "pump_and_dump",
@@ -270,10 +270,10 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     indicators: [
                         "sudden_volume_spike",
                         "social_media_coordination",
-                        "rapid_position_building_then_selling"
+                        "rapid_position_building_then_selling",
                     ],
                     severity: "critical",
-                    action: "freeze_positions_notify_sec"
+                    action: "freeze_positions_notify_sec",
                 },
                 {
                     name: "insider_trading",
@@ -281,18 +281,18 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     indicators: [
                         "unusual_pre_announcement_activity",
                         "employee_trading_before_earnings",
-                        "atypical_options_activity"
+                        "atypical_options_activity",
                     ],
                     severity: "critical",
-                    action: "immediate_sec_notification"
-                }
+                    action: "immediate_sec_notification",
+                },
             ],
             adaptiveLearning: {
                 newPatternDetection: "Identify emerging fraud techniques",
                 falsePositiveReduction: "Learn from legitimate trading patterns",
-                crossMarketAnalysis: "Detect fraud across multiple markets"
-            }
-        }
+                crossMarketAnalysis: "Detect fraud across multiple markets",
+            },
+        },
     },
     
     // Financial Risk & Compliance Agent
@@ -305,7 +305,7 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
             "transaction/large_amount",
             "customer/kyc_check",
             "trading/cross_border",
-            "compliance/rule_change"
+            "compliance/rule_change",
         ],
         priority: 9,
         complianceFrameworks: {
@@ -314,26 +314,26 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                 controls: [
                     "financial_reporting_accuracy",
                     "internal_control_validation",
-                    "executive_certification_tracking"
-                ]
+                    "executive_certification_tracking",
+                ],
             },
             bsa: {
                 description: "Bank Secrecy Act compliance",
                 requirements: [
                     "currency_transaction_reporting",
                     "suspicious_activity_monitoring",
-                    "record_keeping_validation"
-                ]
+                    "record_keeping_validation",
+                ],
             },
             mifid: {
                 description: "Markets in Financial Instruments Directive",
                 compliance: [
                     "best_execution_reporting",
                     "transaction_cost_analysis",
-                    "client_categorization_validation"
-                ]
-            }
-        }
+                    "client_categorization_validation",
+                ],
+            },
+        },
     },
     
     // API Security Agent
@@ -347,7 +347,7 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
             "api/authentication",
             "api/rate_limit_hit",
             "api/error_spike",
-            "security/ip_reputation"
+            "security/ip_reputation",
         ],
         priority: 8,
         threatDetection: {
@@ -355,44 +355,44 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                 indicators: [
                     "sudden_request_volume_spike",
                     "requests_from_many_ips_to_same_endpoint",
-                    "repeated_requests_with_same_payload"
+                    "repeated_requests_with_same_payload",
                 ],
                 responses: [
                     "adaptive_rate_limiting",
                     "temporary_ip_blocking", 
-                    "traffic_pattern_analysis"
-                ]
+                    "traffic_pattern_analysis",
+                ],
             },
             bruteForceDetection: {
                 patterns: [
                     "repeated_failed_auth_attempts",
                     "password_spray_attacks",
-                    "credential_stuffing_attempts"
+                    "credential_stuffing_attempts",
                 ],
                 mitigations: [
                     "progressive_delay_implementation",
                     "account_lockout_procedures",
-                    "suspicious_ip_flagging"
-                ]
+                    "suspicious_ip_flagging",
+                ],
             },
             dataExfiltration: {
                 anomalies: [
                     "unusual_data_access_patterns",
                     "bulk_data_requests",
-                    "off_hours_high_volume_access"
+                    "off_hours_high_volume_access",
                 ],
                 protections: [
                     "data_access_rate_limiting",
                     "unusual_pattern_alerts",
-                    "data_classification_enforcement"
-                ]
-            }
+                    "data_classification_enforcement",
+                ],
+            },
         },
         adaptiveLearning: {
             normalTrafficPatterns: "Learn legitimate usage patterns for each API",
             seasonalAdjustments: "Adjust baselines for business cycles",
-            userBehaviorProfiling: "Create behavioral profiles for regular users"
-        }
+            userBehaviorProfiling: "Create behavioral profiles for regular users",
+        },
     },
     
     // Data Privacy Agent
@@ -405,7 +405,7 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
             "data/personal_access",
             "data/cross_border",
             "user/consent_change",
-            "data/retention_check"
+            "data/retention_check",
         ],
         priority: 9,
         privacyProtections: {
@@ -414,38 +414,38 @@ export const SECURITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "right_to_access_monitoring",
                     "right_to_erasure_enforcement",
                     "right_to_portability_facilitation",
-                    "right_to_rectification_tracking"
+                    "right_to_rectification_tracking",
                 ],
                 legalBasisValidation: [
                     "consent_verification",
                     "legitimate_interest_assessment",
                     "contract_fulfillment_validation",
-                    "legal_obligation_compliance"
-                ]
+                    "legal_obligation_compliance",
+                ],
             },
             ccpaCompliance: {
                 californiaRights: [
                     "right_to_know_what_data_collected",
                     "right_to_delete_personal_information",
                     "right_to_opt_out_of_sale",
-                    "right_to_non_discrimination"
-                ]
+                    "right_to_non_discrimination",
+                ],
             },
             dataMinimization: {
                 principles: [
                     "collect_only_necessary_data",
                     "retain_only_as_long_as_needed",
                     "process_only_for_stated_purposes",
-                    "ensure_data_accuracy_and_relevance"
-                ]
-            }
+                    "ensure_data_accuracy_and_relevance",
+                ],
+            },
         },
         crossBorderCompliance: {
             adequacyAssessment: "Validate data transfer destination compliance",
             transferMechanisms: "Ensure proper safeguards for international transfers",
-            dataLocalization: "Enforce data residency requirements where applicable"
-        }
-    }
+            dataLocalization: "Enforce data residency requirements where applicable",
+        },
+    },
 };
 
 /**
@@ -462,7 +462,7 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
             "failure/*",
             "recovery/*",
             "circuit_breaker/*",
-            "timeout/*"
+            "timeout/*",
         ],
         priority: 8,
         resilienceCapabilities: {
@@ -472,10 +472,10 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "cascading_failures",
                     "timeout_chains",
                     "resource_exhaustion",
-                    "dependency_failures"
+                    "dependency_failures",
                 ],
                 analysisWindow: "24h",
-                minimumOccurrences: 3
+                minimumOccurrences: 3,
             },
             circuitBreakerOptimization: {
                 description: "Dynamically adjust circuit breaker thresholds",
@@ -483,20 +483,20 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "failure_threshold",
                     "success_threshold",
                     "timeout_duration",
-                    "half_open_requests"
+                    "half_open_requests",
                 ],
                 optimizationGoals: [
                     "minimize_false_trips",
                     "maximize_availability",
-                    "reduce_error_propagation"
-                ]
-            }
+                    "reduce_error_propagation",
+                ],
+            },
         },
         learningPatterns: {
             failureCorrelation: "Identify which failures tend to occur together",
             recoveryTimeOptimization: "Learn optimal recovery timing for different failure types",
-            predictivePatterns: "Identify early warning signs of impending failures"
-        }
+            predictivePatterns: "Identify early warning signs of impending failures",
+        },
     },
     
     // Threshold Optimization Agent
@@ -509,7 +509,7 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
             "retry/*",
             "timeout/*",
             "latency/*",
-            "success_rate/*"
+            "success_rate/*",
         ],
         priority: 7,
         resilienceCapabilities: {
@@ -519,14 +519,14 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "retry_success_rate",
                     "timeout_accuracy",
                     "false_timeout_rate",
-                    "resource_waste"
+                    "resource_waste",
                 ],
                 optimizationTargets: [
                     "retry_count",
                     "retry_delay",
                     "timeout_values",
-                    "backoff_multipliers"
-                ]
+                    "backoff_multipliers",
+                ],
             },
             adaptiveAdjustment: {
                 description: "Dynamically adjust thresholds based on conditions",
@@ -534,20 +534,20 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "time_of_day",
                     "system_load",
                     "dependency_health",
-                    "network_conditions"
+                    "network_conditions",
                 ],
                 adjustmentStrategies: [
                     "gradual_increase",
                     "rapid_decrease",
-                    "oscillation_dampening"
-                ]
-            }
+                    "oscillation_dampening",
+                ],
+            },
         },
         learningPatterns: {
             timeBasedPatterns: "Learn how optimal thresholds vary by time",
             loadBasedPatterns: "Understand threshold behavior under different loads",
-            dependencyPatterns: "Adjust based on downstream service behavior"
-        }
+            dependencyPatterns: "Adjust based on downstream service behavior",
+        },
     },
     
     // Predictive Failure Agent
@@ -560,7 +560,7 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
             "metrics/*",
             "latency/*",
             "error_rate/*",
-            "resource_usage/*"
+            "resource_usage/*",
         ],
         priority: 9,
         resilienceCapabilities: {
@@ -570,10 +570,10 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "latency_increase",
                     "error_rate_spike",
                     "memory_growth",
-                    "connection_pool_exhaustion"
+                    "connection_pool_exhaustion",
                 ],
                 predictionWindow: "5-30 minutes",
-                confidenceThreshold: 0.75
+                confidenceThreshold: 0.75,
             },
             proactiveActions: {
                 description: "Take action before failures occur",
@@ -581,16 +581,16 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "preemptive_scaling",
                     "traffic_shedding",
                     "cache_warming",
-                    "dependency_isolation"
+                    "dependency_isolation",
                 ],
-                triggerThreshold: 0.8
-            }
+                triggerThreshold: 0.8,
+            },
         },
         learningPatterns: {
             failureSequences: "Learn common sequences that lead to failures",
             anomalyBaselines: "Establish normal behavior baselines",
-            seasonalPatterns: "Understand time-based failure patterns"
-        }
+            seasonalPatterns: "Understand time-based failure patterns",
+        },
     },
     
     // Recovery Strategy Evolution Agent
@@ -603,7 +603,7 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
             "recovery/*",
             "fallback/*",
             "graceful_degradation/*",
-            "healing/*"
+            "healing/*",
         ],
         priority: 8,
         resilienceCapabilities: {
@@ -614,14 +614,14 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "exponential_backoff",
                     "circuit_breaker",
                     "fallback_response",
-                    "graceful_degradation"
+                    "graceful_degradation",
                 ],
                 metrics: [
                     "recovery_time",
                     "success_rate",
                     "resource_cost",
-                    "user_impact"
-                ]
+                    "user_impact",
+                ],
             },
             strategyEvolution: {
                 description: "Evolve strategies based on effectiveness",
@@ -629,17 +629,17 @@ export const RESILIENCE_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "parameter_tuning",
                     "strategy_combination",
                     "conditional_selection",
-                    "hybrid_approaches"
+                    "hybrid_approaches",
                 ],
-                testingApproach: "gradual_rollout"
-            }
+                testingApproach: "gradual_rollout",
+            },
         },
         learningPatterns: {
             contextualEffectiveness: "Learn which strategies work best in different contexts",
             combinationPatterns: "Discover effective strategy combinations",
-            failureTypeMapping: "Map failure types to optimal recovery strategies"
-        }
-    }
+            failureTypeMapping: "Map failure types to optimal recovery strategies",
+        },
+    },
 };
 
 /**
@@ -656,7 +656,7 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
             "routine/completed",
             "routine/failed",
             "execution/metrics",
-            "strategy/performance"
+            "strategy/performance",
         ],
         priority: 7,
         routineAnalysis: {
@@ -666,9 +666,9 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "execution_time",
                     "resource_usage",
                     "success_rate",
-                    "cost_per_execution"
+                    "cost_per_execution",
                 ],
-                aggregationWindows: ["5m", "1h", "24h", "7d"]
+                aggregationWindows: ["5m", "1h", "24h", "7d"],
             },
             bottleneckDetection: {
                 description: "Identify performance bottlenecks",
@@ -676,20 +676,20 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "step_duration_analysis",
                     "resource_contention",
                     "dependency_delays",
-                    "queue_depth"
+                    "queue_depth",
                 ],
                 thresholds: {
                     slowStepThreshold: "2x_average",
                     resourceContentionThreshold: 0.8,
-                    queueDepthThreshold: 100
-                }
-            }
+                    queueDepthThreshold: 100,
+                },
+            },
         },
         learningPatterns: {
             performancePatterns: "Learn typical performance patterns for different routine types",
             degradationDetection: "Identify gradual performance degradation",
-            optimizationOpportunities: "Discover patterns that indicate optimization potential"
-        }
+            optimizationOpportunities: "Discover patterns that indicate optimization potential",
+        },
     },
     
     // Deterministic Strategy Agent
@@ -702,7 +702,7 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
             "routine/completed",
             "output/generated",
             "pattern/detected",
-            "execution/trace"
+            "execution/trace",
         ],
         priority: 8,
         transformationRules: {
@@ -712,10 +712,10 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "consistent_output_for_input",
                     "fixed_execution_path",
                     "predictable_resource_usage",
-                    "no_external_dependencies"
+                    "no_external_dependencies",
                 ],
                 confidenceThreshold: 0.85,
-                minimumSamples: 100
+                minimumSamples: 100,
             },
             deterministicConversion: {
                 description: "Rules for converting to deterministic strategy",
@@ -723,21 +723,21 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "pattern_confidence > 0.85",
                     "execution_variance < 0.1",
                     "no_random_elements",
-                    "cacheable_results"
+                    "cacheable_results",
                 ],
                 optimizations: [
                     "result_caching",
                     "precomputation",
                     "lookup_tables",
-                    "decision_trees"
-                ]
-            }
+                    "decision_trees",
+                ],
+            },
         },
         learningPatterns: {
             inputOutputMapping: "Learn stable input-output relationships",
             executionPathAnalysis: "Identify fixed execution paths",
-            cacheabilityAssessment: "Determine which results can be cached"
-        }
+            cacheabilityAssessment: "Determine which results can be cached",
+        },
     },
     
     // Cost Optimization Agent
@@ -750,7 +750,7 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
             "billing/*",
             "resource_usage/*",
             "api_calls/*",
-            "model_usage/*"
+            "model_usage/*",
         ],
         priority: 7,
         costOptimization: {
@@ -760,9 +760,9 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "compute_costs",
                     "storage_costs",
                     "api_costs",
-                    "model_inference_costs"
+                    "model_inference_costs",
                 ],
-                granularity: ["per_routine", "per_step", "per_resource"]
+                granularity: ["per_routine", "per_step", "per_resource"],
             },
             optimizationStrategies: {
                 description: "Cost reduction strategies",
@@ -770,20 +770,20 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "model_downsizing",
                     "batch_processing",
                     "caching_expansion",
-                    "off_peak_scheduling"
+                    "off_peak_scheduling",
                 ],
                 constraints: [
                     "maintain_sla",
                     "preserve_quality",
-                    "ensure_reliability"
-                ]
-            }
+                    "ensure_reliability",
+                ],
+            },
         },
         learningPatterns: {
             costPatterns: "Learn cost patterns across different workloads",
             efficiencyMetrics: "Track cost-per-value delivered",
-            optimizationImpact: "Measure impact of cost optimizations"
-        }
+            optimizationImpact: "Measure impact of cost optimizations",
+        },
     },
     
     // Evolution Learning Agent
@@ -796,7 +796,7 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
             "evolution/*",
             "strategy_change/*",
             "performance_delta/*",
-            "rollback/*"
+            "rollback/*",
         ],
         priority: 8,
         evolutionTracking: {
@@ -806,9 +806,9 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "evolution_timestamp",
                     "before_after_metrics",
                     "evolution_reason",
-                    "success_failure"
+                    "success_failure",
                 ],
-                analysisWindow: "90d"
+                analysisWindow: "90d",
             },
             successFactors: {
                 description: "Identify what makes evolutions successful",
@@ -816,16 +816,16 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "gradual_vs_sudden_change",
                     "testing_coverage",
                     "rollback_capability",
-                    "monitoring_adequacy"
+                    "monitoring_adequacy",
                 ],
-                correlationAnalysis: true
-            }
+                correlationAnalysis: true,
+            },
         },
         learningPatterns: {
             evolutionSuccess: "Learn what makes strategy evolutions successful",
             failurePatterns: "Identify common evolution failure patterns",
-            optimalTiming: "Learn when to trigger evolutions"
-        }
+            optimalTiming: "Learn when to trigger evolutions",
+        },
     },
     
     // Financial Optimization Agent (from examples)
@@ -838,7 +838,7 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
             "financial/analysis/*",
             "market_data/*",
             "execution/financial/*",
-            "accuracy/financial/*"
+            "accuracy/financial/*",
         ],
         priority: 8,
         strategyEvolution: {
@@ -846,32 +846,32 @@ export const STRATEGY_EVOLUTION_AGENTS: Record<string, ExtendedAgentConfig> = {
                 executionTime: 750,
                 accuracy: 0.92,
                 cost: 0.75,
-                strategy: "reasoning"
+                strategy: "reasoning",
             },
             evolutionPath: {
                 description: "Path from reasoning to hybrid deterministic",
                 stages: [
                     {
                         stage: "reasoning",
-                        characteristics: ["flexible", "slow", "expensive"]
+                        characteristics: ["flexible", "slow", "expensive"],
                     },
                     {
                         stage: "partial_deterministic",
-                        characteristics: ["common_patterns_cached", "faster", "cheaper"]
+                        characteristics: ["common_patterns_cached", "faster", "cheaper"],
                     },
                     {
                         stage: "hybrid_deterministic",
-                        characteristics: ["smart_routing", "optimal_performance", "high_accuracy"]
-                    }
-                ]
-            }
+                        characteristics: ["smart_routing", "optimal_performance", "high_accuracy"],
+                    },
+                ],
+            },
         },
         learningPatterns: {
             marketPatterns: "Learn which market conditions suit which strategies",
             accuracyTracking: "Track accuracy across different strategies",
-            costBenefitAnalysis: "Continuously evaluate cost vs benefit"
-        }
-    }
+            costBenefitAnalysis: "Continuously evaluate cost vs benefit",
+        },
+    },
 };
 
 /**
@@ -888,7 +888,7 @@ export const QUALITY_AGENTS: Record<string, ExtendedAgentConfig> = {
             "output/generated",
             "content/created",
             "validation/failed",
-            "quality/score"
+            "quality/score",
         ],
         priority: 8,
         capabilities: {
@@ -898,13 +898,13 @@ export const QUALITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "accuracy_score",
                     "completeness_score",
                     "consistency_score",
-                    "bias_score"
+                    "bias_score",
                 ],
                 thresholds: {
                     minimum_acceptable: 0.7,
                     target: 0.85,
-                    excellent: 0.95
-                }
+                    excellent: 0.95,
+                },
             },
             biasDetection: {
                 description: "Detect various forms of bias",
@@ -912,21 +912,21 @@ export const QUALITY_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "demographic_bias",
                     "cultural_bias",
                     "linguistic_bias",
-                    "selection_bias"
+                    "selection_bias",
                 ],
                 mitigationStrategies: [
                     "diverse_training_data",
                     "bias_correction_algorithms",
-                    "human_review_flagging"
-                ]
-            }
+                    "human_review_flagging",
+                ],
+            },
         },
         learningPatterns: {
             qualityTrends: "Track quality trends over time",
             biasPatterns: "Learn to identify subtle bias patterns",
-            improvementCorrelation: "Correlate quality improvements with changes"
-        }
-    }
+            improvementCorrelation: "Correlate quality improvements with changes",
+        },
+    },
 };
 
 /**
@@ -943,7 +943,7 @@ export const MONITORING_AGENTS: Record<string, ExtendedAgentConfig> = {
             "system/health/*",
             "resource/usage/*",
             "service/status/*",
-            "alert/*"
+            "alert/*",
         ],
         priority: 9,
         capabilities: {
@@ -954,9 +954,9 @@ export const MONITORING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "memory_usage",
                     "disk_io",
                     "network_latency",
-                    "service_availability"
+                    "service_availability",
                 ],
-                aggregations: ["min", "max", "avg", "p95", "p99"]
+                aggregations: ["min", "max", "avg", "p95", "p99"],
             },
             anomalyDetection: {
                 description: "Detect anomalies in system behavior",
@@ -964,21 +964,21 @@ export const MONITORING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "statistical_deviation",
                     "pattern_matching",
                     "predictive_modeling",
-                    "correlation_analysis"
+                    "correlation_analysis",
                 ],
                 alertThresholds: {
                     warning: 0.7,
                     critical: 0.9,
-                    emergency: 0.95
-                }
-            }
+                    emergency: 0.95,
+                },
+            },
         },
         learningPatterns: {
             normalBehavior: "Learn normal system behavior patterns",
             anomalyPrediction: "Predict anomalies before they occur",
-            correlationLearning: "Learn correlations between metrics"
-        }
-    }
+            correlationLearning: "Learn correlations between metrics",
+        },
+    },
 };
 
 /**
@@ -995,7 +995,7 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
             "routine/completed",
             "routine/sequence_detected",
             "performance/workflow_metrics",
-            "coordination/opportunity"
+            "coordination/opportunity",
         ],
         priority: 8,
         capabilities: {
@@ -1005,10 +1005,10 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "sequential_redundancy",
                     "parallelization_potential",
                     "conditional_branching_needs",
-                    "resource_sharing_opportunities"
+                    "resource_sharing_opportunities",
                 ],
                 minimumExecutions: 50,
-                confidenceThreshold: 0.8
+                confidenceThreshold: 0.8,
             },
             routingProposal: {
                 description: "Propose intelligent routing strategies",
@@ -1016,14 +1016,14 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "scatter_gather",
                     "pipeline",
                     "conditional_routing",
-                    "hybrid_coordination"
+                    "hybrid_coordination",
                 ],
                 optimizationGoals: [
                     "minimize_total_time",
                     "maximize_parallelization",
                     "optimize_resource_usage",
-                    "improve_quality_through_specialization"
-                ]
+                    "improve_quality_through_specialization",
+                ],
             },
             contextPropagation: {
                 description: "Manage context sharing between sub-routines",
@@ -1031,20 +1031,20 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     full: "Share all context data",
                     selective: "Share only relevant context",
                     isolated: "No context sharing",
-                    filtered: "Share with transformations"
+                    filtered: "Share with transformations",
                 },
                 optimization: [
                     "minimize_data_transfer",
                     "maintain_privacy",
-                    "ensure_consistency"
-                ]
-            }
+                    "ensure_consistency",
+                ],
+            },
         },
         learningPatterns: {
             executionPatterns: "Learn common workflow patterns",
             parallelizationSuccess: "Track successful parallel executions",
-            contextRequirements: "Learn context dependencies between routines"
-        }
+            contextRequirements: "Learn context dependencies between routines",
+        },
     },
     
     // Parallel Optimization Agent
@@ -1057,7 +1057,7 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
             "routine/dependency_analysis",
             "resource/utilization",
             "performance/parallel_metrics",
-            "execution/bottleneck"
+            "execution/bottleneck",
         ],
         priority: 7,
         capabilities: {
@@ -1067,9 +1067,9 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "data_dependency_graph",
                     "resource_conflict_detection",
                     "temporal_dependency_mapping",
-                    "side_effect_analysis"
+                    "side_effect_analysis",
                 ],
-                outputFormat: "directed_acyclic_graph"
+                outputFormat: "directed_acyclic_graph",
             },
             parallelizationStrategy: {
                 description: "Determine optimal parallelization approach",
@@ -1077,13 +1077,13 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "available_resources",
                     "data_locality",
                     "communication_overhead",
-                    "load_balancing"
+                    "load_balancing",
                 ],
                 strategies: {
                     static: "Pre-determined parallel groups",
                     dynamic: "Runtime-adjusted parallelism",
-                    adaptive: "Learning-based parallelization"
-                }
+                    adaptive: "Learning-based parallelization",
+                },
             },
             resourceAllocation: {
                 description: "Allocate resources for parallel execution",
@@ -1092,15 +1092,15 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "fair_share",
                     "priority_based",
                     "performance_optimized",
-                    "cost_optimized"
-                ]
-            }
+                    "cost_optimized",
+                ],
+            },
         },
         learningPatterns: {
             parallelizationGains: "Learn actual vs predicted speedup",
             resourceContention: "Identify resource bottlenecks",
-            optimalConcurrency: "Learn optimal parallelism levels"
-        }
+            optimalConcurrency: "Learn optimal parallelism levels",
+        },
     },
     
     // Context Propagation Agent
@@ -1113,7 +1113,7 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
             "context/created",
             "context/accessed",
             "context/transformed",
-            "privacy/context_concern"
+            "privacy/context_concern",
         ],
         priority: 6,
         capabilities: {
@@ -1123,9 +1123,9 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "access_frequency",
                     "modification_patterns",
                     "size_distribution",
-                    "sensitivity_levels"
+                    "sensitivity_levels",
                 ],
-                privacyAware: true
+                privacyAware: true,
             },
             transformationOptimization: {
                 description: "Optimize context transformations",
@@ -1133,9 +1133,9 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "lazy_transformation",
                     "cached_transformations",
                     "incremental_updates",
-                    "schema_evolution"
+                    "schema_evolution",
                 ],
-                validationRequired: true
+                validationRequired: true,
             },
             sharingStrategy: {
                 description: "Determine optimal context sharing approach",
@@ -1143,21 +1143,21 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     broadcast: "Share with all sub-routines",
                     unicast: "Share with specific routines",
                     multicast: "Share with groups",
-                    publish_subscribe: "Event-based sharing"
+                    publish_subscribe: "Event-based sharing",
                 },
                 considerations: [
                     "data_volume",
                     "update_frequency",
                     "consistency_requirements",
-                    "privacy_constraints"
-                ]
-            }
+                    "privacy_constraints",
+                ],
+            },
         },
         learningPatterns: {
             contextUsage: "Learn which context is used by which routines",
             transformationPatterns: "Identify common transformations",
-            sharingEfficiency: "Optimize sharing based on usage"
-        }
+            sharingEfficiency: "Optimize sharing based on usage",
+        },
     },
     
     // Routing Performance Agent
@@ -1170,7 +1170,7 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
             "routing/execution_complete",
             "performance/routing_metrics",
             "resource/routing_usage",
-            "quality/routing_outcomes"
+            "quality/routing_outcomes",
         ],
         priority: 8,
         capabilities: {
@@ -1181,13 +1181,13 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "parallelization_efficiency",
                     "resource_utilization",
                     "quality_scores",
-                    "error_rates"
+                    "error_rates",
                 ],
                 comparisons: [
                     "routing_vs_sequential",
                     "different_routing_strategies",
-                    "predicted_vs_actual"
-                ]
+                    "predicted_vs_actual",
+                ],
             },
             bottleneckDetection: {
                 description: "Identify routing bottlenecks",
@@ -1195,14 +1195,14 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "synchronization_points",
                     "resource_contention",
                     "data_transfer_overhead",
-                    "sequential_dependencies"
+                    "sequential_dependencies",
                 ],
                 resolutionStrategies: [
                     "increase_parallelism",
                     "optimize_data_flow",
                     "reorder_operations",
-                    "cache_intermediate_results"
-                ]
+                    "cache_intermediate_results",
+                ],
             },
             evolutionProposal: {
                 description: "Propose routing improvements",
@@ -1210,22 +1210,22 @@ export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = 
                     "performance_history",
                     "pattern_analysis",
                     "cost_benefit_analysis",
-                    "risk_assessment"
+                    "risk_assessment",
                 ],
                 proposalTypes: [
                     "strategy_change",
                     "parallelism_adjustment",
                     "resource_reallocation",
-                    "workflow_restructuring"
-                ]
-            }
+                    "workflow_restructuring",
+                ],
+            },
         },
         learningPatterns: {
             performanceTrends: "Track routing performance over time",
             strategyEffectiveness: "Learn which strategies work best",
-            adaptiveOptimization: "Continuously improve routing decisions"
-        }
-    }
+            adaptiveOptimization: "Continuously improve routing decisions",
+        },
+    },
 };
 
 /**
@@ -1242,7 +1242,7 @@ export const API_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
             "integration/request",
             "api/documentation_found",
             "integration/test_results",
-            "routine/api_usage"
+            "routine/api_usage",
         ],
         priority: 7,
         capabilities: {
@@ -1252,9 +1252,9 @@ export const API_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "openapi_spec_parsing",
                     "documentation_scraping",
                     "example_analysis",
-                    "schema_inference"
+                    "schema_inference",
                 ],
-                supportedFormats: ["OpenAPI", "GraphQL", "REST", "SOAP"]
+                supportedFormats: ["OpenAPI", "GraphQL", "REST", "SOAP"],
             },
             integrationGeneration: {
                 description: "Generate integration routines from API specs",
@@ -1262,9 +1262,9 @@ export const API_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "authentication_routine",
                     "endpoint_wrapper_routines",
                     "error_handling_routine",
-                    "rate_limiting_routine"
+                    "rate_limiting_routine",
                 ],
-                testingStrategy: "progressive_validation"
+                testingStrategy: "progressive_validation",
             },
             qualityAssurance: {
                 description: "Ensure generated integrations work correctly",
@@ -1272,15 +1272,15 @@ export const API_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "schema_compliance",
                     "error_handling_coverage",
                     "performance_benchmarks",
-                    "security_validation"
-                ]
-            }
+                    "security_validation",
+                ],
+            },
         },
         learningPatterns: {
             apiPatterns: "Learn common API design patterns",
             errorPatterns: "Track API-specific error patterns",
-            optimizationOpportunities: "Identify performance improvements"
-        }
+            optimizationOpportunities: "Identify performance improvements",
+        },
     },
     
     // API Test Generator
@@ -1293,7 +1293,7 @@ export const API_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
             "api/integration_created",
             "api/test_request",
             "test/results",
-            "api/failure_detected"
+            "api/failure_detected",
         ],
         priority: 6,
         capabilities: {
@@ -1304,14 +1304,14 @@ export const API_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "integration_tests",
                     "contract_tests",
                     "performance_tests",
-                    "security_tests"
+                    "security_tests",
                 ],
                 coverage: {
                     endpoints: 1.0,
                     error_cases: 0.9,
                     edge_cases: 0.8,
-                    performance_scenarios: 0.7
-                }
+                    performance_scenarios: 0.7,
+                },
             },
             mockGeneration: {
                 description: "Generate API mocks for testing",
@@ -1319,8 +1319,8 @@ export const API_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "response_recording",
                     "schema_based_generation",
                     "behavior_simulation",
-                    "error_injection"
-                ]
+                    "error_injection",
+                ],
             },
             continuousTesting: {
                 description: "Monitor and test APIs continuously",
@@ -1328,16 +1328,16 @@ export const API_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "availability_checks",
                     "response_time_tracking",
                     "schema_compliance",
-                    "breaking_change_detection"
-                ]
-            }
+                    "breaking_change_detection",
+                ],
+            },
         },
         learningPatterns: {
             testEffectiveness: "Learn which tests catch most issues",
             apiEvolution: "Track API changes over time",
-            testOptimization: "Optimize test execution"
-        }
-    }
+            testOptimization: "Optimize test execution",
+        },
+    },
 };
 
 /**
@@ -1354,7 +1354,7 @@ export const DATA_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
             "document/create_request",
             "storage/provider_available",
             "document/collaboration_needed",
-            "format/optimization_opportunity"
+            "format/optimization_opportunity",
         ],
         priority: 7,
         capabilities: {
@@ -1364,31 +1364,31 @@ export const DATA_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     presentation: ["pptx", "google_slides", "pdf"],
                     documentation: ["docx", "markdown", "confluence"],
                     data_analysis: ["xlsx", "jupyter", "tableau"],
-                    collaboration: ["google_docs", "sharepoint", "notion"]
+                    collaboration: ["google_docs", "sharepoint", "notion"],
                 },
                 decisionFactors: [
                     "audience_technical_level",
                     "collaboration_requirements",
                     "visual_complexity",
-                    "update_frequency"
-                ]
+                    "update_frequency",
+                ],
             },
             storageIntegration: {
                 description: "Integrate with external storage providers",
                 providers: {
                     google_drive: {
                         auth: "oauth2",
-                        capabilities: ["real_time_collab", "version_history", "commenting"]
+                        capabilities: ["real_time_collab", "version_history", "commenting"],
                     },
                     sharepoint: {
                         auth: "oauth2",
-                        capabilities: ["enterprise_permissions", "workflows", "metadata"]
+                        capabilities: ["enterprise_permissions", "workflows", "metadata"],
                     },
                     github: {
                         auth: "token",
-                        capabilities: ["version_control", "pull_requests", "ci_cd"]
-                    }
-                }
+                        capabilities: ["version_control", "pull_requests", "ci_cd"],
+                    },
+                },
             },
             contentGeneration: {
                 description: "Generate document content intelligently",
@@ -1396,15 +1396,15 @@ export const DATA_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "data_visualization",
                     "narrative_generation",
                     "template_adaptation",
-                    "multi_language_support"
-                ]
-            }
+                    "multi_language_support",
+                ],
+            },
         },
         learningPatterns: {
             audiencePreferences: "Learn format preferences by audience",
             contentEffectiveness: "Track engagement and comprehension",
-            collaborationPatterns: "Optimize for team workflows"
-        }
+            collaborationPatterns: "Optimize for team workflows",
+        },
     },
     
     // Format Optimizer Agent
@@ -1417,7 +1417,7 @@ export const DATA_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
             "document/created",
             "document/accessed",
             "feedback/document",
-            "conversion/request"
+            "conversion/request",
         ],
         priority: 6,
         capabilities: {
@@ -1427,13 +1427,13 @@ export const DATA_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "readability_score",
                     "engagement_time",
                     "completion_rate",
-                    "share_frequency"
+                    "share_frequency",
                 ],
                 comparisons: [
                     "format_performance",
                     "audience_preferences",
-                    "device_compatibility"
-                ]
+                    "device_compatibility",
+                ],
             },
             conversionOptimization: {
                 description: "Optimize format conversions",
@@ -1441,14 +1441,14 @@ export const DATA_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "formatting",
                     "interactive_elements",
                     "metadata",
-                    "accessibility_features"
+                    "accessibility_features",
                 ],
                 enhances: [
                     "searchability",
                     "performance",
                     "compatibility",
-                    "file_size"
-                ]
+                    "file_size",
+                ],
             },
             adaptiveFormatting: {
                 description: "Adapt formatting based on context",
@@ -1456,16 +1456,16 @@ export const DATA_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
                     "device_type",
                     "network_speed",
                     "user_preferences",
-                    "accessibility_needs"
-                ]
-            }
+                    "accessibility_needs",
+                ],
+            },
         },
         learningPatterns: {
             formatSuccess: "Learn which formats work best",
             conversionPatterns: "Track common conversion needs",
-            audienceAdaptation: "Optimize for different audiences"
-        }
-    }
+            audienceAdaptation: "Optimize for different audiences",
+        },
+    },
 };
 
 /**
@@ -1480,22 +1480,22 @@ export const TEST_SWARMS: Record<string, EmergentSwarmConfig> = {
         agents: [
             {
                 ...SECURITY_AGENTS.HIPAA_COMPLIANCE_AGENT,
-                agentId: "healthcare_hipaa_monitor"
+                agentId: "healthcare_hipaa_monitor",
             },
             {
                 ...SECURITY_AGENTS.MEDICAL_SAFETY_AGENT,
-                agentId: "healthcare_safety_monitor"
+                agentId: "healthcare_safety_monitor",
             },
             {
                 ...SECURITY_AGENTS.DATA_PRIVACY_AGENT,
-                agentId: "healthcare_privacy_monitor"
-            }
+                agentId: "healthcare_privacy_monitor",
+            },
         ],
         coordination: {
             sharedLearning: true,
             collaborativeProposals: true,
-            crossAgentInsights: true
-        }
+            crossAgentInsights: true,
+        },
     },
     
     // Financial Security Swarm
@@ -1506,22 +1506,22 @@ export const TEST_SWARMS: Record<string, EmergentSwarmConfig> = {
         agents: [
             {
                 ...SECURITY_AGENTS.TRADING_FRAUD_AGENT,
-                agentId: "financial_fraud_detector"
+                agentId: "financial_fraud_detector",
             },
             {
                 ...SECURITY_AGENTS.FINANCIAL_COMPLIANCE_AGENT,
-                agentId: "financial_compliance_monitor"
+                agentId: "financial_compliance_monitor",
             },
             {
                 ...STRATEGY_EVOLUTION_AGENTS.FINANCIAL_OPTIMIZATION_AGENT,
-                agentId: "financial_optimizer"
-            }
+                agentId: "financial_optimizer",
+            },
         ],
         coordination: {
             sharedLearning: true,
             collaborativeProposals: false, // Financial decisions need isolation
-            crossAgentInsights: true
-        }
+            crossAgentInsights: true,
+        },
     },
     
     // Resilience Evolution Swarm
@@ -1532,26 +1532,26 @@ export const TEST_SWARMS: Record<string, EmergentSwarmConfig> = {
         agents: [
             {
                 ...RESILIENCE_AGENTS.PATTERN_LEARNING_AGENT,
-                agentId: "resilience_pattern_learner"
+                agentId: "resilience_pattern_learner",
             },
             {
                 ...RESILIENCE_AGENTS.THRESHOLD_OPTIMIZATION_AGENT,
-                agentId: "resilience_threshold_optimizer"
+                agentId: "resilience_threshold_optimizer",
             },
             {
                 ...RESILIENCE_AGENTS.PREDICTIVE_FAILURE_AGENT,
-                agentId: "resilience_failure_predictor"
+                agentId: "resilience_failure_predictor",
             },
             {
                 ...RESILIENCE_AGENTS.RECOVERY_STRATEGY_EVOLUTION_AGENT,
-                agentId: "resilience_recovery_evolver"
-            }
+                agentId: "resilience_recovery_evolver",
+            },
         ],
         coordination: {
             sharedLearning: true,
             collaborativeProposals: true,
-            crossAgentInsights: true
-        }
+            crossAgentInsights: true,
+        },
     },
     
     // Strategy Optimization Swarm
@@ -1562,27 +1562,27 @@ export const TEST_SWARMS: Record<string, EmergentSwarmConfig> = {
         agents: [
             {
                 ...STRATEGY_EVOLUTION_AGENTS.ROUTINE_PERFORMANCE_AGENT,
-                agentId: "strategy_performance_analyzer"
+                agentId: "strategy_performance_analyzer",
             },
             {
                 ...STRATEGY_EVOLUTION_AGENTS.DETERMINISTIC_STRATEGY_AGENT,
-                agentId: "strategy_deterministic_detector"
+                agentId: "strategy_deterministic_detector",
             },
             {
                 ...STRATEGY_EVOLUTION_AGENTS.COST_OPTIMIZATION_AGENT,
-                agentId: "strategy_cost_optimizer"
+                agentId: "strategy_cost_optimizer",
             },
             {
                 ...STRATEGY_EVOLUTION_AGENTS.EVOLUTION_LEARNING_AGENT,
-                agentId: "strategy_evolution_learner"
-            }
+                agentId: "strategy_evolution_learner",
+            },
         ],
         coordination: {
             sharedLearning: true,
             collaborativeProposals: true,
-            crossAgentInsights: true
-        }
-    }
+            crossAgentInsights: true,
+        },
+    },
 };
 
 /**
@@ -1903,6 +1903,6 @@ export function getAgentsByCapability(capability: string): ExtendedAgentConfig[]
             ...agent.strategyEvolution,
             ...agent.fraudDetection,
             ...agent.threatDetection,
-        } as any).some(key => key.toLowerCase().includes(capability.toLowerCase()))
+        } as any).some(key => key.toLowerCase().includes(capability.toLowerCase())),
     );
 }

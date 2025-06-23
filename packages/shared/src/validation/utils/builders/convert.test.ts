@@ -111,7 +111,7 @@ describe("Double Conversion Tests", () => {
             { input: "123.456", expected: 123.456 }, // decimal number
             { input: "0.8", expected: 0.8 }, // decimal less than 1
             { input: "-0.8", expected: -0.8 }, // negative decimal
-            { input: 0.8, expected: 0.8 } // number input
+            { input: 0.8, expected: 0.8 }, // number input
         ];
 
         // Test each typical case
@@ -196,7 +196,7 @@ describe("Positive Integer Conversion Tests", () => {
             { input: "abcdef", expected: NaN }, // no digits
             { input: "0000", expected: 0 }, // all zeros
             { input: "-123", expected: 123 }, // negative number - strips negative sign
-            { input: "Infinity", expected: NaN } // Infinity string
+            { input: "Infinity", expected: NaN }, // Infinity string
         ];
 
         // Test each edge case
@@ -303,7 +303,7 @@ describe("Enum to Yup Tests", () => {
             const testEnum = {
                 VALUE1: "value1",
                 VALUE2: "value2", 
-                VALUE3: "value3"
+                VALUE3: "value3",
             };
             
             const schema = enumToYup(testEnum);
@@ -323,7 +323,7 @@ describe("Enum to Yup Tests", () => {
         it("should handle enum functions", () => {
             const enumFunction = () => ({
                 OPTION_A: "optionA",
-                OPTION_B: "optionB"
+                OPTION_B: "optionB",
             });
             
             const schema = enumToYup(enumFunction);
@@ -346,7 +346,7 @@ describe("Enum to Yup Tests", () => {
             
             // Should log a warning
             expect(consoleSpy).toHaveBeenCalledWith(
-                "enumToYup called with undefined enum. This may be due to circular dependencies."
+                "enumToYup called with undefined enum. This may be due to circular dependencies.",
             );
             
             // Should return a basic string schema that accepts any trimmed string
@@ -364,7 +364,7 @@ describe("Enum to Yup Tests", () => {
             
             // Should log a warning
             expect(consoleSpy).toHaveBeenCalledWith(
-                "enumToYup called with undefined enum. This may be due to circular dependencies."
+                "enumToYup called with undefined enum. This may be due to circular dependencies.",
             );
             
             // Should return a basic string schema

@@ -40,7 +40,7 @@ export const integrationFlows = {
         tier2Action: "Execute PHI detection routine",
         tier3Action: "Apply deterministic pattern matching",
         emergentAction: "Security agents identify new PHI patterns",
-        outcome: "Compliance report generated with 99.9% accuracy"
+        outcome: "Compliance report generated with 99.9% accuracy",
     },
     financialTrading: {
         trigger: "Market volatility spike detected",
@@ -48,7 +48,7 @@ export const integrationFlows = {
         tier2Action: "Execute portfolio risk assessment",
         tier3Action: "Apply reasoning strategy for anomaly detection",
         emergentAction: "Optimization agents reduce analysis time by 40%",
-        outcome: "Risk-adjusted trading strategy deployed in 3 seconds"
+        outcome: "Risk-adjusted trading strategy deployed in 3 seconds",
     },
     customerService: {
         trigger: "Complex customer inquiry received",
@@ -56,8 +56,8 @@ export const integrationFlows = {
         tier2Action: "Execute inquiry resolution workflow",
         tier3Action: "Route between knowledge base, API calls, and human escalation",
         emergentAction: "Quality agents improve template responses",
-        outcome: "Issue resolved with 95% satisfaction, 80% cost reduction"
-    }
+        outcome: "Issue resolved with 95% satisfaction, 80% cost reduction",
+    },
 };
 
 // Metrics showing compound intelligence growth
@@ -66,24 +66,24 @@ export const compoundGrowthMetrics = {
         routines: 10,
         avgExecutionTime: "45s",
         avgCost: "$0.12",
-        successRate: "85%"
+        successRate: "85%",
     },
     month3: {
         routines: 25,
         avgExecutionTime: "20s",
         avgCost: "$0.08",
-        successRate: "92%"
+        successRate: "92%",
     },
     month6: {
         routines: 50,
         avgExecutionTime: "8s",
         avgCost: "$0.04",
-        successRate: "97%"
+        successRate: "97%",
     },
     month12: {
         routines: 120,
         avgExecutionTime: "3s",
         avgCost: "$0.02",
-        successRate: "99.2%"
-    }
+        successRate: "99.2%",
+    },
 };

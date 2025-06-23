@@ -28,7 +28,7 @@ export class RoutineDbFactory extends DatabaseFixtureFactory<
     Prisma.RoutineUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('Routine', prisma);
+        super("Routine", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -137,9 +137,9 @@ export class RoutineDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.RoutineCreateInput,
         config: RoutineRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.RoutineCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle owner
         if (config.owner) {
@@ -316,7 +316,7 @@ export class RoutineDbFactory extends DatabaseFixtureFactory<
         });
 
         if (versionCount === 0) {
-            violations.push('Routine must have at least one version');
+            violations.push("Routine must have at least one version");
         }
 
         // Check that there's exactly one latest version
@@ -328,16 +328,16 @@ export class RoutineDbFactory extends DatabaseFixtureFactory<
         });
 
         if (latestVersions !== 1) {
-            violations.push('Routine must have exactly one latest version');
+            violations.push("Routine must have exactly one latest version");
         }
 
         // Check ownership
         if (!record.ownedByUserId && !record.ownedByTeamId) {
-            violations.push('Routine must have an owner (user or team)');
+            violations.push("Routine must have an owner (user or team)");
         }
 
         if (record.ownedByUserId && record.ownedByTeamId) {
-            violations.push('Routine cannot be owned by both user and team');
+            violations.push("Routine cannot be owned by both user and team");
         }
 
         return violations;
@@ -461,7 +461,7 @@ export class RoutineDbFactory extends DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: Prisma.Routine,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete runs
         if (record.runs?.length) {

@@ -5,17 +5,17 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     RunStep,
     RunProjectStep,
     RunRoutineStep,
-    RunStepStatus
-} from '@vrooli/shared';
+    RunStepStatus,
+} from "@vrooli/shared";
 import { 
     runStepValidation,
-    RunStepStatus as RunStepStatusEnum 
-} from '@vrooli/shared';
+    RunStepStatus as RunStepStatusEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -67,7 +67,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class RunStepResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -94,12 +94,12 @@ export class RunStepResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/run-step/${runStep.id}`,
-                    related: this.getRelatedLinks(runStep)
-                }
-            }
+                    related: this.getRelatedLinks(runStep),
+                },
+            },
         };
     }
     
@@ -109,12 +109,12 @@ export class RunStepResponseFactory {
     private getRelatedLinks(runStep: RunStep): Record<string, string> {
         const links: Record<string, string> = {};
         
-        if (runStep.__typename === 'RunRoutineStep' && runStep.runRoutine) {
+        if (runStep.__typename === "RunRoutineStep" && runStep.runRoutine) {
             links.runRoutine = `${this.baseUrl}/api/run/${runStep.runRoutine.id}`;
             if (runStep.step) {
                 links.step = `${this.baseUrl}/api/routine-step/${runStep.step.id}`;
             }
-        } else if (runStep.__typename === 'RunProjectStep' && runStep.runProject) {
+        } else if (runStep.__typename === "RunProjectStep" && runStep.runProject) {
             links.runProject = `${this.baseUrl}/api/run-project/${runStep.runProject.id}`;
             if (runStep.directory) {
                 links.directory = `${this.baseUrl}/api/project-directory/${runStep.directory.id}`;
@@ -135,7 +135,7 @@ export class RunStepResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: runSteps.length,
-            totalCount: runSteps.length
+            totalCount: runSteps.length,
         };
         
         return {
@@ -143,17 +143,17 @@ export class RunStepResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/run-step?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/run-step?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -163,16 +163,16 @@ export class RunStepResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/run-step'
-            }
+                path: "/api/run-step",
+            },
         };
     }
     
@@ -182,16 +182,16 @@ export class RunStepResponseFactory {
     createNotFoundErrorResponse(runStepId: string): APIErrorResponse {
         return {
             error: {
-                code: 'RUN_STEP_NOT_FOUND',
+                code: "RUN_STEP_NOT_FOUND",
                 message: `Run step with ID '${runStepId}' was not found`,
                 details: {
                     runStepId,
-                    searchCriteria: { id: runStepId }
+                    searchCriteria: { id: runStepId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/run-step/${runStepId}`
-            }
+                path: `/api/run-step/${runStepId}`,
+            },
         };
     }
     
@@ -201,17 +201,17 @@ export class RunStepResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this run step`,
                 details: {
                     operation,
-                    requiredPermissions: ['run:write'],
-                    userPermissions: ['run:read']
+                    requiredPermissions: ["run:write"],
+                    userPermissions: ["run:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/run-step'
-            }
+                path: "/api/run-step",
+            },
         };
     }
     
@@ -221,17 +221,17 @@ export class RunStepResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/run-step'
-            }
+                path: "/api/run-step",
+            },
         };
     }
     
@@ -241,17 +241,17 @@ export class RunStepResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/run-step'
-            }
+                path: "/api/run-step",
+            },
         };
     }
     
@@ -282,7 +282,7 @@ export class RunStepResponseFactory {
                 runProject: null,
                 steps: [],
                 inputs: [],
-                outputs: []
+                outputs: [],
             },
             step: {
                 __typename: "RoutineVersionStep",
@@ -295,14 +295,14 @@ export class RunStepResponseFactory {
                     id: `trans_${id}`,
                     language: "en",
                     description: "Test step description",
-                    title: "Test Step"
-                }]
-            }
+                    title: "Test Step",
+                }],
+            },
         };
         
         return {
             ...defaultStep,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -330,7 +330,7 @@ export class RunStepResponseFactory {
                 isPrivate: false,
                 timeElapsed: 0,
                 title: "Test Project Run",
-                steps: []
+                steps: [],
             },
             directory: {
                 __typename: "ProjectVersionDirectory",
@@ -338,13 +338,13 @@ export class RunStepResponseFactory {
                 created_at: now,
                 updated_at: now,
                 isRoot: false,
-                childOrder: 0
-            }
+                childOrder: 0,
+            },
         };
         
         return {
             ...defaultStep,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -369,7 +369,7 @@ export class RunStepResponseFactory {
                     : null,
                 timeElapsed: [RunStepStatusEnum.Completed, RunStepStatusEnum.Failed, RunStepStatusEnum.Skipped].includes(status)
                     ? 1800
-                    : null
+                    : null,
             };
         });
     }
@@ -415,7 +415,7 @@ export class RunStepMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get run step by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/run-step/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 // Randomly return routine or project step
@@ -427,12 +427,12 @@ export class RunStepMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update run step status
-            rest.put(`${this.responseFactory['baseUrl']}/api/run-step/:id/status`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const { status } = await req.json() as { status: RunStepStatus };
                 
@@ -444,17 +444,17 @@ export class RunStepMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // List run steps
-            rest.get(`${this.responseFactory['baseUrl']}/api/run-step`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/run-step`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const status = url.searchParams.get('status') as RunStepStatus;
-                const runId = url.searchParams.get('runId');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as RunStepStatus;
+                const runId = url.searchParams.get("runId");
                 
                 let runSteps = this.responseFactory.createRunStepsWithAllStatuses();
                 
@@ -466,9 +466,9 @@ export class RunStepMSWHandlers {
                 // Filter by run ID if specified
                 if (runId) {
                     runSteps = runSteps.filter(s => {
-                        if (s.__typename === 'RunRoutineStep') {
+                        if (s.__typename === "RunRoutineStep") {
                             return s.runRoutine?.id === runId;
-                        } else if (s.__typename === 'RunProjectStep') {
+                        } else if (s.__typename === "RunProjectStep") {
                             return s.runProject?.id === runId;
                         }
                         return false;
@@ -484,18 +484,18 @@ export class RunStepMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: runSteps.length
-                    }
+                        totalCount: runSteps.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Start run step
-            rest.post(`${this.responseFactory['baseUrl']}/api/run-step/:id/start`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const runStep = this.responseFactory.createMockRoutineRunStep({ id: id as string });
@@ -505,17 +505,17 @@ export class RunStepMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Complete run step
-            rest.post(`${this.responseFactory['baseUrl']}/api/run-step/:id/complete`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/complete`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const runStep = this.responseFactory.createMockRoutineRunStep({ 
                     id: id as string,
-                    startedAt: new Date(Date.now() - 1800000).toISOString()
+                    startedAt: new Date(Date.now() - 1800000).toISOString(),
                 });
                 const updatedStep = this.responseFactory.updateRunStepStatus(runStep, RunStepStatusEnum.Completed);
                 
@@ -523,12 +523,12 @@ export class RunStepMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Skip run step
-            rest.post(`${this.responseFactory['baseUrl']}/api/run-step/:id/skip`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/skip`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const runStep = this.responseFactory.createMockRoutineRunStep({ id: id as string });
@@ -538,9 +538,9 @@ export class RunStepMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -550,38 +550,38 @@ export class RunStepMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/run-step/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.put(`${this.responseFactory['baseUrl']}/api/run-step/:id/status`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('update'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/run-step/:id/start`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.put(`${this.responseFactory['baseUrl']}/api/run-step/:id/status`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const { status } = await req.json() as { status: RunStepStatus };
                 
@@ -592,9 +592,9 @@ export class RunStepMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -603,13 +603,13 @@ export class RunStepMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/run-step/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.put(`${this.responseFactory['baseUrl']}/api/run-step/:id/status`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
-            })
+            rest.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
+            }),
         ];
     }
     
@@ -618,13 +618,13 @@ export class RunStepMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -646,21 +646,21 @@ export const runStepResponseScenarios = {
     createRoutineStepSuccess: (step?: RunRoutineStep) => {
         const factory = new RunStepResponseFactory();
         return factory.createSuccessResponse(
-            step || factory.createMockRoutineRunStep()
+            step || factory.createMockRoutineRunStep(),
         );
     },
     
     createProjectStepSuccess: (step?: RunProjectStep) => {
         const factory = new RunStepResponseFactory();
         return factory.createSuccessResponse(
-            step || factory.createMockProjectRunStep()
+            step || factory.createMockProjectRunStep(),
         );
     },
     
     listSuccess: (runSteps?: RunStep[]) => {
         const factory = new RunStepResponseFactory();
         return factory.createRunStepListResponse(
-            runSteps || factory.createRunStepsWithAllStatuses()
+            runSteps || factory.createRunStepsWithAllStatuses(),
         );
     },
     
@@ -669,22 +669,22 @@ export const runStepResponseScenarios = {
         const factory = new RunStepResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                status: 'Invalid status value'
-            }
+                status: "Invalid status value",
+            },
         );
     },
     
     notFoundError: (runStepId?: string) => {
         const factory = new RunStepResponseFactory();
         return factory.createNotFoundErrorResponse(
-            runStepId || 'non-existent-id'
+            runStepId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new RunStepResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'update'
+            operation || "update",
         );
     },
     
@@ -697,7 +697,7 @@ export const runStepResponseScenarios = {
     successHandlers: () => new RunStepMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new RunStepMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new RunStepMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new RunStepMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new RunStepMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

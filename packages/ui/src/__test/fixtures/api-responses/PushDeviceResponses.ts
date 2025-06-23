@@ -6,17 +6,17 @@
  * push notification device registration and management.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     PushDevice, 
     PushDeviceCreateInput, 
     PushDeviceUpdateInput,
     PushDeviceTestInput,
-    User
-} from '@vrooli/shared';
+    User,
+} from "@vrooli/shared";
 import { 
-    pushDeviceValidation 
-} from '@vrooli/shared';
+    pushDeviceValidation, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -68,7 +68,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class PushDeviceResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -95,15 +95,15 @@ export class PushDeviceResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/push-device/${pushDevice.id}`,
                     related: {
                         test: `${this.baseUrl}/api/push-device/${pushDevice.id}/test`,
-                        user: `${this.baseUrl}/api/user/me`
-                    }
-                }
-            }
+                        user: `${this.baseUrl}/api/user/me`,
+                    },
+                },
+            },
         };
     }
     
@@ -118,7 +118,7 @@ export class PushDeviceResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: pushDevices.length,
-            totalCount: pushDevices.length
+            totalCount: pushDevices.length,
         };
         
         return {
@@ -126,17 +126,17 @@ export class PushDeviceResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/push-device?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/push-device?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -146,16 +146,16 @@ export class PushDeviceResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/push-device'
-            }
+                path: "/api/push-device",
+            },
         };
     }
     
@@ -165,16 +165,16 @@ export class PushDeviceResponseFactory {
     createNotFoundErrorResponse(deviceId: string): APIErrorResponse {
         return {
             error: {
-                code: 'PUSH_DEVICE_NOT_FOUND',
+                code: "PUSH_DEVICE_NOT_FOUND",
                 message: `Push device with ID '${deviceId}' was not found`,
                 details: {
                     deviceId,
-                    searchCriteria: { id: deviceId }
+                    searchCriteria: { id: deviceId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/push-device/${deviceId}`
-            }
+                path: `/api/push-device/${deviceId}`,
+            },
         };
     }
     
@@ -184,17 +184,17 @@ export class PushDeviceResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this push device`,
                 details: {
                     operation,
-                    requiredPermissions: ['push_device:write'],
-                    userPermissions: ['push_device:read']
+                    requiredPermissions: ["push_device:write"],
+                    userPermissions: ["push_device:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/push-device'
-            }
+                path: "/api/push-device",
+            },
         };
     }
     
@@ -204,16 +204,16 @@ export class PushDeviceResponseFactory {
     createDuplicateDeviceErrorResponse(endpoint: string): APIErrorResponse {
         return {
             error: {
-                code: 'DUPLICATE_DEVICE',
-                message: 'A push device with this endpoint already exists',
+                code: "DUPLICATE_DEVICE",
+                message: "A push device with this endpoint already exists",
                 details: {
                     endpoint,
-                    suggestion: 'Use the existing device or delete it first'
+                    suggestion: "Use the existing device or delete it first",
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/push-device'
-            }
+                path: "/api/push-device",
+            },
         };
     }
     
@@ -223,16 +223,16 @@ export class PushDeviceResponseFactory {
     createInvalidSubscriptionErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INVALID_SUBSCRIPTION',
-                message: 'The push subscription is invalid or has expired',
+                code: "INVALID_SUBSCRIPTION",
+                message: "The push subscription is invalid or has expired",
                 details: {
-                    reason: 'Invalid endpoint or keys',
-                    suggestion: 'Request new push notification permissions'
+                    reason: "Invalid endpoint or keys",
+                    suggestion: "Request new push notification permissions",
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/push-device'
-            }
+                path: "/api/push-device",
+            },
         };
     }
     
@@ -243,13 +243,13 @@ export class PushDeviceResponseFactory {
         return {
             data: {
                 success: true,
-                message: 'Test notification sent successfully'
+                message: "Test notification sent successfully",
             },
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0'
-            }
+                version: "1.0",
+            },
         };
     }
     
@@ -259,20 +259,20 @@ export class PushDeviceResponseFactory {
     createPushTestFailureResponse(reason: string): APIErrorResponse {
         return {
             error: {
-                code: 'PUSH_TEST_FAILED',
-                message: 'Failed to send test notification',
+                code: "PUSH_TEST_FAILED",
+                message: "Failed to send test notification",
                 details: {
                     reason,
                     troubleshooting: [
-                        'Check if the device is online',
-                        'Verify notification permissions are granted',
-                        'Ensure the subscription is still valid'
-                    ]
+                        "Check if the device is online",
+                        "Verify notification permissions are granted",
+                        "Ensure the subscription is still valid",
+                    ],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/push-device/test'
-            }
+                path: "/api/push-device/test",
+            },
         };
     }
     
@@ -282,17 +282,17 @@ export class PushDeviceResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/push-device'
-            }
+                path: "/api/push-device",
+            },
         };
     }
     
@@ -302,17 +302,17 @@ export class PushDeviceResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/push-device'
-            }
+                path: "/api/push-device",
+            },
         };
     }
     
@@ -330,12 +330,12 @@ export class PushDeviceResponseFactory {
             updatedAt: now,
             deviceId: `device_${id}`,
             expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-            name: "My Device"
+            name: "My Device",
         };
         
         return {
             ...defaultPushDevice,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -356,7 +356,7 @@ export class PushDeviceResponseFactory {
         }
         
         // Generate device ID from endpoint
-        const endpointHash = input.endpoint.split('/').pop() || this.generateId();
+        const endpointHash = input.endpoint.split("/").pop() || this.generateId();
         pushDevice.deviceId = `device_${endpointHash}`;
         
         return pushDevice;
@@ -371,37 +371,37 @@ export class PushDeviceResponseFactory {
             this.createMockPushDevice({
                 name: "iPhone 14 Pro",
                 deviceId: "ios_device_123",
-                expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year
+                expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
             }),
             // Android device
             this.createMockPushDevice({
                 name: "Samsung Galaxy S23",
                 deviceId: "android_device_456",
-                expires: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString() // 6 months
+                expires: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(), // 6 months
             }),
             // Web browser (Chrome)
             this.createMockPushDevice({
                 name: "Chrome on Windows",
                 deviceId: "web_chrome_789",
-                expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+                expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
             }),
             // Web browser (Firefox)
             this.createMockPushDevice({
                 name: "Firefox on macOS",
                 deviceId: "web_firefox_abc",
-                expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+                expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
             }),
             // Expired device
             this.createMockPushDevice({
                 name: "Old Device",
                 deviceId: "expired_device_def",
-                expires: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // Expired yesterday
+                expires: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Expired yesterday
             }),
             // No name device
             this.createMockPushDevice({
                 name: null,
-                deviceId: "unnamed_device_ghi"
-            })
+                deviceId: "unnamed_device_ghi",
+            }),
         ];
     }
     
@@ -418,7 +418,7 @@ export class PushDeviceResponseFactory {
         } catch (error: unknown) {
             const fieldErrors: Record<string, string> = {};
             
-            if (error && typeof error === 'object' && 'inner' in error) {
+            if (error && typeof error === "object" && "inner" in error) {
                 const validationError = error as { inner?: Array<{ path?: string; message: string }> };
                 if (validationError.inner) {
                     validationError.inner.forEach((err) => {
@@ -427,13 +427,13 @@ export class PushDeviceResponseFactory {
                         }
                     });
                 }
-            } else if (error && typeof error === 'object' && 'message' in error) {
+            } else if (error && typeof error === "object" && "message" in error) {
                 fieldErrors.general = String(error.message);
             }
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -451,7 +451,7 @@ export class PushDeviceResponseFactory {
         } catch (error: unknown) {
             const fieldErrors: Record<string, string> = {};
             
-            if (error && typeof error === 'object' && 'inner' in error) {
+            if (error && typeof error === "object" && "inner" in error) {
                 const validationError = error as { inner?: Array<{ path?: string; message: string }> };
                 if (validationError.inner) {
                     validationError.inner.forEach((err) => {
@@ -460,13 +460,13 @@ export class PushDeviceResponseFactory {
                         }
                     });
                 }
-            } else if (error && typeof error === 'object' && 'message' in error) {
+            } else if (error && typeof error === "object" && "message" in error) {
                 fieldErrors.general = String(error.message);
             }
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -488,7 +488,7 @@ export class PushDeviceMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create push device
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, async (req, res, ctx) => {
                 const body = await req.json() as PushDeviceCreateInput;
                 
                 // Validate input
@@ -496,7 +496,7 @@ export class PushDeviceMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -506,12 +506,12 @@ export class PushDeviceMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get push device by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/push-device/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const pushDevice = this.responseFactory.createMockPushDevice({ id: id as string });
@@ -519,12 +519,12 @@ export class PushDeviceMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update push device
-            rest.put(`${this.responseFactory['baseUrl']}/api/push-device/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as PushDeviceUpdateInput;
                 
@@ -533,35 +533,35 @@ export class PushDeviceMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
                 const pushDevice = this.responseFactory.createMockPushDevice({ 
                     id: id as string,
                     name: body.name || undefined,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(pushDevice);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete push device
-            rest.delete(`${this.responseFactory['baseUrl']}/api/push-device/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List push devices
-            rest.get(`${this.responseFactory['baseUrl']}/api/push-device`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const includeExpired = url.searchParams.get('includeExpired') === 'true';
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const includeExpired = url.searchParams.get("includeExpired") === "true";
                 
                 let pushDevices = this.responseFactory.createPushDevicesForAllPlatforms();
                 
@@ -579,18 +579,18 @@ export class PushDeviceMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: pushDevices.length
-                    }
+                        totalCount: pushDevices.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Test push notification
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device/test`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, async (req, res, ctx) => {
                 const body = await req.json() as PushDeviceTestInput;
                 
                 // Simulate success
@@ -598,9 +598,9 @@ export class PushDeviceMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -610,74 +610,74 @@ export class PushDeviceMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        endpoint: 'A valid URL is required',
-                        'keys.p256dh': 'Public key is required',
-                        'keys.auth': 'Auth secret is required'
-                    }))
+                        endpoint: "A valid URL is required",
+                        "keys.p256dh": "Public key is required",
+                        "keys.auth": "Auth secret is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/push-device/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Duplicate device error
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
-                    ctx.json(this.responseFactory.createDuplicateDeviceErrorResponse('https://fcm.googleapis.com/fcm/send/example'))
+                    ctx.json(this.responseFactory.createDuplicateDeviceErrorResponse("https://fcm.googleapis.com/fcm/send/example")),
                 );
             }),
             
             // Invalid subscription error
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(422),
-                    ctx.json(this.responseFactory.createInvalidSubscriptionErrorResponse())
+                    ctx.json(this.responseFactory.createInvalidSubscriptionErrorResponse()),
                 );
             }),
             
             // Push test failure
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device/test`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createPushTestFailureResponse('Device is offline'))
+                    ctx.json(this.responseFactory.createPushTestFailureResponse("Device is offline")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, async (req, res, ctx) => {
                 const body = await req.json() as PushDeviceCreateInput;
                 const pushDevice = this.responseFactory.createPushDeviceFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(pushDevice);
@@ -685,19 +685,19 @@ export class PushDeviceMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device/test`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, async (req, res, ctx) => {
                 const response = this.responseFactory.createPushTestSuccessResponse();
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -706,17 +706,17 @@ export class PushDeviceMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/push-device/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory['baseUrl']}/api/push-device/test`, (req, res, ctx) => {
-                return res.networkError('Unable to reach push notification service');
-            })
+            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, (req, res, ctx) => {
+                return res.networkError("Unable to reach push notification service");
+            }),
         ];
     }
     
@@ -725,13 +725,13 @@ export class PushDeviceMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: unknown;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -753,14 +753,14 @@ export const pushDeviceResponseScenarios = {
     createSuccess: (pushDevice?: PushDevice) => {
         const factory = new PushDeviceResponseFactory();
         return factory.createSuccessResponse(
-            pushDevice || factory.createMockPushDevice()
+            pushDevice || factory.createMockPushDevice(),
         );
     },
     
     listSuccess: (pushDevices?: PushDevice[]) => {
         const factory = new PushDeviceResponseFactory();
         return factory.createPushDeviceListResponse(
-            pushDevices || factory.createPushDevicesForAllPlatforms()
+            pushDevices || factory.createPushDevicesForAllPlatforms(),
         );
     },
     
@@ -774,31 +774,31 @@ export const pushDeviceResponseScenarios = {
         const factory = new PushDeviceResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                endpoint: 'A valid URL is required',
-                'keys.p256dh': 'Public key is required',
-                'keys.auth': 'Auth secret is required'
-            }
+                endpoint: "A valid URL is required",
+                "keys.p256dh": "Public key is required",
+                "keys.auth": "Auth secret is required",
+            },
         );
     },
     
     notFoundError: (deviceId?: string) => {
         const factory = new PushDeviceResponseFactory();
         return factory.createNotFoundErrorResponse(
-            deviceId || 'non-existent-id'
+            deviceId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new PushDeviceResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
     duplicateError: (endpoint?: string) => {
         const factory = new PushDeviceResponseFactory();
         return factory.createDuplicateDeviceErrorResponse(
-            endpoint || 'https://fcm.googleapis.com/fcm/send/existing-endpoint'
+            endpoint || "https://fcm.googleapis.com/fcm/send/existing-endpoint",
         );
     },
     
@@ -810,7 +810,7 @@ export const pushDeviceResponseScenarios = {
     testFailureError: (reason?: string) => {
         const factory = new PushDeviceResponseFactory();
         return factory.createPushTestFailureResponse(
-            reason || 'Device is offline'
+            reason || "Device is offline",
         );
     },
     
@@ -823,7 +823,7 @@ export const pushDeviceResponseScenarios = {
     successHandlers: () => new PushDeviceMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new PushDeviceMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new PushDeviceMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new PushDeviceMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new PushDeviceMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

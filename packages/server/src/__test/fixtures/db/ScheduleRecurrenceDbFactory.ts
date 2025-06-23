@@ -321,7 +321,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
 
     static createMinimal(
         scheduleId: string,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         const factory = new ScheduleRecurrenceDbFactory();
         const data = factory.createMinimal(overrides);
@@ -330,8 +330,8 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
 
     static createDaily(
         scheduleId: string,
-        interval: number = 1,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        interval = 1,
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         const factory = new ScheduleRecurrenceDbFactory();
         return factory.createMinimal({
@@ -345,8 +345,8 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
     static createWeekly(
         scheduleId: string,
         dayOfWeek: number,
-        interval: number = 1,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        interval = 1,
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         const factory = new ScheduleRecurrenceDbFactory();
         return factory.createMinimal({
@@ -361,8 +361,8 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
     static createMonthly(
         scheduleId: string,
         dayOfMonth: number,
-        interval: number = 1,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        interval = 1,
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         const factory = new ScheduleRecurrenceDbFactory();
         return factory.createMinimal({
@@ -378,8 +378,8 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
         scheduleId: string,
         month: number,
         dayOfMonth: number,
-        interval: number = 1,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        interval = 1,
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         const factory = new ScheduleRecurrenceDbFactory();
         return factory.createMinimal({
@@ -398,34 +398,34 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
     static createFromRRule(
         scheduleId: string,
         rrule: string,
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
-        const parts = rrule.split(';').reduce((acc, part) => {
-            const [key, value] = part.split('=');
+        const parts = rrule.split(";").reduce((acc, part) => {
+            const [key, value] = part.split("=");
             acc[key] = value;
             return acc;
         }, {} as Record<string, string>);
         
         const factory = new ScheduleRecurrenceDbFactory();
-        let baseData: Partial<Prisma.schedule_recurrenceCreateInput> = {
-            interval: parseInt(parts.INTERVAL || '1'),
+        const baseData: Partial<Prisma.schedule_recurrenceCreateInput> = {
+            interval: parseInt(parts.INTERVAL || "1"),
         };
         
         // Map frequency
         switch (parts.FREQ) {
-            case 'DAILY':
-                baseData.recurrenceType = 'Daily';
+            case "DAILY":
+                baseData.recurrenceType = "Daily";
                 break;
-            case 'WEEKLY':
-                baseData.recurrenceType = 'Weekly';
+            case "WEEKLY":
+                baseData.recurrenceType = "Weekly";
                 if (parts.BYDAY) {
                     const dayMap: Record<string, number> = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 7 };
-                    const days = parts.BYDAY.split(',');
+                    const days = parts.BYDAY.split(",");
                     baseData.dayOfWeek = dayMap[days[0]] || 1;
                 }
                 break;
-            case 'MONTHLY':
-                baseData.recurrenceType = 'Monthly';
+            case "MONTHLY":
+                baseData.recurrenceType = "Monthly";
                 if (parts.BYMONTHDAY) {
                     baseData.dayOfMonth = parseInt(parts.BYMONTHDAY);
                 } else if (parts.BYDAY) {
@@ -438,8 +438,8 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
                     }
                 }
                 break;
-            case 'YEARLY':
-                baseData.recurrenceType = 'Yearly';
+            case "YEARLY":
+                baseData.recurrenceType = "Yearly";
                 if (parts.BYMONTH) {
                     baseData.month = parseInt(parts.BYMONTH);
                 }
@@ -448,7 +448,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
                 }
                 break;
             default:
-                baseData.recurrenceType = 'Daily'; // Default
+                baseData.recurrenceType = "Daily"; // Default
         }
         
         // Handle end conditions
@@ -472,10 +472,10 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
     static createMultiDayWeekly(
         scheduleId: string,
         daysOfWeek: number[],
-        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>
+        overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput[] {
         return daysOfWeek.map(day => 
-            ScheduleRecurrenceDbFactory.createWeekly(scheduleId, day, 1, overrides)
+            ScheduleRecurrenceDbFactory.createWeekly(scheduleId, day, 1, overrides),
         );
     }
 }
@@ -541,28 +541,28 @@ export const scheduleRecurrencePatterns = {
         weekdays: (scheduleId: string) =>
             ScheduleRecurrenceDbFactory.createFromRRule(
                 scheduleId,
-                "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;INTERVAL=1"
+                "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;INTERVAL=1",
             ),
 
         // Last Friday of every month
         lastFridayMonthly: (scheduleId: string) =>
             ScheduleRecurrenceDbFactory.createFromRRule(
                 scheduleId,
-                "FREQ=MONTHLY;BYDAY=-1FR;INTERVAL=1"
+                "FREQ=MONTHLY;BYDAY=-1FR;INTERVAL=1",
             ),
 
         // Every 3 days for 10 occurrences
         every3DaysLimited: (scheduleId: string) =>
             ScheduleRecurrenceDbFactory.createFromRRule(
                 scheduleId,
-                "FREQ=DAILY;INTERVAL=3;COUNT=10"
+                "FREQ=DAILY;INTERVAL=3;COUNT=10",
             ),
 
         // Yearly on the 100th day
         yearlyDay100: (scheduleId: string) =>
             ScheduleRecurrenceDbFactory.createFromRRule(
                 scheduleId,
-                "FREQ=YEARLY;BYYEARDAY=100"
+                "FREQ=YEARLY;BYYEARDAY=100",
             ),
     },
 };

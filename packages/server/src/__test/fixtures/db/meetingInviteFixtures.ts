@@ -9,7 +9,7 @@ export class MeetingInviteDbFactory {
     static createMinimal(
         meetingId: string,
         userId: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>
+        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
     ): Prisma.MeetingInviteCreateInput {
         return {
             id: generatePK(),
@@ -25,7 +25,7 @@ export class MeetingInviteDbFactory {
         meetingId: string,
         userId: string,
         message: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>
+        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
     ): Prisma.MeetingInviteCreateInput {
         return this.createMinimal(meetingId, userId, {
             message,
@@ -36,7 +36,7 @@ export class MeetingInviteDbFactory {
     static createAccepted(
         meetingId: string,
         userId: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>
+        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
     ): Prisma.MeetingInviteCreateInput {
         return this.createMinimal(meetingId, userId, {
             status: "Accepted",
@@ -47,7 +47,7 @@ export class MeetingInviteDbFactory {
     static createDeclined(
         meetingId: string,
         userId: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>
+        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
     ): Prisma.MeetingInviteCreateInput {
         return this.createMinimal(meetingId, userId, {
             status: "Declined",
@@ -67,7 +67,7 @@ export async function seedMeetingInvites(
         status?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
         messagePrefix?: string;
-    }
+    },
 ) {
     const invites = [];
 
@@ -84,7 +84,7 @@ export async function seedMeetingInvites(
             inviteData = MeetingInviteDbFactory.createWithMessage(
                 options.meetingId,
                 userId,
-                `${messagePrefix} for user ${i + 1}`
+                `${messagePrefix} for user ${i + 1}`,
             );
         } else {
             inviteData = MeetingInviteDbFactory.createMinimal(options.meetingId, userId);
@@ -113,7 +113,7 @@ export async function createMeetingWithInvites(
         invitedUserIds: string[];
         inviteStatus?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
-    }
+    },
 ) {
     // Create the meeting first
     const meeting = await prisma.meeting.create({

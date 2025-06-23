@@ -5,19 +5,19 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     MemberInvite, 
     MemberInviteCreateInput, 
     MemberInviteUpdateInput,
     MemberInviteStatus,
     Team,
-    User
-} from '@vrooli/shared';
+    User,
+} from "@vrooli/shared";
 import { 
     memberInviteValidation,
-    MemberInviteStatus as MemberInviteStatusEnum
-} from '@vrooli/shared';
+    MemberInviteStatus as MemberInviteStatusEnum,
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -69,7 +69,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class MemberInviteResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -96,17 +96,17 @@ export class MemberInviteResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/member-invite/${memberInvite.id}`,
                     related: {
                         team: `${this.baseUrl}/api/team/${memberInvite.team.id}`,
                         user: `${this.baseUrl}/api/user/${memberInvite.user.id}`,
                         accept: `${this.baseUrl}/api/member-invite/${memberInvite.id}/accept`,
-                        decline: `${this.baseUrl}/api/member-invite/${memberInvite.id}/decline`
-                    }
-                }
-            }
+                        decline: `${this.baseUrl}/api/member-invite/${memberInvite.id}/decline`,
+                    },
+                },
+            },
         };
     }
     
@@ -121,7 +121,7 @@ export class MemberInviteResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: memberInvites.length,
-            totalCount: memberInvites.length
+            totalCount: memberInvites.length,
         };
         
         return {
@@ -129,17 +129,17 @@ export class MemberInviteResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/member-invite?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/member-invite?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -149,16 +149,16 @@ export class MemberInviteResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/member-invite'
-            }
+                path: "/api/member-invite",
+            },
         };
     }
     
@@ -168,16 +168,16 @@ export class MemberInviteResponseFactory {
     createNotFoundErrorResponse(memberInviteId: string): APIErrorResponse {
         return {
             error: {
-                code: 'MEMBER_INVITE_NOT_FOUND',
+                code: "MEMBER_INVITE_NOT_FOUND",
                 message: `Member invite with ID '${memberInviteId}' was not found`,
                 details: {
                     memberInviteId,
-                    searchCriteria: { id: memberInviteId }
+                    searchCriteria: { id: memberInviteId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/member-invite/${memberInviteId}`
-            }
+                path: `/api/member-invite/${memberInviteId}`,
+            },
         };
     }
     
@@ -187,17 +187,17 @@ export class MemberInviteResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this member invite`,
                 details: {
                     operation,
-                    requiredPermissions: ['team:invite', 'team:admin'],
-                    userPermissions: ['team:read']
+                    requiredPermissions: ["team:invite", "team:admin"],
+                    userPermissions: ["team:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/member-invite'
-            }
+                path: "/api/member-invite",
+            },
         };
     }
     
@@ -207,17 +207,17 @@ export class MemberInviteResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/member-invite'
-            }
+                path: "/api/member-invite",
+            },
         };
     }
     
@@ -227,17 +227,17 @@ export class MemberInviteResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/member-invite'
-            }
+                path: "/api/member-invite",
+            },
         };
     }
     
@@ -247,16 +247,16 @@ export class MemberInviteResponseFactory {
     createInviteAlreadyProcessedErrorResponse(status: MemberInviteStatus): APIErrorResponse {
         return {
             error: {
-                code: 'INVITE_ALREADY_PROCESSED',
+                code: "INVITE_ALREADY_PROCESSED",
                 message: `This invitation has already been ${status.toLowerCase()}`,
                 details: {
                     currentStatus: status,
-                    allowedTransitions: status === MemberInviteStatusEnum.Pending ? ['Accepted', 'Declined'] : []
+                    allowedTransitions: status === MemberInviteStatusEnum.Pending ? ["Accepted", "Declined"] : [],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/member-invite'
-            }
+                path: "/api/member-invite",
+            },
         };
     }
     
@@ -266,17 +266,17 @@ export class MemberInviteResponseFactory {
     createTeamFullErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'TEAM_MEMBER_LIMIT_REACHED',
-                message: 'This team has reached its maximum member limit',
+                code: "TEAM_MEMBER_LIMIT_REACHED",
+                message: "This team has reached its maximum member limit",
                 details: {
                     maxMembers: 100,
                     currentMembers: 100,
-                    upgradeRequired: true
+                    upgradeRequired: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/member-invite'
-            }
+                path: "/api/member-invite",
+            },
         };
     }
     
@@ -297,7 +297,7 @@ export class MemberInviteResponseFactory {
             isPrivate: false,
             permissions: JSON.stringify({
                 default: ["read"],
-                admin: ["read", "write", "invite", "manage"]
+                admin: ["read", "write", "invite", "manage"],
             }),
             bookmarkedBy: [],
             bookmarks: 0,
@@ -341,13 +341,13 @@ export class MemberInviteResponseFactory {
                 canUpdate: true,
                 isBookmarked: false,
                 isViewed: true,
-                yourMembership: null
-            }
+                yourMembership: null,
+            },
         };
         
         return {
             ...defaultTeam,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -440,14 +440,14 @@ export class MemberInviteResponseFactory {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         };
         
         return {
             ...defaultUser,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -472,13 +472,13 @@ export class MemberInviteResponseFactory {
             you: {
                 __typename: "MemberInviteYou",
                 canDelete: true,
-                canUpdate: true
-            }
+                canUpdate: true,
+            },
         };
         
         return {
             ...defaultMemberInvite,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -508,8 +508,8 @@ export class MemberInviteResponseFactory {
         return Object.values(MemberInviteStatusEnum).map(status => 
             this.createMockMemberInvite({
                 status,
-                id: `invite_${status.toLowerCase()}_${this.generateId()}`
-            })
+                id: `invite_${status.toLowerCase()}_${this.generateId()}`,
+            }),
         );
     }
     
@@ -521,15 +521,15 @@ export class MemberInviteResponseFactory {
             { willBeAdmin: true, permissions: ["read", "write", "admin", "invite"] },
             { willBeAdmin: false, permissions: ["read", "write"] },
             { willBeAdmin: false, permissions: ["read"] },
-            { willBeAdmin: false, permissions: [] }
+            { willBeAdmin: false, permissions: [] },
         ];
         
         return roles.map((role, index) => 
             this.createMockMemberInvite({
                 id: `invite_role_${index}_${this.generateId()}`,
                 willBeAdmin: role.willBeAdmin,
-                willHavePermissions: JSON.stringify(role.permissions)
-            })
+                willHavePermissions: JSON.stringify(role.permissions),
+            }),
         );
     }
     
@@ -558,7 +558,7 @@ export class MemberInviteResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -588,7 +588,7 @@ export class MemberInviteResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -610,7 +610,7 @@ export class MemberInviteMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create member invite
-            rest.post(`${this.responseFactory['baseUrl']}/api/member-invite`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, async (req, res, ctx) => {
                 const body = await req.json() as MemberInviteCreateInput;
                 
                 // Validate input
@@ -618,7 +618,7 @@ export class MemberInviteMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -628,12 +628,12 @@ export class MemberInviteMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get member invite by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/member-invite/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const memberInvite = this.responseFactory.createMockMemberInvite({ id: id as string });
@@ -641,12 +641,12 @@ export class MemberInviteMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update member invite
-            rest.put(`${this.responseFactory['baseUrl']}/api/member-invite/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as MemberInviteUpdateInput;
                 
@@ -655,7 +655,7 @@ export class MemberInviteMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -664,66 +664,66 @@ export class MemberInviteMSWHandlers {
                     updatedAt: new Date().toISOString(),
                     message: body.message,
                     willBeAdmin: body.willBeAdmin,
-                    willHavePermissions: body.willHavePermissions
+                    willHavePermissions: body.willHavePermissions,
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(memberInvite);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete member invite
-            rest.delete(`${this.responseFactory['baseUrl']}/api/member-invite/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // Accept member invite
-            rest.put(`${this.responseFactory['baseUrl']}/api/member-invite/:id/accept`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const memberInvite = this.responseFactory.createMockMemberInvite({ 
                     id: id as string,
                     status: MemberInviteStatusEnum.Accepted,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(memberInvite);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Decline member invite
-            rest.put(`${this.responseFactory['baseUrl']}/api/member-invite/:id/decline`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/decline`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const memberInvite = this.responseFactory.createMockMemberInvite({ 
                     id: id as string,
                     status: MemberInviteStatusEnum.Declined,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(memberInvite);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // List member invites
-            rest.get(`${this.responseFactory['baseUrl']}/api/member-invite`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const status = url.searchParams.get('status') as MemberInviteStatus;
-                const teamId = url.searchParams.get('teamId');
-                const userId = url.searchParams.get('userId');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const status = url.searchParams.get("status") as MemberInviteStatus;
+                const teamId = url.searchParams.get("teamId");
+                const userId = url.searchParams.get("userId");
                 
                 let memberInvites = this.responseFactory.createMemberInvitesForAllStatuses();
                 
@@ -751,15 +751,15 @@ export class MemberInviteMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: memberInvites.length
-                    }
+                        totalCount: memberInvites.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -769,65 +769,65 @@ export class MemberInviteMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/member-invite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        teamConnect: 'Team ID is required',
-                        userConnect: 'User ID is required'
-                    }))
+                        teamConnect: "Team ID is required",
+                        userConnect: "User ID is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/member-invite/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/member-invite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Already processed error
-            rest.put(`${this.responseFactory['baseUrl']}/api/member-invite/:id/accept`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
-                    ctx.json(this.responseFactory.createInviteAlreadyProcessedErrorResponse(MemberInviteStatusEnum.Accepted))
+                    ctx.json(this.responseFactory.createInviteAlreadyProcessedErrorResponse(MemberInviteStatusEnum.Accepted)),
                 );
             }),
             
             // Team full error
-            rest.post(`${this.responseFactory['baseUrl']}/api/member-invite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(422),
-                    ctx.json(this.responseFactory.createTeamFullErrorResponse())
+                    ctx.json(this.responseFactory.createTeamFullErrorResponse()),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/member-invite`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/member-invite`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, async (req, res, ctx) => {
                 const body = await req.json() as MemberInviteCreateInput;
                 const memberInvite = this.responseFactory.createMemberInviteFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(memberInvite);
@@ -835,24 +835,24 @@ export class MemberInviteMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
-            rest.put(`${this.responseFactory['baseUrl']}/api/member-invite/:id/accept`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 const memberInvite = this.responseFactory.createMockMemberInvite({ 
                     id: id as string,
-                    status: MemberInviteStatusEnum.Accepted
+                    status: MemberInviteStatusEnum.Accepted,
                 });
                 const response = this.responseFactory.createSuccessResponse(memberInvite);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -861,17 +861,17 @@ export class MemberInviteMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/member-invite`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/member-invite/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.put(`${this.responseFactory['baseUrl']}/api/member-invite/:id/accept`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
-            })
+            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
+            }),
         ];
     }
     
@@ -880,13 +880,13 @@ export class MemberInviteMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -908,14 +908,14 @@ export const memberInviteResponseScenarios = {
     createSuccess: (memberInvite?: MemberInvite) => {
         const factory = new MemberInviteResponseFactory();
         return factory.createSuccessResponse(
-            memberInvite || factory.createMockMemberInvite()
+            memberInvite || factory.createMockMemberInvite(),
         );
     },
     
     listSuccess: (memberInvites?: MemberInvite[]) => {
         const factory = new MemberInviteResponseFactory();
         return factory.createMemberInviteListResponse(
-            memberInvites || factory.createMemberInvitesForAllStatuses()
+            memberInvites || factory.createMemberInvitesForAllStatuses(),
         );
     },
     
@@ -923,9 +923,9 @@ export const memberInviteResponseScenarios = {
         const factory = new MemberInviteResponseFactory();
         return factory.createSuccessResponse(
             factory.createMockMemberInvite({
-                id: memberInviteId || 'invite_123',
-                status: MemberInviteStatusEnum.Accepted
-            })
+                id: memberInviteId || "invite_123",
+                status: MemberInviteStatusEnum.Accepted,
+            }),
         );
     },
     
@@ -933,9 +933,9 @@ export const memberInviteResponseScenarios = {
         const factory = new MemberInviteResponseFactory();
         return factory.createSuccessResponse(
             factory.createMockMemberInvite({
-                id: memberInviteId || 'invite_123',
-                status: MemberInviteStatusEnum.Declined
-            })
+                id: memberInviteId || "invite_123",
+                status: MemberInviteStatusEnum.Declined,
+            }),
         );
     },
     
@@ -944,30 +944,30 @@ export const memberInviteResponseScenarios = {
         const factory = new MemberInviteResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                teamConnect: 'Team ID is required',
-                userConnect: 'User ID is required'
-            }
+                teamConnect: "Team ID is required",
+                userConnect: "User ID is required",
+            },
         );
     },
     
     notFoundError: (memberInviteId?: string) => {
         const factory = new MemberInviteResponseFactory();
         return factory.createNotFoundErrorResponse(
-            memberInviteId || 'non-existent-id'
+            memberInviteId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new MemberInviteResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
     alreadyProcessedError: (status?: MemberInviteStatus) => {
         const factory = new MemberInviteResponseFactory();
         return factory.createInviteAlreadyProcessedErrorResponse(
-            status || MemberInviteStatusEnum.Accepted
+            status || MemberInviteStatusEnum.Accepted,
         );
     },
     
@@ -985,7 +985,7 @@ export const memberInviteResponseScenarios = {
     successHandlers: () => new MemberInviteMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new MemberInviteMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new MemberInviteMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new MemberInviteMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new MemberInviteMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

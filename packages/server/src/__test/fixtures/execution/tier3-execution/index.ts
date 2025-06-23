@@ -29,8 +29,8 @@ export const executionStrategies = {
             flexibility: "high",
             speed: "slow",
             cost: "high",
-            learningPotential: "high"
-        }
+            learningPotential: "high",
+        },
     },
     reasoning: {
         name: "Reasoning Strategy",
@@ -39,8 +39,8 @@ export const executionStrategies = {
             flexibility: "medium",
             speed: "medium",
             cost: "medium",
-            learningPotential: "medium"
-        }
+            learningPotential: "medium",
+        },
     },
     deterministic: {
         name: "Deterministic Strategy",
@@ -49,8 +49,8 @@ export const executionStrategies = {
             flexibility: "low",
             speed: "fast",
             cost: "low",
-            learningPotential: "low"
-        }
+            learningPotential: "low",
+        },
     },
     routing: {
         name: "Routing Strategy",
@@ -59,7 +59,7 @@ export const executionStrategies = {
             flexibility: "high",
             speed: "variable",
             cost: "variable",
-            learningPotential: "high"
-        }
-    }
+            learningPotential: "high",
+        },
+    },
 };

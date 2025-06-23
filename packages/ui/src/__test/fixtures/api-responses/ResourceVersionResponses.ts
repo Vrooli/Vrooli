@@ -5,18 +5,18 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     ResourceVersion, 
     ResourceVersionCreateInput, 
     ResourceVersionUpdateInput,
     ResourceUsedFor,
-    ResourceList
-} from '@vrooli/shared';
+    ResourceList,
+} from "@vrooli/shared";
 import { 
     resourceVersionValidation,
-    ResourceUsedFor as ResourceUsedForEnum 
-} from '@vrooli/shared';
+    ResourceUsedFor as ResourceUsedForEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -68,7 +68,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ResourceVersionResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -95,15 +95,15 @@ export class ResourceVersionResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/resource-version/${resourceVersion.id}`,
                     related: {
                         resource: `${this.baseUrl}/api/resource/${resourceVersion.root?.id}`,
-                        translations: `${this.baseUrl}/api/resource-version/${resourceVersion.id}/translations`
-                    }
-                }
-            }
+                        translations: `${this.baseUrl}/api/resource-version/${resourceVersion.id}/translations`,
+                    },
+                },
+            },
         };
     }
     
@@ -118,7 +118,7 @@ export class ResourceVersionResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: resourceVersions.length,
-            totalCount: resourceVersions.length
+            totalCount: resourceVersions.length,
         };
         
         return {
@@ -126,17 +126,17 @@ export class ResourceVersionResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/resource-version?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/resource-version?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -146,16 +146,16 @@ export class ResourceVersionResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource-version'
-            }
+                path: "/api/resource-version",
+            },
         };
     }
     
@@ -165,16 +165,16 @@ export class ResourceVersionResponseFactory {
     createNotFoundErrorResponse(resourceVersionId: string): APIErrorResponse {
         return {
             error: {
-                code: 'RESOURCE_VERSION_NOT_FOUND',
+                code: "RESOURCE_VERSION_NOT_FOUND",
                 message: `Resource version with ID '${resourceVersionId}' was not found`,
                 details: {
                     resourceVersionId,
-                    searchCriteria: { id: resourceVersionId }
+                    searchCriteria: { id: resourceVersionId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/resource-version/${resourceVersionId}`
-            }
+                path: `/api/resource-version/${resourceVersionId}`,
+            },
         };
     }
     
@@ -184,17 +184,17 @@ export class ResourceVersionResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this resource version`,
                 details: {
                     operation,
-                    requiredPermissions: ['resource:write'],
-                    userPermissions: ['resource:read']
+                    requiredPermissions: ["resource:write"],
+                    userPermissions: ["resource:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource-version'
-            }
+                path: "/api/resource-version",
+            },
         };
     }
     
@@ -204,17 +204,17 @@ export class ResourceVersionResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource-version'
-            }
+                path: "/api/resource-version",
+            },
         };
     }
     
@@ -224,17 +224,17 @@ export class ResourceVersionResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/resource-version'
-            }
+                path: "/api/resource-version",
+            },
         };
     }
     
@@ -262,7 +262,7 @@ export class ResourceVersionResponseFactory {
                 id: `trans_${id}`,
                 language: "en",
                 title: "Test Resource Version",
-                description: "A test resource version for unit testing"
+                description: "A test resource version for unit testing",
             }],
             translationsCount: 1,
             resourceList: {
@@ -275,10 +275,10 @@ export class ResourceVersionResponseFactory {
                     id: `api_${id}`,
                     versionLabel: "1.0.0",
                     created_at: now,
-                    updated_at: now
+                    updated_at: now,
                 },
                 resources: [],
-                translations: []
+                translations: [],
             },
             root: {
                 __typename: "Resource",
@@ -298,8 +298,8 @@ export class ResourceVersionResponseFactory {
                     canReport: false,
                     isBookmarked: false,
                     isReacted: false,
-                    reaction: null
-                }
+                    reaction: null,
+                },
             },
             you: {
                 __typename: "VersionYou",
@@ -307,13 +307,13 @@ export class ResourceVersionResponseFactory {
                 canDelete: true,
                 canRead: true,
                 canReport: false,
-                canUpdate: true
-            }
+                canUpdate: true,
+            },
         };
         
         return {
             ...defaultResourceVersion,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -346,7 +346,7 @@ export class ResourceVersionResponseFactory {
                 id: `trans_${this.generateId()}`,
                 language: trans.language,
                 title: trans.title || "",
-                description: trans.description || ""
+                description: trans.description || "",
             }));
             resourceVersion.translationsCount = resourceVersion.translations.length;
         }
@@ -362,8 +362,8 @@ export class ResourceVersionResponseFactory {
             this.createMockResourceVersion({
                 usedFor,
                 title: `${usedFor} Resource`,
-                description: `A resource used for ${usedFor.toLowerCase()}`
-            })
+                description: `A resource used for ${usedFor.toLowerCase()}`,
+            }),
         );
     }
     
@@ -392,7 +392,7 @@ export class ResourceVersionResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -414,7 +414,7 @@ export class ResourceVersionMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create resource version
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async (req, res, ctx) => {
                 const body = await req.json() as ResourceVersionCreateInput;
                 
                 // Validate input
@@ -422,7 +422,7 @@ export class ResourceVersionMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -432,12 +432,12 @@ export class ResourceVersionMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get resource version by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource-version/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const resourceVersion = this.responseFactory.createMockResourceVersion({ id: id as string });
@@ -445,39 +445,39 @@ export class ResourceVersionMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update resource version
-            rest.put(`${this.responseFactory['baseUrl']}/api/resource-version/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ResourceVersionUpdateInput;
                 
                 const resourceVersion = this.responseFactory.createMockResourceVersion({ 
                     id: id as string,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(resourceVersion);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete resource version
-            rest.delete(`${this.responseFactory['baseUrl']}/api/resource-version/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List resource versions
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource-version`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const usedFor = url.searchParams.get('usedFor') as ResourceUsedFor;
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const usedFor = url.searchParams.get("usedFor") as ResourceUsedFor;
                 
                 let resourceVersions = this.responseFactory.createResourceVersionsForAllPurposes();
                 
@@ -495,15 +495,15 @@ export class ResourceVersionMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: resourceVersions.length
-                    }
+                        totalCount: resourceVersions.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -513,49 +513,49 @@ export class ResourceVersionMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        link: 'A valid URL is required',
-                        versionLabel: 'Version label is required'
-                    }))
+                        link: "A valid URL is required",
+                        versionLabel: "Version label is required",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource-version/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async (req, res, ctx) => {
                 const body = await req.json() as ResourceVersionCreateInput;
                 const resourceVersion = this.responseFactory.createResourceVersionFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(resourceVersion);
@@ -563,9 +563,9 @@ export class ResourceVersionMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -574,13 +574,13 @@ export class ResourceVersionMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/resource-version`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/resource-version/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -589,13 +589,13 @@ export class ResourceVersionMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -617,14 +617,14 @@ export const resourceVersionResponseScenarios = {
     createSuccess: (resourceVersion?: ResourceVersion) => {
         const factory = new ResourceVersionResponseFactory();
         return factory.createSuccessResponse(
-            resourceVersion || factory.createMockResourceVersion()
+            resourceVersion || factory.createMockResourceVersion(),
         );
     },
     
     listSuccess: (resourceVersions?: ResourceVersion[]) => {
         const factory = new ResourceVersionResponseFactory();
         return factory.createResourceVersionListResponse(
-            resourceVersions || factory.createResourceVersionsForAllPurposes()
+            resourceVersions || factory.createResourceVersionsForAllPurposes(),
         );
     },
     
@@ -633,23 +633,23 @@ export const resourceVersionResponseScenarios = {
         const factory = new ResourceVersionResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                link: 'A valid URL is required',
-                versionLabel: 'Version label is required'
-            }
+                link: "A valid URL is required",
+                versionLabel: "Version label is required",
+            },
         );
     },
     
     notFoundError: (resourceVersionId?: string) => {
         const factory = new ResourceVersionResponseFactory();
         return factory.createNotFoundErrorResponse(
-            resourceVersionId || 'non-existent-id'
+            resourceVersionId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ResourceVersionResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -662,7 +662,7 @@ export const resourceVersionResponseScenarios = {
     successHandlers: () => new ResourceVersionMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ResourceVersionMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ResourceVersionMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ResourceVersionMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ResourceVersionMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

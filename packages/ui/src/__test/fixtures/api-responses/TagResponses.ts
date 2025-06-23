@@ -5,15 +5,15 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     Tag, 
     TagCreateInput, 
-    TagUpdateInput
-} from '@vrooli/shared';
+    TagUpdateInput,
+} from "@vrooli/shared";
 import { 
-    tagValidation 
-} from '@vrooli/shared';
+    tagValidation, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -65,7 +65,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class TagResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -92,14 +92,14 @@ export class TagResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/tag/${tag.id}`,
                     related: {
-                        tagged: `${this.baseUrl}/api/tag/${tag.id}/tagged`
-                    }
-                }
-            }
+                        tagged: `${this.baseUrl}/api/tag/${tag.id}/tagged`,
+                    },
+                },
+            },
         };
     }
     
@@ -114,7 +114,7 @@ export class TagResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: tags.length,
-            totalCount: tags.length
+            totalCount: tags.length,
         };
         
         return {
@@ -122,17 +122,17 @@ export class TagResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/tag?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/tag?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -142,16 +142,16 @@ export class TagResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/tag'
-            }
+                path: "/api/tag",
+            },
         };
     }
     
@@ -161,16 +161,16 @@ export class TagResponseFactory {
     createNotFoundErrorResponse(tagId: string): APIErrorResponse {
         return {
             error: {
-                code: 'TAG_NOT_FOUND',
+                code: "TAG_NOT_FOUND",
                 message: `Tag with ID '${tagId}' was not found`,
                 details: {
                     tagId,
-                    searchCriteria: { id: tagId }
+                    searchCriteria: { id: tagId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/tag/${tagId}`
-            }
+                path: `/api/tag/${tagId}`,
+            },
         };
     }
     
@@ -180,17 +180,17 @@ export class TagResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this tag`,
                 details: {
                     operation,
-                    requiredPermissions: ['tag:write'],
-                    userPermissions: ['tag:read']
+                    requiredPermissions: ["tag:write"],
+                    userPermissions: ["tag:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/tag'
-            }
+                path: "/api/tag",
+            },
         };
     }
     
@@ -200,17 +200,17 @@ export class TagResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/tag'
-            }
+                path: "/api/tag",
+            },
         };
     }
     
@@ -220,17 +220,17 @@ export class TagResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/tag'
-            }
+                path: "/api/tag",
+            },
         };
     }
     
@@ -252,18 +252,18 @@ export class TagResponseFactory {
                 __typename: "TagTranslation",
                 id: `trans_${id}`,
                 language: "en",
-                description: "An example tag for testing purposes"
+                description: "An example tag for testing purposes",
             }],
             translationsCount: 1,
             you: {
                 __typename: "TagYou",
-                isOwn: false
-            }
+                isOwn: false,
+            },
         };
         
         return {
             ...defaultTag,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -283,7 +283,7 @@ export class TagResponseFactory {
                 __typename: "TagTranslation" as const,
                 id: `trans_${this.generateId()}`,
                 language: trans.language,
-                description: trans.description || ""
+                description: trans.description || "",
             }));
             tag.translationsCount = tag.translations.length;
         }
@@ -296,8 +296,8 @@ export class TagResponseFactory {
      */
     createProgrammingTags(): Tag[] {
         const tags = [
-            'javascript', 'typescript', 'python', 'react', 'nodejs', 
-            'api', 'database', 'web-development', 'mobile', 'ai'
+            "javascript", "typescript", "python", "react", "nodejs", 
+            "api", "database", "web-development", "mobile", "ai",
         ];
         
         return tags.map((tagName, index) => 
@@ -308,9 +308,9 @@ export class TagResponseFactory {
                     __typename: "TagTranslation",
                     id: `trans_${tagName}_${this.generateId()}`,
                     language: "en",
-                    description: `Tag for ${tagName} related content`
-                }]
-            })
+                    description: `Tag for ${tagName} related content`,
+                }],
+            }),
         );
     }
     
@@ -319,14 +319,14 @@ export class TagResponseFactory {
      */
     createCategoryTags(): Tag[] {
         const categories = [
-            { name: 'tutorial', desc: 'Educational and instructional content' },
-            { name: 'beginner', desc: 'Content suitable for beginners' },
-            { name: 'advanced', desc: 'Advanced level content' },
-            { name: 'productivity', desc: 'Tools and tips for productivity' },
-            { name: 'automation', desc: 'Automated processes and workflows' },
-            { name: 'security', desc: 'Security-related content' },
-            { name: 'testing', desc: 'Testing methodologies and tools' },
-            { name: 'deployment', desc: 'Deployment and DevOps content' }
+            { name: "tutorial", desc: "Educational and instructional content" },
+            { name: "beginner", desc: "Content suitable for beginners" },
+            { name: "advanced", desc: "Advanced level content" },
+            { name: "productivity", desc: "Tools and tips for productivity" },
+            { name: "automation", desc: "Automated processes and workflows" },
+            { name: "security", desc: "Security-related content" },
+            { name: "testing", desc: "Testing methodologies and tools" },
+            { name: "deployment", desc: "Deployment and DevOps content" },
         ];
         
         return categories.map(category => 
@@ -337,9 +337,9 @@ export class TagResponseFactory {
                     __typename: "TagTranslation",
                     id: `trans_${category.name}_${this.generateId()}`,
                     language: "en",
-                    description: category.desc
-                }]
-            })
+                    description: category.desc,
+                }],
+            }),
         );
     }
     
@@ -358,29 +358,29 @@ export class TagResponseFactory {
     createMultilingualTags(): Tag[] {
         return [
             this.createMockTag({
-                tag: 'international',
+                tag: "international",
                 translations: [
                     {
                         __typename: "TagTranslation",
                         id: `trans_en_${this.generateId()}`,
                         language: "en",
-                        description: "International content"
+                        description: "International content",
                     },
                     {
                         __typename: "TagTranslation",
                         id: `trans_es_${this.generateId()}`,
                         language: "es",
-                        description: "Contenido internacional"
+                        description: "Contenido internacional",
                     },
                     {
                         __typename: "TagTranslation",
                         id: `trans_fr_${this.generateId()}`,
                         language: "fr",
-                        description: "Contenu international"
-                    }
+                        description: "Contenu international",
+                    },
                 ],
-                translationsCount: 3
-            })
+                translationsCount: 3,
+            }),
         ];
     }
     
@@ -409,7 +409,7 @@ export class TagResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -431,7 +431,7 @@ export class TagMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create tag
-            rest.post(`${this.responseFactory['baseUrl']}/api/tag`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, async (req, res, ctx) => {
                 const body = await req.json() as TagCreateInput;
                 
                 // Validate input
@@ -439,7 +439,7 @@ export class TagMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -449,12 +449,12 @@ export class TagMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get tag by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/tag/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const tag = this.responseFactory.createMockTag({ id: id as string });
@@ -462,18 +462,18 @@ export class TagMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update tag
-            rest.put(`${this.responseFactory['baseUrl']}/api/tag/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/tag/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as TagUpdateInput;
                 
                 const tag = this.responseFactory.createMockTag({ 
                     id: id as string,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 });
                 
                 // Apply updates from body
@@ -485,36 +485,36 @@ export class TagMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete tag
-            rest.delete(`${this.responseFactory['baseUrl']}/api/tag/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List tags
-            rest.get(`${this.responseFactory['baseUrl']}/api/tag`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const search = url.searchParams.get('search');
-                const trending = url.searchParams.get('trending') === 'true';
-                const category = url.searchParams.get('category');
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const search = url.searchParams.get("search");
+                const trending = url.searchParams.get("trending") === "true";
+                const category = url.searchParams.get("category");
                 
                 let tags: Tag[] = [];
                 
                 if (trending) {
                     tags = this.responseFactory.createTrendingTags();
-                } else if (category === 'programming') {
+                } else if (category === "programming") {
                     tags = this.responseFactory.createProgrammingTags();
-                } else if (category === 'general') {
+                } else if (category === "general") {
                     tags = this.responseFactory.createCategoryTags();
                 } else {
                     tags = [
                         ...this.responseFactory.createProgrammingTags(),
-                        ...this.responseFactory.createCategoryTags()
+                        ...this.responseFactory.createCategoryTags(),
                     ];
                 }
                 
@@ -523,8 +523,8 @@ export class TagMSWHandlers {
                     tags = tags.filter(t => 
                         t.tag.toLowerCase().includes(search.toLowerCase()) ||
                         t.translations.some(trans => 
-                            trans.description?.toLowerCase().includes(search.toLowerCase())
-                        )
+                            trans.description?.toLowerCase().includes(search.toLowerCase()),
+                        ),
                     );
                 }
                 
@@ -537,26 +537,26 @@ export class TagMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: tags.length
-                    }
+                        totalCount: tags.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get trending tags
-            rest.get(`${this.responseFactory['baseUrl']}/api/tag/trending`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/tag/trending`, (req, res, ctx) => {
                 const tags = this.responseFactory.createTrendingTags();
                 const response = this.responseFactory.createTagListResponse(tags);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -566,48 +566,48 @@ export class TagMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/tag`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        tag: 'Tag name is required and must be unique'
-                    }))
+                        tag: "Tag name is required and must be unique",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/tag/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/tag`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/tag`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/tag`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, async (req, res, ctx) => {
                 const body = await req.json() as TagCreateInput;
                 const tag = this.responseFactory.createTagFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(tag);
@@ -615,9 +615,9 @@ export class TagMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -626,13 +626,13 @@ export class TagMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/tag`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/tag/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -641,13 +641,13 @@ export class TagMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -669,42 +669,42 @@ export const tagResponseScenarios = {
     createSuccess: (tag?: Tag) => {
         const factory = new TagResponseFactory();
         return factory.createSuccessResponse(
-            tag || factory.createMockTag()
+            tag || factory.createMockTag(),
         );
     },
     
     listSuccess: (tags?: Tag[]) => {
         const factory = new TagResponseFactory();
         return factory.createTagListResponse(
-            tags || factory.createProgrammingTags()
+            tags || factory.createProgrammingTags(),
         );
     },
     
     trendingTags: () => {
         const factory = new TagResponseFactory();
         return factory.createTagListResponse(
-            factory.createTrendingTags()
+            factory.createTrendingTags(),
         );
     },
     
     programmingTags: () => {
         const factory = new TagResponseFactory();
         return factory.createTagListResponse(
-            factory.createProgrammingTags()
+            factory.createProgrammingTags(),
         );
     },
     
     categoryTags: () => {
         const factory = new TagResponseFactory();
         return factory.createTagListResponse(
-            factory.createCategoryTags()
+            factory.createCategoryTags(),
         );
     },
     
     multilingualTags: () => {
         const factory = new TagResponseFactory();
         return factory.createTagListResponse(
-            factory.createMultilingualTags()
+            factory.createMultilingualTags(),
         );
     },
     
@@ -713,22 +713,22 @@ export const tagResponseScenarios = {
         const factory = new TagResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                tag: 'Tag name is required and must be unique'
-            }
+                tag: "Tag name is required and must be unique",
+            },
         );
     },
     
     notFoundError: (tagId?: string) => {
         const factory = new TagResponseFactory();
         return factory.createNotFoundErrorResponse(
-            tagId || 'non-existent-id'
+            tagId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new TagResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -741,7 +741,7 @@ export const tagResponseScenarios = {
     successHandlers: () => new TagMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new TagMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new TagMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new TagMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new TagMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

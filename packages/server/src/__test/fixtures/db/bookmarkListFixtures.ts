@@ -241,7 +241,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
 
         // Check label format and length
         if (data.label) {
-            if (typeof data.label !== 'string') {
+            if (typeof data.label !== "string") {
                 errors.push("Label must be a string");
             } else {
                 if (data.label.length === 0) {
@@ -257,7 +257,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
         }
 
         // Check bookmarks if present
-        if (data.bookmarks && 'create' in data.bookmarks && Array.isArray(data.bookmarks.create)) {
+        if (data.bookmarks && "create" in data.bookmarks && Array.isArray(data.bookmarks.create)) {
             const bookmarks = data.bookmarks.create;
             if (bookmarks.length > 100) {
                 warnings.push("Large number of bookmarks may affect performance");
@@ -266,7 +266,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
             bookmarks.forEach((bookmark, index) => {
                 // Check that exactly one object type is connected
                 const objectConnections = [
-                    'resource', 'comment', 'issue', 'tag', 'team', 'user'
+                    "resource", "comment", "issue", "tag", "team", "user",
                 ].filter(key => bookmark[key as keyof typeof bookmark]);
 
                 if (objectConnections.length === 0) {
@@ -283,7 +283,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
     // Static methods for backward compatibility
     static createMinimal(
         userId: string,
-        overrides?: Partial<Prisma.bookmark_listCreateInput>
+        overrides?: Partial<Prisma.bookmark_listCreateInput>,
     ): Prisma.bookmark_listCreateInput {
         const factory = new BookmarkListDbFactory();
         return factory.createMinimal({
@@ -299,7 +299,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
     static createWithLabel(
         userId: string,
         label: string,
-        overrides?: Partial<Prisma.bookmark_listCreateInput>
+        overrides?: Partial<Prisma.bookmark_listCreateInput>,
     ): Prisma.bookmark_listCreateInput {
         return this.createMinimal(userId, { label, ...overrides });
     }
@@ -313,7 +313,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
             objectId: string;
             objectType: "Resource" | "Comment" | "Issue" | "Tag" | "Team" | "User";
         }>,
-        overrides?: Partial<Prisma.bookmark_listCreateInput>
+        overrides?: Partial<Prisma.bookmark_listCreateInput>,
     ): Prisma.bookmark_listCreateInput {
         const bookmarkConnections: Record<string, (id: string) => any> = {
             Resource: (id) => ({ resource: { connect: { id } } }),
@@ -341,17 +341,17 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
     static createMultiple(
         userId: string,
         count: number,
-        baseLabel: string = "List"
+        baseLabel = "List",
     ): Array<Prisma.bookmark_listCreateInput> {
         const factory = new BookmarkListDbFactory();
         return factory.createBatch(
             Array.from({ length: count }, (_, i) => ({
-                type: 'minimal',
+                type: "minimal",
                 overrides: {
                     label: `${baseLabel} ${i + 1}`,
                     user: { connect: { id: userId } },
                 },
-            }))
+            })),
         );
     }
 
@@ -361,7 +361,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
     static createWithExistingBookmarks(
         userId: string,
         bookmarkIds: string[],
-        overrides?: Partial<Prisma.bookmark_listCreateInput>
+        overrides?: Partial<Prisma.bookmark_listCreateInput>,
     ): Prisma.bookmark_listCreateInput {
         return this.createMinimal(userId, {
             bookmarks: {
@@ -422,7 +422,7 @@ export const bookmarkListScenarios = {
         return BookmarkListDbFactory.createWithBookmarks(
             userId,
             bookmarks,
-            { label: "Research Collection" }
+            { label: "Research Collection" },
         );
     },
 
@@ -433,7 +433,7 @@ export const bookmarkListScenarios = {
         return BookmarkListDbFactory.createWithBookmarks(
             userId,
             resourceIds.map(id => ({ objectId: id, objectType: "Resource" as const })),
-            { label: "Tutorial Resources" }
+            { label: "Tutorial Resources" },
         );
     },
 
@@ -463,7 +463,7 @@ export const bookmarkListScenarios = {
         return BookmarkListDbFactory.createWithBookmarks(
             userId,
             bookmarks,
-            { label: `Team ${teamId} Resources` }
+            { label: `Team ${teamId} Resources` },
         );
     },
 };
@@ -474,12 +474,12 @@ export const bookmarkListScenarios = {
 export async function seedBookmarkLists(
     prisma: any,
     userId: string,
-    count: number = 3,
+    count = 3,
     options?: BulkSeedOptions & {
         withBookmarks?: boolean;
         bookmarkObjects?: Array<{ id: string; type: string }>;
         labels?: string[];
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const factory = new BookmarkListDbFactory();
     const lists = [];
@@ -500,7 +500,7 @@ export async function seedBookmarkLists(
             listData = BookmarkListDbFactory.createWithBookmarks(
                 userId,
                 options.bookmarkObjects as any,
-                overrides
+                overrides,
             );
         } else {
             // Create empty list
@@ -554,7 +554,7 @@ export async function seedBookmarkLists(
  */
 export async function cleanupBookmarkLists(
     prisma: any,
-    listIds: string[]
+    listIds: string[],
 ) {
     if (listIds.length === 0) return;
     
@@ -571,7 +571,7 @@ export async function cleanupBookmarkLists(
         
         return result;
     } catch (error) {
-        console.error('Error cleaning up bookmark lists:', error);
+        console.error("Error cleaning up bookmark lists:", error);
         throw error;
     }
 }

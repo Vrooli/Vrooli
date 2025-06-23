@@ -30,7 +30,7 @@ export class RoutineVersionDbFactory extends DatabaseFixtureFactory<
     Prisma.RoutineVersionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('RoutineVersion', prisma);
+        super("RoutineVersion", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -198,15 +198,15 @@ export class RoutineVersionDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.RoutineVersionCreateInput,
         config: RoutineVersionRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.RoutineVersionCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle routine connection
         if (config.routine) {
-            if ('id' in config.routine) {
+            if ("id" in config.routine) {
                 data.root = { connect: { id: config.routine.id } };
-            } else if ('create' in config.routine) {
+            } else if ("create" in config.routine) {
                 data.root = { create: config.routine.create };
             }
         }
@@ -408,17 +408,17 @@ export class RoutineVersionDbFactory extends DatabaseFixtureFactory<
 
         // Check version label format
         if (record.versionLabel && !/^\d+\.\d+\.\d+(-\w+)?$/.test(record.versionLabel)) {
-            violations.push('Version label must follow semantic versioning format');
+            violations.push("Version label must follow semantic versioning format");
         }
 
         // Check complexity range
         if (record.complexity < 1 || record.complexity > 10) {
-            violations.push('Complexity must be between 1 and 10');
+            violations.push("Complexity must be between 1 and 10");
         }
 
         // Check timesCompleted <= timesStarted
         if (record.timesCompleted > record.timesStarted) {
-            violations.push('Times completed cannot exceed times started');
+            violations.push("Times completed cannot exceed times started");
         }
 
         // Check that if isLatest is true, no other version has isLatest for the same routine
@@ -431,15 +431,15 @@ export class RoutineVersionDbFactory extends DatabaseFixtureFactory<
                 },
             });
             if (otherLatest > 0) {
-                violations.push('Only one version can be marked as latest');
+                violations.push("Only one version can be marked as latest");
             }
         }
 
         // Check config validity
-        if (record.config && typeof record.config === 'object') {
+        if (record.config && typeof record.config === "object") {
             const config = record.config as any;
             if (!config.__version) {
-                violations.push('Config must have __version field');
+                violations.push("Config must have __version field");
             }
         }
 
@@ -573,7 +573,7 @@ export class RoutineVersionDbFactory extends DatabaseFixtureFactory<
     protected async deleteRelatedRecords(
         record: Prisma.RoutineVersion,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete runs
         if (record.runs?.length) {

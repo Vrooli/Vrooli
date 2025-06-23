@@ -197,7 +197,7 @@ export class PaymentDbFactory {
         teamId: bigint,
         type: "TeamMonthly" | "TeamAnnual" = "TeamMonthly",
         status: "Pending" | "Succeeded" | "Failed" | "Refunded" | "Canceled" = "Succeeded",
-        seats: number = 10,
+        seats = 10,
         overrides?: Partial<Prisma.PaymentCreateInput>,
     ): Prisma.PaymentCreateInput {
         const baseAmounts = {
@@ -314,7 +314,7 @@ export class PaymentDbFactory {
      */
     static createEnterprise(
         teamId: bigint,
-        seats: number = 100,
+        seats = 100,
         customAmount?: number,
         overrides?: Partial<Prisma.PaymentCreateInput>,
     ): Prisma.PaymentCreateInput {

@@ -5,21 +5,21 @@
  * and authentication forms with React Hook Form integration.
  */
 
-import { useForm, type UseFormReturn, type FieldErrors } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { act, waitFor } from '@testing-library/react';
+import { useForm, type UseFormReturn, type FieldErrors } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import { act, waitFor } from "@testing-library/react";
 import type { 
     UserCreateInput,
     UserUpdateInput,
     User,
-    AccountStatus
-} from '@vrooli/shared';
+    AccountStatus,
+} from "@vrooli/shared";
 import { 
     userValidation,
     AccountStatus as AccountStatusEnum,
-    emailSignUpFormValidation
-} from '@vrooli/shared';
+    emailSignUpFormValidation,
+} from "@vrooli/shared";
 
 /**
  * UI-specific form data for user registration
@@ -119,50 +119,50 @@ export class UserFormDataFactory {
         return yup.object({
             email: yup
                 .string()
-                .email('Please enter a valid email address')
-                .required('Email is required')
-                .max(255, 'Email is too long'),
+                .email("Please enter a valid email address")
+                .required("Email is required")
+                .max(255, "Email is too long"),
                 
             password: yup
                 .string()
-                .required('Password is required')
-                .min(8, 'Password must be at least 8 characters')
+                .required("Password is required")
+                .min(8, "Password must be at least 8 characters")
                 .matches(
                     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-                    'Password must contain uppercase, lowercase, number and special character'
+                    "Password must contain uppercase, lowercase, number and special character",
                 ),
                 
             confirmPassword: yup
                 .string()
-                .required('Please confirm your password')
-                .oneOf([yup.ref('password')], 'Passwords must match'),
+                .required("Please confirm your password")
+                .oneOf([yup.ref("password")], "Passwords must match"),
                 
             handle: yup
                 .string()
-                .required('Username is required')
-                .min(3, 'Username must be at least 3 characters')
-                .max(20, 'Username cannot exceed 20 characters')
-                .matches(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers and underscores'),
+                .required("Username is required")
+                .min(3, "Username must be at least 3 characters")
+                .max(20, "Username cannot exceed 20 characters")
+                .matches(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers and underscores"),
                 
             name: yup
                 .string()
-                .required('Display name is required')
-                .min(1, 'Display name cannot be empty')
-                .max(50, 'Display name cannot exceed 50 characters'),
+                .required("Display name is required")
+                .min(1, "Display name cannot be empty")
+                .max(50, "Display name cannot exceed 50 characters"),
                 
             agreeToTerms: yup
                 .boolean()
-                .oneOf([true], 'You must accept the terms and conditions')
-                .required('You must accept the terms and conditions'),
+                .oneOf([true], "You must accept the terms and conditions")
+                .required("You must accept the terms and conditions"),
                 
             agreeToPrivacyPolicy: yup
                 .boolean()
-                .oneOf([true], 'You must accept the privacy policy')
-                .required('You must accept the privacy policy'),
+                .oneOf([true], "You must accept the privacy policy")
+                .required("You must accept the privacy policy"),
                 
             bio: yup
                 .string()
-                .max(500, 'Bio cannot exceed 500 characters')
+                .max(500, "Bio cannot exceed 500 characters")
                 .optional(),
                 
             theme: yup
@@ -171,7 +171,7 @@ export class UserFormDataFactory {
                 
             marketingEmails: yup
                 .boolean()
-                .optional()
+                .optional(),
         }).defined();
     }
     
@@ -182,20 +182,20 @@ export class UserFormDataFactory {
         return yup.object({
             handle: yup
                 .string()
-                .required('Username is required')
-                .min(3, 'Username must be at least 3 characters')
-                .max(20, 'Username cannot exceed 20 characters')
-                .matches(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers and underscores'),
+                .required("Username is required")
+                .min(3, "Username must be at least 3 characters")
+                .max(20, "Username cannot exceed 20 characters")
+                .matches(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers and underscores"),
                 
             name: yup
                 .string()
-                .required('Display name is required')
-                .min(1, 'Display name cannot be empty')
-                .max(50, 'Display name cannot exceed 50 characters'),
+                .required("Display name is required")
+                .min(1, "Display name cannot be empty")
+                .max(50, "Display name cannot exceed 50 characters"),
                 
             bio: yup
                 .string()
-                .max(500, 'Bio cannot exceed 500 characters')
+                .max(500, "Bio cannot exceed 500 characters")
                 .optional(),
                 
             theme: yup
@@ -220,8 +220,8 @@ export class UserFormDataFactory {
             notificationSettings: yup.object({
                 emailsEnabled: yup.boolean().required(),
                 pushEnabled: yup.boolean().required(),
-                weeklyReports: yup.boolean().required()
-            }).optional()
+                weeklyReports: yup.boolean().required(),
+            }).optional(),
         }).defined();
     }
     
@@ -232,17 +232,17 @@ export class UserFormDataFactory {
         return yup.object({
             emailOrHandle: yup
                 .string()
-                .required('Email or username is required')
-                .min(1, 'Email or username cannot be empty'),
+                .required("Email or username is required")
+                .min(1, "Email or username cannot be empty"),
                 
             password: yup
                 .string()
-                .required('Password is required')
-                .min(1, 'Password cannot be empty'),
+                .required("Password is required")
+                .min(1, "Password cannot be empty"),
                 
             rememberMe: yup
                 .boolean()
-                .optional()
+                .optional(),
         }).defined();
     }
     
@@ -257,98 +257,98 @@ export class UserFormDataFactory {
      * Create registration form data for different scenarios
      */
     createRegistrationFormData(
-        scenario: 'empty' | 'minimal' | 'complete' | 'invalid' | 'weakPassword' | 'passwordMismatch' | 'invalidEmail' | 'partiallyCompleted'
+        scenario: "empty" | "minimal" | "complete" | "invalid" | "weakPassword" | "passwordMismatch" | "invalidEmail" | "partiallyCompleted",
     ): UserRegistrationFormData {
         switch (scenario) {
-            case 'empty':
+            case "empty":
                 return {
-                    email: '',
-                    password: '',
-                    confirmPassword: '',
-                    handle: '',
-                    name: '',
+                    email: "",
+                    password: "",
+                    confirmPassword: "",
+                    handle: "",
+                    name: "",
                     agreeToTerms: false,
-                    agreeToPrivacyPolicy: false
+                    agreeToPrivacyPolicy: false,
                 };
                 
-            case 'minimal':
+            case "minimal":
                 return {
-                    email: 'test@example.com',
-                    password: 'SecurePass123!',
-                    confirmPassword: 'SecurePass123!',
-                    handle: 'testuser',
-                    name: 'Test User',
-                    agreeToTerms: true,
-                    agreeToPrivacyPolicy: true
-                };
-                
-            case 'complete':
-                return {
-                    email: 'john.doe@example.com',
-                    password: 'SuperSecure123!',
-                    confirmPassword: 'SuperSecure123!',
-                    handle: 'johndoe',
-                    name: 'John Doe',
+                    email: "test@example.com",
+                    password: "SecurePass123!",
+                    confirmPassword: "SecurePass123!",
+                    handle: "testuser",
+                    name: "Test User",
                     agreeToTerms: true,
                     agreeToPrivacyPolicy: true,
-                    bio: 'Software developer passionate about open source',
-                    theme: 'dark',
-                    marketingEmails: true
                 };
                 
-            case 'invalid':
+            case "complete":
                 return {
-                    email: 'invalid-email',
-                    password: 'weak',
-                    confirmPassword: 'different',
-                    handle: 'a', // Too short
-                    name: '',
+                    email: "john.doe@example.com",
+                    password: "SuperSecure123!",
+                    confirmPassword: "SuperSecure123!",
+                    handle: "johndoe",
+                    name: "John Doe",
+                    agreeToTerms: true,
+                    agreeToPrivacyPolicy: true,
+                    bio: "Software developer passionate about open source",
+                    theme: "dark",
+                    marketingEmails: true,
+                };
+                
+            case "invalid":
+                return {
+                    email: "invalid-email",
+                    password: "weak",
+                    confirmPassword: "different",
+                    handle: "a", // Too short
+                    name: "",
                     agreeToTerms: false,
-                    agreeToPrivacyPolicy: false
+                    agreeToPrivacyPolicy: false,
                 };
                 
-            case 'weakPassword':
+            case "weakPassword":
                 return {
-                    email: 'user@example.com',
-                    password: 'password', // No uppercase, numbers, or special chars
-                    confirmPassword: 'password',
-                    handle: 'weakpassuser',
-                    name: 'Weak Pass User',
+                    email: "user@example.com",
+                    password: "password", // No uppercase, numbers, or special chars
+                    confirmPassword: "password",
+                    handle: "weakpassuser",
+                    name: "Weak Pass User",
                     agreeToTerms: true,
-                    agreeToPrivacyPolicy: true
+                    agreeToPrivacyPolicy: true,
                 };
                 
-            case 'passwordMismatch':
+            case "passwordMismatch":
                 return {
-                    email: 'user@example.com',
-                    password: 'SecurePass123!',
-                    confirmPassword: 'DifferentPass123!',
-                    handle: 'mismatchuser',
-                    name: 'Mismatch User',
+                    email: "user@example.com",
+                    password: "SecurePass123!",
+                    confirmPassword: "DifferentPass123!",
+                    handle: "mismatchuser",
+                    name: "Mismatch User",
                     agreeToTerms: true,
-                    agreeToPrivacyPolicy: true
+                    agreeToPrivacyPolicy: true,
                 };
                 
-            case 'invalidEmail':
+            case "invalidEmail":
                 return {
-                    email: 'not.an.email',
-                    password: 'SecurePass123!',
-                    confirmPassword: 'SecurePass123!',
-                    handle: 'invalidemailuser',
-                    name: 'Invalid Email User',
+                    email: "not.an.email",
+                    password: "SecurePass123!",
+                    confirmPassword: "SecurePass123!",
+                    handle: "invalidemailuser",
+                    name: "Invalid Email User",
                     agreeToTerms: true,
-                    agreeToPrivacyPolicy: true
+                    agreeToPrivacyPolicy: true,
                 };
                 
-            case 'partiallyCompleted':
+            case "partiallyCompleted":
                 return {
-                    email: 'partial@example.com',
-                    password: 'SecurePass123!',
-                    confirmPassword: 'SecurePass123!',
-                    handle: 'partialuser',
-                    name: 'Partial User',
+                    email: "partial@example.com",
+                    password: "SecurePass123!",
+                    confirmPassword: "SecurePass123!",
+                    handle: "partialuser",
+                    name: "Partial User",
                     agreeToTerms: true,
-                    agreeToPrivacyPolicy: false // Missing this
+                    agreeToPrivacyPolicy: false, // Missing this
                 };
                 
             default:
@@ -360,23 +360,23 @@ export class UserFormDataFactory {
      * Create profile form data for different scenarios
      */
     createProfileFormData(
-        scenario: 'minimal' | 'complete' | 'invalid' | 'privateProfile' | 'notificationsOff'
+        scenario: "minimal" | "complete" | "invalid" | "privateProfile" | "notificationsOff",
     ): UserProfileFormData {
         switch (scenario) {
-            case 'minimal':
+            case "minimal":
                 return {
-                    handle: 'johndoe',
-                    name: 'John Doe'
+                    handle: "johndoe",
+                    name: "John Doe",
                 };
                 
-            case 'complete':
+            case "complete":
                 return {
-                    handle: 'johndoe',
-                    name: 'John Doe',
-                    bio: 'Full-stack developer with 10 years of experience',
-                    theme: 'dark',
-                    language: 'en',
-                    timezone: 'America/New_York',
+                    handle: "johndoe",
+                    name: "John Doe",
+                    bio: "Full-stack developer with 10 years of experience",
+                    theme: "dark",
+                    language: "en",
+                    timezone: "America/New_York",
                     isPrivate: false,
                     isPrivateApis: false,
                     isPrivateProjects: false,
@@ -386,38 +386,38 @@ export class UserFormDataFactory {
                     notificationSettings: {
                         emailsEnabled: true,
                         pushEnabled: true,
-                        weeklyReports: true
-                    }
+                        weeklyReports: true,
+                    },
                 };
                 
-            case 'invalid':
+            case "invalid":
                 return {
-                    handle: 'a', // Too short
-                    name: '' // Empty
+                    handle: "a", // Too short
+                    name: "", // Empty
                 };
                 
-            case 'privateProfile':
+            case "privateProfile":
                 return {
-                    handle: 'privateuser',
-                    name: 'Private User',
-                    bio: 'I value my privacy',
+                    handle: "privateuser",
+                    name: "Private User",
+                    bio: "I value my privacy",
                     isPrivate: true,
                     isPrivateApis: true,
                     isPrivateProjects: true,
                     isPrivateRoutines: true,
                     isPrivatePullRequests: true,
-                    isPrivateTeams: true
+                    isPrivateTeams: true,
                 };
                 
-            case 'notificationsOff':
+            case "notificationsOff":
                 return {
-                    handle: 'quietuser',
-                    name: 'Quiet User',
+                    handle: "quietuser",
+                    name: "Quiet User",
                     notificationSettings: {
                         emailsEnabled: false,
                         pushEnabled: false,
-                        weeklyReports: false
-                    }
+                        weeklyReports: false,
+                    },
                 };
                 
             default:
@@ -429,38 +429,38 @@ export class UserFormDataFactory {
      * Create login form data for different scenarios
      */
     createLoginFormData(
-        scenario: 'empty' | 'withEmail' | 'withHandle' | 'invalid' | 'rememberMe'
+        scenario: "empty" | "withEmail" | "withHandle" | "invalid" | "rememberMe",
     ): UserLoginFormData {
         switch (scenario) {
-            case 'empty':
+            case "empty":
                 return {
-                    emailOrHandle: '',
-                    password: ''
+                    emailOrHandle: "",
+                    password: "",
                 };
                 
-            case 'withEmail':
+            case "withEmail":
                 return {
-                    emailOrHandle: 'user@example.com',
-                    password: 'SecurePass123!'
+                    emailOrHandle: "user@example.com",
+                    password: "SecurePass123!",
                 };
                 
-            case 'withHandle':
+            case "withHandle":
                 return {
-                    emailOrHandle: 'johndoe',
-                    password: 'SecurePass123!'
+                    emailOrHandle: "johndoe",
+                    password: "SecurePass123!",
                 };
                 
-            case 'invalid':
+            case "invalid":
                 return {
-                    emailOrHandle: '',
-                    password: ''
+                    emailOrHandle: "",
+                    password: "",
                 };
                 
-            case 'rememberMe':
+            case "rememberMe":
                 return {
-                    emailOrHandle: 'user@example.com',
-                    password: 'SecurePass123!',
-                    rememberMe: true
+                    emailOrHandle: "user@example.com",
+                    password: "SecurePass123!",
+                    rememberMe: true,
                 };
                 
             default:
@@ -472,108 +472,108 @@ export class UserFormDataFactory {
      * Create form state for different scenarios
      */
     createFormState<T extends UserRegistrationFormData | UserProfileFormData | UserLoginFormData>(
-        scenario: 'pristine' | 'dirty' | 'submitting' | 'withErrors' | 'valid' | 'authenticated',
-        formType: 'registration' | 'profile' | 'login' = 'registration'
+        scenario: "pristine" | "dirty" | "submitting" | "withErrors" | "valid" | "authenticated",
+        formType: "registration" | "profile" | "login" = "registration",
     ): UserFormState<T> {
         let baseFormData: any;
         
         switch (formType) {
-            case 'registration':
-                baseFormData = this.createRegistrationFormData('complete');
+            case "registration":
+                baseFormData = this.createRegistrationFormData("complete");
                 break;
-            case 'profile':
-                baseFormData = this.createProfileFormData('complete');
+            case "profile":
+                baseFormData = this.createProfileFormData("complete");
                 break;
-            case 'login':
-                baseFormData = this.createLoginFormData('withEmail');
+            case "login":
+                baseFormData = this.createLoginFormData("withEmail");
                 break;
         }
         
         switch (scenario) {
-            case 'pristine':
+            case "pristine":
                 return {
-                    values: (formType === 'registration' 
-                        ? this.createRegistrationFormData('empty')
-                        : formType === 'profile'
-                        ? this.createProfileFormData('minimal')
-                        : this.createLoginFormData('empty')) as T,
+                    values: (formType === "registration" 
+                        ? this.createRegistrationFormData("empty")
+                        : formType === "profile"
+                        ? this.createProfileFormData("minimal")
+                        : this.createLoginFormData("empty")) as T,
                     errors: {},
                     touched: {},
                     isDirty: false,
                     isSubmitting: false,
-                    isValid: false
+                    isValid: false,
                 };
                 
-            case 'dirty':
+            case "dirty":
                 return {
                     values: baseFormData as T,
                     errors: {},
                     touched: { email: true, handle: true, name: true },
                     isDirty: true,
                     isSubmitting: false,
-                    isValid: true
+                    isValid: true,
                 };
                 
-            case 'submitting':
+            case "submitting":
                 return {
                     values: baseFormData as T,
                     errors: {},
                     touched: Object.keys(baseFormData).reduce((acc, key) => ({
                         ...acc,
-                        [key]: true
+                        [key]: true,
                     }), {}),
                     isDirty: true,
                     isSubmitting: true,
-                    isValid: true
+                    isValid: true,
                 };
                 
-            case 'withErrors':
-                const errors = formType === 'registration' 
+            case "withErrors":
+                const errors = formType === "registration" 
                     ? {
-                        email: 'Email is already taken',
-                        handle: 'Username is already taken',
-                        password: 'Password is too weak'
+                        email: "Email is already taken",
+                        handle: "Username is already taken",
+                        password: "Password is too weak",
                     }
-                    : formType === 'profile'
+                    : formType === "profile"
                     ? {
-                        handle: 'Username is already taken',
-                        name: 'Display name is required'
+                        handle: "Username is already taken",
+                        name: "Display name is required",
                     }
                     : {
-                        emailOrHandle: 'Invalid email or username',
-                        password: 'Incorrect password'
+                        emailOrHandle: "Invalid email or username",
+                        password: "Incorrect password",
                     };
                     
                 return {
-                    values: (formType === 'registration'
-                        ? this.createRegistrationFormData('invalid')
-                        : formType === 'profile'
-                        ? this.createProfileFormData('invalid')
-                        : this.createLoginFormData('invalid')) as T,
+                    values: (formType === "registration"
+                        ? this.createRegistrationFormData("invalid")
+                        : formType === "profile"
+                        ? this.createProfileFormData("invalid")
+                        : this.createLoginFormData("invalid")) as T,
                     errors,
                     touched: Object.keys(errors).reduce((acc, key) => ({
                         ...acc,
-                        [key]: true
+                        [key]: true,
                     }), {}),
                     isDirty: true,
                     isSubmitting: false,
-                    isValid: false
+                    isValid: false,
                 };
                 
-            case 'valid':
+            case "valid":
                 return {
                     values: baseFormData as T,
                     errors: {},
                     touched: Object.keys(baseFormData).reduce((acc, key) => ({
                         ...acc,
-                        [key]: true
+                        [key]: true,
                     }), {}),
                     isDirty: true,
                     isSubmitting: false,
-                    isValid: true
+                    isValid: true,
                 };
                 
-            case 'authenticated':
+            case "authenticated":
                 return {
                     values: baseFormData as T,
                     errors: {},
@@ -586,11 +586,11 @@ export class UserFormDataFactory {
                         isLoading: false,
                         user: {
                             id: this.generateId(),
-                            handle: 'johndoe',
-                            name: 'John Doe',
-                            email: 'john@example.com'
-                        }
-                    }
+                            handle: "johndoe",
+                            name: "John Doe",
+                            email: "john@example.com",
+                        },
+                    },
                 };
                 
             default:
@@ -602,44 +602,44 @@ export class UserFormDataFactory {
      * Create React Hook Form instance with pre-configured data
      */
     createFormInstance<T extends UserRegistrationFormData | UserProfileFormData | UserLoginFormData>(
-        formType: 'registration' | 'profile' | 'login',
-        initialData?: Partial<T>
+        formType: "registration" | "profile" | "login",
+        initialData?: Partial<T>,
     ): UseFormReturn<T> {
         let defaultValues: any;
         let resolver: any;
         
         switch (formType) {
-            case 'registration':
+            case "registration":
                 defaultValues = {
-                    ...this.createRegistrationFormData('empty'),
-                    ...initialData
+                    ...this.createRegistrationFormData("empty"),
+                    ...initialData,
                 };
                 resolver = yupResolver(this.createRegistrationSchema());
                 break;
                 
-            case 'profile':
+            case "profile":
                 defaultValues = {
-                    ...this.createProfileFormData('minimal'),
-                    ...initialData
+                    ...this.createProfileFormData("minimal"),
+                    ...initialData,
                 };
                 resolver = yupResolver(this.createProfileSchema());
                 break;
                 
-            case 'login':
+            case "login":
                 defaultValues = {
-                    ...this.createLoginFormData('empty'),
-                    ...initialData
+                    ...this.createLoginFormData("empty"),
+                    ...initialData,
                 };
                 resolver = yupResolver(this.createLoginSchema());
                 break;
         }
         
         return useForm<T>({
-            mode: 'onChange',
-            reValidateMode: 'onChange',
+            mode: "onChange",
+            reValidateMode: "onChange",
             shouldFocusError: true,
             defaultValues,
-            resolver
+            resolver,
         });
     }
     
@@ -648,7 +648,7 @@ export class UserFormDataFactory {
      */
     async validateFormData<T extends UserRegistrationFormData | UserProfileFormData>(
         formData: T,
-        formType: 'registration' | 'profile'
+        formType: "registration" | "profile",
     ): Promise<{
         isValid: boolean;
         errors?: Record<string, string>;
@@ -656,18 +656,18 @@ export class UserFormDataFactory {
     }> {
         try {
             // Validate with form schema
-            const schema = formType === 'registration' 
+            const schema = formType === "registration" 
                 ? this.createRegistrationSchema()
                 : this.createProfileSchema();
                 
             await schema.validate(formData, { abortEarly: false });
             
             // Transform to API input and validate
-            const apiInput = formType === 'registration'
+            const apiInput = formType === "registration"
                 ? this.transformRegistrationToAPIInput(formData as UserRegistrationFormData)
                 : this.transformProfileToAPIInput(formData as UserProfileFormData);
                 
-            if (formType === 'registration') {
+            if (formType === "registration") {
                 await userValidation.create.validate(apiInput);
             } else {
                 await userValidation.update.validate(apiInput);
@@ -675,7 +675,7 @@ export class UserFormDataFactory {
             
             return {
                 isValid: true,
-                apiInput
+                apiInput,
             };
         } catch (error: any) {
             const errors: Record<string, string> = {};
@@ -692,7 +692,7 @@ export class UserFormDataFactory {
             
             return {
                 isValid: false,
-                errors
+                errors,
             };
         }
     }
@@ -708,7 +708,7 @@ export class UserFormDataFactory {
             handle: formData.handle,
             name: formData.name,
             bio: formData.bio,
-            theme: formData.theme
+            theme: formData.theme,
         };
     }
     
@@ -727,35 +727,35 @@ export class UserFormDataFactory {
             isPrivateProjects: formData.isPrivateProjects,
             isPrivateRoutines: formData.isPrivateRoutines,
             isPrivatePullRequests: formData.isPrivatePullRequests,
-            isPrivateTeams: formData.isPrivateTeams
+            isPrivateTeams: formData.isPrivateTeams,
         };
     }
     
     /**
      * Calculate password strength
      */
-    calculatePasswordStrength(password: string): UserFormState['passwordStrength'] {
+    calculatePasswordStrength(password: string): UserFormState["passwordStrength"] {
         let score = 0;
         const feedback: string[] = [];
         
         if (password.length >= 8) score++;
-        else feedback.push('Use at least 8 characters');
+        else feedback.push("Use at least 8 characters");
         
         if (password.length >= 12) score++;
         
         if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
-        else feedback.push('Include both uppercase and lowercase letters');
+        else feedback.push("Include both uppercase and lowercase letters");
         
         if (/\d/.test(password)) score++;
-        else feedback.push('Include at least one number');
+        else feedback.push("Include at least one number");
         
         if (/[@$!%*?&]/.test(password)) score++;
-        else feedback.push('Include at least one special character');
+        else feedback.push("Include at least one special character");
         
         return {
             score: Math.min(score, 4),
             feedback,
-            isStrong: score >= 3
+            isStrong: score >= 3,
         };
     }
 }
@@ -764,7 +764,7 @@ export class UserFormDataFactory {
  * Form interaction simulator for user forms
  */
 export class UserFormInteractionSimulator {
-    private interactionDelay: number = 100;
+    private interactionDelay = 100;
     
     constructor(delay?: number) {
         this.interactionDelay = delay || 100;
@@ -775,16 +775,16 @@ export class UserFormInteractionSimulator {
      */
     async simulateRegistrationFlow(
         formInstance: UseFormReturn<UserRegistrationFormData>,
-        formData: UserRegistrationFormData
+        formData: UserRegistrationFormData,
     ): Promise<void> {
         // Type email
-        await this.simulateTyping(formInstance, 'email', formData.email);
+        await this.simulateTyping(formInstance, "email", formData.email);
         await new Promise(resolve => setTimeout(resolve, 300));
         
         // Type password with strength feedback
         for (let i = 1; i <= formData.password.length; i++) {
             const partialPassword = formData.password.substring(0, i);
-            await this.fillField(formInstance, 'password', partialPassword);
+            await this.fillField(formInstance, "password", partialPassword);
             
             // Simulate password strength calculation
             const factory = new UserFormDataFactory();
@@ -794,29 +794,29 @@ export class UserFormInteractionSimulator {
         }
         
         // Type confirm password
-        await this.simulateTyping(formInstance, 'confirmPassword', formData.confirmPassword);
+        await this.simulateTyping(formInstance, "confirmPassword", formData.confirmPassword);
         
         // Type handle with availability check simulation
-        await this.simulateTyping(formInstance, 'handle', formData.handle);
+        await this.simulateTyping(formInstance, "handle", formData.handle);
         await new Promise(resolve => setTimeout(resolve, 500)); // Simulate availability check
         
         // Type name
-        await this.simulateTyping(formInstance, 'name', formData.name);
+        await this.simulateTyping(formInstance, "name", formData.name);
         
         // Check agreements
-        await this.fillField(formInstance, 'agreeToTerms', formData.agreeToTerms);
+        await this.fillField(formInstance, "agreeToTerms", formData.agreeToTerms);
         await new Promise(resolve => setTimeout(resolve, 200));
         
-        await this.fillField(formInstance, 'agreeToPrivacyPolicy', formData.agreeToPrivacyPolicy);
+        await this.fillField(formInstance, "agreeToPrivacyPolicy", formData.agreeToPrivacyPolicy);
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // Optional fields
         if (formData.bio) {
-            await this.simulateTyping(formInstance, 'bio', formData.bio);
+            await this.simulateTyping(formInstance, "bio", formData.bio);
         }
         
         if (formData.marketingEmails !== undefined) {
-            await this.fillField(formInstance, 'marketingEmails', formData.marketingEmails);
+            await this.fillField(formInstance, "marketingEmails", formData.marketingEmails);
         }
     }
     
@@ -825,18 +825,18 @@ export class UserFormInteractionSimulator {
      */
     async simulateLoginFlow(
         formInstance: UseFormReturn<UserLoginFormData>,
-        formData: UserLoginFormData
+        formData: UserLoginFormData,
     ): Promise<void> {
         // Type email or handle
-        await this.simulateTyping(formInstance, 'emailOrHandle', formData.emailOrHandle);
+        await this.simulateTyping(formInstance, "emailOrHandle", formData.emailOrHandle);
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // Type password
-        await this.simulateTyping(formInstance, 'password', formData.password, { shouldMask: true });
+        await this.simulateTyping(formInstance, "password", formData.password, { shouldMask: true });
         
         // Check remember me
         if (formData.rememberMe !== undefined) {
-            await this.fillField(formInstance, 'rememberMe', formData.rememberMe);
+            await this.fillField(formInstance, "rememberMe", formData.rememberMe);
         }
     }
     
@@ -847,13 +847,13 @@ export class UserFormInteractionSimulator {
         formInstance: UseFormReturn<any>,
         fieldName: string,
         text: string,
-        options?: { shouldMask?: boolean }
+        options?: { shouldMask?: boolean },
     ): Promise<void> {
         const { shouldMask = false } = options || {};
         
         for (let i = 1; i <= text.length; i++) {
             const partialText = shouldMask 
-                ? '*'.repeat(i - 1) + text.charAt(i - 1)
+                ? "*".repeat(i - 1) + text.charAt(i - 1)
                 : text.substring(0, i);
                 
             await this.fillField(formInstance, fieldName, text.substring(0, i));
@@ -867,13 +867,13 @@ export class UserFormInteractionSimulator {
     private async fillField(
         formInstance: UseFormReturn<any>,
         fieldName: string,
-        value: any
+        value: any,
     ): Promise<void> {
         act(() => {
             formInstance.setValue(fieldName, value, {
                 shouldDirty: true,
                 shouldTouch: true,
-                shouldValidate: true
+                shouldValidate: true,
             });
         });
         
@@ -890,34 +890,34 @@ export const userFormSimulator = new UserFormInteractionSimulator();
 // Export pre-configured scenarios
 export const userFormScenarios = {
     // Registration scenarios
-    emptyRegistration: () => userFormFactory.createFormState('pristine', 'registration'),
-    validRegistration: () => userFormFactory.createFormState('valid', 'registration'),
-    registrationWithErrors: () => userFormFactory.createFormState('withErrors', 'registration'),
-    submittingRegistration: () => userFormFactory.createFormState('submitting', 'registration'),
+    emptyRegistration: () => userFormFactory.createFormState("pristine", "registration"),
+    validRegistration: () => userFormFactory.createFormState("valid", "registration"),
+    registrationWithErrors: () => userFormFactory.createFormState("withErrors", "registration"),
+    submittingRegistration: () => userFormFactory.createFormState("submitting", "registration"),
     
     // Profile scenarios
-    minimalProfile: () => userFormFactory.createProfileFormData('minimal'),
-    completeProfile: () => userFormFactory.createProfileFormData('complete'),
-    privateProfile: () => userFormFactory.createProfileFormData('privateProfile'),
+    minimalProfile: () => userFormFactory.createProfileFormData("minimal"),
+    completeProfile: () => userFormFactory.createProfileFormData("complete"),
+    privateProfile: () => userFormFactory.createProfileFormData("privateProfile"),
     
     // Login scenarios
-    emptyLogin: () => userFormFactory.createLoginFormData('empty'),
-    emailLogin: () => userFormFactory.createLoginFormData('withEmail'),
-    handleLogin: () => userFormFactory.createLoginFormData('withHandle'),
-    rememberMeLogin: () => userFormFactory.createLoginFormData('rememberMe'),
+    emptyLogin: () => userFormFactory.createLoginFormData("empty"),
+    emailLogin: () => userFormFactory.createLoginFormData("withEmail"),
+    handleLogin: () => userFormFactory.createLoginFormData("withHandle"),
+    rememberMeLogin: () => userFormFactory.createLoginFormData("rememberMe"),
     
     // Interactive workflows
     async completeRegistrationWorkflow(formInstance: UseFormReturn<UserRegistrationFormData>) {
         const simulator = new UserFormInteractionSimulator();
-        const formData = userFormFactory.createRegistrationFormData('complete');
+        const formData = userFormFactory.createRegistrationFormData("complete");
         await simulator.simulateRegistrationFlow(formInstance, formData);
         return formData;
     },
     
     async quickLoginWorkflow(formInstance: UseFormReturn<UserLoginFormData>) {
         const simulator = new UserFormInteractionSimulator();
-        const formData = userFormFactory.createLoginFormData('rememberMe');
+        const formData = userFormFactory.createLoginFormData("rememberMe");
         await simulator.simulateLoginFlow(formInstance, formData);
         return formData;
-    }
+    },
 };

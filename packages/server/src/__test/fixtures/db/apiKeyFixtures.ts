@@ -124,7 +124,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
                     "project:read", "project:write", "project:delete",
                     "routine:read", "routine:write", "routine:delete",
                     "team:read", "team:write", "team:delete",
-                    "admin:read", "admin:write"
+                    "admin:read", "admin:write",
                 ],
                 rateLimit: 1000,
                 rateLimitWindow: 3600,
@@ -134,8 +134,8 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
                 metadata: {
                     purpose: "Integration testing",
                     environment: "test",
-                    version: "1.0.0"
-                }
+                    version: "1.0.0",
+                },
             },
             limitHard: BigInt(100000000000),
             limitSoft: BigInt(80000000000),
@@ -395,7 +395,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
         }
 
         // Check permissions structure
-        if (data.permissions && typeof data.permissions !== 'object') {
+        if (data.permissions && typeof data.permissions !== "object") {
             errors.push("Permissions must be an object");
         }
 
@@ -415,7 +415,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
 
     static createForUser(
         userId: string,
-        overrides?: Partial<Prisma.api_keyCreateInput>
+        overrides?: Partial<Prisma.api_keyCreateInput>,
     ): Prisma.api_keyCreateInput {
         const factory = new ApiKeyDbFactory();
         return factory.createMinimal({
@@ -426,7 +426,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
 
     static createForTeam(
         teamId: string,
-        overrides?: Partial<Prisma.api_keyCreateInput>
+        overrides?: Partial<Prisma.api_keyCreateInput>,
     ): Prisma.api_keyCreateInput {
         const factory = new ApiKeyDbFactory();
         return factory.createMinimal({
@@ -437,7 +437,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
 
     static createWithPermissions(
         permissions: Record<string, any>,
-        overrides?: Partial<Prisma.api_keyCreateInput>
+        overrides?: Partial<Prisma.api_keyCreateInput>,
     ): Prisma.api_keyCreateInput {
         const factory = new ApiKeyDbFactory();
         return factory.createMinimal({
@@ -447,7 +447,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
     }
 
     static createDisabled(
-        overrides?: Partial<Prisma.api_keyCreateInput>
+        overrides?: Partial<Prisma.api_keyCreateInput>,
     ): Prisma.api_keyCreateInput {
         const factory = new ApiKeyDbFactory();
         return factory.createEdgeCase("disabledApiKey");
@@ -455,7 +455,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
 
     static createWithUsage(
         creditsUsed: bigint,
-        overrides?: Partial<Prisma.api_keyCreateInput>
+        overrides?: Partial<Prisma.api_keyCreateInput>,
     ): Prisma.api_keyCreateInput {
         const factory = new ApiKeyDbFactory();
         return factory.createMinimal({
@@ -465,8 +465,8 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
     }
 
     static createNearLimit(
-        percentageUsed: number = 90,
-        overrides?: Partial<Prisma.api_keyCreateInput>
+        percentageUsed = 90,
+        overrides?: Partial<Prisma.api_keyCreateInput>,
     ): Prisma.api_keyCreateInput {
         const factory = new ApiKeyDbFactory();
         if (percentageUsed >= 99) {
@@ -488,7 +488,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
     static createMultiple(
         count: number,
         userId?: string,
-        teamId?: string
+        teamId?: string,
     ): Prisma.api_keyCreateInput[] {
         const factory = new ApiKeyDbFactory();
         const keys = [];
@@ -524,7 +524,7 @@ export async function seedApiKeys(
         withPermissions?: boolean;
         withUsage?: boolean;
         includeDisabled?: boolean;
-    }
+    },
 ): Promise<BulkSeedResult<any>> {
     const factory = new ApiKeyDbFactory();
     const keys = [];
@@ -587,7 +587,7 @@ export async function seedApiKeys(
 export async function createTestApiKey(
     prisma: any,
     userId: string,
-    permissions?: Record<string, any>
+    permissions?: Record<string, any>,
 ): Promise<{ id: string; key: string; permissions: any }> {
     const factory = new ApiKeyDbFactory();
     const keyData = permissions 
@@ -609,7 +609,7 @@ export async function createTestApiKey(
 export async function simulateApiKeyUsage(
     prisma: any,
     apiKeyId: string,
-    operations: Array<{ credits: bigint; timestamp?: Date; validateLimits?: boolean }>
+    operations: Array<{ credits: bigint; timestamp?: Date; validateLimits?: boolean }>,
 ): Promise<{ totalCredits: bigint; limitExceeded: boolean; warnings: string[] }> {
     let totalCredits = BigInt(0);
     let limitExceeded = false;
@@ -618,7 +618,7 @@ export async function simulateApiKeyUsage(
     // Get current API key state
     const apiKey = await prisma.api_key.findUnique({
         where: { id: apiKeyId },
-        select: { creditsUsed: true, limitHard: true, limitSoft: true, stopAtLimit: true }
+        select: { creditsUsed: true, limitHard: true, limitSoft: true, stopAtLimit: true },
     });
 
     if (!apiKey) {
@@ -733,7 +733,7 @@ export async function createApiKeyTestSuite(
         includeEdgeCases?: boolean;
         includeInvalidScenarios?: boolean;
         includeUsageScenarios?: boolean;
-    } = {}
+    } = {},
 ): Promise<{
     valid: any[];
     edgeCases: any[];

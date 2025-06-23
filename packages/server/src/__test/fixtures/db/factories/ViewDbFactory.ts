@@ -1,12 +1,13 @@
-import { generatePK, ViewFor } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { ViewFor } from "@vrooli/shared";
+import { type view, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
 
 interface ViewRelationConfig extends RelationConfig {
     isAnonymous?: boolean;
     sessionId?: string;
-    objectType?: ViewFor | string;
+    objectType?: keyof typeof ViewFor | string;
     objectId?: string;
     viewedAt?: Date;
 }
@@ -16,13 +17,13 @@ interface ViewRelationConfig extends RelationConfig {
  * Handles both authenticated and anonymous view tracking for analytics
  */
 export class ViewDbFactory extends DatabaseFixtureFactory<
-    Prisma.view,
+    view,
     Prisma.viewCreateInput,
     Prisma.viewInclude,
     Prisma.viewUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('view', prisma);
+        super("view", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -54,20 +55,19 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
      */
     async createForObject(
         byId: string,
-        objectType: ViewFor | string,
+        objectType: keyof typeof ViewFor | string,
         objectId: string,
-        overrides?: Partial<Prisma.viewCreateInput>
-    ): Promise<Prisma.view> {
+        overrides?: Partial<Prisma.viewCreateInput>,
+    ): Promise<view> {
         const typeMapping: Record<string, string> = {
-            [ViewFor.Resource]: 'resource',
-            [ViewFor.ResourceVersion]: 'resourceVersion',
-            [ViewFor.Team]: 'team',
-            [ViewFor.User]: 'user',
+            Resource: "resource",
+            Team: "team",
+            User: "user",
             // Legacy mappings
-            'Issue': 'issue',
-            'Resource': 'resource',
-            'Team': 'team',
-            'User': 'user',
+            "Issue": "issue",
+            "Resource": "resource",
+            "Team": "team",
+            "User": "user",
         };
 
         const fieldName = typeMapping[objectType];
@@ -78,8 +78,8 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
         const data: Prisma.viewCreateInput = {
             ...this.getMinimalData(),
             name: `${objectType} View`,
-            by: { connect: { id: byId } },
-            [fieldName]: { connect: { id: objectId } },
+            by: { connect: { id: BigInt(byId) } },
+            [fieldName]: { connect: { id: BigInt(objectId) } },
             ...overrides,
         };
 
@@ -89,23 +89,22 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
     }
 
     /**
-     * Create an anonymous view
+     * Create an anonymous view (using a user ID to represent anonymous viewer)
      */
     async createAnonymous(
-        sessionId: string,
-        objectType: ViewFor | string,
+        anonymousUserId: string,
+        objectType: keyof typeof ViewFor | string,
         objectId: string,
-        overrides?: Partial<Prisma.viewCreateInput>
-    ): Promise<Prisma.view> {
+        overrides?: Partial<Prisma.viewCreateInput>,
+    ): Promise<view> {
         const typeMapping: Record<string, string> = {
-            [ViewFor.Resource]: 'resource',
-            [ViewFor.ResourceVersion]: 'resourceVersion',
-            [ViewFor.Team]: 'team',
-            [ViewFor.User]: 'user',
-            'Issue': 'issue',
-            'Resource': 'resource',
-            'Team': 'team',
-            'User': 'user',
+            Resource: "resource",
+            Team: "team",
+            User: "user",
+            "Issue": "issue",
+            "Resource": "resource",
+            "Team": "team",
+            "User": "user",
         };
 
         const fieldName = typeMapping[objectType];
@@ -117,8 +116,8 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
             id: generatePK(),
             name: `Anonymous ${objectType} View`,
             lastViewedAt: new Date(),
-            bySession: { connect: { id: sessionId } },
-            [fieldName]: { connect: { id: objectId } },
+            by: { connect: { id: BigInt(anonymousUserId) } },
+            [fieldName]: { connect: { id: BigInt(objectId) } },
             ...overrides,
         };
 
@@ -132,9 +131,9 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
      */
     async createViewHistory(
         byId: string,
-        objects: Array<{ type: ViewFor | string; id: string; viewedAt?: Date }>
-    ): Promise<Prisma.view[]> {
-        const views: Prisma.view[] = [];
+        objects: Array<{ type: keyof typeof ViewFor | string; id: string; viewedAt?: Date }>,
+    ): Promise<view[]> {
+        const views: view[] = [];
         
         for (let i = 0; i < objects.length; i++) {
             const obj = objects[i];
@@ -157,15 +156,9 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
                     handle: true,
                 },
             },
-            bySession: {
-                select: {
-                    id: true,
-                },
-            },
             // Include polymorphic relationships
             issue: { select: { id: true, publicId: true } },
             resource: { select: { id: true, publicId: true } },
-            resourceVersion: { select: { id: true, publicId: true } },
             team: { select: { id: true, publicId: true, handle: true } },
             user: { select: { id: true, publicId: true, name: true, handle: true } },
         };
@@ -174,35 +167,30 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
     protected async applyRelationships(
         baseData: Prisma.viewCreateInput,
         config: ViewRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.viewCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
-        // Handle viewer (user or session)
-        if (config.isAnonymous && config.sessionId) {
-            delete data.by;
-            data.bySession = { connect: { id: config.sessionId } };
-        } else if (config.byId) {
-            data.by = { connect: { id: config.byId } };
-            delete data.bySession;
+        // Handle viewer (user)
+        if (config.byId) {
+            data.by = { connect: { id: BigInt(config.byId) } };
         }
 
         // Handle viewed object
         if (config.objectType && config.objectId) {
             const typeMapping: Record<string, string> = {
-                [ViewFor.Resource]: 'resource',
-                [ViewFor.ResourceVersion]: 'resourceVersion',
-                [ViewFor.Team]: 'team',
-                [ViewFor.User]: 'user',
-                'Issue': 'issue',
-                'Resource': 'resource',
-                'Team': 'team',
-                'User': 'user',
+                Resource: "resource",
+                Team: "team",
+                User: "user",
+                "Issue": "issue",
+                "Resource": "resource",
+                "Team": "team",
+                "User": "user",
             };
 
             const fieldName = typeMapping[config.objectType];
             if (fieldName) {
-                data[fieldName] = { connect: { id: config.objectId } };
+                data[fieldName] = { connect: { id: BigInt(config.objectId) } };
             }
         }
 
@@ -217,13 +205,13 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
     /**
      * Create test scenarios
      */
-    async createRecentActivity(userId: string, count: number = 5): Promise<Prisma.view[]> {
-        const views: Prisma.view[] = [];
+    async createRecentActivity(userId: string, count = 5): Promise<view[]> {
+        const views: view[] = [];
         const now = new Date();
         
         for (let i = 0; i < count; i++) {
             const viewedAt = new Date(now.getTime() - (i * 3600000)); // 1 hour intervals
-            const objectTypes = [ViewFor.Resource, ViewFor.Team, ViewFor.User];
+            const objectTypes = ["Resource", "Team", "User"];
             const objectType = objectTypes[i % objectTypes.length];
             
             const view = await this.createForObject(
@@ -233,7 +221,7 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
                 {
                     name: `Recent ${objectType} Activity ${i + 1}`,
                     lastViewedAt: viewedAt,
-                }
+                },
             );
             views.push(view);
         }
@@ -243,37 +231,37 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
 
     async createPopularityMetrics(
         objectId: string,
-        objectType: ViewFor,
+        objectType: keyof typeof ViewFor,
         options: {
             userIds: string[];
             sessionIds: string[];
             daysBack: number;
             viewsPerDay: number;
-        }
-    ): Promise<Prisma.view[]> {
-        const views: Prisma.view[] = [];
+        },
+    ): Promise<view[]> {
+        const views: view[] = [];
         const now = new Date();
         const { userIds, sessionIds, daysBack, viewsPerDay } = options;
         
         for (let day = 0; day < daysBack; day++) {
             for (let viewNum = 0; viewNum < viewsPerDay; viewNum++) {
                 const viewedAt = new Date(
-                    now.getTime() - (day * 24 * 60 * 60 * 1000) - (viewNum * 60 * 60 * 1000)
+                    now.getTime() - (day * 24 * 60 * 60 * 1000) - (viewNum * 60 * 60 * 1000),
                 );
                 
                 // Mix authenticated and anonymous views
                 const useAnonymous = sessionIds.length > 0 && Math.random() > 0.7;
                 
                 if (useAnonymous) {
-                    const sessionId = sessionIds[viewNum % sessionIds.length];
+                    const anonymousUserId = sessionIds[viewNum % sessionIds.length];
                     const view = await this.createAnonymous(
-                        sessionId,
+                        anonymousUserId,
                         objectType,
                         objectId,
                         {
                             lastViewedAt: viewedAt,
                             name: `Analytics View Day ${day + 1} #${viewNum + 1} (Anonymous)`,
-                        }
+                        },
                     );
                     views.push(view);
                 } else if (userIds.length > 0) {
@@ -285,7 +273,7 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
                         {
                             lastViewedAt: viewedAt,
                             name: `Analytics View Day ${day + 1} #${viewNum + 1}`,
-                        }
+                        },
                     );
                     views.push(view);
                 }
@@ -298,10 +286,10 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
     async createRetentionData(
         userId: string,
         objectId: string,
-        objectType: ViewFor,
-        pattern: 'daily' | 'weekly' | 'sporadic'
-    ): Promise<Prisma.view[]> {
-        const views: Prisma.view[] = [];
+        objectType: keyof typeof ViewFor,
+        pattern: "daily" | "weekly" | "sporadic",
+    ): Promise<view[]> {
+        const views: view[] = [];
         const now = new Date();
         
         const patterns = {
@@ -315,7 +303,7 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
         for (let i = 0; i < count; i++) {
             let viewedAt: Date;
             
-            if (pattern === 'sporadic') {
+            if (pattern === "sporadic") {
                 // Random interval between 1 and 30 days
                 const randomDays = Math.floor(Math.random() * 30) + 1;
                 viewedAt = new Date(now.getTime() - (randomDays * 24 * 60 * 60 * 1000));
@@ -330,7 +318,7 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
                 {
                     lastViewedAt: viewedAt,
                     name: `${pattern} retention view ${i + 1}`,
-                }
+                },
             );
             views.push(view);
         }
@@ -338,16 +326,12 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
         return views;
     }
 
-    protected async checkModelConstraints(record: Prisma.view): Promise<string[]> {
+    protected async checkModelConstraints(record: view): Promise<string[]> {
         const violations: string[] = [];
         
-        // Must have either byId or bySessionId
-        if (!record.byId && !record.bySessionId) {
-            violations.push('View must have either byId (user) or bySessionId');
-        }
-        
-        if (record.byId && record.bySessionId) {
-            violations.push('View cannot have both byId and bySessionId');
+        // Must have byId (viewer)
+        if (!record.byId) {
+            violations.push("View must have byId (user)");
         }
 
         // Check viewer exists
@@ -356,34 +340,25 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
                 where: { id: record.byId },
             });
             if (!user) {
-                violations.push('View user must exist');
-            }
-        }
-        
-        if (record.bySessionId) {
-            const session = await this.prisma.session.findUnique({
-                where: { id: record.bySessionId },
-            });
-            if (!session) {
-                violations.push('View session must exist');
+                violations.push("View user must exist");
             }
         }
 
         // Check exactly one viewed object
-        const viewableFields = ['issueId', 'resourceId', 'resourceVersionId', 'teamId', 'userId'];
+        const viewableFields = ["issueId", "resourceId", "teamId", "userId"];
         const connectedObjects = viewableFields.filter(field => 
-            record[field as keyof Prisma.view]
+            record[field as keyof view],
         );
         
         if (connectedObjects.length === 0) {
-            violations.push('View must reference exactly one viewable object');
+            violations.push("View must reference exactly one viewable object");
         } else if (connectedObjects.length > 1) {
-            violations.push('View cannot reference multiple objects');
+            violations.push("View cannot reference multiple objects");
         }
 
         // Check timestamp validity
         if (record.lastViewedAt && record.lastViewedAt > new Date(Date.now() + 60000)) {
-            violations.push('View timestamp should not be in the future');
+            violations.push("View timestamp should not be in the future");
         }
 
         return violations;
@@ -395,7 +370,7 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
     getInvalidScenarios(): Record<string, any> {
         return {
             missingRequired: {
-                // Missing both byId and bySessionId
+                // Missing byId and any target
                 name: "Invalid View",
                 lastViewedAt: new Date(),
             },
@@ -404,13 +379,6 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
                 name: 123, // Should be string
                 lastViewedAt: "not-a-date", // Should be Date
                 by: "invalid-user-reference", // Should be connect object
-            },
-            bothViewers: {
-                id: generatePK(),
-                name: "Invalid View",
-                lastViewedAt: new Date(),
-                by: { connect: { id: generatePK() } },
-                bySession: { connect: { id: generatePK() } }, // Cannot have both
             },
             noViewedObject: {
                 id: generatePK(),
@@ -451,7 +419,7 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
                 id: generatePK(),
                 name: "Anonymous Page View",
                 lastViewedAt: new Date(),
-                bySession: { connect: { id: sessionId } },
+                by: { connect: { id: userId } },
                 resource: { connect: { id: resourceId } },
             },
             veryOldView: {
@@ -471,11 +439,11 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
                 by: { connect: { id: userId } },
                 user: { connect: { id: userId } }, // User viewing themselves
             },
-            resourceVersionView: {
+            resourceView: {
                 ...this.getMinimalData(),
                 by: { connect: { id: userId } },
-                resourceVersion: { connect: { id: generatePK() } },
-                name: "Specific Version View",
+                resource: { connect: { id: generatePK() } },
+                name: "Specific Resource View",
             },
             issueView: {
                 ...this.getMinimalData(),
@@ -493,9 +461,9 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.view,
+        record: view,
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Views don't have child records to delete
     }

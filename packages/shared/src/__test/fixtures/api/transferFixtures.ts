@@ -8,7 +8,7 @@ interface TransferRequestSendInputWithId extends TransferRequestSendInput {
 interface TransferRequestReceiveInputWithId extends TransferRequestReceiveInput {
     id: string;
 }
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { transferValidation, transferRequestSendValidation, transferRequestReceiveValidation } from "../../../validation/models/transfer.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)

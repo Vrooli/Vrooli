@@ -11,8 +11,10 @@ import { bool, description, id } from "../utils/commonFields.js";
 import { maxStrErr, minNumErr, minStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
 
+const REMINDER_ITEM_NAME_MAX_LENGTH = 50;
+
 const index = yup.number().integer().min(0, minNumErr);
-const name = yup.string().trim().removeEmptyString().min(1, minStrErr).max(50, maxStrErr);
+const name = yup.string().trim().removeEmptyString().min(1, minStrErr).max(REMINDER_ITEM_NAME_MAX_LENGTH, maxStrErr);
 
 export const reminderItemValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

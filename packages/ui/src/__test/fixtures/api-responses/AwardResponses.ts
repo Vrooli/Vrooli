@@ -8,16 +8,16 @@
  * based on user achievements and cannot be created/updated/deleted via API.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
-    Award, 
-    AwardCategory,
+    Award,
     AwardSearchInput,
     AwardSearchResult,
-    AwardSortBy,
-    User
-} from '@vrooli/shared';
-import { awardNames, awardVariants } from '@vrooli/shared';
+    User,
+} from "@vrooli/shared";
+import { awardNames, awardVariants , 
+    AwardCategory,
+    AwardSortBy} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -69,7 +69,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class AwardResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -96,14 +96,14 @@ export class AwardResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/award/${award.id}`,
                     related: {
-                        user: `${this.baseUrl}/api/user/${award.id.split('_')[0]}`
-                    }
-                }
-            }
+                        user: `${this.baseUrl}/api/user/${award.id.split("_")[0]}`,
+                    },
+                },
+            },
         };
     }
     
@@ -118,7 +118,7 @@ export class AwardResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: awards.length,
-            totalCount: awards.length
+            totalCount: awards.length,
         };
         
         return {
@@ -126,15 +126,15 @@ export class AwardResponseFactory {
             edges: awards.map(award => ({
                 __typename: "AwardEdge",
                 cursor: btoa(`award:${award.id}`),
-                node: award
+                node: award,
             })),
             pageInfo: {
                 __typename: "PageInfo",
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
                 hasPreviousPage: paginationData.page > 1,
                 startCursor: awards.length > 0 ? btoa(`award:${awards[0]!.id}`) : null,
-                endCursor: awards.length > 0 ? btoa(`award:${awards[awards.length - 1]!.id}`) : null
-            }
+                endCursor: awards.length > 0 ? btoa(`award:${awards[awards.length - 1]!.id}`) : null,
+            },
         };
     }
     
@@ -149,7 +149,7 @@ export class AwardResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: awards.length,
-            totalCount: awards.length
+            totalCount: awards.length,
         };
         
         return {
@@ -157,17 +157,17 @@ export class AwardResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/awards?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/awards?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -177,16 +177,16 @@ export class AwardResponseFactory {
     createNotFoundErrorResponse(awardId: string): APIErrorResponse {
         return {
             error: {
-                code: 'AWARD_NOT_FOUND',
+                code: "AWARD_NOT_FOUND",
                 message: `Award with ID '${awardId}' was not found`,
                 details: {
                     awardId,
-                    searchCriteria: { id: awardId }
+                    searchCriteria: { id: awardId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/award/${awardId}`
-            }
+                path: `/api/award/${awardId}`,
+            },
         };
     }
     
@@ -196,17 +196,17 @@ export class AwardResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} awards`,
                 details: {
                     operation,
-                    reason: 'Awards are system-managed and cannot be directly modified',
-                    allowedOperations: ['view', 'list']
+                    reason: "Awards are system-managed and cannot be directly modified",
+                    allowedOperations: ["view", "list"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/awards'
-            }
+                path: "/api/awards",
+            },
         };
     }
     
@@ -216,17 +216,17 @@ export class AwardResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/awards'
-            }
+                path: "/api/awards",
+            },
         };
     }
     
@@ -236,17 +236,17 @@ export class AwardResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/awards'
-            }
+                path: "/api/awards",
+            },
         };
     }
     
@@ -256,18 +256,18 @@ export class AwardResponseFactory {
     createRateLimitErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'RATE_LIMIT_EXCEEDED',
-                message: 'Too many requests. Please slow down.',
+                code: "RATE_LIMIT_EXCEEDED",
+                message: "Too many requests. Please slow down.",
                 details: {
                     limit: 100,
                     remaining: 0,
                     resetTime: new Date(Date.now() + 60000).toISOString(),
-                    retryAfter: 60
+                    retryAfter: 60,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/awards'
-            }
+                path: "/api/awards",
+            },
         };
     }
     
@@ -285,7 +285,7 @@ export class AwardResponseFactory {
             AwardCategory.ObjectBookmark,
             AwardCategory.ObjectReact,
             AwardCategory.RunRoutine,
-            AwardCategory.UserInvite
+            AwardCategory.UserInvite,
         ];
         const isCommon = Math.random() < 0.7;
         const selectedCategories = isCommon ? commonCategories : categories;
@@ -317,12 +317,12 @@ export class AwardResponseFactory {
             description: awardDetails.body ? `Achievement unlocked: ${awardDetails.body}` : `You've achieved level ${awardDetails.level} in ${category}`,
             tierCompletedAt: progress >= (awardVariants[category as keyof typeof awardVariants]?.[0] || 1) ? 
                 new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString() : // Random date in past month
-                null
+                null,
         };
         
         return {
             ...defaultAward,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -341,7 +341,7 @@ export class AwardResponseFactory {
                     return this.createMockAward({ 
                         category, 
                         progress,
-                        tierCompletedAt: new Date(Date.now() - (tierCount - index) * 7 * 24 * 60 * 60 * 1000).toISOString()
+                        tierCompletedAt: new Date(Date.now() - (tierCount - index) * 7 * 24 * 60 * 60 * 1000).toISOString(),
                     });
                 });
             } else {
@@ -368,15 +368,15 @@ export class AwardResponseFactory {
                 category, 
                 progress,
                 tierCompletedAt: new Date(Date.now() - (completedTiers.length - index) * 14 * 24 * 60 * 60 * 1000).toISOString(),
-                createdAt: new Date(Date.now() - (completedTiers.length - index + 1) * 14 * 24 * 60 * 60 * 1000).toISOString()
-            })
+                createdAt: new Date(Date.now() - (completedTiers.length - index + 1) * 14 * 24 * 60 * 60 * 1000).toISOString(),
+            }),
         );
     }
     
     /**
      * Create recent achievements (last 30 days)
      */
-    createRecentAchievements(count: number = 5): Award[] {
+    createRecentAchievements(count = 5): Award[] {
         const now = Date.now();
         const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
         
@@ -385,7 +385,7 @@ export class AwardResponseFactory {
             return this.createMockAward({
                 tierCompletedAt: achievedAt.toISOString(),
                 createdAt: achievedAt.toISOString(),
-                updatedAt: achievedAt.toISOString()
+                updatedAt: achievedAt.toISOString(),
             });
         }).sort((a, b) => new Date(b.tierCompletedAt || b.createdAt).getTime() - new Date(a.tierCompletedAt || a.createdAt).getTime());
     }
@@ -399,15 +399,15 @@ export class AwardResponseFactory {
             { category: AwardCategory.RunRoutine, progress: 1000 },
             { category: AwardCategory.RunProject, progress: 500 },
             { category: AwardCategory.Streak, progress: 365 },
-            { category: AwardCategory.CommentCreate, progress: 500 }
+            { category: AwardCategory.CommentCreate, progress: 500 },
         ];
         
         return milestoneCategories.map(({ category, progress }) => 
             this.createMockAward({ 
                 category, 
                 progress,
-                tierCompletedAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString()
-            })
+                tierCompletedAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
+            }),
         );
     }
     
@@ -465,7 +465,7 @@ export class AwardMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get award by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/award/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const award = this.responseFactory.createMockAward({ id: id as string });
@@ -473,12 +473,12 @@ export class AwardMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Search awards
-            rest.post(`${this.responseFactory['baseUrl']}/api/awards`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/awards`, async (req, res, ctx) => {
                 const searchInput = await req.json() as AwardSearchInput;
                 
                 // Generate base awards set
@@ -491,18 +491,18 @@ export class AwardMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // List user awards (simplified endpoint)
-            rest.get(`${this.responseFactory['baseUrl']}/api/awards`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const category = url.searchParams.get('category') as AwardCategory | null;
-                const recent = url.searchParams.get('recent') === 'true';
-                const milestones = url.searchParams.get('milestones') === 'true';
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const category = url.searchParams.get("category") as AwardCategory | null;
+                const recent = url.searchParams.get("recent") === "true";
+                const milestones = url.searchParams.get("milestones") === "true";
                 
                 let awards: Award[];
                 
@@ -528,34 +528,34 @@ export class AwardMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: awards.length
-                    }
+                        totalCount: awards.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get achievement journey for a specific category
-            rest.get(`${this.responseFactory['baseUrl']}/api/awards/journey/:category`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/awards/journey/:category`, (req, res, ctx) => {
                 const { category } = req.params;
                 const url = new URL(req.url);
-                const progress = parseInt(url.searchParams.get('progress') || '100');
+                const progress = parseInt(url.searchParams.get("progress") || "100");
                 
                 const awards = this.responseFactory.createAchievementJourney(
                     category as AwardCategory, 
-                    progress
+                    progress,
                 );
                 
                 const response = this.responseFactory.createAwardListResponse(awards);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -565,71 +565,71 @@ export class AwardMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/award/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error for write operations
-            rest.post(`${this.responseFactory['baseUrl']}/api/award`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/award`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
-            rest.put(`${this.responseFactory['baseUrl']}/api/award/:id`, (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('update'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
                 );
             }),
             
-            rest.delete(`${this.responseFactory['baseUrl']}/api/award/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('delete'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("delete")),
                 );
             }),
             
             // Server error
-            rest.get(`${this.responseFactory['baseUrl']}/api/awards`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
             }),
             
             // Rate limit error
-            rest.post(`${this.responseFactory['baseUrl']}/api/awards`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
                 return res(
                     ctx.status(429),
-                    ctx.json(this.responseFactory.createRateLimitErrorResponse())
+                    ctx.json(this.responseFactory.createRateLimitErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/awards`, async (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/awards`, async (req, res, ctx) => {
                 const awards = this.responseFactory.createAwardsForAllCategories();
                 const response = this.responseFactory.createAwardListResponse(awards);
                 
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/award/:id`, async (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const award = this.responseFactory.createMockAward({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(award);
@@ -637,9 +637,9 @@ export class AwardMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -648,17 +648,17 @@ export class AwardMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory['baseUrl']}/api/awards`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/award/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
+            rest.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory['baseUrl']}/api/awards`, (req, res, ctx) => {
-                return res.networkError('Connection timeout while searching');
-            })
+            rest.post(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
+                return res.networkError("Connection timeout while searching");
+            }),
         ];
     }
     
@@ -667,13 +667,13 @@ export class AwardMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -695,35 +695,35 @@ export const awardResponseScenarios = {
     singleAward: (award?: Award) => {
         const factory = new AwardResponseFactory();
         return factory.createSuccessResponse(
-            award || factory.createMockAward()
+            award || factory.createMockAward(),
         );
     },
     
     allCategories: () => {
         const factory = new AwardResponseFactory();
         return factory.createAwardListResponse(
-            factory.createAwardsForAllCategories()
+            factory.createAwardsForAllCategories(),
         );
     },
     
     recentAchievements: (count?: number) => {
         const factory = new AwardResponseFactory();
         return factory.createAwardListResponse(
-            factory.createRecentAchievements(count)
+            factory.createRecentAchievements(count),
         );
     },
     
     milestoneAchievements: () => {
         const factory = new AwardResponseFactory();
         return factory.createAwardListResponse(
-            factory.createMilestoneAchievements()
+            factory.createMilestoneAchievements(),
         );
     },
     
     achievementJourney: (category: AwardCategory, progress: number) => {
         const factory = new AwardResponseFactory();
         return factory.createAwardListResponse(
-            factory.createAchievementJourney(category, progress)
+            factory.createAchievementJourney(category, progress),
         );
     },
     
@@ -731,14 +731,14 @@ export const awardResponseScenarios = {
     notFoundError: (awardId?: string) => {
         const factory = new AwardResponseFactory();
         return factory.createNotFoundErrorResponse(
-            awardId || 'non-existent-award-id'
+            awardId || "non-existent-award-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new AwardResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'modify'
+            operation || "modify",
         );
     },
     
@@ -756,7 +756,7 @@ export const awardResponseScenarios = {
     successHandlers: () => new AwardMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new AwardMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new AwardMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new AwardMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new AwardMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

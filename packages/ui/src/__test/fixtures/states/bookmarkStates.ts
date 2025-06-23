@@ -8,14 +8,14 @@
 import type { 
     Bookmark, 
     BookmarkList,
-    BookmarkFor 
+    BookmarkFor, 
 } from "@vrooli/shared";
 import type { 
     BookmarkUIState,
     UIStateFactory,
     LoadingContext,
     AppError,
-    BookmarkFormData 
+    BookmarkFormData, 
 } from "../types.js";
 
 /**
@@ -36,7 +36,7 @@ export interface ExtendedBookmarkUIState extends BookmarkUIState {
         isHovered: boolean;
         isFocused: boolean;
         isPressed: boolean;
-        lastAction?: 'created' | 'updated' | 'deleted' | 'toggled';
+        lastAction?: "created" | "updated" | "deleted" | "toggled";
         actionTimestamp?: number;
     };
     
@@ -50,7 +50,7 @@ export interface ExtendedBookmarkUIState extends BookmarkUIState {
     
     // Async operation state
     operationState?: {
-        currentOperation?: 'create' | 'update' | 'delete' | 'toggle';
+        currentOperation?: "create" | "update" | "delete" | "toggle";
         operationId?: string;
         progress?: number;
         cancellable?: boolean;
@@ -71,7 +71,7 @@ export interface ExtendedBookmarkUIState extends BookmarkUIState {
  * Bookmark-specific loading contexts
  */
 export type BookmarkLoadingContext = LoadingContext & {
-    operation: 'creating' | 'updating' | 'deleting' | 'fetching' | 'toggling' | 'list-creating';
+    operation: "creating" | "updating" | "deleting" | "fetching" | "toggling" | "list-creating";
     bookmarkType?: BookmarkFor;
     objectId?: string;
     listId?: string;
@@ -82,16 +82,16 @@ export type BookmarkLoadingContext = LoadingContext & {
  */
 export interface BookmarkError extends AppError {
     code: 
-        | 'BOOKMARK_CREATE_FAILED'
-        | 'BOOKMARK_UPDATE_FAILED' 
-        | 'BOOKMARK_DELETE_FAILED'
-        | 'BOOKMARK_NOT_FOUND'
-        | 'LIST_CREATE_FAILED'
-        | 'LIST_NOT_FOUND'
-        | 'VALIDATION_ERROR'
-        | 'PERMISSION_DENIED'
-        | 'NETWORK_ERROR'
-        | 'SERVER_ERROR';
+        | "BOOKMARK_CREATE_FAILED"
+        | "BOOKMARK_UPDATE_FAILED" 
+        | "BOOKMARK_DELETE_FAILED"
+        | "BOOKMARK_NOT_FOUND"
+        | "LIST_CREATE_FAILED"
+        | "LIST_NOT_FOUND"
+        | "VALIDATION_ERROR"
+        | "PERMISSION_DENIED"
+        | "NETWORK_ERROR"
+        | "SERVER_ERROR";
     bookmarkContext?: {
         bookmarkFor?: BookmarkFor;
         objectId?: string;
@@ -124,11 +124,11 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
             showListSelection: false,
             
             operationState: {
-                currentOperation: context?.operation || 'creating',
+                currentOperation: context?.operation || "creating",
                 operationId: this.generateId(),
                 progress: context?.progress,
                 cancellable: context?.cancellable || false,
-                onCancel: context?.cancellable ? () => console.log('Operation cancelled') : undefined
+                onCancel: context?.cancellable ? () => console.log("Operation cancelled") : undefined,
             },
             
             formState: {
@@ -137,10 +137,10 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 errors: {},
                 touched: {},
                 values: {
-                    bookmarkFor: context?.bookmarkType || 'Resource',
-                    forConnect: context?.objectId || this.generateId()
-                }
-            }
+                    bookmarkFor: context?.bookmarkType || "Resource",
+                    forConnect: context?.objectId || this.generateId(),
+                },
+            },
         };
     }
     
@@ -161,10 +161,10 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 maxRetries: 3,
                 nextRetryDelay: 1000,
                 canRetry: error.recoverable || false,
-                lastError: error
+                lastError: error,
             },
             
-            formState: error.code === 'VALIDATION_ERROR' ? {
+            formState: error.code === "VALIDATION_ERROR" ? {
                 isSubmitting: false,
                 isDirty: true,
                 errors: error.details?.fieldErrors || {},
@@ -173,10 +173,10 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                     return acc;
                 }, {} as Record<string, boolean>),
                 values: error.details?.formData || {
-                    bookmarkFor: 'Resource',
-                    forConnect: ''
-                }
-            } : undefined
+                    bookmarkFor: "Resource",
+                    forConnect: "",
+                },
+            } : undefined,
         };
     }
     
@@ -185,10 +185,10 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
      */
     createSuccessState(
         data: Bookmark | { bookmark: Bookmark; message?: string }, 
-        message?: string
+        message?: string,
     ): ExtendedBookmarkUIState {
-        const bookmark = 'bookmark' in data ? data.bookmark : data;
-        const successMessage = 'message' in data ? data.message : message;
+        const bookmark = "bookmark" in data ? data.bookmark : data;
+        const successMessage = "message" in data ? data.message : message;
         
         return {
             isLoading: false,
@@ -196,7 +196,7 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
             error: null,
             isBookmarked: true,
             availableLists: [
-                { id: bookmark.list.id, label: bookmark.list.label }
+                { id: bookmark.list.id, label: bookmark.list.label },
             ],
             showListSelection: false,
             
@@ -204,8 +204,8 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 isHovered: false,
                 isFocused: false,
                 isPressed: false,
-                lastAction: 'created',
-                actionTimestamp: Date.now()
+                lastAction: "created",
+                actionTimestamp: Date.now(),
             },
             
             formState: {
@@ -216,9 +216,9 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 values: {
                     bookmarkFor: bookmark.to.__typename as BookmarkFor,
                     forConnect: bookmark.to.id,
-                    listId: bookmark.list.id
-                }
-            }
+                    listId: bookmark.list.id,
+                },
+            },
         };
     }
     
@@ -240,10 +240,10 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 errors: {},
                 touched: {},
                 values: {
-                    bookmarkFor: 'Resource',
-                    forConnect: ''
-                }
-            }
+                    bookmarkFor: "Resource",
+                    forConnect: "",
+                },
+            },
         };
     }
     
@@ -255,7 +255,7 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
             { id: this.generateId(), label: "Favorites" },
             { id: this.generateId(), label: "To Review" },
             { id: this.generateId(), label: "Important" },
-            { id: this.generateId(), label: "Resources" }
+            { id: this.generateId(), label: "Resources" },
         ];
         
         return {
@@ -270,7 +270,7 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 isCreatingList: false,
                 isSelectingList: true,
                 searchQuery: "",
-                filteredLists: defaultLists
+                filteredLists: defaultLists,
             },
             
             formState: {
@@ -279,10 +279,10 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 errors: {},
                 touched: {},
                 values: {
-                    bookmarkFor: 'Resource',
-                    forConnect: this.generateId()
-                }
-            }
+                    bookmarkFor: "Resource",
+                    forConnect: this.generateId(),
+                },
+            },
         };
     }
     
@@ -302,7 +302,7 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 isCreatingList: true,
                 isSelectingList: false,
                 searchQuery: listLabel || "",
-                filteredLists: []
+                filteredLists: [],
             },
             
             formState: {
@@ -311,12 +311,12 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 errors: {},
                 touched: { newListLabel: true },
                 values: {
-                    bookmarkFor: 'Resource',
+                    bookmarkFor: "Resource",
                     forConnect: this.generateId(),
                     createNewList: true,
-                    newListLabel: listLabel || "My New List"
-                }
-            }
+                    newListLabel: listLabel || "My New List",
+                },
+            },
         };
     }
     
@@ -341,10 +341,10 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                     return acc;
                 }, {} as Record<string, boolean>),
                 values: {
-                    bookmarkFor: 'Resource',
-                    forConnect: ''
-                }
-            }
+                    bookmarkFor: "Resource",
+                    forConnect: "",
+                },
+            },
         };
     }
     
@@ -353,7 +353,7 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
      */
     transitionToLoading(
         currentState: ExtendedBookmarkUIState,
-        context?: BookmarkLoadingContext
+        context?: BookmarkLoadingContext,
     ): ExtendedBookmarkUIState {
         return {
             ...currentState,
@@ -361,17 +361,17 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
             error: null,
             
             operationState: {
-                currentOperation: context?.operation || 'creating',
+                currentOperation: context?.operation || "creating",
                 operationId: this.generateId(),
                 progress: context?.progress,
-                cancellable: context?.cancellable || false
+                cancellable: context?.cancellable || false,
             },
             
             formState: currentState.formState ? {
                 ...currentState.formState,
                 isSubmitting: true,
-                errors: {} // Clear errors on new attempt
-            } : undefined
+                errors: {}, // Clear errors on new attempt
+            } : undefined,
         };
     }
     
@@ -380,7 +380,7 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
      */
     transitionToSuccess(
         currentState: ExtendedBookmarkUIState,
-        data: Bookmark
+        data: Bookmark,
     ): ExtendedBookmarkUIState {
         return {
             ...currentState,
@@ -391,19 +391,19 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
             
             interactionState: {
                 ...currentState.interactionState,
-                lastAction: 'created',
-                actionTimestamp: Date.now()
+                lastAction: "created",
+                actionTimestamp: Date.now(),
             },
             
             formState: currentState.formState ? {
                 ...currentState.formState,
                 isSubmitting: false,
                 isDirty: false,
-                errors: {}
+                errors: {},
             } : undefined,
             
             operationState: undefined, // Clear operation state on success
-            recoveryState: undefined // Clear recovery state on success
+            recoveryState: undefined, // Clear recovery state on success
         };
     }
     
@@ -412,7 +412,7 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
      */
     transitionToError(
         currentState: ExtendedBookmarkUIState,
-        error: BookmarkError
+        error: BookmarkError,
     ): ExtendedBookmarkUIState {
         const currentRetryCount = currentState.recoveryState?.retryCount || 0;
         
@@ -426,16 +426,16 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 maxRetries: 3,
                 nextRetryDelay: Math.min(1000 * Math.pow(2, currentRetryCount), 10000), // Exponential backoff
                 canRetry: (currentRetryCount + 1) < 3 && (error.recoverable || false),
-                lastError: error
+                lastError: error,
             },
             
             formState: currentState.formState ? {
                 ...currentState.formState,
                 isSubmitting: false,
-                errors: error.code === 'VALIDATION_ERROR' ? error.details?.fieldErrors || {} : {}
+                errors: error.code === "VALIDATION_ERROR" ? error.details?.fieldErrors || {} : {},
             } : undefined,
             
-            operationState: undefined // Clear operation state on error
+            operationState: undefined, // Clear operation state on error
         };
     }
     
@@ -462,8 +462,8 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 touched: {},
                 values: {
                     bookmarkFor: targetObject.type,
-                    forConnect: targetObject.id
-                }
+                    forConnect: targetObject.id,
+                },
             },
             
             interactionState: {
@@ -471,8 +471,8 @@ export class BookmarkStateFactory implements UIStateFactory<ExtendedBookmarkUISt
                 isFocused: false,
                 isPressed: false,
                 lastAction: undefined,
-                actionTimestamp: undefined
-            }
+                actionTimestamp: undefined,
+            },
         };
     }
 }
@@ -486,13 +486,13 @@ export class BookmarkStateTransitionValidator {
      */
     validateTransition(
         from: ExtendedBookmarkUIState,
-        to: ExtendedBookmarkUIState
+        to: ExtendedBookmarkUIState,
     ): { valid: boolean; reason?: string } {
         // Cannot transition from loading to loading
         if (from.isLoading && to.isLoading) {
             return { 
                 valid: false, 
-                reason: 'Cannot transition from loading to loading state' 
+                reason: "Cannot transition from loading to loading state", 
             };
         }
         
@@ -500,7 +500,7 @@ export class BookmarkStateTransitionValidator {
         if (to.bookmark && to.error) {
             return { 
                 valid: false, 
-                reason: 'Cannot have both bookmark data and error in the same state' 
+                reason: "Cannot have both bookmark data and error in the same state", 
             };
         }
         
@@ -508,7 +508,7 @@ export class BookmarkStateTransitionValidator {
         if (to.bookmark && !to.isBookmarked) {
             return { 
                 valid: false, 
-                reason: 'State inconsistency: bookmark exists but isBookmarked is false' 
+                reason: "State inconsistency: bookmark exists but isBookmarked is false", 
             };
         }
         
@@ -516,7 +516,7 @@ export class BookmarkStateTransitionValidator {
         if (to.isBookmarked && !to.bookmark && !to.isLoading) {
             return { 
                 valid: false, 
-                reason: 'State inconsistency: isBookmarked is true but no bookmark data exists' 
+                reason: "State inconsistency: isBookmarked is true but no bookmark data exists", 
             };
         }
         
@@ -530,46 +530,46 @@ export class BookmarkStateTransitionValidator {
 export const bookmarkStateScenarios = {
     // Loading scenarios
     creatingBookmark: () => new BookmarkStateFactory().createLoadingState({
-        operation: 'creating',
-        message: 'Creating bookmark...',
-        progress: 50
+        operation: "creating",
+        message: "Creating bookmark...",
+        progress: 50,
     }),
     
     updatingBookmark: () => new BookmarkStateFactory().createLoadingState({
-        operation: 'updating',
-        message: 'Updating bookmark...'
+        operation: "updating",
+        message: "Updating bookmark...",
     }),
     
     deletingBookmark: () => new BookmarkStateFactory().createLoadingState({
-        operation: 'deleting',
-        message: 'Removing bookmark...'
+        operation: "deleting",
+        message: "Removing bookmark...",
     }),
     
     // Error scenarios
     networkError: () => new BookmarkStateFactory().createErrorState({
-        code: 'NETWORK_ERROR',
-        message: 'Unable to connect to server',
+        code: "NETWORK_ERROR",
+        message: "Unable to connect to server",
         recoverable: true,
-        details: {}
+        details: {},
     }),
     
     validationError: () => new BookmarkStateFactory().createErrorState({
-        code: 'VALIDATION_ERROR',
-        message: 'Please fix the errors below',
+        code: "VALIDATION_ERROR",
+        message: "Please fix the errors below",
         recoverable: true,
         details: {
             fieldErrors: {
-                forConnect: 'Target object is required',
-                newListLabel: 'List name is required when creating a new list'
-            }
-        }
+                forConnect: "Target object is required",
+                newListLabel: "List name is required when creating a new list",
+            },
+        },
     }),
     
     permissionError: () => new BookmarkStateFactory().createErrorState({
-        code: 'PERMISSION_DENIED',
-        message: 'You do not have permission to bookmark this item',
+        code: "PERMISSION_DENIED",
+        message: "You do not have permission to bookmark this item",
         recoverable: false,
-        details: {}
+        details: {},
     }),
     
     // Success scenarios
@@ -577,7 +577,7 @@ export const bookmarkStateScenarios = {
         const factory = new BookmarkStateFactory();
         return factory.createSuccessState(
             bookmark || createMockBookmark(),
-            'Bookmark created successfully!'
+            "Bookmark created successfully!",
         );
     },
     
@@ -585,24 +585,24 @@ export const bookmarkStateScenarios = {
         const factory = new BookmarkStateFactory();
         return factory.createSuccessState(
             bookmark || createMockBookmark(),
-            'Bookmark updated successfully!'
+            "Bookmark updated successfully!",
         );
     },
     
     // Interactive scenarios
     selectingList: () => new BookmarkStateFactory().createWithListsState(),
     
-    creatingNewList: () => new BookmarkStateFactory().createListCreationState('My Custom List'),
+    creatingNewList: () => new BookmarkStateFactory().createListCreationState("My Custom List"),
     
     toggleBookmark: (isBookmarked: boolean) => new BookmarkStateFactory().createToggleState(
         isBookmarked,
-        { type: 'Resource', id: 'test-resource-123', name: 'Test Resource' }
+        { type: "Resource", id: "test-resource-123", name: "Test Resource" },
     ),
     
     // Empty scenarios
     noBookmarks: () => new BookmarkStateFactory().createEmptyState(),
     
-    noListsAvailable: () => new BookmarkStateFactory().createWithListsState([])
+    noListsAvailable: () => new BookmarkStateFactory().createWithListsState([]),
 };
 
 /**
@@ -646,9 +646,9 @@ function createMockBookmark(): Bookmark {
                 reactionSummary: {
                     __typename: "ReactionSummary",
                     emotion: null,
-                    count: 0
-                }
-            }
+                    count: 0,
+                },
+            },
         },
         to: {
             __typename: "Resource",
@@ -668,8 +668,8 @@ function createMockBookmark(): Bookmark {
                 canReport: false,
                 isBookmarked: true,
                 isReacted: false,
-                reaction: null
-            }
+                reaction: null,
+            },
         },
         list: {
             __typename: "BookmarkList",
@@ -682,9 +682,9 @@ function createMockBookmark(): Bookmark {
             you: {
                 __typename: "BookmarkListYou",
                 canDelete: true,
-                canUpdate: true
-            }
-        }
+                canUpdate: true,
+            },
+        },
     };
 }
 

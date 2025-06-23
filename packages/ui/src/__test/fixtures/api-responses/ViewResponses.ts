@@ -5,17 +5,17 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from 'msw';
+import { rest, type RestHandler } from "msw";
 import type { 
     View, 
     ViewCreateInput, 
     ViewUpdateInput,
-    ViewFor
-} from '@vrooli/shared';
+    ViewFor,
+} from "@vrooli/shared";
 import { 
     viewValidation,
-    ViewFor as ViewForEnum 
-} from '@vrooli/shared';
+    ViewFor as ViewForEnum, 
+} from "@vrooli/shared";
 
 /**
  * Standard API response wrapper
@@ -67,7 +67,7 @@ export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
 export class ViewResponseFactory {
     private readonly baseUrl: string;
     
-    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || "http://localhost:5329") {
         this.baseUrl = baseUrl;
     }
     
@@ -94,15 +94,15 @@ export class ViewResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
                     self: `${this.baseUrl}/api/view/${view.id}`,
                     related: {
                         user: view.by ? `${this.baseUrl}/api/user/${view.by.id}` : undefined,
-                        object: `${this.baseUrl}/api/${view.to.__typename.toLowerCase()}/${view.to.id}`
-                    }
-                }
-            }
+                        object: `${this.baseUrl}/api/${view.to.__typename.toLowerCase()}/${view.to.id}`,
+                    },
+                },
+            },
         };
     }
     
@@ -117,7 +117,7 @@ export class ViewResponseFactory {
         const paginationData = pagination || {
             page: 1,
             pageSize: views.length,
-            totalCount: views.length
+            totalCount: views.length,
         };
         
         return {
@@ -125,17 +125,17 @@ export class ViewResponseFactory {
             meta: {
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                version: '1.0',
+                version: "1.0",
                 links: {
-                    self: `${this.baseUrl}/api/view?page=${paginationData.page}&limit=${paginationData.pageSize}`
-                }
+                    self: `${this.baseUrl}/api/view?page=${paginationData.page}&limit=${paginationData.pageSize}`,
+                },
             },
             pagination: {
                 ...paginationData,
                 totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
                 hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
-                hasPreviousPage: paginationData.page > 1
-            }
+                hasPreviousPage: paginationData.page > 1,
+            },
         };
     }
     
@@ -145,16 +145,16 @@ export class ViewResponseFactory {
     createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
         return {
             error: {
-                code: 'VALIDATION_ERROR',
-                message: 'The request contains invalid data',
+                code: "VALIDATION_ERROR",
+                message: "The request contains invalid data",
                 details: {
                     fieldErrors,
-                    invalidFields: Object.keys(fieldErrors)
+                    invalidFields: Object.keys(fieldErrors),
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/view'
-            }
+                path: "/api/view",
+            },
         };
     }
     
@@ -164,16 +164,16 @@ export class ViewResponseFactory {
     createNotFoundErrorResponse(viewId: string): APIErrorResponse {
         return {
             error: {
-                code: 'VIEW_NOT_FOUND',
+                code: "VIEW_NOT_FOUND",
                 message: `View with ID '${viewId}' was not found`,
                 details: {
                     viewId,
-                    searchCriteria: { id: viewId }
+                    searchCriteria: { id: viewId },
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: `/api/view/${viewId}`
-            }
+                path: `/api/view/${viewId}`,
+            },
         };
     }
     
@@ -183,17 +183,17 @@ export class ViewResponseFactory {
     createPermissionErrorResponse(operation: string): APIErrorResponse {
         return {
             error: {
-                code: 'PERMISSION_DENIED',
+                code: "PERMISSION_DENIED",
                 message: `You do not have permission to ${operation} this view`,
                 details: {
                     operation,
-                    requiredPermissions: ['view:write'],
-                    userPermissions: ['view:read']
+                    requiredPermissions: ["view:write"],
+                    userPermissions: ["view:read"],
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/view'
-            }
+                path: "/api/view",
+            },
         };
     }
     
@@ -203,17 +203,17 @@ export class ViewResponseFactory {
     createNetworkErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'NETWORK_ERROR',
-                message: 'Network request failed',
+                code: "NETWORK_ERROR",
+                message: "Network request failed",
                 details: {
-                    reason: 'Connection timeout',
+                    reason: "Connection timeout",
                     retryable: true,
-                    retryAfter: 5000
+                    retryAfter: 5000,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/view'
-            }
+                path: "/api/view",
+            },
         };
     }
     
@@ -223,17 +223,17 @@ export class ViewResponseFactory {
     createServerErrorResponse(): APIErrorResponse {
         return {
             error: {
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'An unexpected server error occurred',
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected server error occurred",
                 details: {
                     errorId: `ERR_${Date.now()}`,
                     reportable: true,
-                    retryable: true
+                    retryable: true,
                 },
                 timestamp: new Date().toISOString(),
                 requestId: this.generateRequestId(),
-                path: '/api/view'
-            }
+                path: "/api/view",
+            },
         };
     }
     
@@ -279,9 +279,9 @@ export class ViewResponseFactory {
                     reactionSummary: {
                         __typename: "ReactionSummary",
                         emotion: null,
-                        count: 0
-                    }
-                }
+                        count: 0,
+                    },
+                },
             },
             to: {
                 __typename: "Routine",
@@ -305,14 +305,14 @@ export class ViewResponseFactory {
                     canRead: true,
                     canReact: true,
                     isBookmarked: false,
-                    reaction: null
-                }
-            }
+                    reaction: null,
+                },
+            },
         };
         
         return {
             ...defaultView,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -343,9 +343,9 @@ export class ViewResponseFactory {
                 to: {
                     ...this.createMockView().to,
                     __typename: viewFor,
-                    id: `${viewFor.toLowerCase()}_${this.generateId()}`
-                }
-            })
+                    id: `${viewFor.toLowerCase()}_${this.generateId()}`,
+                },
+            }),
         );
     }
     
@@ -359,32 +359,32 @@ export class ViewResponseFactory {
                     ...this.createMockView().to,
                     __typename: "Routine",
                     views: 1500,
-                    score: 4.8
-                }
+                    score: 4.8,
+                },
             }),
             this.createMockView({
                 to: {
                     ...this.createMockView().to,
                     __typename: "Project",
                     views: 1200,
-                    score: 4.6
-                }
+                    score: 4.6,
+                },
             }),
             this.createMockView({
                 to: {
                     ...this.createMockView().to,
                     __typename: "Api",
                     views: 1000,
-                    score: 4.7
-                }
-            })
+                    score: 4.7,
+                },
+            }),
         ];
     }
     
     /**
      * Create recent views for a user
      */
-    createRecentViewsForUser(userId: string, count: number = 10): View[] {
+    createRecentViewsForUser(userId: string, count = 10): View[] {
         const baseTime = Date.now();
         const hour = 60 * 60 * 1000;
         
@@ -392,36 +392,36 @@ export class ViewResponseFactory {
             this.createMockView({
                 by: {
                     ...this.createMockView().by,
-                    id: userId
+                    id: userId,
                 },
                 lastViewedAt: new Date(baseTime - (index * hour)).toISOString(),
                 to: {
                     ...this.createMockView().to,
                     __typename: index % 2 === 0 ? "Routine" : "Project",
-                    id: `${index % 2 === 0 ? "routine" : "project"}_${this.generateId()}`
-                }
-            })
+                    id: `${index % 2 === 0 ? "routine" : "project"}_${this.generateId()}`,
+                },
+            }),
         );
     }
     
     /**
      * Create views by time period
      */
-    createViewsByTimePeriod(period: 'today' | 'week' | 'month'): View[] {
+    createViewsByTimePeriod(period: "today" | "week" | "month"): View[] {
         const now = Date.now();
         const periods = {
             today: 24 * 60 * 60 * 1000,
             week: 7 * 24 * 60 * 60 * 1000,
-            month: 30 * 24 * 60 * 60 * 1000
+            month: 30 * 24 * 60 * 60 * 1000,
         };
         
         const timespan = periods[period];
-        const count = period === 'today' ? 20 : period === 'week' ? 100 : 500;
+        const count = period === "today" ? 20 : period === "week" ? 100 : 500;
         
         return Array.from({ length: count }, (_, index) => 
             this.createMockView({
-                lastViewedAt: new Date(now - (Math.random() * timespan)).toISOString()
-            })
+                lastViewedAt: new Date(now - (Math.random() * timespan)).toISOString(),
+            }),
         );
     }
     
@@ -450,7 +450,7 @@ export class ViewResponseFactory {
             
             return {
                 valid: false,
-                errors: fieldErrors
+                errors: fieldErrors,
             };
         }
     }
@@ -472,7 +472,7 @@ export class ViewMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create view (track view)
-            rest.post(`${this.responseFactory['baseUrl']}/api/view`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, async (req, res, ctx) => {
                 const body = await req.json() as ViewCreateInput;
                 
                 // Validate input
@@ -480,7 +480,7 @@ export class ViewMSWHandlers {
                 if (!validation.valid) {
                     return res(
                         ctx.status(400),
-                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {})),
                     );
                 }
                 
@@ -490,12 +490,12 @@ export class ViewMSWHandlers {
                 
                 return res(
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get view by ID
-            rest.get(`${this.responseFactory['baseUrl']}/api/view/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const view = this.responseFactory.createMockView({ id: id as string });
@@ -503,43 +503,43 @@ export class ViewMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Update view
-            rest.put(`${this.responseFactory['baseUrl']}/api/view/:id`, async (req, res, ctx) => {
+            rest.put(`${this.responseFactory["baseUrl"]}/api/view/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ViewUpdateInput;
                 
                 const view = this.responseFactory.createMockView({ 
                     id: id as string,
                     lastViewedAt: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
                 });
                 
                 const response = this.responseFactory.createSuccessResponse(view);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Delete view
-            rest.delete(`${this.responseFactory['baseUrl']}/api/view/:id`, (req, res, ctx) => {
+            rest.delete(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List views
-            rest.get(`${this.responseFactory['baseUrl']}/api/view`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
                 const url = new URL(req.url);
-                const page = parseInt(url.searchParams.get('page') || '1');
-                const limit = parseInt(url.searchParams.get('limit') || '10');
-                const viewFor = url.searchParams.get('viewFor') as ViewFor;
-                const userId = url.searchParams.get('userId');
-                const trending = url.searchParams.get('trending') === 'true';
-                const period = url.searchParams.get('period') as 'today' | 'week' | 'month';
+                const page = parseInt(url.searchParams.get("page") || "1");
+                const limit = parseInt(url.searchParams.get("limit") || "10");
+                const viewFor = url.searchParams.get("viewFor") as ViewFor;
+                const userId = url.searchParams.get("userId");
+                const trending = url.searchParams.get("trending") === "true";
+                const period = url.searchParams.get("period") as "today" | "week" | "month";
                 
                 let views: View[] = [];
                 
@@ -567,29 +567,29 @@ export class ViewMSWHandlers {
                     {
                         page,
                         pageSize: limit,
-                        totalCount: views.length
-                    }
+                        totalCount: views.length,
+                    },
                 );
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get trending views
-            rest.get(`${this.responseFactory['baseUrl']}/api/view/trending`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/view/trending`, (req, res, ctx) => {
                 const views = this.responseFactory.createTrendingViews();
                 const response = this.responseFactory.createViewListResponse(views);
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
             }),
             
             // Get recent views for user
-            rest.get(`${this.responseFactory['baseUrl']}/api/view/recent/:userId`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/view/recent/:userId`, (req, res, ctx) => {
                 const { userId } = req.params;
                 
                 const views = this.responseFactory.createRecentViewsForUser(userId as string);
@@ -597,9 +597,9 @@ export class ViewMSWHandlers {
                 
                 return res(
                     ctx.status(200),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -609,49 +609,49 @@ export class ViewMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory['baseUrl']}/api/view`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
-                        forConnect: 'Target object is required',
-                        viewFor: 'View type must be specified'
-                    }))
+                        forConnect: "Target object is required",
+                        viewFor: "View type must be specified",
+                    })),
                 );
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory['baseUrl']}/api/view/:id`, (req, res, ctx) => {
+            rest.get(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
-                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string)),
                 );
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory['baseUrl']}/api/view`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
-                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                    ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
             // Server error
-            rest.post(`${this.responseFactory['baseUrl']}/api/view`, (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
-                    ctx.json(this.responseFactory.createServerErrorResponse())
+                    ctx.json(this.responseFactory.createServerErrorResponse()),
                 );
-            })
+            }),
         ];
     }
     
     /**
      * Create loading simulation handlers
      */
-    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+    createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/view`, async (req, res, ctx) => {
+            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, async (req, res, ctx) => {
                 const body = await req.json() as ViewCreateInput;
                 const view = this.responseFactory.createViewFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(view);
@@ -659,9 +659,9 @@ export class ViewMSWHandlers {
                 return res(
                     ctx.delay(delay),
                     ctx.status(201),
-                    ctx.json(response)
+                    ctx.json(response),
                 );
-            })
+            }),
         ];
     }
     
@@ -670,13 +670,13 @@ export class ViewMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory['baseUrl']}/api/view`, (req, res, ctx) => {
-                return res.networkError('Network connection failed');
+            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
+                return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory['baseUrl']}/api/view/:id`, (req, res, ctx) => {
-                return res.networkError('Connection timeout');
-            })
+            rest.get(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
+                return res.networkError("Connection timeout");
+            }),
         ];
     }
     
@@ -685,13 +685,13 @@ export class ViewMSWHandlers {
      */
     createCustomHandler(config: {
         endpoint: string;
-        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        method: "GET" | "POST" | "PUT" | "DELETE";
         status: number;
         response: any;
         delay?: number;
     }): RestHandler {
         const { endpoint, method, status, response, delay } = config;
-        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        const fullEndpoint = `${this.responseFactory["baseUrl"]}${endpoint}`;
         
         return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
             const responseCtx = [ctx.status(status), ctx.json(response)];
@@ -713,49 +713,49 @@ export const viewResponseScenarios = {
     createSuccess: (view?: View) => {
         const factory = new ViewResponseFactory();
         return factory.createSuccessResponse(
-            view || factory.createMockView()
+            view || factory.createMockView(),
         );
     },
     
     listSuccess: (views?: View[]) => {
         const factory = new ViewResponseFactory();
         return factory.createViewListResponse(
-            views || factory.createViewsForAllTypes()
+            views || factory.createViewsForAllTypes(),
         );
     },
     
     trendingViews: () => {
         const factory = new ViewResponseFactory();
         return factory.createViewListResponse(
-            factory.createTrendingViews()
+            factory.createTrendingViews(),
         );
     },
     
     recentViews: (userId?: string) => {
         const factory = new ViewResponseFactory();
         return factory.createViewListResponse(
-            factory.createRecentViewsForUser(userId || 'user-123')
+            factory.createRecentViewsForUser(userId || "user-123"),
         );
     },
     
     todayViews: () => {
         const factory = new ViewResponseFactory();
         return factory.createViewListResponse(
-            factory.createViewsByTimePeriod('today')
+            factory.createViewsByTimePeriod("today"),
         );
     },
     
     weekViews: () => {
         const factory = new ViewResponseFactory();
         return factory.createViewListResponse(
-            factory.createViewsByTimePeriod('week')
+            factory.createViewsByTimePeriod("week"),
         );
     },
     
     monthViews: () => {
         const factory = new ViewResponseFactory();
         return factory.createViewListResponse(
-            factory.createViewsByTimePeriod('month')
+            factory.createViewsByTimePeriod("month"),
         );
     },
     
@@ -764,23 +764,23 @@ export const viewResponseScenarios = {
         const factory = new ViewResponseFactory();
         return factory.createValidationErrorResponse(
             fieldErrors || {
-                forConnect: 'Target object is required',
-                viewFor: 'View type must be specified'
-            }
+                forConnect: "Target object is required",
+                viewFor: "View type must be specified",
+            },
         );
     },
     
     notFoundError: (viewId?: string) => {
         const factory = new ViewResponseFactory();
         return factory.createNotFoundErrorResponse(
-            viewId || 'non-existent-id'
+            viewId || "non-existent-id",
         );
     },
     
     permissionError: (operation?: string) => {
         const factory = new ViewResponseFactory();
         return factory.createPermissionErrorResponse(
-            operation || 'create'
+            operation || "create",
         );
     },
     
@@ -793,7 +793,7 @@ export const viewResponseScenarios = {
     successHandlers: () => new ViewMSWHandlers().createSuccessHandlers(),
     errorHandlers: () => new ViewMSWHandlers().createErrorHandlers(),
     loadingHandlers: (delay?: number) => new ViewMSWHandlers().createLoadingHandlers(delay),
-    networkErrorHandlers: () => new ViewMSWHandlers().createNetworkErrorHandlers()
+    networkErrorHandlers: () => new ViewMSWHandlers().createNetworkErrorHandlers(),
 };
 
 // Export factory instances for easy use

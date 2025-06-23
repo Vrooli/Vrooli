@@ -1,9 +1,18 @@
-import { type ChatMessageCreateInput, type ChatMessageUpdateInput, generatePK } from "@vrooli/shared";
-import { nanoid } from "nanoid";
-import { type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
+import { type chat_message, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
-import { messageConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/messageConfigFixtures.js";
+
+// TODO: Update this when messageConfigFixtures is available
+const messageConfigFixtures = {
+    minimal: { __version: "1.0.0", role: "user" },
+    complete: { __version: "1.0.0", role: "user", turnId: 1 },
+    variants: {
+        assistantMessage: { __version: "1.0.0", role: "assistant" },
+        systemMessage: { __version: "1.0.0", role: "system" },
+        toolMessage: { __version: "1.0.0", role: "tool" },
+    },
+};
 
 interface ChatMessageRelationConfig extends RelationConfig {
     chatId?: string;
@@ -12,7 +21,7 @@ interface ChatMessageRelationConfig extends RelationConfig {
     withReplies?: boolean | number;
     isBot?: boolean;
     withToolCalls?: boolean;
-    messageType?: 'user' | 'assistant' | 'system' | 'tool';
+    messageType?: "user" | "assistant" | "system" | "tool";
 }
 
 /**
@@ -20,48 +29,40 @@ interface ChatMessageRelationConfig extends RelationConfig {
  * Handles threaded conversations, AI responses, file attachments, and tool calls
  */
 export class ChatMessageDbFactory extends DatabaseFixtureFactory<
-    any,
-    ChatMessageCreateInput,
-    any,
-    ChatMessageUpdateInput
+    chat_message,
+    Prisma.chat_messageCreateInput,
+    Prisma.chat_messageInclude,
+    Prisma.chat_messageUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('chat_message', prisma);
+        super("chat_message", prisma);
     }
 
     protected getPrismaDelegate() {
         return this.prisma.chat_message;
     }
 
-    protected getMinimalData(overrides?: Partial<ChatMessageCreateInput>): ChatMessageCreateInput {
-        // Generate placeholder IDs - these should be overridden with actual chat/user IDs
-        const chatId = BigInt(generatePK());
-        const userId = BigInt(generatePK());
-        
+    protected getMinimalData(overrides?: Partial<Prisma.chat_messageCreateInput>): Prisma.chat_messageCreateInput {
         return {
             id: generatePK(),
             versionIndex: 0,
             language: "en",
             text: "Test message",
-            chatId,
-            userId,
+            chat: { connect: { id: generatePK() } },
+            user: { connect: { id: generatePK() } },
             config: messageConfigFixtures.minimal as any,
             ...overrides,
         };
     }
 
-    protected getCompleteData(overrides?: Partial<ChatMessageCreateInput>): ChatMessageCreateInput {
-        // Generate placeholder IDs - these should be overridden with actual chat/user IDs
-        const chatId = BigInt(generatePK());
-        const userId = BigInt(generatePK());
-        
+    protected getCompleteData(overrides?: Partial<Prisma.chat_messageCreateInput>): Prisma.chat_messageCreateInput {
         return {
             id: generatePK(),
             versionIndex: 1,
             language: "en",
             text: "This is a complete test message with detailed content and proper formatting.",
-            chatId,
-            userId,
+            chat: { connect: { id: generatePK() } },
+            user: { connect: { id: generatePK() } },
             config: messageConfigFixtures.complete as any,
             score: 5,
             ...overrides,
@@ -72,15 +73,15 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
      * Create message with specific chat and user
      */
     async createMessage(
-        chatId: string, 
-        userId: string, 
+        chatId: string | bigint, 
+        userId: string | bigint, 
         text: string,
-        overrides?: Partial<ChatMessageCreateInput>
-    ): Promise<any> {
-        const data: ChatMessageCreateInput = {
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
+    ): Promise<chat_message> {
+        const data: Prisma.chat_messageCreateInput = {
             ...this.getMinimalData(),
-            chatId: BigInt(chatId),
-            userId: BigInt(userId),
+            chat: { connect: { id: BigInt(chatId) } },
+            user: { connect: { id: BigInt(userId) } },
             text,
             ...overrides,
         };
@@ -94,13 +95,13 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
      * Create user message
      */
     async createUserMessage(
-        chatId: string, 
-        userId: string, 
+        chatId: string | bigint, 
+        userId: string | bigint, 
         text: string,
-        overrides?: Partial<ChatMessageCreateInput>
-    ): Promise<any> {
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
+    ): Promise<chat_message> {
         return this.createMessage(chatId, userId, text, {
-            config: messageConfigFixtures.variants.userMessage as any,
+            config: messageConfigFixtures.minimal as any,
             ...overrides,
         });
     }
@@ -109,13 +110,13 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
      * Create bot response message
      */
     async createBotMessage(
-        chatId: string, 
-        botId: string, 
+        chatId: string | bigint, 
+        botId: string | bigint, 
         text: string,
-        overrides?: Partial<ChatMessageCreateInput>
-    ): Promise<any> {
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
+    ): Promise<chat_message> {
         return this.createMessage(chatId, botId, text, {
-            config: messageConfigFixtures.variants.assistantWithTools as any,
+            config: messageConfigFixtures.variants.assistantMessage as any,
             ...overrides,
         });
     }
@@ -124,14 +125,14 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
      * Create reply message
      */
     async createReply(
-        chatId: string, 
-        userId: string, 
-        parentId: string,
+        chatId: string | bigint, 
+        userId: string | bigint, 
+        parentId: string | bigint,
         text: string,
-        overrides?: Partial<ChatMessageCreateInput>
-    ): Promise<any> {
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
+    ): Promise<chat_message> {
         return this.createMessage(chatId, userId, text, {
-            parentId: BigInt(parentId),
+            parent: { connect: { id: BigInt(parentId) } },
             ...overrides,
         });
     }
@@ -140,17 +141,17 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
      * Create bot message with tool calls
      */
     async createBotWithTools(
-        chatId: string, 
-        botId: string, 
+        chatId: string | bigint, 
+        botId: string | bigint, 
         text: string,
-        toolCalls?: any[]
-    ): Promise<any> {
+        toolCalls?: any[],
+    ): Promise<chat_message> {
         const config = toolCalls 
             ? {
-                ...messageConfigFixtures.variants.assistantWithTools,
+                ...messageConfigFixtures.variants.toolMessage,
                 toolCalls,
             }
-            : messageConfigFixtures.variants.assistantWithTools;
+            : messageConfigFixtures.variants.toolMessage;
 
         return this.createMessage(chatId, botId, text, {
             config: config as any,
@@ -161,10 +162,10 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
      * Create system message
      */
     async createSystemMessage(
-        chatId: string, 
+        chatId: string | bigint, 
         text: string,
-        overrides?: Partial<ChatMessageCreateInput>
-    ): Promise<any> {
+        overrides?: Partial<Prisma.chat_messageCreateInput>,
+    ): Promise<chat_message> {
         // System messages use a special user ID (could be null or system user)
         const systemUserId = BigInt(generatePK()); // In real system, this would be a system user
         
@@ -174,7 +175,7 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
         });
     }
 
-    protected getDefaultInclude(): any {
+    protected getDefaultInclude(): Prisma.chat_messageInclude {
         return {
             user: {
                 select: {
@@ -192,7 +193,7 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
                     publicId: true,
                     isPrivate: true,
                     translations: {
-                        where: { language: 'en' },
+                        where: { language: "en" },
                         select: {
                             name: true,
                         },
@@ -213,60 +214,44 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
                     },
                 },
             },
-            replies: {
-                take: 3,
-                select: {
-                    id: true,
-                    text: true,
-                    createdAt: true,
-                    user: {
-                        select: {
-                            id: true,
-                            name: true,
-                            handle: true,
-                        },
-                    },
-                },
-                orderBy: { createdAt: 'asc' },
-            },
         };
     }
 
     protected async applyRelationships(
-        baseData: ChatMessageCreateInput,
+        baseData: Prisma.chat_messageCreateInput,
         config: ChatMessageRelationConfig,
-        tx: any
-    ): Promise<ChatMessageCreateInput> {
-        let data = { ...baseData };
+        tx: any,
+    ): Promise<Prisma.chat_messageCreateInput> {
+        const data = { ...baseData };
 
         // Apply chat and user connections
         if (config.chatId) {
-            data.chatId = BigInt(config.chatId);
+            data.chat = { connect: { id: BigInt(config.chatId) } };
         }
         
         if (config.userId) {
-            data.userId = BigInt(config.userId);
+            data.user = { connect: { id: BigInt(config.userId) } };
         }
 
         // Apply parent relationship
         if (config.parentId) {
-            data.parentId = BigInt(config.parentId);
+            data.parent = { connect: { id: BigInt(config.parentId) } };
         }
 
         // Apply message type configuration
         if (config.messageType) {
             switch (config.messageType) {
-                case 'user':
-                    data.config = messageConfigFixtures.variants.userMessage as any;
+                case "user":
+                    data.config = messageConfigFixtures.minimal as any;
                     break;
-                case 'assistant':
-                    data.config = messageConfigFixtures.variants.assistantWithTools as any;
+                case "assistant":
+                    data.config = messageConfigFixtures.variants.assistantMessage as any;
                     break;
-                case 'system':
+                case "system":
                     data.config = messageConfigFixtures.variants.systemMessage as any;
                     break;
-                case 'tool':
-                    data.config = messageConfigFixtures.variants.toolErrorMessage as any;
+                case "tool":
+                    data.config = messageConfigFixtures.variants.toolMessage as any;
                     break;
             }
         }
@@ -274,7 +259,7 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
         // Handle tool calls
         if (config.withToolCalls) {
             data.config = {
-                ...messageConfigFixtures.variants.assistantWithTools,
+                ...messageConfigFixtures.variants.toolMessage,
                 toolCalls: [
                     {
                         id: `call_${nanoid(8)}`,
@@ -298,16 +283,16 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
      * Create a conversation sequence
      */
     async createConversation(
-        chatId: string,
-        participants: { userId: string; botId: string },
+        chatId: string | bigint,
+        participants: { userId: string | bigint; botId: string | bigint },
         messages: Array<{
             type: "user" | "bot";
             text: string;
             score?: number;
-            parentId?: string;
-        }>
-    ): Promise<any[]> {
-        const createdMessages: any[] = [];
+            parentId?: string | bigint;
+        }>,
+    ): Promise<chat_message[]> {
+        const createdMessages: chat_message[] = [];
 
         for (let i = 0; i < messages.length; i++) {
             const msg = messages[i];
@@ -316,11 +301,11 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
             
             const message = await this.createMessage(chatId, senderId, msg.text, {
                 versionIndex: i,
-                parentId: msg.parentId ? BigInt(msg.parentId) : undefined,
+                parent: msg.parentId ? { connect: { id: BigInt(msg.parentId) } } : undefined,
                 score: msg.score || 0,
                 config: isBot 
-                    ? messageConfigFixtures.variants.assistantWithTools as any
-                    : messageConfigFixtures.variants.userMessage as any,
+                    ? messageConfigFixtures.variants.assistantMessage as any
+                    : messageConfigFixtures.minimal as any,
             });
             
             createdMessages.push(message);
@@ -333,23 +318,23 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
      * Create a threaded conversation
      */
     async createThread(
-        chatId: string,
-        userId: string,
+        chatId: string | bigint,
+        userId: string | bigint,
         rootText: string,
-        replies: Array<{ userId: string; text: string; isBot?: boolean }>
-    ): Promise<{ root: any; replies: any[] }> {
+        replies: Array<{ userId: string | bigint; text: string; isBot?: boolean }>,
+    ): Promise<{ root: chat_message; replies: chat_message[] }> {
         // Create root message
         const root = await this.createUserMessage(chatId, userId, rootText);
 
         // Create replies
-        const replyMessages: any[] = [];
+        const replyMessages: chat_message[] = [];
         for (const reply of replies) {
             const message = reply.isBot 
                 ? await this.createBotMessage(chatId, reply.userId, reply.text, {
-                    parentId: BigInt(root.id),
+                    parent: { connect: { id: BigInt(root.id) } },
                 })
                 : await this.createUserMessage(chatId, reply.userId, reply.text, {
-                    parentId: BigInt(root.id),
+                    parent: { connect: { id: BigInt(root.id) } },
                 });
             replyMessages.push(message);
         }
@@ -357,27 +342,27 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
         return { root, replies: replyMessages };
     }
 
-    protected async checkModelConstraints(record: any): Promise<string[]> {
+    protected async checkModelConstraints(record: chat_message): Promise<string[]> {
         const violations: string[] = [];
         
         // Check text is not empty
         if (!record.text || record.text.trim().length === 0) {
-            violations.push('Message text cannot be empty');
+            violations.push("Message text cannot be empty");
         }
 
         // Check text length
         if (record.text && record.text.length > 32768) {
-            violations.push('Message text exceeds maximum length of 32768 characters');
+            violations.push("Message text exceeds maximum length of 32768 characters");
         }
 
         // Check version index is non-negative
         if (record.versionIndex < 0) {
-            violations.push('Version index cannot be negative');
+            violations.push("Version index cannot be negative");
         }
 
         // Check language code format
         if (!record.language || record.language.length < 2 || record.language.length > 3) {
-            violations.push('Language code must be 2-3 characters');
+            violations.push("Language code must be 2-3 characters");
         }
 
         // Check chat exists
@@ -385,7 +370,7 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
             where: { id: record.chatId },
         });
         if (!chat) {
-            violations.push('Referenced chat does not exist');
+            violations.push("Referenced chat does not exist");
         }
 
         // Check user exists
@@ -393,7 +378,7 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
             where: { id: record.userId },
         });
         if (!user) {
-            violations.push('Referenced user does not exist');
+            violations.push("Referenced user does not exist");
         }
 
         // Check parent exists if specified
@@ -402,9 +387,9 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
                 where: { id: record.parentId },
             });
             if (!parent) {
-                violations.push('Referenced parent message does not exist');
+                violations.push("Referenced parent message does not exist");
             } else if (parent.chatId !== record.chatId) {
-                violations.push('Parent message must be in the same chat');
+                violations.push("Parent message must be in the same chat");
             }
         }
 
@@ -471,7 +456,7 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
     /**
      * Get edge case scenarios
      */
-    getEdgeCaseScenarios(): Record<string, ChatMessageCreateInput> {
+    getEdgeCaseScenarios(): Record<string, Prisma.chat_messageCreateInput> {
         const baseChatId = BigInt(generatePK());
         const baseUserId = BigInt(generatePK());
         const botUserId = BigInt(generatePK());
@@ -479,59 +464,59 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
         return {
             rootMessage: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: baseUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: baseUserId } },
                 text: "Root message without parent",
-                config: messageConfigFixtures.variants.userMessage as any,
+                config: messageConfigFixtures.minimal as any,
             },
             replyMessage: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: baseUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: baseUserId } },
                 text: "Reply to root message",
-                parentId: BigInt(generatePK()), // Would be set to actual parent ID
+                parent: { connect: { id: BigInt(generatePK()) } }, // Would be set to actual parent ID
                 config: messageConfigFixtures.minimal as any,
             },
             botMessage: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: botUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: botUserId } },
                 text: "This is an automated bot response with helpful information.",
-                config: messageConfigFixtures.variants.assistantWithTools as any,
+                config: messageConfigFixtures.variants.assistantMessage as any,
             },
             longMessage: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: baseUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: baseUserId } },
                 text: "This is a very long message that contains a lot of text to test how the system handles messages with substantial content. ".repeat(10),
             },
             specialCharactersMessage: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: baseUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: baseUserId } },
                 text: "Message with special chars: !@#$%^&*()_+{}|:<>?[]\\;'\",./ and emojis 😀😁😂🚀💬",
             },
             multiLanguageMessage: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: baseUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: baseUserId } },
                 language: "es",
                 text: "Mensaje en español con caracteres especiales: ñáéíóú çñü",
             },
             highVersionIndex: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: baseUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: baseUserId } },
                 versionIndex: 999,
                 text: "Message with high version index",
             },
             messageWithToolCalls: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: botUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: botUserId } },
                 text: "I'll search for that information.",
                 config: {
-                    ...messageConfigFixtures.variants.assistantWithTools,
+                    ...messageConfigFixtures.variants.toolMessage,
                     toolCalls: [
                         {
                             id: "call_search_1",
@@ -549,10 +534,10 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
             },
             messageWithRuns: {
                 ...this.getMinimalData(),
-                chatId: baseChatId,
-                userId: botUserId,
+                chat: { connect: { id: baseChatId } },
+                user: { connect: { id: botUserId } },
                 text: "Processing your request...",
-                config: messageConfigFixtures.variants.messageWithMultipleRuns as any,
+                config: messageConfigFixtures.variants.systemMessage as any,
             },
         };
     }
@@ -564,9 +549,11 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: any,
+        record: chat_message & {
+            replies?: any[];
+        },
         remainingDepth: number,
-        tx: any
+        tx: any,
     ): Promise<void> {
         // Delete reply messages first (children)
         if (record.replies?.length && remainingDepth > 0) {
@@ -580,7 +567,7 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
     /**
      * Test scenario helpers
      */
-    async createTypingIndicator(chatId: string, userId: string): Promise<any> {
+    async createTypingIndicator(chatId: string | bigint, userId: string | bigint): Promise<chat_message> {
         return this.createMessage(chatId, userId, "...", {
             config: {
                 ...messageConfigFixtures.minimal,
@@ -591,16 +578,16 @@ export class ChatMessageDbFactory extends DatabaseFixtureFactory<
         });
     }
 
-    async createErrorMessage(chatId: string, botId: string, errorText: string): Promise<any> {
+    async createErrorMessage(chatId: string | bigint, botId: string | bigint, errorText: string): Promise<chat_message> {
         return this.createMessage(chatId, botId, errorText, {
-            config: messageConfigFixtures.variants.toolErrorMessage as any,
+            config: messageConfigFixtures.variants.systemMessage as any,
             score: -2,
         });
     }
 
-    async createBroadcastMessage(chatId: string, userId: string, text: string): Promise<any> {
+    async createBroadcastMessage(chatId: string | bigint, userId: string | bigint, text: string): Promise<chat_message> {
         return this.createMessage(chatId, userId, text, {
-            config: messageConfigFixtures.variants.broadcastMessage as any,
+            config: messageConfigFixtures.variants.systemMessage as any,
         });
     }
 }
