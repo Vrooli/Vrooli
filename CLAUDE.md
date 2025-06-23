@@ -7,11 +7,14 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
    - Always use `.js` extensions in TypeScript imports (e.g., `import { foo } from "./bar.js"`)
    - For monorepo packages, use only the package name: `@vrooli/shared`, `@vrooli/server`, etc.
    - NEVER use deep imports like `@vrooli/shared/id/snowflake.js` - import from the package root
-2. **Testing**: Use testcontainers for Redis/PostgreSQL - NEVER mock core infrastructure
+2. **Testing**: 
+   - Use testcontainers for Redis/PostgreSQL - NEVER mock core infrastructure
+   - For UI components: Test behavior, not visuals (no CSS class checks) - use Storybook for visual testing
 3. **Emergent Features**: Don't code security/optimization/learning features - these emerge from agents
 4. **Files**: Always prefer editing existing files over creating new ones
-5. **Dependencies**: Never install packages without explicit permission
-6. **Documentation**: Read `/docs/` files at session start for context
+5. **Linting**: After editing TypeScript files, run linting in the specific package (e.g., `cd packages/server && pnpm run lint --fix`)
+6. **Dependencies**: Never install packages without explicit permission
+7. **Documentation**: Read `/docs/` files at session start for context
 
 ## 🔄 Maintenance Task Tracking
 For recurring tasks (test quality, React performance, etc.), use the AI maintenance tracking system:
@@ -69,8 +72,10 @@ cd packages/server && tsc --noEmit src/folder/**/*.ts         # Folder/pattern
 pnpm run lint                                        # Run all linters (JS + shell)
 pnpm run lint:js                                     # ESLint for TypeScript
 pnpm run lint:shell                                  # ShellCheck for scripts
-cd packages/server && pnpm run lint                  # Server linting (slow ~30s+)
-cd packages/ui && pnpm run lint                      # UI linting
+cd packages/server && pnpm run lint --fix            # Server linting with auto-fix
+cd packages/ui && pnpm run lint --fix                # UI linting with auto-fix
+cd packages/shared && pnpm run lint --fix            # Shared linting with auto-fix
+cd packages/jobs && pnpm run lint --fix              # Jobs linting with auto-fix
 
 # Database commands
 cd packages/server && pnpm prisma generate           # After schema changes
@@ -83,6 +88,8 @@ docker compose up --build                            # Direct Docker alternative
 ```
 
 > **Note**: When writing tests, make sure you're writing them to test against the DESIRED/EXPECTED behavior, not the actual implementation. This is important for the test to be useful and not just a checkmark.
+> 
+> **UI Testing Note**: For UI components, focus on testing user interactions, accessibility, and component behavior. Avoid testing CSS classes or visual styling - these are implementation details that should be verified through Storybook instead.
 
 ## ❌ Common Pitfalls
 - DON'T remove `.js` extensions from imports
@@ -90,6 +97,7 @@ docker compose up --build                            # Direct Docker alternative
 - DON'T implement emergent capabilities as code
 - DON'T use `__tests` directory (use `__test`)
 - DON'T skip reading memory files at session start
+- DON'T use mass-update scripts or automated tools to modify multiple files - check and update each file individually
 
 ## 🎯 Task Management Commands
 These commands can be invoked by using the keywords listed for each:

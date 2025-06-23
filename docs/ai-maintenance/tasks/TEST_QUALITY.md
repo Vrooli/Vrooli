@@ -49,6 +49,44 @@ Many test and build commands take longer than the default 2-minute timeout. Alwa
 
 ---
 
+## UI Component Testing Strategy
+
+When testing UI components, focus on **behavior over visuals**:
+
+### What to Test in UI Components
+- **User interactions**: Click handlers, form submissions, keyboard navigation
+- **Accessibility**: ARIA attributes, roles, labels, keyboard support
+- **Component state**: Conditional rendering, prop changes, state transitions
+- **Data flow**: Props validation, event emission, callback invocation
+- **Error handling**: Loading states, error boundaries, validation messages
+
+### What NOT to Test in UI Components
+- ❌ **CSS classes or styles**: These are implementation details
+- ❌ **Visual appearance**: Layout, colors, spacing (use Storybook instead)
+- ❌ **Computed styles**: getComputedStyle() results
+- ❌ **Exact HTML structure**: Unless semantically important
+
+### Example: Good vs Bad UI Tests
+```typescript
+// ❌ BAD: Testing implementation details
+expect(button.className).toContain("tw-bg-blue-500");
+expect(wrapper.style.marginTop).toBe("16px");
+
+// ✅ GOOD: Testing behavior
+expect(screen.getByRole("button", { name: "Submit" })).toBeDefined();
+expect(onSubmit).toHaveBeenCalledTimes(1);
+expect(input.getAttribute("aria-invalid")).toBe("true");
+```
+
+### Visual Testing with Storybook
+Reserve visual regression testing for Storybook:
+- Component appearance across themes
+- Responsive design breakpoints
+- Animation and transition behavior
+- Visual consistency across browsers
+
+---
+
 ## Step-by-Step Procedure
 
 ### 1 Select target files
@@ -92,6 +130,7 @@ cd packages/[package] && pnpm test path/to/specific.test.ts  # needs 3+ min time
 | **Excessive mocks**                                                       | Keep real modules; mock only side-effects (fetch, Date, RNG). ([vitest.dev][3]) |
 | **Giant snapshots**                                                       | Replace with explicit expects or slim snapshots. ([github.com][4])              |
 | **Brittle CSS selectors**                                                 | Prefer role / label queries. ([vitest.dev][2])                                  |
+| **Visual/style assertions** (CSS classes, computed styles)                | Test behavior only; use Storybook for visual testing                           |
 | **Flaky randomness / timers**                                             | Use `vi.useFakeTimers()` / seeded RNG. ([vitest.dev][6])                        |
 
 ---
