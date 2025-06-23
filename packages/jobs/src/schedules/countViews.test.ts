@@ -13,7 +13,7 @@ vi.mock("@vrooli/server", async () => {
             info: vi.fn(),
             warning: vi.fn(),
             error: vi.fn(),
-        }
+        },
     };
 });
 
@@ -385,8 +385,8 @@ describe("countViews integration tests", () => {
                 id: true, 
                 views: true,
                 _count: {
-                    select: { viewedBy: true }
-                }
+                    select: { viewedBy: true },
+                },
             },
             orderBy: { id: "asc" },
         });
@@ -406,8 +406,8 @@ describe("countViews integration tests", () => {
                 id: true, 
                 views: true,
                 _count: {
-                    select: { viewedBy: true }
-                }
+                    select: { viewedBy: true },
+                },
             },
             orderBy: { id: "asc" },
         });

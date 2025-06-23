@@ -1,8 +1,8 @@
 import { MaxObjects, RunIOSortBy, runIOValidation } from "@vrooli/shared";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { RunIOFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { type RunIOModelInfo, type RunIOModelLogic, type RunModelInfo, type RunModelLogic } from "./types.js";

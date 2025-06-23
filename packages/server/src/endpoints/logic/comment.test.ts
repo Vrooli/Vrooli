@@ -10,11 +10,9 @@ import { comment_findMany } from "../generated/comment_findMany.js";
 import { comment_findOne } from "../generated/comment_findOne.js";
 import { comment_updateOne } from "../generated/comment_updateOne.js";
 import { comment } from "./comment.js";
-
 // Import database fixtures for seeding
 import { seedCommentThread } from "../../__test/fixtures/db/commentFixtures.js";
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-
 // Import validation fixtures for API input testing
 import { commentTestDataFactory } from "@vrooli/shared";
 
@@ -35,12 +33,11 @@ describe("EndpointsComment", () => {
         try {
             const prisma = DbProvider.get();
             if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true
+                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup
         }
-    });
 
         // Ensure admin user exists for update tests
         adminUser = await seedMockAdminUser();
@@ -77,7 +74,7 @@ describe("EndpointsComment", () => {
         it("returns comment by id for any authenticated user", async () => {
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id
+                id: testUsers[1].id,
             });
             const input: FindByIdInput = { id: comments[0].id };
             const result = await comment.findOne({ input }, { req, res }, comment_findOne);
@@ -98,7 +95,7 @@ describe("EndpointsComment", () => {
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, {
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
             const input: FindByIdInput = { id: comments[0].id };
             const result = await comment.findOne({ input }, { req, res }, comment_findOne);
@@ -111,7 +108,7 @@ describe("EndpointsComment", () => {
         it("returns comments for issue", async () => {
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
             const input: CommentSearchInput = {
                 forObjectType: CommentFor.Issue,
@@ -125,7 +122,7 @@ describe("EndpointsComment", () => {
 
             // Check that we get comments for the issue
             const issueComments = result.edges.filter((edge: any) =>
-                edge.node.issueId === issue.id
+                edge.node.issueId === issue.id,
             );
             expect(issueComments.length).toBeGreaterThan(0);
         });
@@ -147,7 +144,7 @@ describe("EndpointsComment", () => {
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, {
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
             const input: CommentSearchInput = { take: 10 };
             const result = await comment.findMany({ input }, { req, res }, comment_findMany);
@@ -160,7 +157,7 @@ describe("EndpointsComment", () => {
         it("creates a comment for authenticated user", async () => {
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
 
             // Use validation fixtures for API input
@@ -181,7 +178,7 @@ describe("EndpointsComment", () => {
         it("creates a reply comment for authenticated user", async () => {
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id
+                id: testUsers[1].id,
             });
 
             // Use validation fixtures for creating a reply
@@ -216,7 +213,7 @@ describe("EndpointsComment", () => {
         it("updates comment for owner", async () => {
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
 
             // Use validation fixtures for update
@@ -236,7 +233,7 @@ describe("EndpointsComment", () => {
         it("admin can update any comment", async () => {
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: adminUser.id
+                id: adminUser.id,
             });
 
             const input: CommentUpdateInput = {

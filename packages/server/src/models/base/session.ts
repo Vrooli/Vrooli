@@ -1,6 +1,6 @@
 import { MaxObjects } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { SessionFormat } from "../formats.js";
 import { type SessionModelLogic } from "./types.js";
 

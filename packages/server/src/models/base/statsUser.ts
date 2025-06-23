@@ -1,8 +1,8 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsUserSortBy } from "@vrooli/shared";
 import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { StatsUserFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { type StatsUserModelInfo, type StatsUserModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";

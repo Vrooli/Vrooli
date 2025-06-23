@@ -2,7 +2,7 @@ import { DEFAULT_LANGUAGE, MaxObjects, reminderListValidation } from "@vrooli/sh
 import i18next from "i18next";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { ReminderListFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { type ReminderListModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";

@@ -1,6 +1,6 @@
 import { MaxObjects, NotificationSortBy } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { NotificationFormat } from "../formats.js";
 import { type NotificationModelLogic } from "./types.js";
 

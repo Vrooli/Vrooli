@@ -49,7 +49,7 @@ export async function verifyCountField<
     const { tableNames, countField, relationName, select, traceId } = config;
 
     async function processTableInBatches(
-        tableName: string
+        tableName: string,
     ): Promise<void> {
         try {
             const modelTypeCandidate = uppercaseFirstLetter(camelCase(tableName));
@@ -59,7 +59,7 @@ export async function verifyCountField<
                 logger.error("Invalid ModelType constructed from table name", {
                     tableName,
                     modelTypeCandidate,
-                    trace: traceId
+                    trace: traceId,
                 });
                 return;
             }
@@ -89,14 +89,14 @@ export async function verifyCountField<
                         if (cachedCount !== undefined && cachedCount !== actualCount) {
                             logger.warning(
                                 `Updating ${tableName} ${item.id} ${countField} from ${cachedCount} to ${actualCount}.`,
-                                { trace: traceId }
+                                { trace: traceId },
                             );
                             
                             const dbProvider = DbProvider.get();
                             // Type guard to check if dbProvider has the table property
                             const hasTable = (provider: unknown, table: string): provider is Record<string, unknown> => {
                                 return provider !== null && 
-                                       typeof provider === 'object' && 
+                                       typeof provider === "object" && 
                                        table in provider;
                             };
                             
@@ -110,9 +110,9 @@ export async function verifyCountField<
                             // Type guard to check if dbModel has update method
                             const hasUpdateMethod = (model: unknown): model is { update: Function } => {
                                 return model !== null &&
-                                       typeof model === 'object' &&
-                                       'update' in model &&
-                                       typeof model.update === 'function';
+                                       typeof model === "object" &&
+                                       "update" in model &&
+                                       typeof model.update === "function";
                             };
                             
                             if (!hasUpdateMethod(dbModel)) {

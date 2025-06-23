@@ -1,8 +1,8 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsTeamSortBy } from "@vrooli/shared";
 import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { StatsTeamFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { type StatsTeamModelInfo, type StatsTeamModelLogic, type TeamModelInfo, type TeamModelLogic } from "./types.js";

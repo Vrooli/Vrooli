@@ -12,8 +12,15 @@ import { QueueTaskType } from "../../tasks/taskTypes.js";
 import type { ApiEndpoint } from "../../types.js";
 import { createStandardCrudEndpoints } from "../helpers/endpointFactory.js";
 
-// Initialize the new three-tier execution service
-const swarmExecutionService = new SwarmExecutionService(logger);
+// Lazy initialize the swarm execution service to avoid initialization issues in test environments
+let swarmExecutionService: SwarmExecutionService | null = null;
+
+function getSwarmExecutionService(): SwarmExecutionService {
+    if (!swarmExecutionService) {
+        swarmExecutionService = new SwarmExecutionService(logger);
+    }
+    return swarmExecutionService;
+}
 
 export type EndpointsTask = {
     checkStatuses: ApiEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
@@ -40,7 +47,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
             try {
                 // Check if it's a new architecture swarm/run
                 if (taskId.startsWith("swarm-")) {
-                    const status = await swarmExecutionService.getSwarmStatus(taskId);
+                    const status = await getSwarmExecutionService().getSwarmStatus(taskId);
                     // Convert to old format for compatibility
                     result.statuses.push({
                         id: taskId,
@@ -50,7 +57,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                     });
                     continue;
                 } else if (taskId.startsWith("run-")) {
-                    const status = await swarmExecutionService.getRunStatus(taskId);
+                    const status = await getSwarmExecutionService().getRunStatus(taskId);
                     // Convert to old format for compatibility
                     result.statuses.push({
                         id: taskId,
@@ -90,7 +97,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
             const swarmId = `swarm-${nanoid()}`;
             
             // Start swarm using the new three-tier architecture
-            await swarmExecutionService.startSwarm({
+            await getSwarmExecutionService().startSwarm({
                 swarmId,
                 name: `Chat Swarm ${swarmId}`,
                 description: "Conversational AI swarm for chat completion",
@@ -161,7 +168,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
             
             // If no swarm exists, create one
             if (!input.swarmId) {
-                await swarmExecutionService.startSwarm({
+                await getSwarmExecutionService().startSwarm({
                     swarmId,
                     name: `Routine Execution Swarm ${swarmId}`,
                     description: "Swarm for executing routine runs",
@@ -184,7 +191,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
             }
             
             // Start the run
-            await swarmExecutionService.startRun({
+            await getSwarmExecutionService().startRun({
                 runId,
                 swarmId,
                 routineVersionId: input.routineVersionId,

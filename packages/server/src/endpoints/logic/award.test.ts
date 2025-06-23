@@ -78,7 +78,7 @@ describe("EndpointsAward", () => {
             it("returns awards without filters", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // When logged in as user1, should see user1's awards
@@ -94,7 +94,7 @@ describe("EndpointsAward", () => {
             it("filters by updated time frame", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // For the given time range, should only see awards updated in Feb-Mar that user1 has access to
@@ -119,7 +119,7 @@ describe("EndpointsAward", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 const input: AwardSearchInput = {
@@ -148,7 +148,7 @@ describe("EndpointsAward", () => {
             it("invalid time range format", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 const input: AwardSearchInput = {

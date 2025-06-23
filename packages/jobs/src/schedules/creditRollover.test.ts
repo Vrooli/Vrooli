@@ -50,7 +50,7 @@ describe("creditRollover integration tests", () => {
         // Clear Redis rollover tracking for clean tests
         try {
             const redis = await CacheService.get().raw();
-            const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`;
+            const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, "0")}`;
             await redis.del(`creditRollover:processed:${currentMonth}`);
         } catch (error) {
             // Redis not available, skip cleanup
@@ -78,7 +78,7 @@ describe("creditRollover integration tests", () => {
         // Clear Redis rollover tracking
         try {
             const redis = await CacheService.get().raw();
-            const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`;
+            const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, "0")}`;
             await redis.del(`creditRollover:processed:${currentMonth}`);
         } catch (error) {
             // Redis not available, skip cleanup
@@ -86,7 +86,7 @@ describe("creditRollover integration tests", () => {
     });
 
     it("should skip processing if month already processed", async () => {
-        const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`;
+        const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, "0")}`;
         
         // Mark month as already processed in Redis
         const redis = await CacheService.get().raw();
@@ -110,7 +110,7 @@ describe("creditRollover integration tests", () => {
             expect.objectContaining({
                 trace: "creditRollover_alreadyProcessed",
                 month: currentMonth,
-            })
+            }),
         );
 
         // Verify month is still marked as processed
@@ -119,7 +119,7 @@ describe("creditRollover integration tests", () => {
     });
 
     it("should process users with premium plans and credit settings", async () => {
-        const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`;
+        const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, "0")}`;
         
         // Create a credit account
         const creditAccount = await DbProvider.get().credit_account.create({
@@ -139,7 +139,7 @@ describe("creditRollover integration tests", () => {
                 handle: "testuser",
                 isBot: false,
                 creditAccount: {
-                    connect: { id: creditAccount.id }
+                    connect: { id: creditAccount.id },
                 },
                 creditSettings: {
                     __version: "1.0.0",
@@ -161,7 +161,7 @@ describe("creditRollover integration tests", () => {
             data: {
                 id: generatePK(),
                 user: {
-                    connect: { id: user.id }
+                    connect: { id: user.id },
                 },
                 enabledAt: new Date(Date.now() - 86400000), // Yesterday
                 expiresAt: new Date(Date.now() + 86400000 * 30), // 30 days from now
@@ -222,7 +222,7 @@ describe("creditRollover integration tests", () => {
                 handle: "testusernoplan",
                 isBot: false,
                 creditAccount: {
-                    connect: { id: creditAccount.id }
+                    connect: { id: creditAccount.id },
                 },
                 creditSettings: {
                     __version: "1.0.0",
@@ -264,7 +264,7 @@ describe("creditRollover integration tests", () => {
                 handle: "testuserinvalid",
                 isBot: false,
                 creditAccount: {
-                    connect: { id: creditAccount.id }
+                    connect: { id: creditAccount.id },
                 },
                 creditSettings: {
                     // Invalid structure - missing required fields
@@ -279,7 +279,7 @@ describe("creditRollover integration tests", () => {
             data: {
                 id: generatePK(),
                 user: {
-                    connect: { id: user.id }
+                    connect: { id: user.id },
                 },
                 enabledAt: new Date(Date.now() - 86400000),
                 expiresAt: new Date(Date.now() + 86400000 * 30),
@@ -310,7 +310,7 @@ describe("creditRollover integration tests", () => {
                 handle: "testusernocredits",
                 isBot: false,
                 creditAccount: {
-                    connect: { id: creditAccount.id }
+                    connect: { id: creditAccount.id },
                 },
                 creditSettings: {
                     __version: "1.0.0",
@@ -326,7 +326,7 @@ describe("creditRollover integration tests", () => {
             data: {
                 id: generatePK(),
                 user: {
-                    connect: { id: user.id }
+                    connect: { id: user.id },
                 },
                 enabledAt: new Date(Date.now() - 86400000),
                 expiresAt: new Date(Date.now() + 86400000 * 30),
@@ -352,7 +352,7 @@ describe("creditRollover integration tests", () => {
         // in an integration test. We'll test that the function doesn't crash
         // with edge cases instead.
         
-        const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`;
+        const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, "0")}`;
         
         // Create a user with a very large credit balance that might cause issues
         const creditAccount = await DbProvider.get().credit_account.create({
@@ -371,7 +371,7 @@ describe("creditRollover integration tests", () => {
                 handle: "testuserlargebalance",
                 isBot: false,
                 creditAccount: {
-                    connect: { id: creditAccount.id }
+                    connect: { id: creditAccount.id },
                 },
                 creditSettings: {
                     __version: "1.0.0",
@@ -392,7 +392,7 @@ describe("creditRollover integration tests", () => {
             data: {
                 id: generatePK(),
                 user: {
-                    connect: { id: user.id }
+                    connect: { id: user.id },
                 },
                 enabledAt: new Date(Date.now() - 86400000),
                 expiresAt: new Date(Date.now() + 86400000 * 30),

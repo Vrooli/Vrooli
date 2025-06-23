@@ -1,5 +1,5 @@
 import { type FindByIdInput, type MemberSearchInput, type MemberUpdateInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -8,7 +8,6 @@ import { member_findMany } from "../generated/member_findMany.js";
 import { member_findOne } from "../generated/member_findOne.js";
 import { member_updateOne } from "../generated/member_updateOne.js";
 import { member } from "./member.js";
-
 // Import database fixtures for seeding
 import { seedTeamWithMembers } from "../../__test/fixtures/db/memberFixtures.js";
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
@@ -67,7 +66,7 @@ describe("EndpointsMember", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
             const input: FindByIdInput = { id: memberData.members[0].id };
             const result = await member.findOne({ input }, { req, res }, member_findOne);
@@ -109,7 +108,7 @@ describe("EndpointsMember", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id.toString()
+                id: testUsers[1].id.toString(),
             });
             const input: FindByIdInput = { id: memberData.members[1].id };
             const result = await member.findOne({ input }, { req, res }, member_findOne);
@@ -153,7 +152,7 @@ describe("EndpointsMember", () => {
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, {
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
             const input: FindByIdInput = { id: memberData.members[0].id };
             const result = await member.findOne({ input }, { req, res }, member_findOne);
@@ -235,7 +234,7 @@ describe("EndpointsMember", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
             const input: MemberSearchInput = {
                 teamIds: [team.id],
@@ -286,7 +285,7 @@ describe("EndpointsMember", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[3].id.toString()
+                id: testUsers[3].id.toString(),
             });
             const input: MemberSearchInput = {
                 teamIds: [team.id],
@@ -333,7 +332,7 @@ describe("EndpointsMember", () => {
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, {
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
             const input: MemberSearchInput = { take: 10 };
             const result = await member.findMany({ input }, { req, res }, member_findMany);
@@ -376,7 +375,7 @@ describe("EndpointsMember", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
 
             // Use validation fixtures for update
@@ -423,7 +422,7 @@ describe("EndpointsMember", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[2].id.toString() // Admin user
+                id: testUsers[2].id.toString(), // Admin user
             });
 
             const input: MemberUpdateInput = {
@@ -469,7 +468,7 @@ describe("EndpointsMember", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id.toString() // Regular member
+                id: testUsers[1].id.toString(), // Regular member
             });
 
             const input: MemberUpdateInput = {

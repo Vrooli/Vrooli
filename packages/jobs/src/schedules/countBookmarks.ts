@@ -40,6 +40,6 @@ export async function countBookmarks(): Promise<void> {
         countField: "bookmarks",
         relationName: "bookmarkedBy",
         select: bookmarkSelect,
-        traceId: "0165"
+        traceId: "0165",
     });
 }

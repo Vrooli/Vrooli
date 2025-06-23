@@ -86,7 +86,7 @@ export class ModelMap {
                 // Race between import and timeout
                 const module = await Promise.race([
                     import(importPath),
-                    timeoutPromise
+                    timeoutPromise,
                 ]);
                 this.map[modelName] = module[`${modelName}Model`] || {};
 

@@ -7,12 +7,12 @@ import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { user_findMany } from "../generated/user_findMany.js";
 import { user_findOne } from "../generated/user_findOne.js";
-import { user_updateOne } from "../generated/user_updateOne.js";
+import { user_profileUpdate } from "../generated/user_profileUpdate.js";
+import { user_botCreateOne } from "../generated/user_botCreateOne.js";
+import { user_botUpdateOne } from "../generated/user_botUpdateOne.js";
 import { user } from "./user.js";
-
 // Import database fixtures for seeding
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
-
 // Import validation fixtures for API input testing
 import { userTestDataFactory } from "@vrooli/shared";
 
@@ -48,7 +48,7 @@ describe("EndpointsUser", () => {
 
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUser.id.toString()
+                    id: testUser.id.toString(),
                 });
 
                 const input: FindByIdOrHandleInput = { id: testUser.id.toString() };
@@ -73,7 +73,7 @@ describe("EndpointsUser", () => {
 
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: privateUser.id.toString()
+                    id: privateUser.id.toString(),
                 });
 
                 const input: FindByIdOrHandleInput = { id: privateUser.id.toString() };
@@ -103,7 +103,7 @@ describe("EndpointsUser", () => {
 
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUser1.id.toString()
+                    id: testUser1.id.toString(),
                 });
 
                 const input: FindByIdOrHandleInput = { id: testUser2.id.toString() };
@@ -353,7 +353,7 @@ describe("EndpointsUser", () => {
                     }),
                 });
 
-                const result = await user.botCreateOne({ input }, { req, res }, user_updateOne);
+                const result = await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
 
                 expect(result).not.toBeNull();
                 expect(result.id).toBe(input.id);
@@ -396,7 +396,7 @@ describe("EndpointsUser", () => {
                     }),
                 });
 
-                const result = await user.botCreateOne({ input }, { req, res }, user_updateOne);
+                const result = await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
 
                 expect(result).not.toBeNull();
                 expect(result.id).toBe(input.id);
@@ -442,7 +442,7 @@ describe("EndpointsUser", () => {
                 });
 
                 await expect(async () => {
-                    await user.botCreateOne({ input }, { req, res }, user_updateOne);
+                    await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
                 }).rejects.toThrow();
             });
 
@@ -469,7 +469,7 @@ describe("EndpointsUser", () => {
                 });
 
                 await expect(async () => {
-                    await user.botCreateOne({ input }, { req, res }, user_updateOne);
+                    await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
                 }).rejects.toThrow();
             });
 
@@ -498,7 +498,7 @@ describe("EndpointsUser", () => {
                 };
 
                 await expect(async () => {
-                    await user.botCreateOne({ input }, { req, res }, user_updateOne);
+                    await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
                 }).rejects.toThrow();
             });
 
@@ -528,7 +528,7 @@ describe("EndpointsUser", () => {
                 };
 
                 await expect(async () => {
-                    await user.botCreateOne({ input }, { req, res }, user_updateOne);
+                    await user.botCreateOne({ input }, { req, res }, user_botCreateOne);
                 }).rejects.toThrow();
             });
 
@@ -563,7 +563,7 @@ describe("EndpointsUser", () => {
                 });
 
                 // Create the bot
-                await user.botCreateOne({ input: botData }, { req, res }, user_updateOne);
+                await user.botCreateOne({ input: botData }, { req, res }, user_botCreateOne);
 
                 // Update the bot
                 const updateInput: UserUpdateInput = {
@@ -576,7 +576,7 @@ describe("EndpointsUser", () => {
                     }),
                 };
 
-                const result = await user.botUpdateOne({ input: updateInput }, { req, res }, user_updateOne);
+                const result = await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
 
                 expect(result).not.toBeNull();
                 expect(result.id).toBe(botData.id);
@@ -615,7 +615,7 @@ describe("EndpointsUser", () => {
                 });
 
                 // Create the bot
-                await user.botCreateOne({ input: botData }, { req: createReq, res: createRes }, user_updateOne);
+                await user.botCreateOne({ input: botData }, { req: createReq, res: createRes }, user_botCreateOne);
 
                 // Update the bot with API key
                 const permissions = mockWritePrivatePermissions();
@@ -631,7 +631,7 @@ describe("EndpointsUser", () => {
                     }),
                 };
 
-                const result = await user.botUpdateOne({ input: updateInput }, { req, res }, user_updateOne);
+                const result = await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
 
                 expect(result).not.toBeNull();
                 expect(result.id).toBe(botData.id);
@@ -662,7 +662,7 @@ describe("EndpointsUser", () => {
                 });
 
                 // Create the bot
-                await user.botCreateOne({ input: botData }, { req: user2Req, res: user2Res }, user_updateOne);
+                await user.botCreateOne({ input: botData }, { req: user2Req, res: user2Res }, user_botCreateOne);
 
                 // Try to update the bot as user0
                 const user1 = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
@@ -674,7 +674,7 @@ describe("EndpointsUser", () => {
                 };
 
                 await expect(async () => {
-                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_updateOne);
+                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
                 }).rejects.toThrow();
             });
 
@@ -688,7 +688,7 @@ describe("EndpointsUser", () => {
                 };
 
                 await expect(async () => {
-                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_updateOne);
+                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
                 }).rejects.toThrow();
             });
 
@@ -706,7 +706,7 @@ describe("EndpointsUser", () => {
                 });
 
                 // Create the bot
-                await user.botCreateOne({ input: botData }, { req, res }, user_updateOne);
+                await user.botCreateOne({ input: botData }, { req, res }, user_botCreateOne);
 
                 // Try to update isBot to false
                 const updateInput = {
@@ -715,7 +715,7 @@ describe("EndpointsUser", () => {
                 } as UserUpdateInput;
 
                 await expect(async () => {
-                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_updateOne);
+                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
                 }).rejects.toThrow();
             });
 
@@ -733,7 +733,7 @@ describe("EndpointsUser", () => {
                 });
 
                 // Create the bot
-                await user.botCreateOne({ input: botData }, { req, res }, user_updateOne);
+                await user.botCreateOne({ input: botData }, { req, res }, user_botCreateOne);
 
                 // Try to update with user-specific fields
                 const updateInput = {
@@ -744,7 +744,7 @@ describe("EndpointsUser", () => {
                 } as any;
 
                 await expect(async () => {
-                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_updateOne);
+                    await user.botUpdateOne({ input: updateInput }, { req, res }, user_botUpdateOne);
                 }).rejects.toThrow();
             });
 
@@ -753,7 +753,7 @@ describe("EndpointsUser", () => {
                     id: userTestDataFactory.createBot({}).id,
                     name: "Test Bot Update",
                 },
-            }, user_updateOne);
+            }, user_botUpdateOne);
 
             const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
             testEndpointRequiresApiKeyWritePermissions(
@@ -765,7 +765,7 @@ describe("EndpointsUser", () => {
                         name: "Test Bot Update",
                     },
                 },
-                user_updateOne,
+                user_botUpdateOne,
             );
         });
     });
@@ -789,7 +789,7 @@ describe("EndpointsUser", () => {
                     id: testUser.id,
                     name: "Updated Name",
                 };
-                const result = await user.profileUpdate({ input }, { req, res }, user_updateOne);
+                const result = await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
 
                 expect(result.id).toBe(testUser.id);
                 expect(result.name).toBe(input.name);
@@ -814,7 +814,7 @@ describe("EndpointsUser", () => {
                         bio: "Biografía de prueba",
                     }],
                 };
-                const result = await user.profileUpdate({ input }, { req, res }, user_updateOne);
+                const result = await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
 
                 expect(result.id).toBe(testUser.id);
                 expect(result.translations).toBeInstanceOf(Array);
@@ -842,7 +842,7 @@ describe("EndpointsUser", () => {
                     id: testUser.id,
                     name: "Updated Name",
                 };
-                const result = await user.profileUpdate({ input }, { req, res }, user_updateOne);
+                const result = await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
 
                 expect(result.id).toBe(testUser.id);
                 expect(result.name).toBe(input.name);
@@ -859,7 +859,7 @@ describe("EndpointsUser", () => {
                     name: "Updated Name",
                 };
                 await expect(async () => {
-                    await user.profileUpdate({ input }, { req, res }, user_updateOne);
+                    await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
                 }).rejects.toThrow();
             });
 
@@ -872,7 +872,7 @@ describe("EndpointsUser", () => {
                     name: "Updated Name",
                 };
                 await expect(async () => {
-                    await user.profileUpdate({ input }, { req, res }, user_updateOne);
+                    await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
                 }).rejects.toThrow();
             });
             it("updating a non-existent user", async () => {
@@ -884,14 +884,14 @@ describe("EndpointsUser", () => {
                     name: "Updated Name",
                 };
                 await expect(async () => {
-                    await user.profileUpdate({ input }, { req, res }, user_updateOne);
+                    await user.profileUpdate({ input }, { req, res }, user_profileUpdate);
                 }).rejects.toThrow();
             });
 
-            testEndpointRequiresAuth(user.profileUpdate, { input: { id: testUsers[0].id, name: "Updated Name" } }, user_updateOne);
+            testEndpointRequiresAuth(user.profileUpdate, { input: { id: testUsers[0].id, name: "Updated Name" } }, user_profileUpdate);
 
             const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
-            testEndpointRequiresApiKeyWritePermissions(testUser, user.profileUpdate, { input: { id: testUsers[0].id, name: "Updated Name" } }, user_updateOne);
+            testEndpointRequiresApiKeyWritePermissions(testUser, user.profileUpdate, { input: { id: testUsers[0].id, name: "Updated Name" } }, user_profileUpdate);
         });
     });
 }); 

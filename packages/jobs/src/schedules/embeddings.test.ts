@@ -2,7 +2,6 @@ import { generatePK, generatePublicId, RunStatus } from "@vrooli/shared";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockedFunction } from "vitest";
 import { generateEmbeddings } from "./embeddings.js";
-
 import { DbProvider } from "@vrooli/server";
 
 // Mock the EmbeddingService
@@ -40,13 +39,13 @@ describe("generateEmbeddings integration tests", () => {
     });
 
     // Helper function to validate embeddings since Prisma can't deserialize vector types
-    async function validateEmbedding(tableName: string, id: bigint, shouldHaveEmbedding: boolean = true) {
+    async function validateEmbedding(tableName: string, id: bigint, shouldHaveEmbedding = true) {
         const result = await DbProvider.get().$queryRawUnsafe<Array<{
             id: bigint;
             has_embedding: boolean;
             embeddingExpiredAt: Date | null;
         }>>(
-            `SELECT id, (embedding IS NOT NULL) as has_embedding, "embeddingExpiredAt" FROM "${tableName}" WHERE id = ${id}`
+            `SELECT id, (embedding IS NOT NULL) as has_embedding, "embeddingExpiredAt" FROM "${tableName}" WHERE id = ${id}`,
         );
 
         expect(result).toHaveLength(1);
@@ -172,7 +171,7 @@ describe("generateEmbeddings integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdBy: {
-                    connect: { id: owner.id }
+                    connect: { id: owner.id },
                 },
                 handle: "testteam",
                 translations: {
@@ -253,7 +252,7 @@ describe("generateEmbeddings integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdBy: {
-                    connect: { id: creator.id }
+                    connect: { id: creator.id },
                 },
                 translations: {
                     create: [{
@@ -294,7 +293,7 @@ describe("generateEmbeddings integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdBy: {
-                    connect: { id: owner.id }
+                    connect: { id: owner.id },
                 },
                 handle: "meetingteam",
             },
@@ -345,7 +344,7 @@ describe("generateEmbeddings integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdBy: {
-                    connect: { id: owner.id }
+                    connect: { id: owner.id },
                 },
                 resourceType: "Routine",
                 isPrivate: false,
@@ -398,7 +397,7 @@ describe("generateEmbeddings integration tests", () => {
             data: {
                 id: generatePK(),
                 createdBy: {
-                    connect: { id: creator.id }
+                    connect: { id: creator.id },
                 },
                 tag: "test-tag",
                 translations: {
@@ -565,7 +564,7 @@ describe("generateEmbeddings integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdBy: {
-                    connect: { id: owner.id }
+                    connect: { id: owner.id },
                 },
                 resourceType: "Routine",
                 isDeleted: true, // Deleted resource

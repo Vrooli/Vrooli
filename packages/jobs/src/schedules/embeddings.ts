@@ -156,7 +156,7 @@ async function updateEmbedding(
     
     // Use Prisma.sql for safe query construction with dynamic table names
     // Convert embeddings array to PostgreSQL array format
-    const embeddingsArrayStr = `[${embeddings.join(',')}]`;
+    const embeddingsArrayStr = `[${embeddings.join(",")}]`;
     const query = Prisma.sql`UPDATE ${Prisma.raw(`"${tableName}"`)} SET "embedding" = ${embeddingsArrayStr}::vector(1536), "embeddingExpiredAt" = NOW() WHERE id = ${BigInt(id)}`;
     await DbProvider.get().$executeRaw(query);
 }
@@ -178,7 +178,7 @@ async function processEmbeddingBatch<
 ): Promise<void> {
     // Safely get the embedding function for this object type
     const getFn = typedEmbedGetMap[objectType];
-    if (!getFn || typeof getFn !== 'function') {
+    if (!getFn || typeof getFn !== "function") {
         logger.warn("No embed get function found for object type", { objectType });
         return;
     }
@@ -191,11 +191,11 @@ async function processEmbeddingBatch<
         try {
             // Type safety: getFn expects the specific payload type for this objectType
             // The type system ensures row is compatible, but we add runtime validation
-            if (!row || typeof row !== 'object' || !('id' in row)) {
+            if (!row || typeof row !== "object" || !("id" in row)) {
                 logger.error("Invalid row structure", {
                     objectType,
                     rowType: typeof row,
-                    hasId: row && typeof row === 'object' && 'id' in row,
+                    hasId: row && typeof row === "object" && "id" in row,
                 });
                 return; // Skip this row
             }
@@ -325,10 +325,10 @@ async function embeddingBatch<K extends EmbeddableType>({
                 name: error?.name,
                 message: error?.message,
                 stack: error?.stack,
-                ...error
+                ...error,
             }, 
             trace, 
-            ...traceObject 
+            ...traceObject, 
         });
         // Re-throw to ensure tests see the error
         throw error;

@@ -11,11 +11,9 @@ import { issue_createOne } from "../generated/issue_createOne.js";
 import { issue_findMany } from "../generated/issue_findMany.js";
 import { issue_findOne } from "../generated/issue_findOne.js";
 import { issue } from "./issue.js";
-
 // Import database fixtures for seeding
 import { seedIssues } from "../../__test/fixtures/db/issueFixtures.js";
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-
 // Import validation fixtures for API input testing
 import { issueTestDataFactory } from "@vrooli/shared";
 
@@ -38,12 +36,11 @@ describe("EndpointsIssue", () => {
         try {
             const prisma = DbProvider.get();
             if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true
+                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup
         }
-    });
 
         // Create a team for issue ownership
         team = await DbProvider.get().team.create({
@@ -94,7 +91,7 @@ describe("EndpointsIssue", () => {
             it("returns own issue for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: issues[0].id };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
@@ -105,7 +102,7 @@ describe("EndpointsIssue", () => {
             it("returns another user's issue", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: issues[2].id }; // Created by user 2
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
@@ -126,7 +123,7 @@ describe("EndpointsIssue", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: issues[1].id };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
@@ -141,7 +138,7 @@ describe("EndpointsIssue", () => {
             it("returns issues without filters for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: IssueSearchInput = { take: 10 };
                 const expectedIds = issues.map(i => i.id);
@@ -154,7 +151,7 @@ describe("EndpointsIssue", () => {
             it("returns issues by object type and id", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: IssueSearchInput = {
                     forObjectType: IssueFor.Team,
@@ -180,7 +177,7 @@ describe("EndpointsIssue", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: IssueSearchInput = { take: 10 };
                 const result = await issue.findMany({ input }, { req, res }, issue_findMany);
@@ -195,7 +192,7 @@ describe("EndpointsIssue", () => {
             it("creates an issue for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // Use validation fixtures for API input
@@ -221,7 +218,7 @@ describe("EndpointsIssue", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // Use complete fixture for comprehensive test
@@ -255,7 +252,7 @@ describe("EndpointsIssue", () => {
             it("closes own issue", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 const input: IssueCloseInput = {
@@ -273,7 +270,7 @@ describe("EndpointsIssue", () => {
             it("team owner can close team issue", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id // Team owner
+                    id: testUsers[0].id, // Team owner
                 });
 
                 const input: IssueCloseInput = {
@@ -293,7 +290,7 @@ describe("EndpointsIssue", () => {
             it("throws error when not issue creator or team owner", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[1].id
+                    id: testUsers[1].id,
                 });
 
                 const input: IssueCloseInput = {

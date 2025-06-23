@@ -106,7 +106,7 @@ describe("paymentsExpirePlan integration tests", () => {
         expect(mockEmailAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: ["expired@example.com"],
-            })
+            }),
         );
     });
 
@@ -213,7 +213,7 @@ describe("paymentsExpirePlan integration tests", () => {
         expect(mockEmailAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: expect.arrayContaining(["team1@example.com", "team2@example.com"]),
-            })
+            }),
         );
     });
 
@@ -347,7 +347,7 @@ describe("paymentsExpirePlan integration tests", () => {
                         handle: `batchuser${i}`,
                         stripeCustomerId: `cus_batch${i}`,
                     },
-                })
+                }),
             );
         }
         const users = await Promise.all(userPromises);
@@ -365,7 +365,7 @@ describe("paymentsExpirePlan integration tests", () => {
                         enabledAt: new Date(pastDate.getTime() - 86400000), // Enabled 2 days ago
                         expiresAt: i % 2 === 0 ? pastDate : null, // Mix of expired dates and null
                     },
-                })
+                }),
             );
             emailPromises.push(
                 DbProvider.get().email.create({
@@ -375,7 +375,7 @@ describe("paymentsExpirePlan integration tests", () => {
                         emailAddress: `batch${i}@example.com`,
                         verifiedAt: new Date(),
                     },
-                })
+                }),
             );
         }
         const plans = await Promise.all(planPromises);

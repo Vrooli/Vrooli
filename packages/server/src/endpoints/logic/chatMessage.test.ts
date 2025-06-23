@@ -8,7 +8,6 @@ import { chatMessage_findMany } from "../generated/chatMessage_findMany.js";
 import { chatMessage_findOne } from "../generated/chatMessage_findOne.js";
 import { chatMessage_findTree } from "../generated/chatMessage_findTree.js";
 import { chatMessage } from "./chatMessage.js";
-
 // Import database fixtures for seeding
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { seedChatMessages, seedConversationTree } from "../../__test/fixtures/db/chatMessageFixtures.js";

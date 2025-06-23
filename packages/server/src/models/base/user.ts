@@ -3,11 +3,10 @@ import { noNull } from "../../builders/noNull.js";
 import { DbProvider } from "../../db/provider.js";
 import { CacheService } from "../../redisConn.js";
 import { EmbeddingService } from "../../services/embedding.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { handlesCheck } from "../../validators/handlesCheck.js";
-import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { UserFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
@@ -116,24 +115,24 @@ export const UserModel: UserModelLogic = ({
                     };
                 }
                 const profileData = data as ProfileUpdateInput;
-                
+
                 // Security: Sanitize creditSettings to prevent manipulation of server-controlled fields
                 let sanitizedCreditSettings = profileData.creditSettings;
                 if (sanitizedCreditSettings) {
                     sanitizedCreditSettings = { ...sanitizedCreditSettings };
-                    
+
                     // Remove server-controlled tracking fields that users shouldn't be able to set
                     if (sanitizedCreditSettings.rollover) {
                         const { lastProcessedMonth: _, ...userRolloverSettings } = sanitizedCreditSettings.rollover;
                         sanitizedCreditSettings.rollover = userRolloverSettings;
                     }
-                    
+
                     if (sanitizedCreditSettings.donation) {
                         const { lastProcessedMonth: _, ...userDonationSettings } = sanitizedCreditSettings.donation;
                         sanitizedCreditSettings.donation = userDonationSettings;
                     }
                 }
-                
+
                 return {
                     ...commonData,
                     creditSettings: sanitizedCreditSettings,

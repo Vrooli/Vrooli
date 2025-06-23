@@ -1,5 +1,5 @@
 import { type FindByIdInput, type NotificationSearchInput, type NotificationSettingsUpdateInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -11,7 +11,6 @@ import { notification_markAllAsRead } from "../generated/notification_markAllAsR
 import { notification_markAsRead } from "../generated/notification_markAsRead.js";
 import { notification_updateSettings } from "../generated/notification_updateSettings.js";
 import { notification } from "./notification.js";
-
 // Import database fixtures for seeding
 import { seedNotifications } from "../../__test/fixtures/db/notificationFixtures.js";
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
@@ -51,7 +50,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
             const input: FindByIdInput = { id: notificationData.notifications[0].id };
             const result = await notification.findOne({ input }, { req, res }, notification_findOne);
@@ -75,7 +74,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id.toString()
+                id: testUsers[1].id.toString(),
             });
             const input: FindByIdInput = { id: notificationData.notifications[0].id };
 
@@ -122,7 +121,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
             const input: NotificationSearchInput = { take: 10 };
             const result = await notification.findMany({ input }, { req, res }, notification_findMany);
@@ -151,7 +150,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
             const input: NotificationSearchInput = {
                 isRead: false,
@@ -193,7 +192,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
 
             // Find an unread notification
@@ -220,7 +219,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id.toString()
+                id: testUsers[1].id.toString(),
             });
             const input: FindByIdInput = { id: notificationData.notifications[0].id };
 
@@ -267,7 +266,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
 
             const result = await notification.markAllAsRead({}, { req, res }, notification_markAllAsRead);
@@ -306,7 +305,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
 
             await notification.markAllAsRead({}, { req, res }, notification_markAllAsRead);
@@ -345,7 +344,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
 
             const result = await notification.getSettings({}, { req, res }, notification_getSettings);
@@ -359,13 +358,13 @@ describe("EndpointsNotification", () => {
             const newUser = await DbProvider.get().user.create({
                 data: UserDbFactory.createMinimal({ 
                     id: generatePK(),
-                    name: "New User" 
+                    name: "New User", 
                 }),
             });
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: newUser.id.toString()
+                id: newUser.id.toString(),
             });
 
             const result = await notification.getSettings({}, { req, res }, notification_getSettings);
@@ -398,7 +397,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
 
             const input: NotificationSettingsUpdateInput = {
@@ -434,7 +433,7 @@ describe("EndpointsNotification", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id.toString()
+                id: testUsers[0].id.toString(),
             });
 
             const input: NotificationSettingsUpdateInput = {

@@ -1,11 +1,11 @@
-import { DEFAULT_LANGUAGE, MaxObjects, ScheduleSortBy, generatePublicId, scheduleValidation, type ModelType, type ScheduleFor } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { DEFAULT_LANGUAGE, MaxObjects, ScheduleSortBy, generatePublicId, scheduleValidation, type ModelType, type ScheduleFor } from "@vrooli/shared";
 import i18next from "i18next";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { ScheduleFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { type MeetingModelLogic, type ScheduleModelInfo, type ScheduleModelLogic } from "./types.js";

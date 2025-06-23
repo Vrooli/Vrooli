@@ -1,7 +1,6 @@
 import { ReportStatus, ReportSuggestedAction, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { moderateReports } from "./moderateReports.js";
-
 import { DbProvider } from "@vrooli/server";
 
 // Mock the Trigger function only
@@ -1103,7 +1102,7 @@ describe("moderateReports integration tests", () => {
                     __typename: "Team",
                     id: team.id,
                 }),
-            })
+            }),
         );
     });
 });

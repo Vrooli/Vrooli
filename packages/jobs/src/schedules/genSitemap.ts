@@ -6,7 +6,7 @@ import {
     SITEMAP_SIZE_LIMIT_MB, 
     MAX_SITEMAP_FILE_SIZE_BYTES, 
     ESTIMATED_ENTRY_OVERHEAD_BYTES, 
-    BATCH_SIZE_SMALL 
+    BATCH_SIZE_SMALL, 
 } from "../constants.js";
 import fs from "fs";
 import path from "path";
@@ -40,7 +40,7 @@ function isValidLinkKey(key: string): key is keyof typeof LINKS {
  * Type guard to safely check if an object has a specific property
  */
 function hasProperty<T extends string>(obj: unknown, prop: T): obj is Record<T, unknown> {
-    return obj !== null && typeof obj === 'object' && prop in obj;
+    return obj !== null && typeof obj === "object" && prop in obj;
 }
 
 /**
@@ -53,15 +53,15 @@ function isValidResourceSubType(value: string): value is ResourceSubType {
 /**
  * Type guard to check if an object is a valid SitemapProperties root object
  */
-function isValidRootObject(obj: unknown): obj is SitemapProperties['root'] {
-    if (!obj || typeof obj !== 'object') return false;
+function isValidRootObject(obj: unknown): obj is SitemapProperties["root"] {
+    if (!obj || typeof obj !== "object") return false;
     
     const root = obj as { [key: string]: unknown };
-    return typeof root.id === 'string' && 
-           typeof root.publicId === 'string' &&
-           (root.handle === undefined || typeof root.handle === 'string') &&
-           (root.isDeleted === undefined || typeof root.isDeleted === 'boolean') &&
-           (root.isPrivate === undefined || typeof root.isPrivate === 'boolean') &&
+    return typeof root.id === "string" && 
+           typeof root.publicId === "string" &&
+           (root.handle === undefined || typeof root.handle === "string") &&
+           (root.isDeleted === undefined || typeof root.isDeleted === "boolean") &&
+           (root.isPrivate === undefined || typeof root.isPrivate === "boolean") &&
            (root.resourceType === undefined || (Object.values(ResourceType) as string[]).includes(root.resourceType as string));
 }
 
@@ -225,8 +225,8 @@ async function genSitemapForObject(
                         isComplete: true,
                         root: {
                             isPrivate: false,
-                            isDeleted: false
-                        }
+                            isDeleted: false,
+                        },
                     };
                     break;
                 default:
@@ -277,13 +277,13 @@ async function genSitemapForObject(
             for (const item of batchResult) {
                 try {
                     // Validate required fields exist
-                    if (!item || typeof item !== 'object') {
+                    if (!item || typeof item !== "object") {
                         logger.warn(`Invalid item in batch result for ${objectType}`, { item });
                         continue;
                     }
                     
                     // Safe bigint to string conversion
-                    const idStr = item.id ? item.id.toString() : '';
+                    const idStr = item.id ? item.id.toString() : "";
                     if (!idStr) {
                         logger.warn(`Item missing id in batch result for ${objectType}`, { item });
                         continue;
@@ -292,29 +292,29 @@ async function genSitemapForObject(
                     // Create base object with required fields
                     const result: SitemapProperties = {
                         id: idStr,
-                        publicId: typeof item.publicId === 'string' ? item.publicId : '',
+                        publicId: typeof item.publicId === "string" ? item.publicId : "",
                         handle: undefined,
                         translations: Array.isArray(item.translations) ? item.translations : [],
                     };
                     
                     // Add optional fields with proper type validation
-                    if (supportsHandles && hasProperty(item, 'handle') && typeof item.handle === 'string') {
+                    if (supportsHandles && hasProperty(item, "handle") && typeof item.handle === "string") {
                         result.handle = item.handle;
                     }
                     
-                    if (hasProperty(item, 'isDeleted') && typeof item.isDeleted === 'boolean') {
+                    if (hasProperty(item, "isDeleted") && typeof item.isDeleted === "boolean") {
                         result.isDeleted = item.isDeleted;
                     }
                     
-                    if (hasProperty(item, 'resourceSubType') && typeof item.resourceSubType === 'string' && isValidResourceSubType(item.resourceSubType)) {
+                    if (hasProperty(item, "resourceSubType") && typeof item.resourceSubType === "string" && isValidResourceSubType(item.resourceSubType)) {
                         result.resourceSubType = item.resourceSubType;
                     }
                     
-                    if (hasProperty(item, 'versionLabel') && typeof item.versionLabel === 'string') {
+                    if (hasProperty(item, "versionLabel") && typeof item.versionLabel === "string") {
                         result.versionLabel = item.versionLabel;
                     }
                     
-                    if (hasProperty(item, 'root') && isValidRootObject(item.root)) {
+                    if (hasProperty(item, "root") && isValidRootObject(item.root)) {
                         result.root = item.root;
                     }
                     

@@ -35,9 +35,9 @@ function isValidReportSuggestedAction(value: string): value is ReportSuggestedAc
  * Type guard to validate a [string, number] entry as [ReportSuggestedAction, number]
  */
 function isValidReportActionEntry(entry: [string, unknown]): entry is [ReportSuggestedAction, number] {
-    return typeof entry[0] === 'string' && 
+    return typeof entry[0] === "string" && 
            isValidReportSuggestedAction(entry[0]) && 
-           typeof entry[1] === 'number';
+           typeof entry[1] === "number";
 }
 
 /**
@@ -235,7 +235,7 @@ async function moderateReport(report: ReportPayload): Promise<void> {
             const rep = response.createdBy?.reputation;
             
             // Validate action and reputation
-            if (isValidReportSuggestedAction(action) && typeof rep === 'number') {
+            if (isValidReportSuggestedAction(action) && typeof rep === "number") {
                 if (sumsMap[action]) {
                     sumsMap[action] = (sumsMap[action] || 0) + rep;
                 } else {
@@ -250,10 +250,10 @@ async function moderateReport(report: ReportPayload): Promise<void> {
     const reportActionValues = Object.values(ReportSuggestedAction);
     
     // Validate that all enum values are strings
-    if (!reportActionValues.every(value => typeof value === 'string')) {
+    if (!reportActionValues.every(value => typeof value === "string")) {
         logger.error("ReportSuggestedAction enum contains non-string values", {
             enumValues: reportActionValues,
-            trace: "0223_enum_validation"
+            trace: "0223_enum_validation",
         });
         return;
     }
@@ -273,7 +273,7 @@ async function moderateReport(report: ReportPayload): Promise<void> {
         // Build bumped actions list with proper validation
         const bumpedActionsList: [ReportSuggestedAction, number][] = [];
         for (const [action, rep] of Object.entries(sumsMap)) {
-            if (isValidReportSuggestedAction(action) && typeof rep === 'number') {
+            if (isValidReportSuggestedAction(action) && typeof rep === "number") {
                 bumpedActionsList.push([action, rep + amountToAdd]);
             }
         }
@@ -307,7 +307,7 @@ async function moderateReport(report: ReportPayload): Promise<void> {
         }
         
         // Validate that objectFieldRaw is a string before processing
-        if (typeof objectFieldRaw !== 'string') {
+        if (typeof objectFieldRaw !== "string") {
             logger.error("Invalid object field type", { trace: "0409_field_type", reportId: report.id, objectFieldType: typeof objectFieldRaw });
             return;
         }
@@ -358,7 +358,7 @@ async function moderateReport(report: ReportPayload): Promise<void> {
             logger.error("Invalid ModelType for report moderation", { 
                 trace: "0412", 
                 reportId: report.id, 
-                objectType 
+                objectType, 
             });
             return;
         }
@@ -366,9 +366,9 @@ async function moderateReport(report: ReportPayload): Promise<void> {
         // Trigger activity
         await Trigger(["en"]).reportActivity({
             objectId: objectData.id,
-            objectType: objectType,
+            objectType,
             objectOwner,
-            reportContributors: report.responses.map(r => r.createdBy?.id?.toString()).filter((id): id is string => typeof id === 'string'),
+            reportContributors: report.responses.map(r => r.createdBy?.id?.toString()).filter((id): id is string => typeof id === "string"),
             reportCreatedById: report.createdBy?.id?.toString() ?? null,
             reportId: report.id.toString(),
             reportStatus: status,
@@ -393,12 +393,12 @@ async function moderateReport(report: ReportPayload): Promise<void> {
                 }
                 
                 // Validate that the update method exists
-                if (typeof dbModelForDelete.update !== 'function') {
+                if (typeof dbModelForDelete.update !== "function") {
                     logger.error("Database model does not have update method", {
                         objectType,
                         dbTable,
                         reportId: report.id,
-                        availableMethods: Object.getOwnPropertyNames(dbModelForDelete).filter(prop => typeof dbModelForDelete[prop] === 'function'),
+                        availableMethods: Object.getOwnPropertyNames(dbModelForDelete).filter(prop => typeof dbModelForDelete[prop] === "function"),
                     });
                     return;
                 }
@@ -487,7 +487,7 @@ export async function moderateReports(): Promise<void> {
                 stack: error.stack,
                 name: error.name,
             } : error,
-            trace: "0464" 
+            trace: "0464", 
         });
     }
 }

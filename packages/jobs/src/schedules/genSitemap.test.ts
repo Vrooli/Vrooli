@@ -115,10 +115,10 @@ describe("genSitemap integration tests", () => {
             
             // Read and verify index content
             const indexContent = fs.readFileSync(testIndexPath, "utf-8");
-            expect(indexContent).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-            expect(indexContent).toContain('<sitemapindex');
+            expect(indexContent).toContain("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            expect(indexContent).toContain("<sitemapindex");
             // Accept both self-closing and explicit closing tags
-            expect(indexContent.includes('</sitemapindex>') || indexContent.includes('/>')).toBe(true);
+            expect(indexContent.includes("</sitemapindex>") || indexContent.includes("/>")).toBe(true);
             
         });
 
@@ -160,10 +160,10 @@ describe("genSitemap integration tests", () => {
             const decompressed = await gunzipAsync(compressed);
             const content = decompressed.toString();
             
-            expect(content).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-            expect(content).toContain('<urlset');
+            expect(content).toContain("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            expect(content).toContain("<urlset");
             expect(content).toContain(`${UI_URL_REMOTE}${LINKS.User}/@`);
-            expect(content).toContain('</urlset>');
+            expect(content).toContain("</urlset>");
         });
 
         it("should generate sitemaps for teams", async () => {
@@ -198,7 +198,7 @@ describe("genSitemap integration tests", () => {
                         publicId: generatePublicId(),
                         handle: `testteam${i}`,
                         createdBy: {
-                            connect: { id: owner.id }
+                            connect: { id: owner.id },
                         },
                         isPrivate: false,
                     },
@@ -217,10 +217,10 @@ describe("genSitemap integration tests", () => {
             const decompressed = await gunzipAsync(compressed);
             const content = decompressed.toString();
             
-            expect(content).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-            expect(content).toContain('<urlset');
+            expect(content).toContain("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            expect(content).toContain("<urlset");
             expect(content).toContain(`${UI_URL_REMOTE}${LINKS.Team}/@`);
-            expect(content).toContain('</urlset>');
+            expect(content).toContain("</urlset>");
         });
 
         it("should generate sitemaps for resource versions", async () => {
@@ -255,7 +255,7 @@ describe("genSitemap integration tests", () => {
                         publicId: generatePublicId(),
                         resourceType: "Code",
                         createdBy: {
-                            connect: { id: owner.id }
+                            connect: { id: owner.id },
                         },
                         isPrivate: false,
                         isDeleted: false,
@@ -297,10 +297,10 @@ describe("genSitemap integration tests", () => {
             const decompressed = await gunzipAsync(compressed);
             const content = decompressed.toString();
             
-            expect(content).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-            expect(content).toContain('<urlset');
+            expect(content).toContain("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+            expect(content).toContain("<urlset");
             expect(content).toContain(`${UI_URL_REMOTE}/code/`);
-            expect(content).toContain('</urlset>');
+            expect(content).toContain("</urlset>");
         });
 
         it("should handle pagination when entities exceed limit", async () => {
@@ -336,7 +336,7 @@ describe("genSitemap integration tests", () => {
                         publicId: generatePublicId(),
                         handle: `team${i}`,
                         createdBy: {
-                            connect: { id: owner.id }
+                            connect: { id: owner.id },
                         },
                         isPrivate: false,
                     },
@@ -357,9 +357,9 @@ describe("genSitemap integration tests", () => {
             const content = decompressed.toString();
             
             // Should contain multiple teams
-            expect(content).toContain('team0');
-            expect(content).toContain('team5');
-            expect(content).toContain('team9');
+            expect(content).toContain("team0");
+            expect(content).toContain("team5");
+            expect(content).toContain("team9");
             
             // Check index includes the sitemap
             const indexContent = fs.readFileSync(path.resolve(__dirname, "../../../ui/dist/sitemap.xml"), "utf-8");

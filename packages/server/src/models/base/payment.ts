@@ -1,6 +1,6 @@
 import { MaxObjects, PaymentSortBy } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { PaymentFormat } from "../formats.js";
 import { type PaymentModelLogic } from "./types.js";
 

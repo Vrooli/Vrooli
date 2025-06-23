@@ -115,7 +115,7 @@ describe("paymentsFail integration tests", () => {
         expect(mockEmailAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: ["failed@example.com"],
-            })
+            }),
         );
         expect(mockTemplate).toHaveBeenCalledWith(expect.any(String), false); // false for non-donation
     });
@@ -177,7 +177,7 @@ describe("paymentsFail integration tests", () => {
         expect(mockEmailAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: ["donor@example.com"],
-            })
+            }),
         );
         expect(mockTemplate).toHaveBeenCalledWith(expect.any(String), true); // true for donation
     });
@@ -256,7 +256,7 @@ describe("paymentsFail integration tests", () => {
         expect(mockEmailAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: expect.arrayContaining(["team1@example.com", "team2@example.com"]),
-            })
+            }),
         );
     });
 
@@ -453,7 +453,7 @@ describe("paymentsFail integration tests", () => {
                         createdAt: oldDate,
                         updatedAt: oldDate,
                     },
-                })
+                }),
             );
         }
         const payments = await Promise.all(paymentPromises);

@@ -14,12 +14,10 @@ import { chatInvite_findOne } from "../generated/chatInvite_findOne.js";
 import { chatInvite_updateMany } from "../generated/chatInvite_updateMany.js";
 import { chatInvite_updateOne } from "../generated/chatInvite_updateOne.js";
 import { chatInvite } from "./chatInvite.js";
-
 // Import database fixtures for seeding
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { seedChatInvites } from "../../__test/fixtures/db/chatInviteFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-
 // Import validation fixtures for API input testing
 import { chatInviteTestDataFactory } from "@vrooli/shared";
 
@@ -88,7 +86,7 @@ describe("EndpointsChatInvite", () => {
             it("returns invite when user is the chat creator", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id  // User 0 is the creator of chat1
+                    id: testUsers[0].id,  // User 0 is the creator of chat1
                 });
                 const input: FindByIdInput = { id: invite1.id }; // invite1 is for chat1
                 const result = await chatInvite.findOne({ input }, { req, res }, chatInvite_findOne);
@@ -99,7 +97,7 @@ describe("EndpointsChatInvite", () => {
             it("returns invite when user is the invited user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id  // User 0 is invited in invite2
+                    id: testUsers[0].id,  // User 0 is invited in invite2
                 });
                 const input: FindByIdInput = { id: invite2.id };
                 const result = await chatInvite.findOne({ input }, { req, res }, chatInvite_findOne);

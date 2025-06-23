@@ -9,7 +9,6 @@ import { chatParticipant_findMany } from "../generated/chatParticipant_findMany.
 import { chatParticipant_findOne } from "../generated/chatParticipant_findOne.js";
 import { chatParticipant_updateOne } from "../generated/chatParticipant_updateOne.js";
 import { chatParticipant } from "./chatParticipant.js";
-
 // Import database fixtures for seeding
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { seedChatParticipants } from "../../__test/fixtures/db/chatParticipantFixtures.js";
@@ -22,7 +21,7 @@ describe("EndpointsChatParticipant", () => {
     let chat1: any;
     let chat2: any;
     let publicChat: any;
-    let participants: any = {};
+    const participants: any = {};
 
     beforeAll(() => {
         // Use Vitest spies to suppress logger output during tests
@@ -212,7 +211,7 @@ describe("EndpointsChatParticipant", () => {
                 const input: ChatParticipantSearchInput = {
                     chatId: chat1.id,
                     userId: testUsers[1].id,
-                    take: 10
+                    take: 10,
                 };
                 const result = await chatParticipant.findMany({ input }, { req, res }, chatParticipant_findMany);
 

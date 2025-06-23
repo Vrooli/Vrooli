@@ -1,5 +1,5 @@
-import { AUTH_PROVIDERS, AccountStatus, COOKIE, type EmailLogInInput, type EmailRequestPasswordChangeInput, type EmailResetPasswordInput, type EmailSignUpInput, MINUTES_5_MS, type Session, type Success, type SwitchCurrentAccountInput, type ValidateSessionInput, type WalletComplete, type WalletCompleteInput, type WalletInit, type WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, generatePK, generatePublicId, switchCurrentAccountSchema, validateSessionSchema } from "@vrooli/shared";
 import type { PrismaPromise } from "@prisma/client";
+import { AUTH_PROVIDERS, AccountStatus, COOKIE, type EmailLogInInput, type EmailRequestPasswordChangeInput, type EmailResetPasswordInput, type EmailSignUpInput, MINUTES_5_MS, type Session, type Success, type SwitchCurrentAccountInput, type ValidateSessionInput, type WalletComplete, type WalletCompleteInput, type WalletInit, type WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, generatePK, generatePublicId, switchCurrentAccountSchema, validateSessionSchema } from "@vrooli/shared";
 import type { Response } from "express";
 import { AuthTokensService } from "../../auth/auth.js";
 import { randomString, validateCode } from "../../auth/codes.js";
@@ -660,7 +660,7 @@ export const auth: EndpointsAuth = {
     oauthInitiate: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
         RequestService.assertRequestFrom(req, { isApiToken: false });
-        
+
         const userData = SessionService.getUser(req);
         if (!userData?.id) {
             throw new CustomError("0002", "NotSignedIn");
@@ -690,7 +690,7 @@ export const auth: EndpointsAuth = {
 
         const version = resource.versions[0];
         const { ApiVersionConfig } = await import("@vrooli/shared");
-        const { logger } = await import("../../logger.js");
+        const { logger } = await import("../../events/logger.js");
         const config = ApiVersionConfig.parse(version, logger);
 
         if (config.authentication?.type !== "oauth2") {
@@ -704,7 +704,7 @@ export const auth: EndpointsAuth = {
 
         // Generate state for CSRF protection
         const state = randomString(32);
-        
+
         // Store state in Redis (in production) or in-memory for now
         // For production, use Redis with TTL
         const stateKey = `oauth:state:${state}`;
@@ -713,10 +713,10 @@ export const auth: EndpointsAuth = {
             resourceId: input.resourceId,
             expires: Date.now() + 15 * 60 * 1000, // 15 minutes
         };
-        
+
         // TODO: Use Redis in production
         // await redis.setex(stateKey, 900, JSON.stringify(stateData));
-        
+
         // For now, store in session
         req.session.oauthState = { [state]: stateData };
 
@@ -726,7 +726,7 @@ export const auth: EndpointsAuth = {
         authUrl.searchParams.append("redirect_uri", input.redirectUri);
         authUrl.searchParams.append("response_type", "code");
         authUrl.searchParams.append("state", state);
-        
+
         if (oauthSettings.scopes?.length > 0) {
             authUrl.searchParams.append("scope", oauthSettings.scopes.join(" "));
         }
@@ -739,7 +739,7 @@ export const auth: EndpointsAuth = {
     oauthCallback: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
         RequestService.assertRequestFrom(req, { isApiToken: false });
-        
+
         const userData = SessionService.getUser(req);
         if (!userData?.id) {
             throw new CustomError("0002", "NotSignedIn");
@@ -784,7 +784,7 @@ export const auth: EndpointsAuth = {
 
         const version = resource.versions[0];
         const { ApiVersionConfig } = await import("@vrooli/shared");
-        const { logger } = await import("../../logger.js");
+        const { logger } = await import("../../events/logger.js");
         const config = ApiVersionConfig.parse(version, logger);
         const providerName = version.translations[0].name.toLowerCase();
 

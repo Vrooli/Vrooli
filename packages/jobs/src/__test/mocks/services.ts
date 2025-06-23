@@ -4,7 +4,8 @@ import { vi } from "vitest";
 export const mockEmailAddTask = vi.fn().mockResolvedValue(undefined);
 export const mockBusPublish = vi.fn().mockResolvedValue(undefined);
 export const mockSocketEmit = vi.fn();
-export const mockNotifyPush = vi.fn().mockReturnValue({ toUser: vi.fn() });
+export const mockNotifyPush = vi.fn().mockReturnValue({ toUser: vi.fn().mockResolvedValue(undefined) });
+export const mockNotifyPushScheduleReminder = vi.fn().mockReturnValue({ toUsers: vi.fn().mockResolvedValue(undefined) });
 
 // Export the mock structures
 export const mockQueueService = {
@@ -33,6 +34,7 @@ export const mockSocketService = {
 
 export const mockNotify = vi.fn(() => ({
     pushFreeCreditsReceived: mockNotifyPush,
+    pushScheduleReminder: mockNotifyPushScheduleReminder,
 }));
 
 // Reset all mocks
@@ -41,5 +43,6 @@ export const resetAllMocks = () => {
     mockBusPublish.mockClear();
     mockSocketEmit.mockClear();
     mockNotifyPush.mockClear();
+    mockNotifyPushScheduleReminder.mockClear();
     mockNotify.mockClear();
 };

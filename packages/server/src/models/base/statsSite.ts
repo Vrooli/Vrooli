@@ -1,7 +1,7 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsSiteSortBy } from "@vrooli/shared";
 import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { StatsSiteFormat } from "../formats.js";
 import { type StatsSiteModelLogic } from "./types.js";
 

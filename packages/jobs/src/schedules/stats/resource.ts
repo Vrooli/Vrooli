@@ -65,7 +65,7 @@ async function batchRunCounts(
             finalizeResult: (result) => {
                 // For the averages, divide by the number of runs completed
                 Object.entries(result).forEach(([versionId, currResult]) => {
-                    if (!currResult || typeof versionId !== 'string') return;
+                    if (!currResult || typeof versionId !== "string") return;
                     if (currResult.runsCompleted > 0) {
                         currResult.runCompletionTimeAverage /= currResult.runsCompleted;
                         currResult.runContextSwitchesAverage /= currResult.runsCompleted;

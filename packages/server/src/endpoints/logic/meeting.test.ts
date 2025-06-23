@@ -11,11 +11,9 @@ import { meeting_findMany } from "../generated/meeting_findMany.js";
 import { meeting_findOne } from "../generated/meeting_findOne.js";
 import { meeting_updateOne } from "../generated/meeting_updateOne.js";
 import { meeting } from "./meeting.js";
-
 // Import database fixtures for seeding
 import { seedMeetings } from "../../__test/fixtures/db/meetingFixtures.js";
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-
 // Import validation fixtures for API input testing
 import { meetingTestDataFactory } from "@vrooli/shared";
 
@@ -36,12 +34,12 @@ describe("EndpointsMeeting", () => {
         try {
             const prisma = DbProvider.get();
             if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true
+                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup
         }
-    });
+        
         adminUser = await seedMockAdminUser();
 
         // Create two teams for meeting ownership
@@ -107,7 +105,7 @@ describe("EndpointsMeeting", () => {
             it("returns meeting by id for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: meetings[0].id };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
@@ -128,7 +126,7 @@ describe("EndpointsMeeting", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: meetings[0].id };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
@@ -143,7 +141,7 @@ describe("EndpointsMeeting", () => {
             it("returns meetings without filters for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: MeetingSearchInput = { take: 10 };
                 const expectedIds = meetings.map(m => m.id);
@@ -167,7 +165,7 @@ describe("EndpointsMeeting", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: MeetingSearchInput = { take: 10 };
                 const expectedIds = meetings.map(m => m.id);
@@ -183,7 +181,7 @@ describe("EndpointsMeeting", () => {
             it("creates a meeting for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // Use validation fixtures for API input
@@ -208,7 +206,7 @@ describe("EndpointsMeeting", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // Use complete fixture for comprehensive test
@@ -242,7 +240,7 @@ describe("EndpointsMeeting", () => {
             it("updates meeting for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 const input: MeetingUpdateInput = {
@@ -260,7 +258,7 @@ describe("EndpointsMeeting", () => {
             it("admin can update any meeting", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: adminUser.id
+                    id: adminUser.id,
                 });
 
                 const input: MeetingUpdateInput = {

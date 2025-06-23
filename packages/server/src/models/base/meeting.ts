@@ -2,11 +2,10 @@ import { MaxObjects, MeetingSortBy, generatePublicId, getTranslation, meetingVal
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
-import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { MeetingFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { type MeetingModelInfo, type MeetingModelLogic } from "./types.js";

@@ -63,7 +63,7 @@ describe("EndpointsBookmark", () => {
             const { testUsers, bookmarkData } = await createTestData();
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
             const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id };
             const result = await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
@@ -75,7 +75,7 @@ describe("EndpointsBookmark", () => {
             const { testUsers, bookmarkData } = await createTestData();
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id
+                id: testUsers[1].id,
             });
             const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id };
 
@@ -100,7 +100,7 @@ describe("EndpointsBookmark", () => {
             const { testUsers } = await createTestData();
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
             const input: BookmarkSearchInput = {
                 forObjectType: BookmarkFor.Tag,
@@ -116,7 +116,7 @@ describe("EndpointsBookmark", () => {
             const { testUsers } = await createTestData();
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id
+                id: testUsers[1].id,
             });
             const input: BookmarkSearchInput = { take: 10 };
             const result = await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
@@ -140,7 +140,7 @@ describe("EndpointsBookmark", () => {
             const { testUsers, tags } = await createTestData();
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id
+                id: testUsers[1].id,
             });
 
             // Use validation fixtures for API input
@@ -166,7 +166,7 @@ describe("EndpointsBookmark", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id
+                id: testUsers[1].id,
             });
 
             // Use validation fixtures with list connection
@@ -208,7 +208,7 @@ describe("EndpointsBookmark", () => {
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
 
             const input: BookmarkUpdateInput = {
@@ -225,7 +225,7 @@ describe("EndpointsBookmark", () => {
             const { testUsers, bookmarkData } = await createTestData();
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
 
             const input: BookmarkUpdateInput = {
@@ -242,7 +242,7 @@ describe("EndpointsBookmark", () => {
             const { testUsers, bookmarkData } = await createTestData();
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id
+                id: testUsers[1].id,
             });
 
             const input: BookmarkUpdateInput = {

@@ -3,7 +3,7 @@ import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { Trigger } from "../../events/trigger.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { PhoneFormat } from "../formats.js";
 import { type PhoneModelLogic } from "./types.js";
 

@@ -2,7 +2,7 @@ import { MaxObjects, type ModelType, NotificationSubscriptionSortBy, notificatio
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { subscribableMapper } from "../../events/subscriber.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { NotificationSubscriptionFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { type NotificationSubscriptionModelLogic } from "./types.js";

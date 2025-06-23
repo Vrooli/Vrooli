@@ -11,11 +11,9 @@ import { tag_findMany } from "../generated/tag_findMany.js";
 import { tag_findOne } from "../generated/tag_findOne.js";
 import { tag_updateOne } from "../generated/tag_updateOne.js";
 import { tag } from "./tag.js";
-
 // Import database fixtures for seeding
 import { seedTags } from "../../__test/fixtures/db/tagFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-
 // Import validation fixtures for API input testing
 import { tagTestDataFactory } from "@vrooli/shared";
 
@@ -35,12 +33,12 @@ describe("EndpointsTag", () => {
         try {
             const prisma = DbProvider.get();
             if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true
+                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup
         }
-    });
+        
         adminUser = await seedMockAdminUser();
 
         // Seed tags using database fixtures
@@ -78,7 +76,7 @@ describe("EndpointsTag", () => {
             it("returns tag by id for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: tags[0].id };
                 const result = await tag.findOne({ input }, { req, res }, tag_findOne);
@@ -101,7 +99,7 @@ describe("EndpointsTag", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: tags[2].id };
                 const result = await tag.findOne({ input }, { req, res }, tag_findOne);
@@ -116,7 +114,7 @@ describe("EndpointsTag", () => {
             it("returns tags without filters for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: TagSearchInput = { take: 10 };
                 const expectedIds = tags.map(t => t.id);
@@ -129,7 +127,7 @@ describe("EndpointsTag", () => {
             it("returns tags with search term", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: TagSearchInput = {
                     searchString: "script",
@@ -155,7 +153,7 @@ describe("EndpointsTag", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: TagSearchInput = { take: 10 };
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
@@ -170,7 +168,7 @@ describe("EndpointsTag", () => {
             it("creates a tag for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // Use validation fixtures for API input
@@ -194,7 +192,7 @@ describe("EndpointsTag", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // Use complete fixture for comprehensive test
@@ -212,7 +210,7 @@ describe("EndpointsTag", () => {
             it("throws error for duplicate tag", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // Try to create a tag that already exists
@@ -244,7 +242,7 @@ describe("EndpointsTag", () => {
             it("updates tag translations for owner", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 const input: TagUpdateInput = {
@@ -263,7 +261,7 @@ describe("EndpointsTag", () => {
             it("admin can update any tag", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: adminUser.id
+                    id: adminUser.id,
                 });
 
                 const input: TagUpdateInput = {
@@ -284,7 +282,7 @@ describe("EndpointsTag", () => {
             it("throws error for non-owner", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[1].id
+                    id: testUsers[1].id,
                 });
 
                 const input: TagUpdateInput = {

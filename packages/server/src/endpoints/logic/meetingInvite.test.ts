@@ -12,12 +12,10 @@ import { meetingInvite_findMany } from "../generated/meetingInvite_findMany.js";
 import { meetingInvite_findOne } from "../generated/meetingInvite_findOne.js";
 import { meetingInvite_updateOne } from "../generated/meetingInvite_updateOne.js";
 import { meetingInvite } from "./meetingInvite.js";
-
 // Import database fixtures for seeding
 import { MeetingDbFactory } from "../../__test/fixtures/db/meetingFixtures.js";
 import { seedMeetingInvites } from "../../__test/fixtures/db/meetingInviteFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-
 // Import validation fixtures for API input testing
 import { meetingInviteTestDataFactory } from "@vrooli/shared";
 
@@ -43,12 +41,11 @@ describe("EndpointsMeetingInvite", () => {
         try {
             const prisma = DbProvider.get();
             if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true
+                testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup
         }
-    });
 
         // Create teams for meetings
         team1 = await DbProvider.get().team.create({
@@ -276,7 +273,7 @@ describe("EndpointsMeetingInvite", () => {
                 const input: MeetingInviteSearchInput = {
                     meetingId: meeting1.id,
                     userId: testUsers[1].id,
-                    take: 10
+                    take: 10,
                 };
                 const result = await meetingInvite.findMany({ input }, { req, res }, meetingInvite_findMany);
 
@@ -434,8 +431,8 @@ describe("EndpointsMeetingInvite", () => {
                 where: {
                     meetingId_userId: {
                         meetingId: meeting1.id,
-                        userId: testUsers[1].id
-                    }
+                        userId: testUsers[1].id,
+                    },
                 },
             });
             expect(attendee).not.toBeNull();
@@ -491,8 +488,8 @@ describe("EndpointsMeetingInvite", () => {
                 where: {
                     meetingId_userId: {
                         meetingId: meeting2.id,
-                        userId: testUsers[0].id
-                    }
+                        userId: testUsers[0].id,
+                    },
                 },
             });
             expect(attendee).toBeNull();

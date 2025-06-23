@@ -37,6 +37,6 @@ export async function countViews(): Promise<void> {
         countField: "views",
         relationName: "viewedBy",
         select: viewsSelect,
-        traceId: "views_001"
+        traceId: "views_001",
     });
 }

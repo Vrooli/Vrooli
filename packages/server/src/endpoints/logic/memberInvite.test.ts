@@ -12,11 +12,9 @@ import { memberInvite_findMany } from "../generated/memberInvite_findMany.js";
 import { memberInvite_findOne } from "../generated/memberInvite_findOne.js";
 import { memberInvite_updateOne } from "../generated/memberInvite_updateOne.js";
 import { memberInvite } from "./memberInvite.js";
-
 // Import database fixtures for seeding
 import { seedMemberInvites } from "../../__test/fixtures/db/memberInviteFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-
 // Import validation fixtures for API input testing
 import { memberInviteTestDataFactory } from "@vrooli/shared";
 
@@ -40,12 +38,11 @@ describe("EndpointsMemberInvite", () => {
         try {
             const prisma = DbProvider.get();
             if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true
+                testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup
         }
-    });
 
         // Create teams for member invites
         team1 = await DbProvider.get().team.create({
@@ -259,7 +256,7 @@ describe("EndpointsMemberInvite", () => {
                 const input: MemberInviteSearchInput = {
                     teamId: team1.id,
                     userId: testUsers[1].id,
-                    take: 10
+                    take: 10,
                 };
                 const result = await memberInvite.findMany({ input }, { req, res }, memberInvite_findMany);
 
@@ -417,8 +414,8 @@ describe("EndpointsMemberInvite", () => {
                 where: {
                     teamId_userId: {
                         teamId: team1.id,
-                        userId: testUsers[1].id
-                    }
+                        userId: testUsers[1].id,
+                    },
                 },
             });
             expect(member).not.toBeNull();
@@ -474,8 +471,8 @@ describe("EndpointsMemberInvite", () => {
                 where: {
                     teamId_userId: {
                         teamId: team2.id,
-                        userId: testUsers[0].id
-                    }
+                        userId: testUsers[0].id,
+                    },
                 },
             });
             expect(member).toBeNull();

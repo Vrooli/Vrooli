@@ -123,7 +123,7 @@ async function scheduleNotifications(
                         objectField,
                         derivedType: scheduleForType,
                         validTypes: Object.values(ModelType),
-                        trace: "0433_invalid_type"
+                        trace: "0433_invalid_type",
                     });
                     return;
                 }
@@ -150,7 +150,7 @@ async function scheduleNotifications(
                     );
 
                     // Validate the parsed context matches expected structure
-                    if (!context || typeof context !== 'object') {
+                    if (!context || typeof context !== "object") {
                         logger.warn(`Subscription ${subscription.id} for subscriber ${subscriberId} has invalid context structure after parsing. Skipping reminder processing.`, {
                             subscriptionId: subscription.id,
                             subscriberId,
@@ -267,7 +267,7 @@ export async function scheduleNotify(): Promise<void> {
 
                     // Validate and map exceptions with proper type safety
                     const exceptions: Schedule["exceptions"] = scheduleData.exceptions
-                        .filter(ex => ex && typeof ex.id !== 'undefined' && ex.originalStartTime)
+                        .filter(ex => ex && typeof ex.id !== "undefined" && ex.originalStartTime)
                         .map(ex => ({
                             id: ex.id.toString(),
                             __typename: "ScheduleException" as const,
@@ -278,7 +278,7 @@ export async function scheduleNotify(): Promise<void> {
 
                     // Validate and map recurrences with proper type safety
                     const recurrences: Schedule["recurrences"] = scheduleData.recurrences
-                        .filter(rec => rec && typeof rec.id !== 'undefined' && rec.recurrenceType)
+                        .filter(rec => rec && typeof rec.id !== "undefined" && rec.recurrenceType)
                         .map(rec => ({
                             id: rec.id.toString(),
                             __typename: "ScheduleRecurrence" as const,

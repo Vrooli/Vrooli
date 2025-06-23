@@ -1,8 +1,7 @@
 import { MaxObjects, MemberSortBy } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { MemberFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";

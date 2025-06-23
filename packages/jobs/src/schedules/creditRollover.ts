@@ -10,7 +10,7 @@ import { calculateFreeCreditsBalance } from "@vrooli/server";
 export async function creditRollover(): Promise<void> {
     // Use UTC to ensure consistent monthly processing across timezones
     const now = new Date();
-    const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`; // "YYYY-MM"
+    const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`; // "YYYY-MM"
     
     // Check if this month has already been processed (idempotency protection)
     const { DbProvider } = await import("@vrooli/server");
@@ -47,7 +47,7 @@ export async function creditRollover(): Promise<void> {
                         logger.error(`Failed to process credit rollover for user ${user.id}`, { 
                             error: userError, 
                             userId: user.id, 
-                            trace: "creditRollover_userError" 
+                            trace: "creditRollover_userError", 
                         });
                     }
                 }
@@ -76,17 +76,17 @@ export async function creditRollover(): Promise<void> {
         if (redis) {
             try {
                 const jobStatus = {
-                    status: errorCount === 0 ? 'success' : (processedUsers > 0 ? 'partial' : 'failed'),
+                    status: errorCount === 0 ? "success" : (processedUsers > 0 ? "partial" : "failed"),
                     timestamp: new Date().toISOString(),
                     processedUsers,
                     errorCount,
                     month: currentMonth,
                 };
-                await redis.set('job:creditRollover:lastRun', JSON.stringify(jobStatus));
+                await redis.set("job:creditRollover:lastRun", JSON.stringify(jobStatus));
             } catch (redisError) {
                 logger.error("Failed to update Redis job status", { 
                     error: redisError, 
-                    trace: "creditRollover_redisError" 
+                    trace: "creditRollover_redisError", 
                 });
             }
         }
@@ -106,18 +106,18 @@ export async function creditRollover(): Promise<void> {
         if (redis) {
             try {
                 const jobStatus = {
-                    status: 'failed',
+                    status: "failed",
                     timestamp: new Date().toISOString(),
                     processedUsers,
                     errorCount,
                     month: currentMonth,
-                    error: error instanceof Error ? error.message : 'Unknown error',
+                    error: error instanceof Error ? error.message : "Unknown error",
                 };
-                await redis.set('job:creditRollover:lastRun', JSON.stringify(jobStatus));
+                await redis.set("job:creditRollover:lastRun", JSON.stringify(jobStatus));
             } catch (redisError) {
                 logger.error("Failed to update Redis job status on error", { 
                     error: redisError, 
-                    trace: "creditRollover_redisErrorOnFailure" 
+                    trace: "creditRollover_redisErrorOnFailure", 
                 });
             }
         }
@@ -172,10 +172,10 @@ async function processUserCreditRollover(
     // Parse credit settings
     let creditConfig: CreditConfig;
     try {
-        if (typeof user.creditSettings !== 'object' || user.creditSettings === null) {
+        if (typeof user.creditSettings !== "object" || user.creditSettings === null) {
             logger.warn(`Invalid credit settings type for user ${user.id}`, { 
                 settings: user.creditSettings, 
-                trace: "creditRollover_invalidSettingsType" 
+                trace: "creditRollover_invalidSettingsType", 
             });
             return;
         }
@@ -184,7 +184,7 @@ async function processUserCreditRollover(
         logger.warn(`Invalid credit settings for user ${user.id}`, { 
             settings: user.creditSettings, 
             error,
-            trace: "creditRollover_invalidSettings" 
+            trace: "creditRollover_invalidSettings", 
         });
         return;
     }
@@ -221,7 +221,7 @@ async function processCreditDonation(
             userId: user.id.toString(),
             currentBalance: currentBalance.toString(),
             freeCreditsBalance: freeCreditsBalance.toString(),
-            trace: "creditRollover_noFreeCredits"
+            trace: "creditRollover_noFreeCredits",
         });
         return;
     }
@@ -266,11 +266,11 @@ async function processCreditDonation(
                 freeCreditsBalance: freeCreditsBalance.toString(),
                 totalBalance: currentBalance.toString(),
                 donationPercentage: creditConfig.donation.percentage,
-                trace: "creditRollover_donationSuccess"
+                trace: "creditRollover_donationSuccess",
             });
             
             // Update user's credit settings to mark donation as processed
-            await updateCreditSettingsProcessedMonth(user.id, 'donation', currentMonth);
+            await updateCreditSettingsProcessedMonth(user.id, "donation", currentMonth);
             
         } catch (publishError) {
             logger.error(`Failed to publish donation BillingEvent for user ${user.id}`, { 
@@ -278,7 +278,7 @@ async function processCreditDonation(
                 eventId: billingEventId, 
                 userId: user.id, 
                 donationAmount: donationAmountBigInt.toString(),
-                trace: "creditRollover_donationPublishError" 
+                trace: "creditRollover_donationPublishError", 
             });
         }
     }
@@ -321,7 +321,7 @@ async function processCreditRolloverExpiration(
             logger.info(`Successfully published credit expiration event ${billingEventId} for user ${user.id} - expired ${excessCredits} credits`);
             
             // Update user's credit settings to mark rollover as processed
-            await updateCreditSettingsProcessedMonth(user.id, 'rollover', currentMonth);
+            await updateCreditSettingsProcessedMonth(user.id, "rollover", currentMonth);
             
         } catch (publishError) {
             logger.error(`Failed to publish expiration BillingEvent for user ${user.id}`, { 
@@ -329,18 +329,18 @@ async function processCreditRolloverExpiration(
                 eventId: billingEventId, 
                 userId: user.id, 
                 excessCredits,
-                trace: "creditRollover_expirationPublishError" 
+                trace: "creditRollover_expirationPublishError", 
             });
         }
     } else {
         // No expiration needed, but still mark as processed
-        await updateCreditSettingsProcessedMonth(user.id, 'rollover', currentMonth);
+        await updateCreditSettingsProcessedMonth(user.id, "rollover", currentMonth);
     }
 }
 
 async function updateCreditSettingsProcessedMonth(
     userId: bigint,
-    settingsType: 'donation' | 'rollover',
+    settingsType: "donation" | "rollover",
     currentMonth: string,
 ): Promise<void> {
     try {
@@ -365,9 +365,9 @@ async function updateCreditSettingsProcessedMonth(
                     
                     const creditConfig = new CreditConfig(user.creditSettings as any);
                     
-                    if (settingsType === 'donation') {
+                    if (settingsType === "donation") {
                         creditConfig.updateDonationSettings({ lastProcessedMonth: currentMonth });
-                    } else if (settingsType === 'rollover') {
+                    } else if (settingsType === "rollover") {
                         creditConfig.updateRolloverSettings({ lastProcessedMonth: currentMonth });
                     }
                     

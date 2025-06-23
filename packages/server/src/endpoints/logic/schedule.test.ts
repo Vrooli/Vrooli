@@ -11,10 +11,8 @@ import { schedule_findMany } from "../generated/schedule_findMany.js";
 import { schedule_findOne } from "../generated/schedule_findOne.js";
 import { schedule_updateOne } from "../generated/schedule_updateOne.js";
 import { schedule } from "./schedule.js";
-
 // Import database fixtures for seeding
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-
 // Import validation fixtures for API input testing
 import { scheduleTestDataFactory } from "@vrooli/shared";
 
@@ -351,7 +349,7 @@ describe("EndpointsSchedule", () => {
 
                 // Verify creation in DB
                 const createdSchedule = await DbProvider.get().schedule.findUnique({
-                    where: { id: creationResult.id }
+                    where: { id: creationResult.id },
                 });
                 expect(createdSchedule).not.toBeNull();
                 expect(createdSchedule?.timezone).toBe("Europe/London");
@@ -377,7 +375,7 @@ describe("EndpointsSchedule", () => {
                 expect(result.id).toBeDefined();
                 // Verify creation in DB
                 const createdSchedule = await DbProvider.get().schedule.findUnique({
-                    where: { id: result.id }
+                    where: { id: result.id },
                 });
                 expect(createdSchedule).not.toBeNull();
                 expect(createdSchedule?.timezone).toBe("UTC"); // Check a basic field

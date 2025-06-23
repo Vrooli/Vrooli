@@ -2,9 +2,9 @@ import { MaxObjects, getTranslation, projectVersionDirectoryValidation } from "@
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { ProjectVersionDirectoryFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { type ProjectVersionDirectoryModelInfo, type ProjectVersionDirectoryModelLogic, type ProjectVersionModelInfo, type ProjectVersionModelLogic } from "./types.js";

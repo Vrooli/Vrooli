@@ -57,6 +57,7 @@ describe("scheduleNotify integration tests", () => {
     const testScheduleIds: bigint[] = [];
     const testNotificationSubscriptionIds: bigint[] = [];
     const testMeetingIds: bigint[] = [];
+    const testTeamIds: bigint[] = [];
 
     beforeEach(async () => {
         // Clear test ID arrays
@@ -66,6 +67,7 @@ describe("scheduleNotify integration tests", () => {
         testScheduleIds.length = 0;
         testNotificationSubscriptionIds.length = 0;
         testMeetingIds.length = 0;
+        testTeamIds.length = 0;
 
         // Reset mocks
         vi.clearAllMocks();
@@ -91,6 +93,9 @@ describe("scheduleNotify integration tests", () => {
         if (testRoutineIds.length > 0) {
             await db.routine.deleteMany({ where: { id: { in: testRoutineIds } } });
         }
+        if (testTeamIds.length > 0) {
+            await db.team.deleteMany({ where: { id: { in: testTeamIds } } });
+        }
         if (testUserIds.length > 0) {
             await db.user.deleteMany({ where: { id: { in: testUserIds } } });
         }
@@ -114,10 +119,19 @@ describe("scheduleNotify integration tests", () => {
         const routine = await DbProvider.get().routine.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
                 isPrivate: false,
                 isInternal: false,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Routine",
+                        description: "Test Description",
+                    },
+                },
             },
         });
         testRoutineIds.push(routine.id);
@@ -126,6 +140,8 @@ describe("scheduleNotify integration tests", () => {
         const schedule = await DbProvider.get().schedule.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
+                userId: user.id,
                 startTime: new Date(now.getTime() + 2 * 60 * 60 * 1000), // 2 hours from now
                 endTime: new Date(now.getTime() + 3 * 60 * 60 * 1000), // 3 hours from now
                 timezone: "UTC",
@@ -175,7 +191,7 @@ describe("scheduleNotify integration tests", () => {
         expect(mockPushScheduleReminder).toHaveBeenCalledWith(
             run.id.toString(),
             "Run",
-            expect.any(Date)
+            expect.any(Date),
         );
 
         const mockToUsers = mockPushScheduleReminder.mock.results[0].value.toUsers;
@@ -208,6 +224,8 @@ describe("scheduleNotify integration tests", () => {
         const schedule = await DbProvider.get().schedule.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
+                userId: user.id,
                 startTime: new Date(now.getTime() + 1 * 60 * 60 * 1000), // 1 hour from now
                 endTime: new Date(now.getTime() + 2 * 60 * 60 * 1000), // 2 hours from now
                 timezone: "UTC",
@@ -215,15 +233,32 @@ describe("scheduleNotify integration tests", () => {
         });
         testScheduleIds.push(schedule.id);
 
+        // Create team first for meeting
+        const team = await DbProvider.get().team.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                createdById: user.id,
+                handle: "meetingteam",
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Meeting Team",
+                    },
+                },
+            },
+        });
+        testTeamIds.push(team.id);
+
         // Create meeting with schedule
         const meeting = await DbProvider.get().meeting.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 scheduleId: schedule.id,
-                createdById: user.id,
+                teamId: team.id,
                 openToAnyoneWithInvite: false,
-                allowEntranceAfterStart: false,
-                linkShareRole: "Spectator",
                 showOnTeamProfile: false,
             },
         });
@@ -251,7 +286,7 @@ describe("scheduleNotify integration tests", () => {
         expect(mockPushScheduleReminder).toHaveBeenCalledWith(
             meeting.id.toString(),
             "Meeting",
-            expect.any(Date)
+            expect.any(Date),
         );
     });
 
@@ -271,10 +306,19 @@ describe("scheduleNotify integration tests", () => {
         const routine = await DbProvider.get().routine.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
                 isPrivate: false,
                 isInternal: false,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Routine",
+                        description: "Test Description",
+                    },
+                },
             },
         });
         testRoutineIds.push(routine.id);
@@ -282,6 +326,8 @@ describe("scheduleNotify integration tests", () => {
         const schedule = await DbProvider.get().schedule.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
+                userId: user.id,
                 startTime: new Date(now.getTime() + 1 * 60 * 60 * 1000),
                 endTime: new Date(now.getTime() + 2 * 60 * 60 * 1000),
                 timezone: "UTC",
@@ -339,10 +385,19 @@ describe("scheduleNotify integration tests", () => {
         const routine = await DbProvider.get().routine.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
                 isPrivate: false,
                 isInternal: false,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Routine",
+                        description: "Test Description",
+                    },
+                },
             },
         });
         testRoutineIds.push(routine.id);
@@ -350,6 +405,8 @@ describe("scheduleNotify integration tests", () => {
         const schedule = await DbProvider.get().schedule.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
+                userId: user.id,
                 startTime: new Date(now.getTime() + 1 * 60 * 60 * 1000),
                 endTime: new Date(now.getTime() + 2 * 60 * 60 * 1000),
                 timezone: "UTC",
@@ -407,6 +464,8 @@ describe("scheduleNotify integration tests", () => {
         const schedule = await DbProvider.get().schedule.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
+                userId: user.id,
                 startTime: new Date(now.getTime() + 1 * 60 * 60 * 1000),
                 endTime: new Date(now.getTime() + 2 * 60 * 60 * 1000),
                 timezone: "UTC",
@@ -461,10 +520,19 @@ describe("scheduleNotify integration tests", () => {
         const routine = await DbProvider.get().routine.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: users[0].id,
                 ownedByUserId: users[0].id,
                 isPrivate: false,
                 isInternal: false,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Routine",
+                        description: "Test Description",
+                    },
+                },
             },
         });
         testRoutineIds.push(routine.id);
@@ -472,6 +540,8 @@ describe("scheduleNotify integration tests", () => {
         const schedule = await DbProvider.get().schedule.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
+                userId: users[0].id,
                 startTime: new Date(now.getTime() + 1 * 60 * 60 * 1000),
                 endTime: new Date(now.getTime() + 2 * 60 * 60 * 1000),
                 timezone: "UTC",
@@ -539,7 +609,7 @@ describe("scheduleNotify integration tests", () => {
                     userId: users[1].id.toString(),
                     delays: expect.any(Array),
                 }),
-            ])
+            ]),
         );
     });
 
@@ -564,10 +634,19 @@ describe("scheduleNotify integration tests", () => {
         const routine = await DbProvider.get().routine.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
                 isPrivate: false,
                 isInternal: false,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Routine",
+                        description: "Test Description",
+                    },
+                },
             },
         });
         testRoutineIds.push(routine.id);
@@ -575,6 +654,8 @@ describe("scheduleNotify integration tests", () => {
         const schedule = await DbProvider.get().schedule.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
+                userId: user.id,
                 startTime: new Date(now.getTime() + 1 * 60 * 60 * 1000),
                 endTime: new Date(now.getTime() + 2 * 60 * 60 * 1000),
                 timezone: "UTC",
@@ -635,10 +716,19 @@ describe("scheduleNotify integration tests", () => {
         const routine = await DbProvider.get().routine.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
                 isPrivate: false,
                 isInternal: false,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Routine",
+                        description: "Test Description",
+                    },
+                },
             },
         });
         testRoutineIds.push(routine.id);
@@ -646,6 +736,8 @@ describe("scheduleNotify integration tests", () => {
         const schedule = await DbProvider.get().schedule.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
+                userId: user.id,
                 startTime: new Date(now.getTime() + 1 * 60 * 60 * 1000),
                 endTime: new Date(now.getTime() + 2 * 60 * 60 * 1000),
                 timezone: "UTC",
@@ -692,10 +784,19 @@ describe("scheduleNotify integration tests", () => {
         const routine = await DbProvider.get().routine.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
                 isPrivate: false,
                 isInternal: false,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Routine",
+                        description: "Test Description",
+                    },
+                },
             },
         });
         testRoutineIds.push(routine.id);
@@ -703,6 +804,8 @@ describe("scheduleNotify integration tests", () => {
         const schedule = await DbProvider.get().schedule.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
+                userId: user.id,
                 startTime: new Date(now.getTime() + 1 * 60 * 60 * 1000),
                 endTime: new Date(now.getTime() + 2 * 60 * 60 * 1000),
                 timezone: "UTC",
