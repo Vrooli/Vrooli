@@ -1,5 +1,5 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Input from "@mui/material/Input";
 import InputAdornment from "@mui/material/InputAdornment";
 import Paper from "@mui/material/Paper";
@@ -117,6 +117,7 @@ export function BasicSearchBar({
                     <IconButton
                         aria-label={t("Search")}
                         edge="end"
+                        variant="transparent"
                         onClick={noop}
                     >
                         <IconCommon
@@ -237,6 +238,7 @@ export function PaperSearchBar({
                     <IconButton
                         aria-label={t("Search")}
                         edge="end"
+                        variant="transparent"
                         onClick={noop}
                     >
                         <IconCommon
@@ -268,6 +270,7 @@ export function PaperSearchBar({
                 onTranscriptChange={handleTranscriptChange}
             />
             <IconButton
+                variant="transparent"
                 sx={searchIconStyle}
             >
                 <IconCommon

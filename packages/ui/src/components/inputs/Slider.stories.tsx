@@ -41,15 +41,15 @@ export const SliderShowcase: Story = {
         // State for individual slider values - all sliders default to 50
         const [sliderValues, setSliderValues] = useState<Record<string, number>>({
             // Live preview values
-            'preview-default': 50,
-            'preview-primary': 50,
-            'preview-secondary': 50,
-            'preview-success': 50,
-            'preview-warning': 50,
-            'preview-danger': 50,
-            'preview-space': 50,
-            'preview-neon': 50,
-            'preview-custom': 50,
+            "preview-default": 50,
+            "preview-primary": 50,
+            "preview-secondary": 50,
+            "preview-success": 50,
+            "preview-warning": 50,
+            "preview-danger": 50,
+            "preview-space": 50,
+            "preview-neon": 50,
+            "preview-custom": 50,
             // All variants section
             default: 50,
             primary: 50,
@@ -61,9 +61,9 @@ export const SliderShowcase: Story = {
             neon: 50,
             custom: 50,
             // Size comparison
-            'size-sm': 50,
-            'size-md': 50,
-            'size-lg': 50,
+            "size-sm": 50,
+            "size-md": 50,
+            "size-lg": 50,
             // Common use cases
             volume: 25,
             brightness: 75,
@@ -94,7 +94,7 @@ export const SliderShowcase: Story = {
                 
                 // Format value to avoid floating point display issues
                 const formattedValue = step && step < 1 
-                    ? Number(value.toFixed(String(step).split('.')[1]?.length || 1))
+                    ? Number(value.toFixed(String(step).split(".")[1]?.length || 1))
                     : Math.round(value);
                 
                 marks.push({ value: formattedValue });
@@ -107,14 +107,14 @@ export const SliderShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1400, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -123,14 +123,14 @@ export const SliderShowcase: Story = {
                         borderRadius: 2, 
                         boxShadow: 1,
                         height: "fit-content",
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Slider Controls</Typography>
                         
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {/* Size Control */}
                             <FormControl component="fieldset" size="small">
@@ -251,7 +251,7 @@ export const SliderShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Live Preview - All Variants</Typography>
                         
@@ -260,9 +260,9 @@ export const SliderShowcase: Story = {
                             gridTemplateColumns: { 
                                 xs: "1fr", 
                                 sm: "repeat(2, 1fr)",
-                                md: "repeat(3, 1fr)"
+                                md: "repeat(3, 1fr)",
                             }, 
-                            gap: 4 
+                            gap: 4, 
                         }}>
                             {variants.map(v => (
                                 <Box 
@@ -270,7 +270,7 @@ export const SliderShowcase: Story = {
                                     sx={{ 
                                         p: 3,
                                         borderRadius: 2,
-                                        backgroundColor: (v === "space" || v === "neon") ? "#001122" : "transparent"
+                                        backgroundColor: (v === "space" || v === "neon") ? "#001122" : "transparent",
                                     }}
                                 >
                                     <Typography 
@@ -279,7 +279,7 @@ export const SliderShowcase: Story = {
                                             mb: 2, 
                                             textTransform: "capitalize",
                                             color: (v === "space" || v === "neon") ? "#fff" : "inherit",
-                                            textAlign: "center"
+                                            textAlign: "center",
                                         }}
                                     >
                                         {v}
@@ -309,7 +309,7 @@ export const SliderShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Size Comparison</Typography>
                         
@@ -317,7 +317,7 @@ export const SliderShowcase: Story = {
                             display: "flex", 
                             flexDirection: "column",
                             gap: 4,
-                            alignItems: "center"
+                            alignItems: "center",
                         }}>
                             {["sm", "md", "lg"].map(s => (
                                 <Box key={s} sx={{ width: "100%", maxWidth: 400 }}>
@@ -344,7 +344,7 @@ export const SliderShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Common Use Cases</Typography>
                         
@@ -362,7 +362,7 @@ export const SliderShowcase: Story = {
                                         marks={[
                                             { value: 0, label: "Mute" },
                                             { value: 50, label: "50%" },
-                                            { value: 100, label: "Max" }
+                                            { value: 100, label: "Max" },
                                         ]}
                                         value={sliderValues.volume}
                                         onChange={(value) => handleSliderChange("volume", value)}
@@ -419,7 +419,7 @@ export const SliderShowcase: Story = {
                                     gap: 3, 
                                     p: 3, 
                                     bgcolor: "#001122", 
-                                    borderRadius: 1 
+                                    borderRadius: 1, 
                                 }}>
                                     <Slider
                                         variant="space"
@@ -481,7 +481,7 @@ export const SliderShowcase: Story = {
                                         marks={[
                                             { value: -50, label: "-50°C" },
                                             { value: 0, label: "0°C" },
-                                            { value: 50, label: "50°C" }
+                                            { value: 50, label: "50°C" },
                                         ]}
                                         value={sliderValues.negative}
                                         onChange={(value) => handleSliderChange("negative", value)}
@@ -514,7 +514,7 @@ export const SliderShowcase: Story = {
                                         marks={[
                                             { value: 0, label: "0%" },
                                             { value: 50, label: "50%" },
-                                            { value: 100, label: "100%" }
+                                            { value: 100, label: "100%" },
                                         ]}
                                         value={sliderValues.controlled}
                                         onChange={(value) => handleSliderChange("controlled", value)}

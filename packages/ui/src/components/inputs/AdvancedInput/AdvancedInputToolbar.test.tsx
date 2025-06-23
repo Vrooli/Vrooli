@@ -11,8 +11,8 @@ expect.extend({
         return {
             pass,
             message: () => pass 
-                ? `expected element not to be in the document`
-                : `expected element to be in the document`,
+                ? "expected element not to be in the document"
+                : "expected element to be in the document",
         };
     },
     toHaveAttribute(received, attr, value) {
@@ -35,15 +35,15 @@ expect.extend({
         if (!received) {
             return {
                 pass: false,
-                message: () => `expected element to be disabled but element was null`,
+                message: () => "expected element to be disabled but element was null",
             };
         }
-        const pass = received.disabled === true || received.getAttribute?.('disabled') !== null;
+        const pass = received.disabled === true || received.getAttribute?.("disabled") !== null;
         return {
             pass,
             message: () => pass
-                ? `expected element not to be disabled`
-                : `expected element to be disabled`,
+                ? "expected element not to be disabled"
+                : "expected element to be disabled",
         };
     },
 });
@@ -136,7 +136,7 @@ describe("AdvancedInputToolbar", () => {
             expect(toolbar).toBeDefined();
             
             // Check that disabled buttons are present in the DOM with disabled attribute
-            const disabledButtons = toolbar.querySelectorAll('button[disabled]');
+            const disabledButtons = toolbar.querySelectorAll("button[disabled]");
             expect(disabledButtons.length).toBeGreaterThan(0);
         });
 
@@ -201,7 +201,7 @@ describe("AdvancedInputToolbar", () => {
                     {...defaultProps} 
                     handleAction={handleAction}
                     handleActiveStatesChange={handleActiveStatesChange}
-                />
+                />,
             );
             
             // Click header button to open popover (mocked to not actually open)
@@ -287,7 +287,7 @@ describe("AdvancedInputToolbar", () => {
                     {...defaultProps} 
                     handleAction={handleAction}
                     canUndo={true}
-                />
+                />,
             );
             
             // Find undo button by icon and click it
@@ -306,7 +306,7 @@ describe("AdvancedInputToolbar", () => {
                     {...defaultProps} 
                     handleAction={handleAction}
                     canRedo={true}
-                />
+                />,
             );
             
             // Find redo button by icon and click it
@@ -354,7 +354,7 @@ describe("AdvancedInputToolbar", () => {
                     {...defaultProps} 
                     handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={true}
-                />
+                />,
             );
             
             // When isMarkdownOn changes to true, it should reset active states
@@ -431,7 +431,7 @@ describe("AdvancedInputToolbar", () => {
                     {...defaultProps} 
                     handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={true}
-                />
+                />,
             );
             
             // Active states should be reset to default when in markdown mode
@@ -448,7 +448,7 @@ describe("AdvancedInputToolbar", () => {
                     handleAction={handleAction}
                     handleActiveStatesChange={handleActiveStatesChange}
                     isMarkdownOn={false}
-                />
+                />,
             );
             
             // When not in markdown mode, clicking buttons should update active states
@@ -517,12 +517,12 @@ describe("AdvancedInputToolbar", () => {
         it("does not re-render unnecessarily when unrelated props change", () => {
             const handleAction = vi.fn();
             const { rerender } = render(
-                <AdvancedInputToolbar {...defaultProps} handleAction={handleAction} />
+                <AdvancedInputToolbar {...defaultProps} handleAction={handleAction} />,
             );
             
             // Change unrelated prop
             rerender(
-                <AdvancedInputToolbar {...defaultProps} handleAction={handleAction} />
+                <AdvancedInputToolbar {...defaultProps} handleAction={handleAction} />,
             );
             
             expect(screen.getByRole("region", { name: "Text input toolbar" })).toBeInTheDocument();

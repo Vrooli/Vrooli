@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material";
 import { LINKS, ResourceUsedFor, endpointsActions, getObjectUrl, type CalendarEvent, type Count, type DeleteManyInput, type ListObject, type Resource } from "@vrooli/shared";
@@ -229,7 +229,7 @@ const EventCard = forwardRef<unknown, EventCardProps>(({
                     </Typography>
                 </Stack>
                 {isEditing ? (
-                    <IconButton className="delete-icon-button">
+                    <IconButton className="delete-icon-button" variant="transparent">
                         <IconCommon
                             className="delete-icon"
                             fill="background.textSecondary"
@@ -237,7 +237,7 @@ const EventCard = forwardRef<unknown, EventCardProps>(({
                         />
                     </IconButton>
                 ) : isCurrent ? (
-                    <IconButton disabled>
+                    <IconButton disabled variant="transparent">
                         <IconCommon
                             fill="warning.main"
                             name="Warning"
@@ -334,13 +334,13 @@ function EventListHorizontal({
                 </CardBox>
             </Tooltip>}
             {!isEditing && <Tooltip title={t("Open")}>
-                <IconButton onClick={openSchedule}>
+                <IconButton onClick={openSchedule} variant="transparent">
                     <IconCommon name="OpenInNew" fill="secondary.main" size={24} />
                 </IconButton>
             </Tooltip>}
             {/* Edit button */}
             {canUpdate && <Tooltip title={t("Edit")}>
-                <IconButton onClick={toggleEditing}>
+                <IconButton onClick={toggleEditing} variant="transparent">
                     <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
                 </IconButton>
             </Tooltip>}

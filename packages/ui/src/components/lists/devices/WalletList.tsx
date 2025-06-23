@@ -1,10 +1,10 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../../Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material";
 import { endpointsActions, endpointsWallet, updateArray, type DeleteOneInput, type Success, type Wallet, type WalletUpdateInput } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";

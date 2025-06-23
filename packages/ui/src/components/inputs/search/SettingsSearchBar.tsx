@@ -1,5 +1,5 @@
 import Autocomplete from "@mui/material/Autocomplete";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Input from "@mui/material/Input";
 import ListItemText from "@mui/material/ListItemText";
 import MenuItem from "@mui/material/MenuItem";
@@ -273,6 +273,7 @@ export function SettingsSearchBar({
                         }}
                     />
                     <IconButton
+                        variant="transparent"
                         sx={{
                             width: "48px",
                             height: "48px",

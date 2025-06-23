@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import Box from "@mui/material/Box";
 import type { BoxProps } from "@mui/material/Box";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";

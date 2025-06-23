@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useMemo } from "react";
-import { RadioProps } from "./types.js";
+import { type RadioProps } from "./types.js";
 import { cn } from "../../utils/tailwind-theme.js";
 import { getRadioStyles } from "./radioStyles.js";
 import { useRippleEffect } from "../../hooks/index.js";
@@ -57,7 +57,13 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(({
     }, [disabled, onClick]);
 
     return (
-        <label className={cn(styles.container, className)} style={style}>
+        <label 
+            className={cn(styles.container, className)} 
+            style={style}
+            data-testid="radio-label"
+            data-disabled={disabled}
+            data-checked={checked ?? defaultChecked ?? false}
+        >
             <input
                 ref={ref}
                 type="radio"
@@ -75,6 +81,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(({
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
                 aria-describedby={ariaDescribedBy}
+                data-testid="radio-input"
                 {...props}
             />
             <span 
@@ -93,14 +100,17 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(({
                 style={color === "custom" && customColor && !disabled && styles.customStyles?.focus ? {
                     "--tw-ring-color": styles.customStyles.focus.ringColor,
                 } as React.CSSProperties : undefined}
+                data-testid="radio-wrapper"
             >
                 <span 
                     className={styles.radioOuter}
                     style={color === "custom" && customColor ? styles.customStyles?.outer : undefined}
+                    data-testid="radio-outer"
                 >
                     <span 
                         className={styles.radioInner}
                         style={color === "custom" && customColor ? styles.customStyles?.inner : undefined}
+                        data-testid="radio-inner"
                     />
                 </span>
                 {ripples.map((ripple) => (
@@ -114,6 +124,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(({
                             height: ripple.size,
                         }}
                         onAnimationEnd={() => ripple.onAnimationEnd()}
+                        data-testid="radio-ripple"
                     />
                 ))}
             </span>

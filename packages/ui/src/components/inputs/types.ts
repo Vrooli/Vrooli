@@ -174,25 +174,6 @@ export interface LinkInputBaseProps {
 
 export type LinkInputProps = Omit<LinkInputBaseProps, "onChange" | "value">;
 
-export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
-    autoFocus?: boolean;
-    disabled?: boolean;
-    error?: boolean;
-    helperText?: string | boolean | null | undefined;
-    maxChars?: number;
-    maxRows?: number;
-    minRows?: number;
-    name: string;
-    onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
-    onFocus?: (event: React.FocusEvent<HTMLElement>) => unknown;
-    onChange: (newText: string) => unknown;
-    /** Allows "Enter" or "Shift+Enter" to submit */
-    onSubmit?: (newText: string) => unknown;
-    placeholder?: string;
-    tabIndex?: number;
-    taskInfo?: Pick<UseChatTaskReturn, "activeTask" | "contexts">;
-    value: string;
-}
 
 export type PasswordTextInputProps = TextInputProps & {
     autoComplete?: string;
@@ -322,30 +303,6 @@ export type TextInputProps = Omit<TextFieldProps, "ref"> & {
 
 export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
 
-export interface TranslatedRichInputProps {
-    actionButtons?: Array<{
-        disabled?: boolean;
-        iconInfo: IconInfo;
-        onClick: () => unknown;
-        tooltip?: string;
-    }>;
-    autoFocus?: boolean;
-    disabled?: boolean;
-    isRequired?: boolean;
-    language: string;
-    maxChars?: number;
-    maxRows?: number;
-    minRows?: number;
-    name: string;
-    placeholder?: string;
-    sxs?: {
-        topBar?: SxType;
-        bottomBar?: SxType;
-        root?: SxType;
-        inputRoot?: SxType;
-        textArea?: CSSProperties;
-    };
-}
 
 export interface TranslatedTextInputProps {
     autoFocus?: boolean;

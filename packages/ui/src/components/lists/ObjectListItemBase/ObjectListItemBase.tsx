@@ -3,7 +3,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { styled } from "@mui/material";
 import { useTheme } from "@mui/material";
 import type { BoxProps, ChipProps, ListItemProps, Palette } from "@mui/material";

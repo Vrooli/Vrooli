@@ -6,7 +6,7 @@ import { useField } from "formik";
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { IntegerInputBase } from "../IntegerInput/IntegerInput.js";
-import { RichInputBase } from "../RichInput/RichInput.js";
+import { AdvancedInputBase } from "../AdvancedInput/AdvancedInput.js";
 import { SelectorBase } from "../Selector/Selector.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
@@ -114,7 +114,7 @@ export function FormInputText({
 
         if (props.isMarkdown) {
             return (
-                <RichInputBase
+                <AdvancedInputBase
                     disableAssistant={isEditing}
                     maxChars={props.maxChars}
                     maxRows={props.maxRows}

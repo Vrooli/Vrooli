@@ -1,8 +1,8 @@
 /* eslint-disable import/extensions */
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled, useTheme } from "@mui/material";
 import { CodeLanguage, Status, isEqual, type TranslationKeyLangs } from "@vrooli/shared";
@@ -450,9 +450,18 @@ const LanguageLabel = styled(Typography)(({ theme }) => ({
     marginLeft: theme.spacing(1),
 }));
 
-const InfoBarButton = styled(IconButton)(({ theme }) => ({
+const InfoBarButton = styled(Box)(({ theme }) => ({
     color: theme.palette.primary.contrastText,
     backgroundColor: theme.palette.primary.dark,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacing(1),
+    borderRadius: theme.shape.borderRadius,
+    cursor: "pointer",
+    "&:hover": {
+        opacity: 0.8,
+    },
 }));
 
 const outerStackStyle = {

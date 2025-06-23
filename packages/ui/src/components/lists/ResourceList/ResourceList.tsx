@@ -1,8 +1,8 @@
 import { DragDropContext, Draggable, Droppable, type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps, type DropResult } from "@hello-pangea/dnd";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "../../buttons/IconButton.js";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material";
 import { DUMMY_ID, DeleteType, ResourceUsedFor, endpointsActions, updateArray, type Count, type DeleteManyInput, type ListObject, type Resource, type ResourceListFor, type ResourceList as ResourceListType, type TranslationKeyCommon } from "@vrooli/shared";
@@ -196,7 +196,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
                 >
                     {firstString(title, data.link)}
                 </Typography>
-                {isEditing && <IconButton className="delete-icon-button">
+                {isEditing && <IconButton className="delete-icon-button" variant="transparent">
                     <IconCommon
                         className="delete-icon"
                         fill="background.textSecondary"
@@ -321,7 +321,7 @@ function ResourceListHorizontal({
                             {providedDrop.placeholder}
                             {/* Edit button */}
                             {canUpdate && <Tooltip title={t("Edit")}>
-                                <IconButton onClick={toggleEditing}>
+                                <IconButton onClick={toggleEditing} variant="transparent">
                                     <IconCommon name={isEditing ? "Close" : "Edit"} fill="secondary.main" size={24} />
                                 </IconButton>
                             </Tooltip>}

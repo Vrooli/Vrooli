@@ -1,4 +1,4 @@
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import ListItem from "@mui/material/ListItem";
 import Popover from "@mui/material/Popover";
 import Stack from "@mui/material/Stack";

@@ -1,5 +1,5 @@
 export { Switch, SwitchFactory } from "./Switch.js";
-export type { SwitchProps, SwitchVariant, SwitchSize, LabelPosition } from "./Switch.js";
+export type { SwitchProps, SwitchVariant, SwitchSize, LabelPosition } from "./types.js";
 
 // Export switch utilities for advanced usage
 export {

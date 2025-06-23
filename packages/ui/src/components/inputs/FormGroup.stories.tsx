@@ -43,14 +43,14 @@ export const FormGroupShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1200, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -59,7 +59,7 @@ export const FormGroupShowcase: Story = {
                         borderRadius: 2, 
                         boxShadow: 1,
                         height: "fit-content",
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>FormGroup Controls</Typography>
                         
@@ -78,7 +78,7 @@ export const FormGroupShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Basic FormGroup</Typography>
                         <Typography variant="body2" sx={{ mb: 2 }}>
@@ -103,7 +103,7 @@ export const FormGroupShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Mixed Controls</Typography>
                         <Typography variant="body2" sx={{ mb: 2 }}>
@@ -139,7 +139,7 @@ export const FormGroupShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Notification Preferences</Typography>
                         
@@ -153,7 +153,7 @@ export const FormGroupShowcase: Story = {
                                             checked={notifications.email}
                                             onChange={(e) => setNotifications(prev => ({
                                                 ...prev,
-                                                email: e.target.checked
+                                                email: e.target.checked,
                                             }))}
                                         />
                                     }
@@ -166,7 +166,7 @@ export const FormGroupShowcase: Story = {
                                             checked={notifications.push}
                                             onChange={(e) => setNotifications(prev => ({
                                                 ...prev,
-                                                push: e.target.checked
+                                                push: e.target.checked,
                                             }))}
                                         />
                                     }
@@ -179,7 +179,7 @@ export const FormGroupShowcase: Story = {
                                             checked={notifications.sms}
                                             onChange={(e) => setNotifications(prev => ({
                                                 ...prev,
-                                                sms: e.target.checked
+                                                sms: e.target.checked,
                                             }))}
                                         />
                                     }
@@ -192,7 +192,7 @@ export const FormGroupShowcase: Story = {
                                             checked={notifications.desktop}
                                             onChange={(e) => setNotifications(prev => ({
                                                 ...prev,
-                                                desktop: e.target.checked
+                                                desktop: e.target.checked,
                                             }))}
                                         />
                                     }
@@ -215,7 +215,7 @@ export const FormGroupShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Nested FormGroups</Typography>
                         
@@ -231,7 +231,7 @@ export const FormGroupShowcase: Story = {
                                                 checked={features.darkMode}
                                                 onChange={(checked) => setFeatures(prev => ({
                                                     ...prev,
-                                                    darkMode: checked
+                                                    darkMode: checked,
                                                 }))}
                                             />
                                         }
@@ -256,7 +256,7 @@ export const FormGroupShowcase: Story = {
                                                 checked={features.autoSave}
                                                 onChange={(checked) => setFeatures(prev => ({
                                                     ...prev,
-                                                    autoSave: checked
+                                                    autoSave: checked,
                                                 }))}
                                             />
                                         }
@@ -269,7 +269,7 @@ export const FormGroupShowcase: Story = {
                                                 checked={features.spellCheck}
                                                 onChange={(checked) => setFeatures(prev => ({
                                                     ...prev,
-                                                    spellCheck: checked
+                                                    spellCheck: checked,
                                                 }))}
                                             />
                                         }
@@ -290,7 +290,7 @@ export const FormGroupShowcase: Story = {
                                                 checked={features.analytics}
                                                 onChange={(checked) => setFeatures(prev => ({
                                                     ...prev,
-                                                    analytics: checked
+                                                    analytics: checked,
                                                 }))}
                                             />
                                         }
@@ -311,7 +311,7 @@ export const FormGroupShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Responsive Layout</Typography>
                         <Typography variant="body2" sx={{ mb: 2 }}>
@@ -321,8 +321,8 @@ export const FormGroupShowcase: Story = {
                         <FormControl component="fieldset">
                             <FormLabel component="legend">Select Features</FormLabel>
                             <FormGroup sx={{ 
-                                flexDirection: { xs: 'column', sm: row ? 'row' : 'column' },
-                                gap: { xs: 1, sm: row ? 3 : 1 }
+                                flexDirection: { xs: "column", sm: row ? "row" : "column" },
+                                gap: { xs: 1, sm: row ? 3 : 1 },
                             }}>
                                 <FormControlLabel control={<Checkbox color="success" />} label="Feature A" />
                                 <FormControlLabel control={<Checkbox color="success" />} label="Feature B" />

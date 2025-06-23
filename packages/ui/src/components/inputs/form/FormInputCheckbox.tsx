@@ -1,18 +1,18 @@
 import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Checkbox from "@mui/material/Checkbox";
 import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
 import FormHelperText from "@mui/material/FormHelperText";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
+import { Checkbox } from "../Checkbox.js";
 import { getFormikFieldName, updateArray, type CheckboxFormInput, type CheckboxFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -341,8 +341,7 @@ export function FormInputCheckbox({
                                         color="secondary"
                                         onChange={onCheckboxChange}
                                         name={`${fieldData.fieldName}-${index}`}
-                                        id={`${fieldData.fieldName}-${index}`}
-                                        value={option.value}
+                                        aria-label={`${fieldData.fieldName}-${index}`}
                                         disabled={disabled || (props.maxSelection !== undefined && !field.value?.[index] && maxSelectionsReached)}
                                     />
                                 }
@@ -353,9 +352,10 @@ export function FormInputCheckbox({
                                         </Typography>
                                         {!isEditing && isCustomOption && (
                                             <IconButton
+                                                variant="transparent"
+                                                size="sm"
                                                 onClick={() => handleRemoveCustomOption(index - props.options.length)}
-                                                size="small"
-                                                sx={{ marginLeft: "4px" }}
+                                                style={{ marginLeft: "4px" }}
                                             >
                                                 <IconCommon
                                                     decorative
@@ -436,8 +436,7 @@ export function FormInputCheckbox({
                                                                 color="secondary"
                                                                 onChange={onCheckboxChange}
                                                                 name={`${fieldData.fieldName}-${index}`}
-                                                                id={`${fieldData.fieldName}-${index}`}
-                                                                value={option.value}
+                                                                aria-label={`${fieldData.fieldName}-${index}`}
                                                             />
                                                         }
                                                         label={(
@@ -475,7 +474,7 @@ export function FormInputCheckbox({
                                                                             </div>
                                                                         </Tooltip>
                                                                         <Tooltip title="Remove option" placement={props.row === true ? "top" : "right"}>
-                                                                            <IconButton onClick={onRemoveOption} sx={closeIconBoxStyle}>
+                                                                            <IconButton variant="transparent" size="sm" onClick={onRemoveOption} style={closeIconBoxStyle}>
                                                                                 <IconCommon
                                                                                     decorative
                                                                                     fill={palette.background.textSecondary}

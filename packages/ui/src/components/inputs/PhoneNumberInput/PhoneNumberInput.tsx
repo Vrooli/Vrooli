@@ -59,13 +59,35 @@ export function PhoneNumberInputBase({
                     stableSetError("Invalid phone number");
                     return;
                 }
-                // Parse phone number
-                const parsedNumber = lib.parsePhoneNumber(value);
-                // Make sure parsed country matches selected country
-                if (parsedNumber?.country !== selectedCountry) {
+                
+                // Handle empty value case
+                if (!value || value.trim() === "") {
+                    stableSetError(undefined);
+                    return;
+                }
+                
+                // Parse phone number with error handling
+                let parsedNumber;
+                try {
+                    parsedNumber = lib.parsePhoneNumber(value);
+                } catch (parseError) {
+                    // If parsing fails, set error but don't crash
                     stableSetError("Invalid phone number");
                     return;
                 }
+                
+                // Check if parsed number exists and has valid country
+                if (!parsedNumber) {
+                    stableSetError("Invalid phone number");
+                    return;
+                }
+                
+                // Make sure parsed country matches selected country
+                if (parsedNumber.country !== selectedCountry) {
+                    stableSetError("Invalid phone number");
+                    return;
+                }
+                
                 // Perform normal validation
                 const valid = lib.isValidPhoneNumber(value, selectedCountry);
                 if (valid) {
@@ -93,25 +115,33 @@ export function PhoneNumberInputBase({
     const handlePhoneNumberChange = useCallback(() => {
         const libphonenumber = import("libphonenumber-js");
         libphonenumber.then(async (lib) => {
-            // Get AsYouType instance for phone number formatting
-            const asYouType = new lib.AsYouType(selectedCountry);
-            const formattedNumber = asYouType.input(phoneNumberRef.current);
-            // Use it to set the shown phone number
-            setPhoneNumber(formattedNumber);
-            phoneNumberRef.current = formattedNumber;
-            // If the phone number is empty, set value to an empty string
-            if (formattedNumber.trim() === "") {
-                stableOnChange("");
-            } else {
-                // If the number does not include a country code, add it when setting field value
-                let parsedNumber: { country?: CountryCode | undefined } = {};
-                try {
-                    parsedNumber = lib.parsePhoneNumber(phoneNumberRef.current);
-                } catch (error) {
-                    console.error(error);
+            try {
+                // Get AsYouType instance for phone number formatting
+                const asYouType = new lib.AsYouType(selectedCountry);
+                const formattedNumber = asYouType.input(phoneNumberRef.current);
+                // Use it to set the shown phone number
+                setPhoneNumber(formattedNumber);
+                phoneNumberRef.current = formattedNumber;
+                // If the phone number is empty, set value to an empty string
+                if (formattedNumber.trim() === "") {
+                    stableOnChange("");
+                } else {
+                    // If the number does not include a country code, add it when setting field value
+                    let parsedNumber: { country?: CountryCode | undefined } = {};
+                    try {
+                        parsedNumber = lib.parsePhoneNumber(phoneNumberRef.current);
+                    } catch (error) {
+                        // Silently handle parse errors for partial numbers
+                        console.debug("Phone number parsing failed for partial input:", error);
+                    }
+                    const withCountry = parsedNumber.country ? formattedNumber : `+${lib.getCountryCallingCode(selectedCountry)}${formattedNumber}`;
+                    stableOnChange(withCountry);
                 }
-                const withCountry = parsedNumber.country ? formattedNumber : `+${lib.getCountryCallingCode(selectedCountry)}${formattedNumber}`;
-                stableOnChange(withCountry);
+            } catch (error) {
+                console.error("Phone number formatting failed:", error);
+                // Fallback to basic formatting
+                setPhoneNumber(phoneNumberRef.current);
+                stableOnChange(phoneNumberRef.current);
             }
         });
     }, [stableOnChange, selectedCountry]);
@@ -156,15 +186,17 @@ export function PhoneNumberInputBase({
                         type="tel"
                         value={phoneNumber}
                         onChange={handleImmediateChange}
+                        autoComplete={autoComplete}
                         autoFocus={autoFocus}
+                        data-testid="phone-number-input"
                         startAdornment={
-                            <InputAdornment position="start" onClick={openPopover} sx={{ cursor: "pointer" }}>
+                            <InputAdornment position="start" onClick={openPopover} sx={{ cursor: "pointer" }} data-testid="country-selector-button">
                                 <IconCommon
                                     decorative
                                     name="Phone"
                                     style={{ marginRight: "4px" }}
                                 />
-                                <Typography variant="body1" sx={{ marginRight: "4px" }}>{selectedCountry}</Typography>
+                                <Typography variant="body1" sx={{ marginRight: "4px" }} data-testid="selected-country">{selectedCountry}</Typography>
                             </InputAdornment>
                         }
                         error={!!error}
@@ -189,6 +221,7 @@ export function PhoneNumberInputBase({
                 anchorEl={anchorEl}
                 onClose={closePopover}
                 anchorOrigin={anchorOrigin}
+                data-testid="country-selector-popover"
             >
                 <TextField
                     margin="normal"
@@ -200,13 +233,15 @@ export function PhoneNumberInputBase({
                     name="countrySearchNoFill" // Weird name to discourage autofill
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
+                    data-testid="country-search-input"
                 />
-                <List style={{ maxHeight: 300, overflow: "auto" }}>
+                <List style={{ maxHeight: 300, overflow: "auto" }} data-testid="country-list">
                     {filteredCountries.map(({ country, num }) => (
                         <ListItem
                             button
                             key={country}
                             onClick={() => handleCountryChange(country)}
+                            data-testid={`country-option-${country}`}
                         >
                             {country} (+{num})
                         </ListItem>

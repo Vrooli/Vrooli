@@ -103,13 +103,14 @@ export function Dropzone({
         setFiles([]);
     }
 
-    const thumbs = files.map(file => (
-        <div className={classes.thumb} key={file.name}>
+    const thumbs = files.map((file, index) => (
+        <div className={classes.thumb} key={`${file.name}-${index}`} data-testid={`dropzone-thumb-${file.name}`}>
             <div className={classes.thumbInner}>
                 <img
                     src={file.preview}
                     className={classes.img}
                     alt="Dropzone preview"
+                    data-testid={`dropzone-thumb-img-${file.name}`}
                 />
             </div>
         </div>
@@ -121,12 +122,12 @@ export function Dropzone({
     }, [files]);
 
     return (
-        <section className={classes.dropContainer}>
-            <div style={{ textAlign: "center" }} {...getRootProps({ className: "dropzone" })}>
-                <input {...getInputProps()} />
-                <p>{dropzoneText}</p>
+        <section className={classes.dropContainer} data-testid="dropzone-container">
+            <div style={{ textAlign: "center" }} {...getRootProps({ className: "dropzone" })} data-testid="dropzone-area">
+                <input {...getInputProps()} data-testid="dropzone-input" />
+                <p data-testid="dropzone-text">{dropzoneText}</p>
                 {showThumbs &&
-                    <aside className={classes.thumbsContainer}>
+                    <aside className={classes.thumbsContainer} data-testid="dropzone-thumbs">
                         {thumbs}
                     </aside>}
                 <Grid className={classes.gridPad} container spacing={2}>
@@ -137,6 +138,7 @@ export function Dropzone({
                             fullWidth
                             onClick={upload}
                             variant="contained"
+                            data-testid="dropzone-upload-button"
                         >{uploadText}</Button>
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -146,6 +148,7 @@ export function Dropzone({
                             fullWidth
                             onClick={cancel}
                             variant="outlined"
+                            data-testid="dropzone-cancel-button"
                         >{cancelText}</Button>
                     </Grid>
                 </Grid>

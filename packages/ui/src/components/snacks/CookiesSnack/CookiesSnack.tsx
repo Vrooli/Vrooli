@@ -1,13 +1,13 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
-import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
+import { IconButton } from "../../buttons/IconButton.js";
 import { noSelect } from "../../../styles.js";
 import { type CookiePreferences, setCookie } from "../../../utils/localStorage.js";
 import { CookieSettingsDialog } from "../../dialogs/CookieSettingsDialog/CookieSettingsDialog.js";
@@ -74,7 +74,11 @@ export function CookiesSnack({
                             {t("CookiesDetails")}
                         </Typography>
                     </Box>
-                    <IconButton onClick={handleClose}>
+                    <IconButton 
+                        onClick={handleClose}
+                        variant="transparent"
+                        size="lg"
+                    >
                         <IconCommon
                             decorative
                             fill={palette.background.textPrimary}

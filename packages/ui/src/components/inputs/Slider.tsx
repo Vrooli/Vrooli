@@ -110,7 +110,7 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
     // Create throttled onChange callback if throttleMs is provided
     const throttledOnChange = useThrottle(
         onChange || (() => {}), 
-        throttleMs
+        throttleMs,
     );
 
     // Use throttled or regular onChange based on throttleMs
@@ -124,33 +124,33 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
     // Memoized style calculations
     const containerClasses = useMemo(() => 
         buildSliderContainerClasses({ size, disabled, className }), 
-        [size, disabled, className]
+        [size, disabled, className],
     );
 
     const trackClasses = useMemo(() => 
         buildTrackClasses({ size, variant }), 
-        [size, variant]
+        [size, variant],
     );
 
     const filledTrackClasses = useMemo(() => 
         buildFilledTrackClasses({ variant, customColor: color }), 
-        [variant, color]
+        [variant, color],
     );
 
     const thumbClasses = useMemo(() => 
         buildThumbClasses({ size, variant, disabled, isDragging, customColor: color }), 
-        [size, variant, disabled, isDragging, color]
+        [size, variant, disabled, isDragging, color],
     );
 
     const customStyle = useMemo(() => 
         variant === "custom" ? getCustomSliderStyle(color) : {}, 
-        [variant, color]
+        [variant, color],
     );
 
     // Calculate position percentage
     const positionPercentage = useMemo(() => 
         calculateSliderPosition(displayValue, min, max), 
-        [displayValue, min, max]
+        [displayValue, min, max],
     );
 
     // Update value helper
@@ -226,12 +226,12 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
     // Set up global pointer events for dragging
     useEffect(() => {
         if (isDragging) {
-            document.addEventListener('pointermove', handlePointerMove);
-            document.addEventListener('pointerup', handlePointerUp);
+            document.addEventListener("pointermove", handlePointerMove);
+            document.addEventListener("pointerup", handlePointerUp);
             
             return () => {
-                document.removeEventListener('pointermove', handlePointerMove);
-                document.removeEventListener('pointerup', handlePointerUp);
+                document.removeEventListener("pointermove", handlePointerMove);
+                document.removeEventListener("pointerup", handlePointerUp);
             };
         }
     }, [isDragging, handlePointerMove, handlePointerUp]);
@@ -310,6 +310,7 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
                     className={trackClasses}
                     style={getTrackBackgroundStyle(variant)}
                     onClick={handleTrackClick}
+                    data-testid="slider-track"
                 >
                     {/* Filled track */}
                     <div
@@ -319,8 +320,9 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
                                 ? { clipPath: `inset(0 ${100 - positionPercentage}% 0 0)` }
                                 : { width: `${positionPercentage}%` }
                             ),
-                            ...(variant === "custom" && color ? { backgroundColor: color } : {})
+                            ...(variant === "custom" && color ? { backgroundColor: color } : {}),
                         }}
+                        data-testid="slider-filled-track"
                     />
                 </div>
 
@@ -330,7 +332,7 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
                     className={thumbClasses}
                     style={{ 
                         left: `${positionPercentage}%`,
-                        ...(variant === "custom" && color ? { borderColor: color } : {})
+                        ...(variant === "custom" && color ? { borderColor: color } : {}),
                     }}
                     onPointerDown={handlePointerDown}
                     onKeyDown={handleKeyDown}
@@ -342,6 +344,7 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
                     aria-valuetext={formatValue(displayValue)}
                     aria-disabled={disabled}
                     aria-label={label || "Slider"}
+                    data-testid="slider-thumb"
                 />
 
                 {/* Value tooltip */}
@@ -349,7 +352,7 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
                     <div
                         className={cn(
                             BASE_SLIDER_STYLES.valueDisplay,
-                            (showTooltip || isDragging) && "tw-opacity-100"
+                            (showTooltip || isDragging) && "tw-opacity-100",
                         )}
                         style={{ left: `${positionPercentage}%` }}
                     >
@@ -380,6 +383,32 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
 });
 
 Slider.displayName = "Slider";
+
+// Add factory components as properties
+Slider.Primary = (props: Omit<SliderProps, "variant">) => (
+    <Slider variant="primary" {...props} />
+);
+Slider.Secondary = (props: Omit<SliderProps, "variant">) => (
+    <Slider variant="secondary" {...props} />
+);
+Slider.Success = (props: Omit<SliderProps, "variant">) => (
+    <Slider variant="success" {...props} />
+);
+Slider.Warning = (props: Omit<SliderProps, "variant">) => (
+    <Slider variant="warning" {...props} />
+);
+Slider.Danger = (props: Omit<SliderProps, "variant">) => (
+    <Slider variant="danger" {...props} />
+);
+Slider.Space = (props: Omit<SliderProps, "variant">) => (
+    <Slider variant="space" {...props} />
+);
+Slider.Neon = (props: Omit<SliderProps, "variant">) => (
+    <Slider variant="neon" {...props} />
+);
+Slider.Custom = (props: Omit<SliderProps, "variant"> & { color: string }) => (
+    <Slider variant="custom" {...props} />
+);
 
 // Factory components for common variants
 export const SliderFactory = {

@@ -1,6 +1,5 @@
 import Box from "@mui/material/Box";
 import ButtonBase from "@mui/material/ButtonBase";
-import DialogContent from "@mui/material/DialogContent";
 import Divider from "@mui/material/Divider";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
@@ -17,16 +16,15 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { useMenu } from "../../hooks/useMenu.js";
 import { useLocation } from "../../route/router.js";
 import { randomString } from "../../utils/codes.js";
-import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
 import { normalizeText } from "../../utils/display/documentTools.js";
 import { listToAutocomplete } from "../../utils/display/listTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { Actions, getAutocompleteOptionIcon, performAction, shortcuts } from "../../utils/navigation/quickActions.js";
 import { type MenuPayloads } from "../../utils/pubsub.js";
-import { LargeDialog } from "../dialogs/LargeDialog/LargeDialog.js";
+import { Dialog, DialogContent } from "../dialogs/Dialog/Dialog.js";
 import { BasicSearchBar } from "../inputs/search/SiteSearchBar.js";
 
-const titleId = "command-palette-dialog-title";
 const scrollContainerId = "command-palette-search";
 const searchBarId = `${scrollContainerId}-search-bar`;
 const actionsListId = `${scrollContainerId}-actions-list`;
@@ -34,14 +32,6 @@ const shortcutsListId = `${scrollContainerId}-shortcuts-list`;
 const searchListId = `${scrollContainerId}-search-list`;
 const autoFocusDelayMs = 100;
 const defaultItemsToShow = 5;
-const dialogStyle = {
-    root: {
-        zIndex: Z_INDEX.CommandPalette,
-    },
-    paper: {
-        margin: 0,
-    },
-} as const;
 const where = {
     visibility: VisibilityType.OwnOrPublic,
 } as const;
@@ -112,10 +102,10 @@ export function CommandPalette() {
         const label = t(shortcut.label, { ...(shortcut.labelArgs ?? {}), defaultValue: shortcut.label }) as string;
         const keywords = shortcut.keywords?.map(keyword => {
             if (typeof keyword === "string") {
-                return t(keyword) as string;
+                return t(keyword, { count: 1 }) as string;
             }
             const { key, ...args } = keyword;
-            return t(key, { ...args, defaultValue: key });
+            return t(key, { count: 1, ...args, defaultValue: key });
         });
         // Use the label and keywords to build search terms
         const searchTerms: string[] = [];
@@ -259,24 +249,14 @@ export function CommandPalette() {
         setLocation(newLocation);
     }, [close, findManyData, session, setLocation]);
 
-    const searchBarBoxStyle = useMemo(function searchBarBoxStyleMemo() {
-        return {
-            background: palette.background.default,
-            overflowY: "auto",
-            minHeight: "500px",
-            height: "100%",
-        } as const;
-    }, [palette]);
-
     const noResultsFound = filteredActions.length === 0 && filteredShortcuts.length === 0 && searchResultsData.length === 0;
 
     return (
-        <LargeDialog
-            id="command-palette-dialog"
+        <Dialog
             isOpen={isOpen}
             onClose={close}
-            titleId={titleId}
-            sxs={dialogStyle}
+            size="lg"
+            showCloseButton={false}
         >
             <BasicSearchBar
                 id={searchBarId}
@@ -284,7 +264,7 @@ export function CommandPalette() {
                 placeholder={t("CommandPalettePlaceholder")}
                 value={findManyData.searchString}
             />
-            <DialogContent id={scrollContainerId} sx={searchBarBoxStyle}>
+            <DialogContent id={scrollContainerId} className="tw-px-0">
                 {noResultsFound ? (
                     <Box display="flex" justifyContent="center" alignItems="center" height="100%">
                         <Typography variant="body1" color="text.secondary">{t("NoResults")}</Typography>
@@ -312,6 +292,6 @@ export function CommandPalette() {
                     </>
                 )}
             </DialogContent>
-        </LargeDialog>
+        </Dialog>
     );
 }

@@ -1,8 +1,8 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Slider from "@mui/material/Slider";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
+import { Slider } from "../Slider.js";
 import { getFormikFieldName, type SliderFormInput, type SliderFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
@@ -24,13 +24,12 @@ export function FormInputSlider({
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
     const [field, , helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
-    const handleChange = useCallback((_, value: number | number[]) => {
-        const newValue = Array.isArray(value) ? value[0] : value;
+    const handleChange = useCallback((value: number) => {
         if (isEditing) {
-            const newProps = { ...props, defaultValue: newValue };
+            const newProps = { ...props, defaultValue: value };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-        helpers.setValue(newValue);
+        helpers.setValue(value);
     }, [isEditing, helpers, props, onConfigUpdate, fieldData]);
 
     const [showMore, setShowMore] = useState(false);
@@ -92,18 +91,17 @@ export function FormInputSlider({
         <Box pl={3} pr={3} pt={4}>
             <Slider
                 disabled={disabled}
-                key={`field-${fieldData.id}`}
                 min={props.min}
                 max={props.max}
-                name={fieldData.fieldName}
                 step={props.step}
-                valueLabelDisplay={props.valueLabelDisplay || "auto"}
+                showValue={props.valueLabelDisplay !== "off"}
                 value={isEditing ? props.defaultValue ?? props.min : field.value}
-                onBlur={field.onBlur}
                 onChange={handleChange}
+                variant="default"
+                size="md"
             />
         </Box>
-    ), [disabled, fieldData.id, fieldData.fieldName, props.min, props.max, props.step, props.valueLabelDisplay, props.defaultValue, isEditing, field.value, field.onBlur, handleChange]);
+    ), [disabled, props.min, props.max, props.step, props.valueLabelDisplay, props.defaultValue, isEditing, field.value, handleChange]);
 
     const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
         return propButtonWithSectionStyle(showMore);

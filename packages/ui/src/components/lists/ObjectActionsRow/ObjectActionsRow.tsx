@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "../../buttons/IconButton.js";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled, useTheme } from "@mui/material";
 import { type ListObject } from "@vrooli/shared";
@@ -114,6 +114,7 @@ export function ObjectActionsRow<T extends ListObject>({
                     <ActionIconButton
                         aria-label={t("More")}
                         onClick={openOverflowMenu}
+                        variant="transparent"
                     >
                         <IconCommon
                             decorative

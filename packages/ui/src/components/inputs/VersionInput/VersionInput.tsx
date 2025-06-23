@@ -1,6 +1,6 @@
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import InputAdornment from "@mui/material/InputAdornment";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { styled, useTheme } from "@mui/material";
 import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@vrooli/shared";
 import { useField } from "formik";
@@ -151,6 +151,7 @@ export function VersionInput({
                 <Tooltip placement="top" title="Major bump (increment the first number)">
                     <IconButton
                         onClick={bumpMajor}
+                        variant="transparent"
                         sx={bumpMajorIconButtonStyle}>
                         <IconCommon decorative name="BumpMajor" />
                     </IconButton>
@@ -158,6 +159,7 @@ export function VersionInput({
                 <Tooltip placement="top" title="Moderate bump (increment the middle number)">
                     <IconButton
                         onClick={bumpModerate}
+                        variant="transparent"
                         sx={bumpModerateIconButtonStyle}>
                         <IconCommon decorative name="BumpModerate" />
                     </IconButton>
@@ -165,6 +167,7 @@ export function VersionInput({
                 <Tooltip placement="top" title="Minor bump (increment the last number)">
                     <IconButton
                         onClick={bumpMinor}
+                        variant="transparent"
                         sx={bumpMinorIconButtonStyle}>
                         <IconCommon decorative name="BumpMinor" />
                     </IconButton>

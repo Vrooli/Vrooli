@@ -1,6 +1,6 @@
 import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -247,8 +247,10 @@ export function ProfilePictureInput({
                     zIndex={Z_INDEX.PageElement + 1}
                 >
                     <IconButton
+                        variant="transparent"
+                        size="md"
                         aria-label={t("Edit")}
-                        sx={editButtonStyle}
+                        style={editButtonStyle}
                     >
                         <IconCommon
                             decorative
@@ -259,9 +261,11 @@ export function ProfilePictureInput({
                     </IconButton>
                     {bannerImageUrl !== undefined && (
                         <IconButton
+                            variant="transparent"
+                            size="md"
                             aria-label={t("Delete")}
                             onClick={removeBannerImage}
-                            sx={deleteButtonStyle}
+                            style={deleteButtonStyle}
                         >
                             <IconCommon
                                 fill={palette.secondary.contrastText}
@@ -299,8 +303,10 @@ export function ProfilePictureInput({
                     zIndex={Z_INDEX.PageElement + 1}
                 >
                     <IconButton
+                        variant="transparent"
+                        size="md"
                         aria-label={t("Edit")}
-                        sx={editButtonStyle}
+                        style={editButtonStyle}
                     >
                         <IconCommon
                             decorative
@@ -311,9 +317,11 @@ export function ProfilePictureInput({
                     </IconButton>
                     {profileImageUrl !== undefined && (
                         <IconButton
+                            variant="transparent"
+                            size="md"
                             aria-label={t("Delete")}
                             onClick={removeProfileImage}
-                            sx={deleteButtonStyle}
+                            style={deleteButtonStyle}
                         >
                             <IconCommon
                                 fill={palette.secondary.contrastText}

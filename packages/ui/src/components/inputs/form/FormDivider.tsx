@@ -1,16 +1,5 @@
-import Button from "@mui/material/Button";
-import Divider from "@mui/material/Divider";
-import { propButtonStyle } from "./styles.js";
+import { Button } from "../../buttons/Button.js";
 import { type FormDividerProps } from "./types.js";
-
-const displayStyle = {
-    paddingTop: "0px",
-    paddingBottom: "0px",
-} as const;
-const editingStyle = {
-    paddingTop: "8px",
-    paddingBottom: "8px",
-} as const;
 
 export function FormDivider({
     isEditing,
@@ -18,14 +7,37 @@ export function FormDivider({
 }: FormDividerProps) {
     // If not selected, return a plain divider
     if (!isEditing) {
-        return <Divider sx={displayStyle} />;
+        return (
+            <div 
+                className="tw-w-full tw-h-0.5 tw-bg-text-secondary tw-opacity-20"
+                data-testid="form-divider"
+                data-editing="false"
+                role="separator"
+                aria-orientation="horizontal"
+            />
+        );
     }
     // Otherwise, return a divider with a delete button
     return (
-        <Divider sx={editingStyle}>
-            <Button variant="text" sx={propButtonStyle} onClick={onDelete}>
+        <div 
+            className="tw-relative tw-flex tw-items-center tw-py-2"
+            data-testid="form-divider"
+            data-editing="true"
+            role="separator"
+            aria-orientation="horizontal"
+        >
+            <div className="tw-flex-grow tw-h-0.5 tw-bg-text-secondary tw-opacity-20" />
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onDelete}
+                className="tw-mx-2"
+                data-testid="form-divider-delete"
+                aria-label="Delete divider"
+            >
                 Delete
             </Button>
-        </Divider>
+            <div className="tw-flex-grow tw-h-0.5 tw-bg-text-secondary tw-opacity-20" />
+        </div>
     );
 }

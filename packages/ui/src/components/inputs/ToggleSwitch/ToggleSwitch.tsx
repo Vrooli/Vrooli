@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
@@ -80,18 +80,19 @@ export function ToggleSwitch({
                         transform: "translateY(-50%)",
                     }}>
                         {/* Thumb */}
-                        <IconButton sx={{
-                            background: (onIconInfo || offIconInfo) ? palette.secondary.main : "white",
-                            display: "inline-flex",
-                            width: "30px",
-                            height: "30px",
-                            padding: 0,
-                            position: "absolute",
-                            top: "50%",
-                            boxShadow: 2,
-                            transition: "transform 150ms ease-in-out",
-                            transform: `translateX(${checked ? "20" : "0"}px) translateY(-50%)`,
-                        }}>
+                        <IconButton
+                            variant="transparent"
+                            size={30}
+                            style={{
+                                background: (onIconInfo || offIconInfo) ? palette.secondary.main : "white",
+                                position: "absolute",
+                                top: "50%",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                                transition: "transform 150ms ease-in-out",
+                                transform: `translateX(${checked ? "20" : "0"}px) translateY(-50%)`,
+                                pointerEvents: "none",
+                            }}
+                        >
                             {iconInfo && <Icon
                                 fill="white"
                                 info={iconInfo}

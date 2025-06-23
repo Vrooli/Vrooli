@@ -1,13 +1,13 @@
 import Box from "@mui/material/Box";
 import type { BoxProps } from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
+import { IconButton } from "../../buttons/IconButton.js";
 import { SNACK_HIGHLIGHT, addHighlight, removeHighlights } from "../../../utils/display/documentTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { type BasicSnackProps } from "../types.js";
@@ -241,6 +241,8 @@ export function BasicSnack({
                 <IconButton
                     aria-label={t("CopyMessage")}
                     onClick={copyMessage}
+                    variant="transparent"
+                    size="md"
                 >
                     <IconCommon
                         decorative
@@ -281,6 +283,8 @@ export function BasicSnack({
             <IconButton
                 aria-label={t("Close")}
                 onClick={handleClose}
+                variant="transparent"
+                size="md"
             >
                 <IconCommon
                     decorative

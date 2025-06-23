@@ -1,8 +1,8 @@
 // Used to display popular/search results of a particular object type
 import Checkbox from "@mui/material/Checkbox";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material";
 import { endpointsReminder, shapeReminder, type Reminder, type ReminderUpdateInput } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
@@ -170,7 +170,7 @@ export function ReminderListItem({
                     </Tooltip>
                     {checked && (
                         <Tooltip title="Delete">
-                            <IconButton edge="end" size="small" onClick={handleDeleteClick}>
+                            <IconButton edge="end" size="sm" onClick={handleDeleteClick} variant="transparent">
                                 <IconCommon name="Delete" fill="error.main" />
                             </IconButton>
                         </Tooltip>

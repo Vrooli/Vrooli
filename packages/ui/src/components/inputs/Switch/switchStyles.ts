@@ -1,5 +1,5 @@
 import { cn } from "../../../utils/tailwind-theme.js";
-import type { SwitchVariant, SwitchSize } from "./Switch.js";
+import type { SwitchVariant, SwitchSize } from "./types.js";
 
 /**
  * Switch component styling utilities and configuration
@@ -94,7 +94,7 @@ export const BASE_SWITCH_STYLES = cn(
     "disabled:tw-opacity-50 disabled:tw-cursor-not-allowed disabled:tw-pointer-events-none",
     
     // Accessibility
-    "tw-select-none"
+    "tw-select-none",
 );
 
 // Track styles by variant
@@ -102,43 +102,43 @@ export const SWITCH_TRACK_STYLES = {
     default: cn(
         "tw-bg-gray-300 dark:tw-bg-gray-600",
         "data-[checked=true]:tw-bg-blue-600 dark:data-[checked=true]:tw-bg-blue-500",
-        "tw-transition-colors tw-duration-200 tw-ease-in-out"
+        "tw-transition-colors tw-duration-200 tw-ease-in-out",
     ),
     success: cn(
         "tw-bg-gray-300 dark:tw-bg-gray-600",
         "data-[checked=true]:tw-bg-green-600 dark:data-[checked=true]:tw-bg-green-500",
-        "tw-transition-colors tw-duration-200 tw-ease-in-out"
+        "tw-transition-colors tw-duration-200 tw-ease-in-out",
     ),
     warning: cn(
         "tw-bg-gray-300 dark:tw-bg-gray-600",
         "data-[checked=true]:tw-bg-orange-500 dark:data-[checked=true]:tw-bg-orange-400",
-        "tw-transition-colors tw-duration-200 tw-ease-in-out"
+        "tw-transition-colors tw-duration-200 tw-ease-in-out",
     ),
     danger: cn(
         "tw-bg-gray-300 dark:tw-bg-gray-600",
         "data-[checked=true]:tw-bg-red-600 dark:data-[checked=true]:tw-bg-red-500",
-        "tw-transition-colors tw-duration-200 tw-ease-in-out"
+        "tw-transition-colors tw-duration-200 tw-ease-in-out",
     ),
     space: cn(
         "tw-bg-gray-800 dark:tw-bg-gray-900 tw-border tw-border-gray-700",
         "data-[checked=true]:tw-bg-gradient-to-r data-[checked=true]:tw-from-cyan-500 data-[checked=true]:tw-to-blue-600",
         "data-[checked=true]:tw-shadow-lg data-[checked=true]:tw-shadow-cyan-500/30",
-        "tw-transition-all tw-duration-300 tw-ease-in-out"
+        "tw-transition-all tw-duration-300 tw-ease-in-out",
     ),
     neon: cn(
         "tw-bg-gray-800 dark:tw-bg-gray-900 tw-border tw-border-gray-700",
         "data-[checked=true]:tw-bg-green-400 data-[checked=true]:tw-border-green-400",
         "data-[checked=true]:tw-shadow-lg data-[checked=true]:tw-shadow-green-400/50",
-        "tw-transition-all tw-duration-300 tw-ease-in-out"
+        "tw-transition-all tw-duration-300 tw-ease-in-out",
     ),
     theme: cn(
         "tw-bg-sky-200 tw-border tw-border-sky-300",
         "data-[checked=true]:tw-bg-slate-800 data-[checked=true]:tw-border-slate-700",
-        "tw-transition-all tw-duration-300 tw-ease-in-out"
+        "tw-transition-all tw-duration-300 tw-ease-in-out",
     ),
     custom: cn(
         "tw-bg-gray-300 dark:tw-bg-gray-600",
-        "tw-transition-colors tw-duration-200 tw-ease-in-out"
+        "tw-transition-colors tw-duration-200 tw-ease-in-out",
     ),
 } as const;
 
@@ -147,65 +147,65 @@ export const SWITCH_THUMB_STYLES = {
     default: cn(
         "tw-bg-white tw-border tw-border-gray-300 dark:tw-border-gray-500",
         "tw-rounded-full tw-shadow-sm",
-        "tw-transition-all tw-duration-200 tw-ease-in-out"
+        "tw-transition-all tw-duration-200 tw-ease-in-out",
     ),
     success: cn(
         "tw-bg-white tw-border tw-border-gray-300 dark:tw-border-gray-500",
         "tw-rounded-full tw-shadow-sm",
-        "tw-transition-all tw-duration-200 tw-ease-in-out"
+        "tw-transition-all tw-duration-200 tw-ease-in-out",
     ),
     warning: cn(
         "tw-bg-white tw-border tw-border-gray-300 dark:tw-border-gray-500",
         "tw-rounded-full tw-shadow-sm",
-        "tw-transition-all tw-duration-200 tw-ease-in-out"
+        "tw-transition-all tw-duration-200 tw-ease-in-out",
     ),
     danger: cn(
         "tw-bg-white tw-border tw-border-gray-300 dark:tw-border-gray-500",
         "tw-rounded-full tw-shadow-sm",
-        "tw-transition-all tw-duration-200 tw-ease-in-out"
+        "tw-transition-all tw-duration-200 tw-ease-in-out",
     ),
     space: cn(
         "tw-bg-white tw-border tw-border-gray-200",
         "tw-rounded-full tw-shadow-lg tw-shadow-cyan-500/20",
         "data-[checked=true]:tw-shadow-cyan-500/40",
-        "tw-transition-all tw-duration-300 tw-ease-in-out"
+        "tw-transition-all tw-duration-300 tw-ease-in-out",
     ),
     neon: cn(
         "tw-bg-white tw-border tw-border-gray-200",
         "tw-rounded-full tw-shadow-lg tw-shadow-green-400/20",
         "data-[checked=true]:tw-shadow-green-400/60 data-[checked=true]:tw-border-green-300",
-        "tw-transition-all tw-duration-300 tw-ease-in-out"
+        "tw-transition-all tw-duration-300 tw-ease-in-out",
     ),
     theme: cn(
         "tw-bg-transparent tw-border-0",
         "tw-rounded-full",
-        "tw-transition-all tw-duration-300 tw-ease-in-out"
+        "tw-transition-all tw-duration-300 tw-ease-in-out",
     ),
     custom: cn(
         "tw-bg-white tw-border tw-border-gray-300 dark:tw-border-gray-500",
         "tw-rounded-full tw-shadow-sm",
-        "tw-transition-all tw-duration-200 tw-ease-in-out"
+        "tw-transition-all tw-duration-200 tw-ease-in-out",
     ),
 } as const;
 
 // Label styles
 export const SWITCH_LABEL_STYLES = cn(
     "tw-text-sm tw-font-medium tw-text-gray-700 dark:tw-text-gray-300",
-    "tw-cursor-pointer tw-select-none"
+    "tw-cursor-pointer tw-select-none",
 );
 
 /**
  * Utility function to get track dimensions for a given size
  */
 export function getTrackDimensions(size: SwitchSize) {
-    return SWITCH_CONFIG.TRACK_DIMENSIONS[size];
+    return SWITCH_CONFIG.TRACK_DIMENSIONS[size] || SWITCH_CONFIG.TRACK_DIMENSIONS.md;
 }
 
 /**
  * Utility function to get thumb dimensions for a given size
  */
 export function getThumbDimensions(size: SwitchSize) {
-    return SWITCH_CONFIG.THUMB_DIMENSIONS[size];
+    return SWITCH_CONFIG.THUMB_DIMENSIONS[size] || SWITCH_CONFIG.THUMB_DIMENSIONS.md;
 }
 
 /**
@@ -239,7 +239,7 @@ export function buildSwitchClasses({
         BASE_SWITCH_STYLES,
         SWITCH_COLORS.FOCUS_RING[variant],
         disabled && "tw-opacity-50 tw-cursor-not-allowed",
-        className
+        className,
     );
 }
 
@@ -248,8 +248,8 @@ export function buildSwitchClasses({
  */
 export function getCustomSwitchStyle(color: string) {
     return {
-        '--switch-custom-color': color,
-        '--switch-custom-color-light': `${color}20`,
+        "--switch-custom-color": color,
+        "--switch-custom-color-light": `${color}20`,
     } as React.CSSProperties;
 }
 

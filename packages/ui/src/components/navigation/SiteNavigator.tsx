@@ -2,7 +2,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../buttons/IconButton.js";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -356,6 +356,7 @@ export function SiteNavigator() {
                         aria-label={t("Menu")}
                         color="inherit"
                         edge="start"
+                        variant="transparent"
                         onClick={handleClose}
                     >
                         <IconText
@@ -368,6 +369,7 @@ export function SiteNavigator() {
                         <IconButton
                             aria-label={t("Search")}
                             color="inherit"
+                            variant="transparent"
                             onClick={handleOpenSearch}
                         >
                             <IconCommon

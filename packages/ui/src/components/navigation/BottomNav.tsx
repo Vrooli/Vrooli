@@ -51,9 +51,9 @@ function NotificationBadge({ count, children }: { count: number; children: React
     if (count === 0) return <>{children}</>;
     
     return (
-        <div className={badgeWrapperClasses}>
+        <div className={badgeWrapperClasses} data-testid="notification-badge">
             {children}
-            <span className={badgeClasses}>
+            <span className={badgeClasses} data-testid="notification-count">
                 {count > 99 ? "99+" : count}
             </span>
         </div>
@@ -85,6 +85,8 @@ export function BottomNav() {
         <nav
             id={ELEMENT_IDS.BottomNav}
             className={bottomNavClasses}
+            data-testid="bottom-nav"
+            data-logged-in={isLoggedIn}
         >
             {actions.map(({ label, value, iconInfo, link, numNotifications }) => (
                 <a
@@ -93,6 +95,9 @@ export function BottomNav() {
                     onClick={handleNavActionClick(link)}
                     className={navActionClasses}
                     aria-label={t(label, { count: 2 })}
+                    data-testid={`nav-action-${value.toLowerCase()}`}
+                    data-nav-action={value}
+                    data-notification-count={numNotifications}
                 >
                     <NotificationBadge count={numNotifications}>
                         <Icon

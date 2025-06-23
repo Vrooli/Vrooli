@@ -11,7 +11,7 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Popover from "@mui/material/Popover";
 // Switch import removed - using custom Switch component
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
@@ -1242,7 +1242,7 @@ export function AdvancedInputBase({
         } else if (currentHandleActionRef.current) {
             currentHandleActionRef.current(action, data);
         } else {
-            console.error("RichInputBase: No child handleAction function found");
+            console.error("AdvancedInputBase: No child handleAction function found");
         }
         return noop;
     }, [toggleMarkdown, mergedFeatures.allowFormatting]);

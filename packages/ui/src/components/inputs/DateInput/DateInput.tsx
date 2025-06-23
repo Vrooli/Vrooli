@@ -1,9 +1,7 @@
-import IconButton from "@mui/material/IconButton";
-import InputAdornment from "@mui/material/InputAdornment";
-import type { SxProps, Theme } from "@mui/material";
-import { styled, useTheme } from "@mui/material";
+import { IconButton } from "../../buttons/IconButton.js";
+import { useTheme } from "@mui/material";
 import { useField } from "formik";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 import { IconCommon } from "../../../icons/Icons.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { type DateInputProps } from "../types.js";
@@ -43,59 +41,78 @@ function formatForDateTimeLocal(dateStr, type) {
     }
 }
 
-const StyledTextInput = styled(TextInput)(({ theme }) => ({
-    display: "block",
-    "& ::-webkit-calendar-picker-indicator": {
-        filter: theme.palette.mode === "dark" ? "invert(1)" : "invert(0)",
-    },
-}));
-
-const inputAdornmentStyle = { display: "flex", alignItems: "center" } as const;
-const textInputLabelProps = { shrink: true } as const;
+const dateInputClassName = "tw-date-input";
 
 export function DateInput({
     isRequired,
     label,
     name,
     type = "datetime-local",
-    sx,
-}: DateInputProps & { sx?: SxProps<Theme> }) {
+}: DateInputProps) {
     const { palette } = useTheme();
 
     const [field, , helpers] = useField(name);
+
+    // Apply dark mode styles for calendar picker indicator
+    useEffect(() => {
+        const styleId = "date-input-styles";
+        let styleElement = document.getElementById(styleId) as HTMLStyleElement;
+        
+        if (!styleElement) {
+            styleElement = document.createElement("style");
+            styleElement.id = styleId;
+            document.head.appendChild(styleElement);
+        }
+        
+        styleElement.textContent = `
+            .${dateInputClassName} input::-webkit-calendar-picker-indicator {
+                filter: ${palette.mode === "dark" ? "invert(1)" : "invert(0)"};
+            }
+        `;
+        
+        return () => {
+            // Clean up is handled by not removing the style since it may be used by multiple instances
+        };
+    }, [palette.mode]);
 
     const clearDate = useCallback(function clearDateCallback() {
         helpers.setValue("");
     }, [helpers]);
 
-    const inputProps = useMemo(function inputPropsMemo() {
-        return {
-            endAdornment: (
-                <InputAdornment position="end" sx={inputAdornmentStyle}>
-                    <input type="hidden" />
-                    {typeof field.value === "string" && field.value.length > 0 && <IconButton edge="end" size="small" onClick={clearDate}>
-                        <IconCommon
-                            decorative
-                            fill={palette.background.textPrimary}
-                            name="Close"
-                            size={20}
-                        />
-                    </IconButton>}
-                </InputAdornment>
-            ),
-        };
+    const endAdornment = useMemo(function endAdornmentMemo() {
+        if (typeof field.value === "string" && field.value.length > 0) {
+            return (
+                <IconButton 
+                    edge="end" 
+                    size="sm" 
+                    variant="transparent" 
+                    onClick={clearDate}
+                    aria-label="Clear date"
+                    data-testid="date-input-clear"
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.background.textPrimary}
+                        name="Close"
+                        size={20}
+                    />
+                </IconButton>
+            );
+        }
+        return null;
     }, [clearDate, field.value, palette.background.textPrimary]);
 
     return (
-        <StyledTextInput
+        <TextInput
             isRequired={isRequired}
             label={label}
             type={type}
-            InputProps={inputProps}
-            InputLabelProps={textInputLabelProps}
+            endAdornment={endAdornment}
             {...field}
             value={formatForDateTimeLocal(field.value, type)}
-            sx={sx}
+            className={dateInputClassName}
+            data-testid="date-input"
+            data-type={type}
         />
     );
 }

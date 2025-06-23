@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { initializeDirectoryList } from "./DirectoryList.js";
 

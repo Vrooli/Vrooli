@@ -43,6 +43,7 @@ export function SearchList<DataType extends ListObject>({
     onItemClick,
     onSearchBlur,
     onSearchFocus,
+    permissionsFilter,
     removeItem,
     searchBarVariant,
     scrollContainerId,
@@ -51,6 +52,7 @@ export function SearchList<DataType extends ListObject>({
     searchType,
     selectedItems,
     setAdvancedSearchParams,
+    setPermissionsFilter,
     setSortBy,
     setSearchString,
     setTimeFrame,
@@ -175,8 +177,10 @@ export function SearchList<DataType extends ListObject>({
                     advancedSearchParams={advancedSearchParams}
                     advancedSearchSchema={advancedSearchSchema}
                     controlsUrl={display === "Page"}
+                    permissionsFilter={permissionsFilter}
                     searchType={searchType}
                     setAdvancedSearchParams={setAdvancedSearchParams}
+                    setPermissionsFilter={setPermissionsFilter}
                     setSortBy={setSortBy}
                     setTimeFrame={setTimeFrame}
                     sortBy={sortBy}

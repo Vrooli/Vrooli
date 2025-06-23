@@ -1,5 +1,6 @@
 import { type BookmarkList, type Chat, type ChatInvite, type ChatParticipant, type ListObject, type Meeting, type MeetingInvite, type Member, type MemberInvite, type ModelType, type NavigableObject, type Notification, type OrArray, type Reminder, type Report, type ReportResponse, type Resource, type ResourceVersion, type SearchType, type Tag, type Team, type TimeFrame, type TranslationKeyCommon, type User } from "@vrooli/shared";
 import { type ReactNode } from "react";
+import { type PermissionsFilter } from "../buttons/PermissionsButton.js";
 import { type UsePressEvent } from "../../hooks/gestures.js";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
 import { type UseFindManyResult } from "../../hooks/useFindMany.js";
@@ -190,10 +191,18 @@ export type SearchListProps<T extends OrArray<ListObject>> =
         dummyLength?: number;
         /** If update button on list items should be hidden */
         hideUpdateButton?: boolean;
+        /**
+         * Optional permissions filter value
+         */
+        permissionsFilter?: PermissionsFilter;
         scrollContainerId: string;
         searchBarVariant?: "basic" | "paper";
         searchPlaceholder?: string;
         searchType: SearchType | `${SearchType}`;
+        /**
+         * Optional setter for permissions filter
+         */
+        setPermissionsFilter?: (filter: PermissionsFilter) => void;
         sxs?: {
             searchBarAndButtonsBox?: SxType;
             buttons?: SxType;

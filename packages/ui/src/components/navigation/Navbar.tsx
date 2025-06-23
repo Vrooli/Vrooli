@@ -2,7 +2,7 @@ import AppBar from "@mui/material/AppBar";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../buttons/IconButton.js";
 import Slide from "@mui/material/Slide";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material";
@@ -151,6 +151,7 @@ export function NavListNewChatButton({
     return (
         <IconButton
             aria-label={t("NewChat")}
+            variant="transparent"
             onClick={handleNewChat}
             title={t("NewChat")}
         >
@@ -182,6 +183,7 @@ export function NavListInboxButton() {
     return (
         <IconButton
             aria-label="Open inbox"
+            variant="transparent"
             onClick={toInbox}
         >
             <Badge badgeContent={numNotifications} color="error">
@@ -336,6 +338,7 @@ export function TitleDisplay({
     if (!isMobile && !isSiteNavigatorOpen) {
         LogoComponent = <IconButton
             aria-label="Go to home page"
+            variant="transparent"
             onClick={handleLogoClick}
             sx={logoIconStyle}>
             <IconCommon
@@ -452,6 +455,7 @@ export function SiteNavigatorButton() {
         <IconButton
             aria-label="Open site navigator menu"
             id={ELEMENT_IDS.SiteNavigatorMenuIcon}
+            variant="transparent"
             onClick={openSiteNavigatorMenu}
         >
             <IconText name="List" />

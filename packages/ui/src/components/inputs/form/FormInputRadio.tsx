@@ -3,13 +3,13 @@ import Button from "@mui/material/Button";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormHelperText from "@mui/material/FormHelperText";
-import IconButton from "@mui/material/IconButton";
-import Radio from "@mui/material/Radio";
+import { IconButton } from "../../buttons/IconButton.js";
 import RadioGroup from "@mui/material/RadioGroup";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled, useTheme } from "@mui/material/styles";
+import { Radio } from "../Radio.js";
 import { getFormikFieldName, type RadioFormInput, type RadioFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
@@ -183,7 +183,7 @@ export function FormInputRadio({
                                                     <FormControlLabel
                                                         key={option.value}
                                                         value={option.value}
-                                                        control={<Radio onClick={() => handleChange(option.value)} />}
+                                                        control={<Radio value={option.value} onClick={() => handleChange(option.value)} />}
                                                         label={(
                                                             <>
                                                                 {isEditing && editingOptionIndex === index ? (
@@ -219,7 +219,7 @@ export function FormInputRadio({
                                                                             </div>
                                                                         </Tooltip>
                                                                         <Tooltip title="Remove option" placement={props.row === true ? "top" : "right"}>
-                                                                            <IconButton onClick={() => removeOption(index)} sx={{ padding: "4px", paddingLeft: "8px" }}>
+                                                                            <IconButton variant="transparent" size="sm" onClick={() => removeOption(index)} style={{ padding: "4px", paddingLeft: "8px" }}>
                                                                                 <IconCommon
                                                                                     decorative
                                                                                     fill={palette.background.textSecondary}

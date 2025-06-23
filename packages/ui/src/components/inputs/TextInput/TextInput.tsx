@@ -13,6 +13,8 @@ export function TextInput({
     onSubmit,
     placeholder,
     ref,
+    endAdornment,
+    startAdornment,
     ...props
 }: TextInputProps) {
     function StyledLabel() {
@@ -36,9 +38,17 @@ export function TextInput({
         return (label && placeholder) ? { shrink: true } : {};
     }, [label, placeholder]);
 
+    const inputProps = useMemo(function inputPropsMemo() {
+        const propsObj: any = {};
+        if (endAdornment) propsObj.endAdornment = endAdornment;
+        if (startAdornment) propsObj.startAdornment = startAdornment;
+        return Object.keys(propsObj).length > 0 ? propsObj : undefined;
+    }, [endAdornment, startAdornment]);
+
     return <TextField
         helperText={helperText ? typeof helperText === "string" ? helperText : JSON.stringify(helperText) : undefined}
         InputLabelProps={inputLabelProps}
+        InputProps={inputProps}
         label={label ? <StyledLabel /> : ""}
         onKeyDown={onKeyDown}
         placeholder={placeholder}

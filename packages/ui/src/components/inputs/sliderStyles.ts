@@ -6,7 +6,7 @@ export const SLIDER_CONFIG = {
     THUMB_SIZE: { sm: 16, md: 20, lg: 24 },
     ANIMATION: { 
         DURATION: "0.2s", 
-        EASING: "cubic-bezier(0.2, 0, 0, 1)" 
+        EASING: "cubic-bezier(0.2, 0, 0, 1)", 
     },
     TOUCH_TARGET: 44, // Minimum touch target size for accessibility
 } as const;
@@ -83,16 +83,16 @@ export const BASE_SLIDER_STYLES = {
     container: "tw-relative tw-flex tw-items-center tw-cursor-pointer tw-w-full",
     track: cn(
         "tw-relative tw-rounded-full tw-w-full",
-        "tw-transition-all tw-duration-200 tw-ease-out"
+        "tw-transition-all tw-duration-200 tw-ease-out",
     ),
     trackFilled: cn(
         "tw-absolute tw-left-0 tw-top-0 tw-h-full tw-rounded-full",
         "tw-transition-all tw-duration-200 tw-ease-out",
-        "tw-transform tw-origin-left"
+        "tw-transform tw-origin-left",
     ),
     trackFilledGradient: cn(
         "tw-absolute tw-left-0 tw-top-0 tw-h-full tw-rounded-full tw-w-full",
-        "tw-transition-all tw-duration-200 tw-ease-out"
+        "tw-transition-all tw-duration-200 tw-ease-out",
     ),
     thumb: cn(
         "tw-absolute tw-top-1/2 tw-transform tw--translate-y-1/2 tw--translate-x-1/2",
@@ -100,7 +100,7 @@ export const BASE_SLIDER_STYLES = {
         "tw-transition-all tw-duration-200 tw-ease-out",
         "tw-transform-gpu tw-will-change-transform",
         "hover:tw-scale-110",
-        "active:tw-cursor-grabbing active:tw-scale-95"
+        "active:tw-cursor-grabbing active:tw-scale-95",
     ),
     label: "tw-text-sm tw-font-medium tw-text-gray-700 dark:tw-text-gray-300 tw-mb-2",
     valueDisplay: cn(
@@ -108,7 +108,7 @@ export const BASE_SLIDER_STYLES = {
         "tw-absolute tw--top-8 tw-left-1/2 tw-transform tw--translate-x-1/2",
         "tw-bg-gray-900 tw-text-white tw-px-2 tw-py-1 tw-rounded",
         "tw-opacity-0 tw-transition-opacity tw-duration-200",
-        "tw-pointer-events-none tw-z-20"
+        "tw-pointer-events-none tw-z-20",
     ),
     marks: "tw-absolute tw-top-full tw-left-0 tw-w-full tw-flex tw-justify-between tw-mt-2",
     mark: "tw-text-xs tw-text-gray-500 dark:tw-text-gray-400",
@@ -129,7 +129,7 @@ export const buildSliderContainerClasses = ({
         BASE_SLIDER_STYLES.container,
         SLIDER_SIZES.CONTAINER[size],
         disabled && BASE_SLIDER_STYLES.disabled,
-        className
+        className,
     );
 };
 
@@ -144,7 +144,7 @@ export const buildTrackClasses = ({
     return cn(
         BASE_SLIDER_STYLES.track,
         SLIDER_SIZES.TRACK[size],
-        SLIDER_COLORS.TRACK_EMPTY[variant]
+        SLIDER_COLORS.TRACK_EMPTY[variant],
     );
 };
 
@@ -175,13 +175,13 @@ export const buildFilledTrackClasses = ({
     if (variant === "space" || variant === "neon") {
         return cn(
             BASE_SLIDER_STYLES.trackFilledGradient,
-            SLIDER_COLORS.TRACK_FILLED[variant]
+            SLIDER_COLORS.TRACK_FILLED[variant],
         );
     }
     
     return cn(
         BASE_SLIDER_STYLES.trackFilled,
-        SLIDER_COLORS.TRACK_FILLED[variant]
+        SLIDER_COLORS.TRACK_FILLED[variant],
     );
 };
 
@@ -206,7 +206,7 @@ export const buildThumbClasses = ({
             SLIDER_COLORS.THUMB[variant],
             SLIDER_COLORS.FOCUS_RING.default,
             disabled && BASE_SLIDER_STYLES.disabled,
-            isDragging && "tw-scale-110 tw-cursor-grabbing"
+            isDragging && "tw-scale-110 tw-cursor-grabbing",
         );
     }
     
@@ -216,7 +216,7 @@ export const buildThumbClasses = ({
         SLIDER_COLORS.THUMB[variant],
         SLIDER_COLORS.FOCUS_RING[variant],
         disabled && BASE_SLIDER_STYLES.disabled,
-        isDragging && "tw-scale-110 tw-cursor-grabbing"
+        isDragging && "tw-scale-110 tw-cursor-grabbing",
     );
 };
 
@@ -224,7 +224,7 @@ export const buildThumbClasses = ({
 export const calculateSliderPosition = (
     value: number,
     min: number,
-    max: number
+    max: number,
 ): number => {
     if (max === min) return 0;
     return Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
@@ -235,7 +235,7 @@ export const calculateValueFromPosition = (
     position: number,
     min: number,
     max: number,
-    step?: number
+    step?: number,
 ): number => {
     const range = max - min;
     let value = min + (position / 100) * range;
@@ -265,7 +265,7 @@ export const formatSliderValue = (value: number, step?: number): string => {
     
     // Count decimal places in step
     const stepString = step.toString();
-    const decimals = stepString.includes('.') ? stepString.split('.')[1].length : 0;
+    const decimals = stepString.includes(".") ? stepString.split(".")[1].length : 0;
     
     return Number(value.toFixed(decimals)).toString();
 };

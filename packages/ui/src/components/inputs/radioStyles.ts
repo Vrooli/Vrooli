@@ -1,5 +1,5 @@
 import { cn } from "../../utils/tailwind-theme.js";
-import { RadioProps } from "./types.js";
+import { type RadioProps } from "./types.js";
 
 interface RadioStyleOptions {
     color?: RadioProps["color"];
@@ -126,7 +126,7 @@ export function getRadioStyles({
         ...(isCustom && {
             customStyles: {
                 outer: {
-                    borderColor: checked ? customColor : 'var(--text-secondary)',
+                    borderColor: checked ? customColor : "var(--text-secondary)",
                 },
                 inner: {
                     ...(checked && { backgroundColor: customColor }),

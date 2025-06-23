@@ -1,11 +1,9 @@
 import Box from "@mui/material/Box";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import IconButton from "@mui/material/IconButton";
+import { Dialog, DialogContent } from "../dialogs/Dialog/Dialog.js";
+import { IconButton } from "../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
-import { styled } from "@mui/material";
 import { useTheme } from "@mui/material";
 import type { Palette } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -34,28 +32,6 @@ const findInPageInputProps = {
     disableUnderline: true,
 } as const;
 
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-    zIndex: 999999999,
-    "& > .MuiDialog-container": {
-        "& > .MuiPaper-root": {
-            zIndex: 999999999,
-        },
-    },
-    "& .MuiDialog-paper": {
-        background: theme.palette.background.paper,
-        minWidth: "min(100%, 350px)",
-        position: "absolute",
-        top: "0%",
-        right: "0%",
-        overflowY: "visible",
-        margin: { xs: "8px", sm: "16px" },
-        boxShadow: 12,
-    },
-    "& .MuiDialogContent-root": {
-        padding: "12px 8px",
-        borderRadius: "4px",
-    },
-}));
 
 export function FindInPage() {
     const { palette } = useTheme();
@@ -124,26 +100,22 @@ export function FindInPage() {
     ], isOpen, ref);
 
     /**
-     * Handles dialog close. Ignores backdrop click
+     * Handles dialog close. Only close on escape key
      */
-    const onClose = useCallback((e: React.MouseEvent<HTMLDivElement, MouseEvent>, reason: "backdropClick" | "escapeKeyDown") => {
-        if (reason === "backdropClick") return;
+    const onClose = useCallback(() => {
         close();
     }, [close]);
 
     return (
-        <StyledDialog
-            open={isOpen}
+        <Dialog
+            isOpen={isOpen}
             onClose={onClose}
-            ref={ref}
-            disableScrollLock={true}
-            hideBackdrop={true}
+            size="sm"
+            position="top"
+            closeOnOverlayClick={false}
+            enableBackgroundBlur={false}
         >
-            <DialogContent sx={{
-                background: palette.background.default,
-                position: "relative",
-                overflowY: "visible",
-            }}>
+            <DialogContent>
                 <Stack direction="row">
                     <Stack direction="row" sx={{
                         background: palette.background.paper,
@@ -192,7 +164,7 @@ export function FindInPage() {
                                 <IconButton
                                     aria-label={t("MatchCase")}
                                     component="button"
-                                    sx={commonButtonSx(palette, isCaseSensitive)}
+                                    variant="transparent"
                                     onClick={onCaseSensitiveChange}
                                 >
                                     <IconText
@@ -207,8 +179,8 @@ export function FindInPage() {
                                 <IconButton
                                     aria-label={t("MatchWholeWord")}
                                     component="button"
+                                    variant="transparent"
                                     onClick={onWholeWordChange}
-                                    sx={commonButtonSx(palette, isWholeWord)}
                                 >
                                     <IconText
                                         decorative
@@ -222,8 +194,8 @@ export function FindInPage() {
                                 <IconButton
                                     aria-label={t("UseRegex")}
                                     component="button"
+                                    variant="transparent"
                                     onClick={onRegexChange}
-                                    sx={commonButtonSx(palette, isRegex)}
                                 >
                                     <IconText
                                         decorative
@@ -240,8 +212,8 @@ export function FindInPage() {
                         <Tooltip title={`${t("ResultPrevious")} (${keyComboToString("Shift", "Enter")})`}>
                             <IconButton
                                 aria-label={t("ResultPrevious")}
+                                variant="transparent"
                                 onClick={onPrevious}
-                                sx={commonButtonSx(palette, false)}
                             >
                                 <IconCommon
                                     decorative
@@ -254,8 +226,8 @@ export function FindInPage() {
                         <Tooltip title={`${t("ResultNext")} (${keyComboToString("Enter")})`}>
                             <IconButton
                                 aria-label={t("ResultNext")}
+                                variant="transparent"
                                 onClick={onNext}
-                                sx={commonButtonSx(palette, false)}
                             >
                                 <IconCommon
                                     decorative
@@ -268,8 +240,8 @@ export function FindInPage() {
                         <Tooltip title={`${t("Close")} (${keyComboToString("Escape")})`}>
                             <IconButton
                                 aria-label={t("Close")}
+                                variant="transparent"
                                 onClick={close}
-                                sx={commonButtonSx(palette, false)}
                             >
                                 <IconCommon
                                     decorative
@@ -282,6 +254,6 @@ export function FindInPage() {
                     </Box>
                 </Stack>
             </DialogContent>
-        </StyledDialog>
+        </Dialog>
     );
 }

@@ -1,5 +1,5 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../buttons/IconButton.js";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import { useEffect, useRef, useState } from "react";
@@ -74,12 +74,14 @@ export function PullToRefresh() {
     if (!isStandalone) return null;
     return (
         <OuterBox id="pull-to-refresh">
-            <IconButton sx={{
-                background: palette.background.paper,
-                // Spin when will refresh
-                transform: willRefresh ? "rotate(360deg)" : "rotate(0deg)",
-                transition: "transform 500ms cubic-bezier(0.4, 0, 0.2, 1)",
-            }}>
+            <IconButton 
+                variant="transparent"
+                sx={{
+                    background: palette.background.paper,
+                    // Spin when will refresh
+                    transform: willRefresh ? "rotate(360deg)" : "rotate(0deg)",
+                    transition: "transform 500ms cubic-bezier(0.4, 0, 0.2, 1)",
+                }}>
                 <IconCommon
                     decorative
                     fill={palette.background.textPrimary}

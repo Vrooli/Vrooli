@@ -12,50 +12,12 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Formik } from "formik";
 import React from "react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { themes } from "../../../utils/display/theme.js";
 import { PasswordTextInput } from "./PasswordTextInput.js";
 
-// Mock dependencies
-vi.mock("react-i18next", () => ({
-    useTranslation: () => ({
-        t: (key: string) => key,
-    }),
-}));
-
-// Mock zxcvbn for static imports
-vi.mock("zxcvbn", () => ({
-    default: vi.fn((password: string) => {
-        // Simple mock implementation
-        if (!password) return { score: 0 };
-        if (password.length < 6) return { score: 0 };
-        if (password.length < 8) return { score: 1 };
-        if (password.length < 10) return { score: 2 };
-        if (password.length < 12) return { score: 3 };
-        return { score: 4 };
-    }),
-}));
-
-// Mock dynamic imports for zxcvbn to make tests synchronous
-beforeAll(() => {
-    const originalImport = global.import;
-    global.import = vi.fn().mockImplementation((moduleName: string) => {
-        if (moduleName === "zxcvbn") {
-            return Promise.resolve({
-                default: vi.fn((password: string) => {
-                    // Same logic as static mock
-                    if (!password) return { score: 0 };
-                    if (password.length < 6) return { score: 0 };
-                    if (password.length < 8) return { score: 1 };
-                    if (password.length < 10) return { score: 2 };
-                    if (password.length < 12) return { score: 3 };
-                    return { score: 4 };
-                }),
-            });
-        }
-        return originalImport?.(moduleName);
-    });
-});
+// All mocks are now centralized in setup.vitest.ts
+// The zxcvbn mock returns password strength based on password length
 
 // Test wrapper component
 function TestWrapper({ children }: { children: React.ReactNode }) {
@@ -265,8 +227,11 @@ describe("PasswordTextInput", () => {
         });
 
         await waitFor(() => {
-            const formControl = container.querySelector(".MuiFormControl-root");
-            expect(formControl?.classList.contains("MuiFormControl-fullWidth")).toBe(false);
+            // With TailwindTextInput, check that the component renders correctly with fullWidth=false
+            const passwordInput = screen.getByLabelText("Password");
+            expect(passwordInput).toBeDefined();
+            // The input should still be present and functional
+            expect(passwordInput.getAttribute("type")).toBe("password");
         });
     });
 

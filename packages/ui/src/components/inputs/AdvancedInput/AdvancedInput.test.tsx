@@ -12,8 +12,8 @@ expect.extend({
         return {
             pass,
             message: () => pass 
-                ? `expected element not to be in the document`
-                : `expected element to be in the document`,
+                ? "expected element not to be in the document"
+                : "expected element to be in the document",
         };
     },
     toHaveAttribute(received, attr, value) {
@@ -36,21 +36,21 @@ expect.extend({
         if (!received) {
             return {
                 pass: false,
-                message: () => `expected element to be disabled but element was null`,
+                message: () => "expected element to be disabled but element was null",
             };
         }
-        const pass = received.disabled === true || received.getAttribute?.('disabled') !== null;
+        const pass = received.disabled === true || received.getAttribute?.("disabled") !== null;
         return {
             pass,
             message: () => pass
-                ? `expected element not to be disabled`
-                : `expected element to be disabled`,
+                ? "expected element not to be disabled"
+                : "expected element to be disabled",
         };
     },
 });
 
 // Override the global mock from setup.vitest.ts to test the real component
-vi.unmock('./AdvancedInput.js');
+vi.unmock("./AdvancedInput.js");
 
 // Mock complex dependencies but keep the main component
 vi.mock("../../../hooks/useDimensions.js", () => ({
@@ -68,7 +68,7 @@ vi.mock("../../../hooks/useUndoRedo.js", () => ({
     useUndoRedo: (config: any) => ({
         internalValue: config.initialValue || "",
         changeInternalValue: vi.fn((newValue) => {
-            if (typeof newValue === 'function') {
+            if (typeof newValue === "function") {
                 config.onChange?.(newValue(config.initialValue || ""));
             } else {
                 config.onChange?.(newValue);
@@ -372,7 +372,7 @@ describe("AdvancedInput Real Component Tests", () => {
                     {...defaultProps} 
                     onChange={onChange}
                     features={{ allowFormatting: false }}
-                />
+                />,
             );
             
             const editor = screen.getByTestId("markdown-editor");
@@ -388,7 +388,7 @@ describe("AdvancedInput Real Component Tests", () => {
                     {...defaultProps} 
                     onChange={onChange}
                     features={{ allowFormatting: true }}
-                />
+                />,
             );
             
             const editor = screen.getByTestId("lexical-editor");
@@ -402,7 +402,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     placeholder="Enter your message..."
-                />
+                />,
             );
             
             const markdownEditor = screen.queryByTestId("markdown-editor");
@@ -422,7 +422,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     features={{ allowSpellcheck: true }}
-                />
+                />,
             );
             
             const editor = screen.queryByTestId("markdown-editor") || screen.queryByTestId("lexical-editor");
@@ -434,7 +434,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     features={{ allowSpellcheck: false }}
-                />
+                />,
             );
             
             const editor = screen.queryByTestId("markdown-editor") || screen.queryByTestId("lexical-editor");
@@ -446,7 +446,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     features={{ allowVoiceInput: true }}
-                />
+                />,
             );
             
             expect(screen.getByTestId("microphone-button")).toBeDefined();
@@ -457,7 +457,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     features={{ allowVoiceInput: false }}
-                />
+                />,
             );
             
             expect(screen.queryByTestId("microphone-button")).toBeNull();
@@ -468,7 +468,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     features={{ allowFileAttachments: true }}
-                />
+                />,
             );
             
             expect(screen.getByTestId("dropzone")).toBeDefined();
@@ -480,7 +480,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     disabled={true}
-                />
+                />,
             );
             
             const markdownEditor = screen.queryByTestId("markdown-editor");
@@ -502,7 +502,7 @@ describe("AdvancedInput Real Component Tests", () => {
                     {...defaultProps} 
                     onChange={onChange}
                     features={{ allowVoiceInput: true }}
-                />
+                />,
             );
             
             const micButton = screen.getByTestId("microphone-button");
@@ -520,7 +520,7 @@ describe("AdvancedInput Real Component Tests", () => {
                     {...defaultProps} 
                     onChange={onChange}
                     features={{ allowFormatting: true }}
-                />
+                />,
             );
             
             const toolbar = screen.getByTestId("toolbar");
@@ -553,7 +553,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     contextData={mockContextData}
-                />
+                />,
             );
             
             // Context items should be displayed
@@ -568,7 +568,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     features={{ allowVoiceInput: true }}
-                />
+                />,
             );
             
             expect(screen.getByLabelText("Voice input")).toBeInTheDocument();
@@ -579,7 +579,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     features={{ allowFormatting: true }}
-                />
+                />,
             );
             
             expect(screen.getByLabelText("Text formatting toolbar")).toBeInTheDocument();
@@ -605,7 +605,7 @@ describe("AdvancedInput Real Component Tests", () => {
                     <AdvancedInputBase 
                         name="test"
                         value=""
-                    />
+                    />,
                 );
             }).not.toThrow();
         });
@@ -616,7 +616,7 @@ describe("AdvancedInput Real Component Tests", () => {
                     <AdvancedInputBase 
                         {...defaultProps}
                         features={undefined as any}
-                    />
+                    />,
                 );
             }).not.toThrow();
         });
@@ -626,7 +626,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     contextData={[]}
-                />
+                />,
             );
             
             const editor = screen.queryByTestId("markdown-editor") || screen.queryByTestId("lexical-editor");
@@ -649,7 +649,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     features={features}
-                />
+                />,
             );
             
             // Should render with all features enabled
@@ -673,7 +673,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 <AdvancedInputBase 
                     {...defaultProps} 
                     features={features}
-                />
+                />,
             );
             
             // Should render basic editor only

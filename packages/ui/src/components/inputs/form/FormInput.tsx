@@ -1,15 +1,16 @@
+// AI_CHECK: REACT_PERF=1 | LAST: 2024-12-26
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material";
 import { useTheme } from "@mui/material";
 import type { TypographyProps } from "@mui/material";
 import { InputType, preventFormSubmit } from "@vrooli/shared";
 import { useFormikContext } from "formik";
-import { Suspense, useCallback, useMemo, type ComponentType } from "react";
+import { Suspense, useCallback, useMemo, memo, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
@@ -17,6 +18,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { HelpButton } from "../../buttons/HelpButton.js";
 import { FormInputCheckbox } from "./FormInputCheckbox.js";
+import { FormInputColorPicker } from "./FormInputColorPicker.js";
 import { FormInputInteger } from "./FormInputInteger.js";
 import { FormInputLanguage } from "./FormInputLanguage.js";
 import { FormInputLinkItem } from "./FormInputLinkItem.js";
@@ -38,6 +40,7 @@ const { FormInputDropzone } = lazily(() => import("./FormInputDropzone.js"));
  */
 const typeMap: { [key in InputType]: ComponentType<FormInputProps<any>> } = {
     [InputType.Checkbox]: FormInputCheckbox,
+    [InputType.ColorPicker]: FormInputColorPicker,
     [InputType.Dropzone]: FormInputDropzone,
     [InputType.JSON]: FormInputCode,
     [InputType.IntegerInput]: FormInputInteger,
@@ -67,6 +70,7 @@ const FormInputLabel = styled(Typography, {
     color: disabled ? theme.palette.background.textSecondary : theme.palette.background.textPrimary,
 }));
 
+// Move constant styles outside component to prevent recreation
 const formInputOuterBoxStyle = {
     paddingTop: 1,
     paddingBottom: 1,
@@ -74,7 +78,8 @@ const formInputOuterBoxStyle = {
     paddingRight: 0,
     border: 0,
     borderRadius: 1,
-};
+} as const;
+
 const textFieldStyle = {
     flexGrow: 1,
     width: "auto",
@@ -82,11 +87,146 @@ const textFieldStyle = {
         padding: 0,
     },
 } as const;
+
 const copyButtonStyle = {
     paddingLeft: 0,
 } as const;
 
-export function FormInput({
+const suspenseFallback = <div>Loading...</div>;
+
+const UnsupportedInputMessage = styled(Typography)(({ theme }) => ({
+    color: theme.palette.background.textSecondary,
+    fontStyle: "italic",
+    fontSize: theme.typography.caption.fontSize,
+    padding: theme.spacing(1),
+}));
+
+const unsupportedInputMessage = <UnsupportedInputMessage>Unsupported input type</UnsupportedInputMessage>;
+
+// Memoized title stack component to prevent unnecessary re-renders
+const TitleStack = memo(({
+    isEditing,
+    handleDelete,
+    isRequired,
+    isEditingLabel,
+    labelEditRef,
+    textFieldInputProps,
+    submitLabelChange,
+    handleLabelChange,
+    handleLabelKeyDown,
+    editedLabel,
+    disabled,
+    fieldName,
+    startEditingLabel,
+    labelStyle,
+    index,
+    inputType,
+    copyToClipboard,
+    helpText,
+    onMarkdownChange,
+    palette,
+    t,
+}: {
+    isEditing: boolean;
+    handleDelete: () => void;
+    isRequired?: boolean;
+    isEditingLabel: boolean;
+    labelEditRef: React.RefObject<HTMLInputElement>;
+    textFieldInputProps: object;
+    submitLabelChange: () => void;
+    handleLabelChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handleLabelKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+    editedLabel: string;
+    disabled?: boolean;
+    fieldName: string;
+    startEditingLabel: () => void;
+    labelStyle: object;
+    index?: number;
+    inputType: InputType;
+    copyToClipboard: () => void;
+    helpText?: string | null;
+    onMarkdownChange?: (text: string) => void;
+    palette: any;
+    t: (key: string, options?: object) => string;
+}) => (
+    <Stack direction="row" spacing={0} alignItems="center">
+        {isEditing && (
+            <Tooltip title={t("Delete")}>
+                <IconButton
+                    variant="transparent"
+                    size="md"
+                    aria-label={t("Delete")}
+                    data-testid="delete-button"
+                    onClick={handleDelete}
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.error.main}
+                        name="Delete"
+                        size={24}
+                    />
+                </IconButton>
+            </Tooltip>
+        )}
+        {isRequired && <AsteriskLabel variant="h6" data-testid="required-asterisk">*</AsteriskLabel>}
+        <legend aria-label="Input label">
+            {isEditingLabel ? (
+                <TextField
+                    ref={labelEditRef}
+                    inputMode="text"
+                    InputProps={textFieldInputProps}
+                    onBlur={submitLabelChange}
+                    onChange={handleLabelChange}
+                    onKeyDown={handleLabelKeyDown}
+                    placeholder={"Enter label..."}
+                    size="small"
+                    value={editedLabel}
+                    sx={textFieldStyle}
+                    data-testid="label-edit-field"
+                />
+            ) : (
+                <FormInputLabel
+                    disabled={disabled ?? false}
+                    id={`label-${fieldName}`}
+                    onClick={startEditingLabel}
+                    sx={labelStyle}
+                    variant="h6"
+                    data-testid="label-display"
+                >
+                    {editedLabel || (index !== undefined ? `Input ${index + 1}` : t("Input", { count: 1 }))}
+                </FormInputLabel>
+            )}
+        </legend>
+        {[InputType.IntegerInput, InputType.LinkUrl, InputType.Text].includes(inputType) && (
+            <Tooltip title={t("CopyToClipboard")}>
+                <IconButton
+                    variant="transparent"
+                    size="md"
+                    aria-label={t("CopyToClipboard")}
+                    data-testid="copy-button"
+                    onClick={copyToClipboard}
+                    style={copyButtonStyle}
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.background.textSecondary}
+                        name="Copy"
+                        size={24}
+                    />
+                </IconButton>
+            </Tooltip>
+        )}
+        {(helpText || isEditing) && (
+            <HelpButton
+                onMarkdownChange={onMarkdownChange}
+                markdown={helpText ?? ""}
+            />
+        )}
+    </Stack>
+));
+TitleStack.displayName = "TitleStack";
+
+export const FormInput = memo(function FormInput({
     disabled,
     fieldData,
     index,
@@ -150,92 +290,26 @@ export function FormInput({
         };
     }, [textPrimary, isEditing]);
 
-    const titleStack = useMemo(() => (
-        <Stack direction="row" spacing={0} alignItems="center">
-            {/* Delete button when editing form */}
-            {isEditing && (
-                <Tooltip title={t("Delete")}>
-                    <IconButton
-                        aria-label={t("Delete")}
-                        onClick={handleDelete}
-                    >
-                        <IconCommon
-                            decorative
-                            fill={palette.error.main}
-                            name="Delete"
-                            size={24}
-                        />
-                    </IconButton>
-                </Tooltip>
-            )}
-            {/* Red asterisk if required */}
-            {fieldData.isRequired && <AsteriskLabel variant="h6">*</AsteriskLabel>}
-            <legend aria-label="Input label">
-                {isEditingLabel ? (
-                    <TextField
-                        ref={labelEditRef}
-                        inputMode="text"
-                        InputProps={textFieldInputProps}
-                        onBlur={submitLabelChange}
-                        onChange={handleLabelChange}
-                        onKeyDown={handleLabelKeyDown}
-                        placeholder={"Enter label..."}
-                        size="small"
-                        value={editedLabel}
-                        sx={textFieldStyle}
-                    />
-                ) : (
-                    <FormInputLabel
-                        disabled={disabled ?? false}
-                        id={`label-${fieldData.fieldName}`}
-                        onClick={startEditingLabel}
-                        sx={labelStyle}
-                        variant="h6"
-                    >
-                        {editedLabel ?? (index && `Input ${index + 1}`) ?? t("Input", { count: 1 })}
-                    </FormInputLabel>
-                )}
-            </legend>
-            {/* Copy button for certain input types. Others include their own copy buttons or don't need one */}
-            {[InputType.IntegerInput, InputType.LinkUrl, InputType.Text].includes(fieldData.type) && <Tooltip title={t("CopyToClipboard")}>
-                <IconButton
-                    aria-label={t("CopyToClipboard")}
-                    onClick={copyToClipboard}
-                    sx={copyButtonStyle}
-                >
-                    <IconCommon
-                        decorative
-                        fill={palette.background.textSecondary}
-                        name="Copy"
-                        size={24}
-                    />
-                </IconButton>
-            </Tooltip>}
-            {(fieldData.helpText || isEditing) ?
-                <HelpButton
-                    onMarkdownChange={onMarkdownChange}
-                    markdown={fieldData.helpText ?? ""}
-                /> : null}
-        </Stack>
-    ), [isEditing, t, handleDelete, palette.error.main, palette.background.textSecondary, isEditingLabel, labelEditRef, textFieldInputProps, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, disabled, fieldData.fieldName, fieldData.isRequired, fieldData.type, fieldData.helpText, startEditingLabel, labelStyle, index, copyToClipboard, onMarkdownChange]);
 
     const inputElement = useMemo(() => {
         if (!fieldData.type || !typeMap[fieldData.type]) {
             console.error(`Unsupported input type: ${fieldData.type}`);
-            return <div>Unsupported input type</div>;
+            return unsupportedInputMessage;
         }
         const InputComponent = typeMap[fieldData.type];
         return (
-            <Suspense fallback={<div>Loading...</div>}>
-                <InputComponent
-                    disabled={disabled}
-                    fieldData={fieldData}
-                    index={index}
-                    isEditing={isEditing}
-                    onConfigUpdate={onConfigUpdate}
-                    onDelete={onDelete}
-                    {...rest}
-                />
+            <Suspense fallback={suspenseFallback}>
+                <div data-testid="input-component">
+                    <InputComponent
+                        disabled={disabled}
+                        fieldData={fieldData}
+                        index={index}
+                        isEditing={isEditing}
+                        onConfigUpdate={onConfigUpdate}
+                        onDelete={onDelete}
+                        {...rest}
+                    />
+                </div>
             </Suspense>
         );
     }, [disabled, fieldData, index, isEditing, onConfigUpdate, onDelete, rest]);
@@ -244,12 +318,38 @@ export function FormInput({
         <Box
             aria-label={fieldData.fieldName}
             component="fieldset"
+            data-testid="form-input"
+            data-editing={isEditing}
+            data-input-type={fieldData.type}
+            data-required={fieldData.isRequired}
             key={`${fieldData.id}-label-box`}
             onSubmit={preventFormSubmit} // Input element should never submit a form
             sx={formInputOuterBoxStyle}
         >
-            {titleStack}
+            <TitleStack
+                isEditing={isEditing}
+                handleDelete={handleDelete}
+                isRequired={fieldData.isRequired}
+                isEditingLabel={isEditingLabel}
+                labelEditRef={labelEditRef}
+                textFieldInputProps={textFieldInputProps}
+                submitLabelChange={submitLabelChange}
+                handleLabelChange={handleLabelChange}
+                handleLabelKeyDown={handleLabelKeyDown}
+                editedLabel={editedLabel}
+                disabled={disabled}
+                fieldName={fieldData.fieldName}
+                startEditingLabel={startEditingLabel}
+                labelStyle={labelStyle}
+                index={index}
+                inputType={fieldData.type}
+                copyToClipboard={copyToClipboard}
+                helpText={fieldData.helpText}
+                onMarkdownChange={onMarkdownChange}
+                palette={palette}
+                t={t}
+            />
             {inputElement}
         </Box>
     );
-}
+});

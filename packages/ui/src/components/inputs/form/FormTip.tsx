@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Link from "@mui/material/Link";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -20,7 +20,7 @@ import { usePopover } from "../../../hooks/usePopover.js";
 import { Icon, IconCommon, type IconInfo } from "../../../icons/Icons.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
-import { RichInputBase } from "../RichInput/RichInput.js";
+import { AdvancedInputBase } from "../AdvancedInput/AdvancedInput.js";
 import { FormSettingsButtonRow, propButtonStyle } from "./styles.js";
 import { type FormTipProps } from "./types.js";
 
@@ -172,10 +172,10 @@ export function FormTip({
                     content={element.label} 
                     sx={{ 
                         "& > *:first-of-type": { 
-                            marginTop: 0 
+                            marginTop: 0, 
                         },
                         "& > *:last-child": { 
-                            marginBottom: 0 
+                            marginBottom: 0, 
                         },
                         "& p": {
                             fontSize: "0.75rem",
@@ -214,13 +214,25 @@ export function FormTip({
         };
         
         const content = (
-            <Box sx={tipStyle}>
-                <Box sx={{ 
-                    mr: 1.5, 
-                    display: "flex",
-                    alignItems: "center",
-                    color: icon.color,
-                }}>
+            <Box 
+                sx={tipStyle}
+                data-testid="form-tip"
+                data-editing="false"
+                data-icon={element.icon || "Info"}
+                data-has-link={element.link ? "true" : "false"}
+                data-is-markdown={element.isMarkdown ? "true" : "false"}
+                role="note"
+                aria-label={`Tip: ${element.label}`}
+            >
+                <Box 
+                    sx={{ 
+                        mr: 1.5, 
+                        display: "flex",
+                        alignItems: "center",
+                        color: icon.color,
+                    }}
+                    data-testid="tip-icon"
+                >
                     <Icon
                         decorative
                         info={icon.iconInfo}
@@ -247,6 +259,8 @@ export function FormTip({
                                     textDecoration: "underline",
                                 },
                             }}
+                            data-testid="tip-link"
+                            aria-label={`Tip link: ${element.label}`}
                         >
                             {TipContent}
                         </StyledLink>
@@ -267,12 +281,21 @@ export function FormTip({
         root: { flexGrow: 1 },
     } as const;
     return (
-        <div>
+        <div 
+            data-testid="form-tip"
+            data-editing="true"
+            data-icon={element.icon || "Info"}
+            data-has-link={element.link ? "true" : "false"}
+            data-is-markdown={element.isMarkdown ? "true" : "false"}
+            role="group"
+            aria-label="Edit tip"
+        >
             <Popover
                 open={isIconPopoverOpen}
                 anchorEl={iconAnchorEl}
                 onClose={closeIconPopover}
                 anchorOrigin={popoverAnchorOrigin}
+                data-testid="icon-popover"
             >
                 <List>
                     {TIP_ICON_OPTIONS.map((option) => {
@@ -282,7 +305,13 @@ export function FormTip({
                         }
 
                         return (
-                            <ListItem button key={option.value} onClick={handleClick}>
+                            <ListItem 
+                                button 
+                                key={option.value} 
+                                onClick={handleClick}
+                                data-testid={`icon-option-${option.value}`}
+                                aria-label={`Select ${option.label} icon`}
+                            >
                                 <ListItemIcon>
                                     <Icon
                                         decorative
@@ -299,6 +328,7 @@ export function FormTip({
                 <IconButton
                     aria-label={t("Delete")}
                     onClick={onDelete}
+                    data-testid="delete-button"
                 >
                     <IconCommon
                         decorative
@@ -307,7 +337,7 @@ export function FormTip({
                         size={24}
                     />
                 </IconButton>
-                <Box mr={1}>
+                <Box mr={1} data-testid="tip-icon-edit">
                     <Icon
                         decorative
                         info={icon.iconInfo}
@@ -315,7 +345,7 @@ export function FormTip({
                     />
                 </Box>
                 {element.isMarkdown ? (
-                    <RichInputBase
+                    <AdvancedInputBase
                         disableAssistant={true}
                         name="tipText"
                         onBlur={submitLabelChange}
@@ -323,6 +353,7 @@ export function FormTip({
                         placeholder="Enter markdown..."
                         value={editedLabel}
                         sxs={richInputSxs}
+                        data-testid="markdown-input"
                     />
                 ) : (
                     <TextField
@@ -334,6 +365,8 @@ export function FormTip({
                         placeholder="Enter tip text..."
                         variant="standard"
                         fullWidth
+                        data-testid="text-input"
+                        aria-label="Tip text"
                     />
                 )}
             </Box>
@@ -344,16 +377,30 @@ export function FormTip({
                 variant="standard"
                 fullWidth
                 margin="normal"
+                data-testid="link-input"
+                aria-label="Tip link URL"
             />
             <FormSettingsButtonRow>
-                <Button variant="text" sx={propButtonStyle} onClick={openIconPopover}>
+                <Button 
+                    variant="text" 
+                    sx={propButtonStyle} 
+                    onClick={openIconPopover}
+                    data-testid="icon-button"
+                    aria-label={`Icon type: ${TIP_ICON_OPTIONS.find((option) => option.value === element.icon)?.label || "Default"}`}
+                >
                     Icon:{" "}
                     {
                         TIP_ICON_OPTIONS.find((option) => option.value === element.icon)
                             ?.label || "Default"
                     }
                 </Button>
-                <Button variant="text" sx={propButtonStyle} onClick={toggleIsMarkdown}>
+                <Button 
+                    variant="text" 
+                    sx={propButtonStyle} 
+                    onClick={toggleIsMarkdown}
+                    data-testid="toggle-markdown-button"
+                    aria-label={`Switch to ${element.isMarkdown ? "text" : "markdown"} mode`}
+                >
                     {element.isMarkdown ? "Text" : "Markdown"}
                 </Button>
             </FormSettingsButtonRow>

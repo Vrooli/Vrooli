@@ -1,11 +1,11 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../../Tooltip/Tooltip.js";
 import { styled, useTheme } from "@mui/material";
 import { DeleteType, endpointsActions, endpointsPushDevice, updateArray, type DeleteOneInput, type PushDevice, type PushDeviceTestInput, type PushDeviceUpdateInput, type Success } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
@@ -120,7 +120,7 @@ export function PushListItem({
                             sx={listItemTextStyle}
                             onClick={startEditingLabel}
                         />
-                        <IconButton onClick={startEditingLabel}>
+                        <IconButton onClick={startEditingLabel} variant="transparent">
                             <IconCommon
                                 decorative
                                 fill="secondary.main"
@@ -132,7 +132,7 @@ export function PushListItem({
             </InformationalColumn>
             <Stack direction="row" spacing={1}>
                 <Tooltip title={"Send test notification"}>
-                    <IconButton onClick={onTestPush}>
+                    <IconButton onClick={onTestPush} variant="transparent">
                         <IconCommon
                             decorative
                             fill="secondary.main"
@@ -141,7 +141,7 @@ export function PushListItem({
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={"Delete push device"}>
-                    <IconButton onClick={onDelete}>
+                    <IconButton onClick={onDelete} variant="transparent">
                         <IconCommon
                             decorative
                             fill="error.main"

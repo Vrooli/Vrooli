@@ -1,10 +1,10 @@
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material";
 import { styled } from "@mui/material/styles";
@@ -148,6 +148,7 @@ export function CommentConnector({
                 width: "36px",
                 height: "36px",
             }}
+            variant="transparent"
         >
             <IconCommon name="OpenThread" fill={profileColors[0]} />
         </IconButton>
@@ -366,6 +367,7 @@ export function CommentThreadItem({
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton
                                 onClick={() => { handleUpsertCommentOpen(); }}
+                                variant="transparent"
                             >
                                 <IconCommon name="Reply" fill="background.textSecondary" />
                             </IconButton>
@@ -378,6 +380,7 @@ export function CommentThreadItem({
                         {canUpdate && <Tooltip title="Edit" placement='top'>
                             <IconButton
                                 onClick={() => handleUpsertCommentOpen(data as Comment)}
+                                variant="transparent"
                             >
                                 <IconCommon name="Edit" fill="background.textSecondary" />
                             </IconButton>
@@ -386,6 +389,7 @@ export function CommentThreadItem({
                             <IconButton
                                 onClick={handleDelete}
                                 disabled={loadingDelete}
+                                variant="transparent"
                             >
                                 <IconCommon name="Delete" fill="background.textSecondary" />
                             </IconButton>

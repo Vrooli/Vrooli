@@ -5,14 +5,14 @@ import { getTranslationData, handleTranslationChange } from "../../../utils/disp
 import { buildTextInputClasses, buildContainerClasses } from "./textInputStyles.js";
 import type { TailwindTextInputBaseProps, TailwindTextInputProps, TranslatedTailwindTextInputProps } from "./types.js";
 
-function StyledLabel({ label, isRequired }: { label: string; isRequired?: boolean }) {
+function StyledLabel({ label, isRequired, htmlFor }: { label: string; isRequired?: boolean; htmlFor?: string }) {
     return (
-        <span className="tw-block tw-text-sm tw-font-medium tw-text-text-primary tw-mb-1">
+        <label htmlFor={htmlFor} className="tw-block tw-text-sm tw-font-medium tw-text-text-primary tw-mb-1">
             {label}
             {isRequired && (
                 <span className="tw-text-danger-main tw-ml-1">*</span>
             )}
-        </span>
+        </label>
     );
 }
 
@@ -48,6 +48,7 @@ export const TailwindTextInputBase = forwardRef<HTMLInputElement | HTMLTextAreaE
         multiline = false,
         startAdornment,
         endAdornment,
+        id,
         ...props 
     }, ref) => {
         const hasAdornments = startAdornment || endAdornment;
@@ -131,7 +132,7 @@ export const TailwindTextInputBase = forwardRef<HTMLInputElement | HTMLTextAreaE
         if (hasAdornments && !multiline) {
             return (
                 <div className={fullWidth ? "tw-w-full" : ""} data-testid="tailwind-text-input-base">
-                    {label && <StyledLabel label={label} isRequired={isRequired} />}
+                    {label && <StyledLabel label={label} isRequired={isRequired} htmlFor={id} />}
                     <div 
                         className={containerClasses} 
                         onClick={handleContainerClick}
@@ -149,6 +150,7 @@ export const TailwindTextInputBase = forwardRef<HTMLInputElement | HTMLTextAreaE
                             disabled={disabled}
                             className={cn(inputClasses, className)}
                             onKeyDown={handleKeyDown}
+                            id={id}
                             {...props}
                         />
                         {endAdornment && (
@@ -165,12 +167,13 @@ export const TailwindTextInputBase = forwardRef<HTMLInputElement | HTMLTextAreaE
         // Standard input without adornments or multiline with adornments (adornments not supported for multiline)
         return (
             <div className={fullWidth ? "tw-w-full" : ""} data-testid="tailwind-text-input-base">
-                {label && <StyledLabel label={label} isRequired={isRequired} />}
+                {label && <StyledLabel label={label} isRequired={isRequired} htmlFor={id} />}
                 <InputElement
                     ref={inputRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement>["current"]}
                     disabled={disabled}
                     className={cn(inputClasses, className)}
                     onKeyDown={handleKeyDown}
+                    id={id}
                     {...props}
                 />
                 <HelperText helperText={helperText} error={error} />

@@ -1,8 +1,8 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled, useTheme } from "@mui/material";
 import { endpointsActions, getObjectUrl, isOfType, type ApiVersion, type CodeVersion, type Count, type DeleteManyInput, type DeleteType, type ListObject, type ModelType, type NoteVersion, type ProjectVersion, type ProjectVersionDirectory, type RoutineVersion, type Session, type StandardVersion, type Team, type TimeFrame } from "@vrooli/shared";
@@ -253,6 +253,7 @@ export function DirectoryCard({
                             <IconButton
                                 id='delete-icon-button'
                                 sx={{ background: palette.error.main, position: "absolute", top: 4, right: 4 }}
+                                variant="transparent"
                             >
                                 <IconCommon name="Delete" id='delete-icon' fill="secondary.contrastText" />
                             </IconButton>

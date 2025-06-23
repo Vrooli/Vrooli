@@ -1,5 +1,5 @@
 import { cn } from "../../utils/tailwind-theme.js";
-import { FormGroupProps } from "./types.js";
+import { type FormGroupProps } from "./types.js";
 
 interface FormGroupStyleOptions {
     row?: boolean;

@@ -1,10 +1,10 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
+import { Switch } from "../Switch/Switch.js";
 import { getFormikFieldName, type SwitchFormInput, type SwitchFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
@@ -26,13 +26,12 @@ export function FormInputSwitch({
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
     const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
-    const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = event.target.checked;
+    const handleChange = useCallback((checked: boolean) => {
         if (isEditing) {
-            const newProps = { ...props, defaultValue: newValue };
+            const newProps = { ...props, defaultValue: checked };
             onConfigUpdate({ ...fieldData, props: newProps });
         }
-        helpers.setValue(newValue);
+        helpers.setValue(checked);
     }, [isEditing, helpers, props, onConfigUpdate, fieldData]);
 
     const [showMore, setShowMore] = useState(false);
@@ -68,21 +67,10 @@ export function FormInputSwitch({
     });
 
     const SwitchElement = useMemo(() => (
-        <FormControlLabel
-            control={
-                <Switch
-                    disabled={disabled}
-                    checked={isEditing ? props.defaultValue ?? false : field.value}
-                    onChange={handleChange}
-                    name={fieldData.fieldName}
-                    size={props.size}
-                    color={props.color === "custom" ? undefined : props.color as "primary" | "secondary" | "error" | "info" | "success" | "warning" | "default"}
-                    sx={props.color === "custom" ? {
-                        "& .MuiSwitch-switchBase.Mui-checked": { color: customColor },
-                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: customColor },
-                    } : undefined}
-                />
-            }
+        <Switch
+            disabled={disabled}
+            checked={isEditing ? props.defaultValue ?? false : field.value}
+            onChange={handleChange}
             label={isEditingLabel ?
                 <TextField
                     ref={labelEditRef}
@@ -106,8 +94,11 @@ export function FormInputSwitch({
                 >
                     {props.label}
                 </Typography>}
+            size={props.size === "small" ? "sm" : props.size === "medium" ? "md" : "md"}
+            variant={props.color === "custom" ? "custom" : "default"}
+            color={props.color === "custom" ? customColor : undefined}
         />
-    ), [disabled, isEditing, props.defaultValue, props.size, props.color, props.label, field.value, handleChange, fieldData.fieldName, customColor, isEditingLabel, labelEditRef, typography, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, startEditingLabel]);
+    ), [disabled, isEditing, props.defaultValue, props.size, props.color, props.label, field.value, handleChange, customColor, isEditingLabel, labelEditRef, typography, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, startEditingLabel]);
 
     const moreButtonStyle = useMemo(function moreButtonStyleMemo() {
         return propButtonWithSectionStyle(showMore);

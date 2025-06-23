@@ -1,10 +1,10 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import InputAdornment from "@mui/material/InputAdornment";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../../Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material";
 import { DUMMY_ID, DeleteType, emailValidation, endpointsActions, endpointsEmail, generatePK, type DeleteOneInput, type Email, type EmailCreateInput, type SendVerificationEmailInput, type Success } from "@vrooli/shared";
 import { useFormik } from "formik";
@@ -75,6 +75,7 @@ export function EmailListItem({
                 {!data.verified && <Tooltip title={t("ResendVerificationEmail")}>
                     <IconButton
                         onClick={onVerify}
+                        variant="transparent"
                     >
                         <IconCommon
                             decorative
@@ -86,6 +87,7 @@ export function EmailListItem({
                 <Tooltip title={t("EmailDelete")}>
                     <IconButton
                         onClick={onDelete}
+                        variant="transparent"
                     >
                         <IconCommon
                             decorative
@@ -234,7 +236,9 @@ export function EmailList({
                         background: palette.secondary.main,
                         borderRadius: "0 5px 5px 0",
                         height: "56px",
-                    }}>
+                    }}
+                    variant="transparent"
+                >
                     <IconCommon
                         decorative
                         name="Add"

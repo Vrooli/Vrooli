@@ -1,13 +1,13 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Popover from "@mui/material/Popover";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import type { Palette } from "@mui/material/styles";
@@ -19,7 +19,7 @@ import { usePopover } from "../../../hooks/usePopover.js";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { HelpButton } from "../../buttons/HelpButton.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
-import { RichInputBase } from "../RichInput/RichInput.js";
+import { AdvancedInputBase } from "../AdvancedInput/AdvancedInput.js";
 import { FormSettingsButtonRow, propButtonStyle } from "./styles.js";
 import { type FormHeaderProps } from "./types.js";
 
@@ -119,6 +119,8 @@ const SizeListItem = memo(function SizeListItemMemo({
         <ListItem
             button
             onClick={handleClick}
+            data-testid={`size-option-${tag}`}
+            aria-label={`Select ${label}`}
         >
             {Boolean(icon) && <ListItemIcon>{icon}</ListItemIcon>}
             <ListItemText primary={label} />
@@ -152,6 +154,8 @@ const ColorListItem = memo(function ColorListItemMemo({
         <ListItem
             button
             onClick={handleClick}
+            data-testid={`color-option-${value}`}
+            aria-label={`Select ${label} color`}
         >
             <ListItemText
                 primary={label}
@@ -181,19 +185,23 @@ const ColorPicker = memo(forwardRef(function ColorPickerMemo({ color }: ColorPic
     }, []);
 
     return (
-        <Box p={2}>
+        <Box p={2} data-testid="color-picker">
             <Box mb={2} display="flex" alignItems="center" gap={2}>
                 <input
                     type="color"
                     value={tempColor}
                     onChange={handleInputChange}
                     style={colorPickerInputStyle}
+                    aria-label="Color picker"
+                    data-testid="color-picker-input"
                 />
                 <TextField
                     size="small"
                     value={tempColor}
                     onChange={handleTextFieldChange}
                     placeholder="#000000"
+                    aria-label="Color hex input"
+                    data-testid="color-hex-input"
                 />
             </Box>
         </Box>
@@ -296,11 +304,11 @@ export function FormHeader({
         if (!isEditing) {
             if (element.isMarkdown) {
                 return (
-                    <MarkdownDisplay content={element.label} sx={labelStyle} />
+                    <MarkdownDisplay content={element.label} sx={labelStyle} data-testid="header-content-markdown" />
                 );
             }
             return (
-                <Typography variant={getDisplayTag(element.tag)} sx={labelStyle}>
+                <Typography variant={getDisplayTag(element.tag)} sx={labelStyle} data-testid="header-content">
                     {element.label}
                 </Typography>
             );
@@ -318,7 +326,7 @@ export function FormHeader({
                 textArea: labelStyle,
             } as const;
             return (
-                <RichInputBase
+                <AdvancedInputBase
                     disableAssistant={true}
                     maxRows={maxRows}
                     minRows={minRows}
@@ -328,6 +336,7 @@ export function FormHeader({
                     placeholder={placeholder}
                     value={editedLabel}
                     sxs={richInputSxs}
+                    data-testid="header-markdown-input"
                 />
             );
         }
@@ -349,6 +358,8 @@ export function FormHeader({
                 placeholder={placeholder}
                 value={editedLabel}
                 variant="standard"
+                aria-label="Header text input"
+                data-testid="header-text-input"
             />
         );
     }, [editedLabel, element.isMarkdown, element.label, element.tag, handleLabelChange, handleLabelKeyDown, isEditing, labelEditRef, labelStyle, submitLabelChange]);
@@ -374,21 +385,25 @@ export function FormHeader({
             //     );
             // }
             return (
-                <Box display="flex" alignItems="center">
+                <Box display="flex" alignItems="center" data-testid="form-header" data-editing="false">
                     {HeaderContent}
                     {Boolean(element.description) && element.description!.trim().length > 0 && <HelpButton
                         markdown={element.description ?? ""}
+                        data-testid="help-button"
                     />}
                 </Box>
             );
         }
 
         return (
-            <Box display="flex" alignItems="center">
+            <Box display="flex" alignItems="center" data-testid="form-header" data-editing="true">
                 <Tooltip title={t("Delete")}>
                     <IconButton
+                        variant="transparent"
+                        size="md"
                         aria-label={t("Delete")}
                         onClick={onDelete}
+                        data-testid="delete-button"
                     >
                         <IconCommon
                             decorative
@@ -402,6 +417,7 @@ export function FormHeader({
                 <HelpButton
                     onMarkdownChange={updateDescription}
                     markdown={element.description ?? ""}
+                    data-testid="help-button-editable"
                 />
             </Box>
         );
@@ -412,12 +428,13 @@ export function FormHeader({
         return HeaderElement;
     }
     return (
-        <div>
+        <div data-testid="form-header-container">
             <Popover
                 open={isTagPopoverOpen}
                 anchorEl={tagAnchorEl}
                 onClose={closeTagPopover}
                 anchorOrigin={popoverAnchorOrigin}
+                data-testid="size-popover"
             >
                 <List>
                     {FORM_HEADER_SIZE_OPTIONS.map((item) => (
@@ -439,6 +456,7 @@ export function FormHeader({
                 anchorEl={colorAnchorEl}
                 onClose={handleCloseColorPopover}
                 anchorOrigin={popoverAnchorOrigin}
+                data-testid="color-popover"
             >
                 <List>
                     {COLOR_OPTIONS.map((option) => (
@@ -465,13 +483,13 @@ export function FormHeader({
             </Popover>
             {HeaderElement}
             <FormSettingsButtonRow>
-                <Button variant="text" sx={propButtonStyle} onClick={openTagPopover}>
+                <Button variant="text" sx={propButtonStyle} onClick={openTagPopover} data-testid="size-button" aria-label="Change header size">
                     Size: {FORM_HEADER_SIZE_OPTIONS.find((item) => item.tag === element.tag)?.label}
                 </Button>
-                <Button variant="text" sx={propButtonStyle} onClick={openColorPopover}>
+                <Button variant="text" sx={propButtonStyle} onClick={openColorPopover} data-testid="color-button" aria-label="Change header color">
                     Color: {getColorStyle(currentColor, palette)}
                 </Button>
-                <Button variant="text" sx={propButtonStyle} onClick={toggleIsMarkdown}>
+                <Button variant="text" sx={propButtonStyle} onClick={toggleIsMarkdown} data-testid="markdown-toggle" aria-label="Toggle markdown mode">
                     {element.isMarkdown ? "Text" : "Markdown"}
                 </Button>
                 {/* <Button variant="text" sx={propButtonStyle} onClick={toggleIsCollapsible}>

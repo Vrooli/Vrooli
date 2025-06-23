@@ -2,8 +2,8 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "../../buttons/IconButton.js";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import type { ChipProps } from "@mui/material";
 import { styled, useTheme } from "@mui/material";
@@ -356,7 +356,7 @@ function TasksRow({
         }
     }, [activeTask?.taskId, selectTask, unselectTask]);
 
-    const hasNonStartTasks = (activeTask && activeTask.task !== LlmTask.Start) || inactiveTasks.some(task => task.task !== LlmTask.Start);
+    const hasNonStartTasks = (activeTask && activeTask.task !== LlmTask.Start) || (inactiveTasks && Array.isArray(inactiveTasks) && inactiveTasks.some(task => task.task !== LlmTask.Start));
     if (!hasNonStartTasks) return null;
     return (
         <TasksRowOuter
@@ -364,7 +364,7 @@ function TasksRow({
             onMouseDown={onMouseDown}
             ref={ref}
         >
-            {activeTask.task !== LlmTask.Start && (
+            {activeTask && activeTask.task !== LlmTask.Start && (
                 <>
                     <TaskChip
                         key={activeTask.taskId}
@@ -372,10 +372,10 @@ function TasksRow({
                         taskInfo={activeTask}
                         onTaskClick={onTaskClick}
                     />
-                    {inactiveTasks.length > 0 && <Divider orientation="vertical" flexItem />}
+                    {inactiveTasks && inactiveTasks.length > 0 && <Divider orientation="vertical" flexItem />}
                 </>
             )}
-            {inactiveTasks.map((taskInfo) => {
+            {inactiveTasks && inactiveTasks.map((taskInfo) => {
                 if (taskInfo.task === LlmTask.Start) return null;
                 return (
                     <TaskChip
@@ -417,6 +417,7 @@ export function ReplyingToMessageDisplay({
             <Box display="flex" flexDirection="row" justifyContent="flex-start" alignItems="center">
                 <IconButton
                     aria-label={t("Cancel")}
+                    variant="transparent"
                     onClick={onCancelReply}
                     sx={replyToCloseIconStyle}
                 >
@@ -451,6 +452,7 @@ function EditingMessageDisplay({
             <Box display="flex" flexDirection="row" justifyContent="flex-start" alignItems="center">
                 <IconButton
                     aria-label={t("Cancel")}
+                    variant="transparent"
                     onClick={onCancelEdit}
                     sx={replyToCloseIconStyle}
                 >
@@ -471,7 +473,9 @@ type OuterProps = {
     display: ViewDisplayType | `${ViewDisplayType}`;
     isMobile: boolean;
 }
-const Outer = styled(Box)<OuterProps>(({ display, isMobile }) => ({
+const Outer = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isMobile" && prop !== "display",
+})<OuterProps>(({ display, isMobile }) => ({
     width: "100%",
     maxWidth: `min(100%, ${MAX_CHAT_INPUT_WIDTH}px)`,
     margin: "auto",
@@ -515,11 +519,18 @@ export function ChatMessageInput({
     taskInfo,
 }: ChatMessageInputProps) {
     // Derive context items for the active task to display in the input
-    const contextItems: ContextItem[] = (taskInfo.contexts[taskInfo.activeTask.taskId] ?? []).map(c => ({
-        id: c.id,
-        type: "text",
-        label: c.label,
-    }));
+    // Add extra safety checks for when taskInfo or its properties are undefined
+    const contextItems: ContextItem[] = useMemo(() => {
+        if (!taskInfo?.contexts || !taskInfo?.activeTask?.taskId) {
+            return [];
+        }
+        const contexts = taskInfo.contexts[taskInfo.activeTask.taskId] ?? [];
+        return contexts.map(c => ({
+            id: c.id,
+            type: "text" as const,
+            label: c.label,
+        }));
+    }, [taskInfo]);
 
     const isMobile = useWindowSize(({ width }) => width <= MAX_CHAT_INPUT_WIDTH);
 
@@ -533,7 +544,7 @@ export function ChatMessageInput({
             <ChatIndicator
                 participantsTyping={participantsTyping}
             />
-            {!messageBeingRepliedTo && <TasksRow
+            {!messageBeingRepliedTo && taskInfo && <TasksRow
                 activeTask={taskInfo.activeTask}
                 inactiveTasks={taskInfo.inactiveTasks}
                 unselectTask={taskInfo.unselectTask}

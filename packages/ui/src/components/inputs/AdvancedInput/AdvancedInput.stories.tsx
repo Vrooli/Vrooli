@@ -5,6 +5,7 @@ import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
+
 // Simple action replacement
 const action = (name: string) => (...args: any[]) => console.log(`Action: ${name}`, args);
 import { type Meta } from "@storybook/react";
@@ -17,19 +18,7 @@ import { AITaskDisplayState, type AITaskDisplay } from "../../../types.js";
 import { PageContainer } from "../../Page/Page.js";
 import { AdvancedInput, AdvancedInputBase, TranslatedAdvancedInput } from "./AdvancedInput.js";
 import { DEFAULT_FEATURES, advancedInputTextareaClassName, type AdvancedInputFeatures, type ContextItem } from "./utils.js";
-
-const outerBoxStyle = {
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "flex-end",
-    minHeight: "100vh",
-} as const;
-const innerBoxStyle = {
-    maxWidth: "800px",
-    padding: "20px",
-    border: "1px solid #ccc",
-    paddingBottom: "100px",
-} as const;
+import { bottomContainerDecorator } from "../../../__test/helpers/storybookDecorators.tsx";
 
 const simulationButtonsStyle = {
     display: "flex",
@@ -352,19 +341,7 @@ function SimulationButtons({
 export default {
     title: "Components/Inputs/AdvancedInput",
     component: AdvancedInput,
-    decorators: [
-        (Story) => (
-            <PageContainer>
-                <ScrollBox>
-                    <Box sx={outerBoxStyle}>
-                        <Box sx={innerBoxStyle}>
-                            <Story />
-                        </Box>
-                    </Box>
-                </ScrollBox>
-            </PageContainer>
-        ),
-    ],
+    decorators: [bottomContainerDecorator(800)],
 } satisfies Meta<typeof AdvancedInput>;
 
 /**

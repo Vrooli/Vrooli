@@ -6,7 +6,7 @@ import ListItem from "@mui/material/ListItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Popover from "@mui/material/Popover";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
@@ -108,7 +108,7 @@ const preListItems: PrePopoverActionItem[] = [
 // Combine format, link, list, and table actions for minimal view
 const preCombinedItems: PrePopoverActionItem[] = [
     ...preFormatItems,
-    { action: "Link", iconInfo: { name: "Link", type: "Common" }, labelKey: "Link", keyCombo: keyComboToString("Ctrl", "K") },
+    { action: "Link", iconInfo: { name: "Link", type: "Common" }, labelKey: "Link_one", keyCombo: keyComboToString("Ctrl", "K") },
     ...preListItems,
     // { action: "Table", iconInfo: { name: "Table", type: "Common" }, labelKey: "TableInsert" },
 ];

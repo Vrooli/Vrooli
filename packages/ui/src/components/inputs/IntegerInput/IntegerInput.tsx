@@ -3,7 +3,7 @@ import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
 import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import type { Palette } from "@mui/material";
 import { useTheme } from "@mui/material";
 import { useField } from "formik";
@@ -94,6 +94,7 @@ export function IntegerInputBase({
             <Box
                 key={key}
                 onBlur={onBlur}
+                data-testid="integer-input-container"
                 sx={{
                     display: "flex",
                     justifyContent: "flex-start",
@@ -122,7 +123,10 @@ export function IntegerInputBase({
                         aria-describedby={`helper-text-${name}`}
                         type="number"
                         inputMode="numeric"
-                        inputProps={inputProps}
+                        inputProps={{
+                            ...inputProps,
+                            "data-testid": "integer-input",
+                        }}
                         value={displayValue}
                         onChange={(e) => onChange(calculateUpdatedNumber(e.target.value, max, min, allowDecimal))}
                         placeholder={zeroText}

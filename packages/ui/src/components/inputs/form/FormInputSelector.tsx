@@ -1,8 +1,8 @@
 import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import { getFormikFieldName, type SelectorFormInput, type SelectorFormInputOption, type SelectorFormInputProps } from "@vrooli/shared";
@@ -30,7 +30,8 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
 
     const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback((selected: T | null) => {
-        const newValue = selected !== null ? props.getOptionValue(selected) ?? undefined : undefined;
+        const getOptionValue = props.getOptionValue || ((option: T) => option.value);
+        const newValue = selected !== null ? getOptionValue(selected) ?? undefined : undefined;
         if (isEditing) {
             const newProps = { ...props, defaultValue: newValue };
             // @ts-ignore TODO
@@ -103,7 +104,7 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
             autoFocus={props.autoFocus}
             disabled={disabled}
             fullWidth
-            getOptionLabel={props.getOptionLabel}
+            getOptionLabel={props.getOptionLabel || ((option: T) => option.label)}
             inputAriaLabel={props.inputAriaLabel}
             isRequired={fieldData.isRequired}
             label={props.label}
@@ -112,7 +113,7 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
             onChange={handleChange}
             options={props.options}
             value={isEditing ? props.options?.find(option => option.value === field.value) : field.value}
-            getOptionDescription={props.getOptionDescription}
+            getOptionDescription={props.getOptionDescription || ((option: T) => option.description)}
             multiple={false}
             tabIndex={props.tabIndex}
         />
@@ -143,7 +144,7 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
                         color: palette.background.textSecondary,
                     }}
                 >
-                    Default: {props.getOptionLabel(props.defaultValue)}
+                    Default: {(props.getOptionLabel || ((option: T) => option.label))(props.defaultValue)}
                 </Typography>
             )}
             <FormSettingsButtonRow>
@@ -199,7 +200,7 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
                                                         </div>
                                                     </Tooltip>
                                                     <Tooltip title="Remove option" placement="top">
-                                                        <IconButton onClick={() => removeOption(index)} sx={{ padding: "4px", paddingLeft: "8px" }}>
+                                                        <IconButton variant="transparent" size="sm" onClick={() => removeOption(index)} style={{ padding: "4px", paddingLeft: "8px" }}>
                                                             <IconCommon
                                                                 decorative
                                                                 fill={palette.background.textSecondary}

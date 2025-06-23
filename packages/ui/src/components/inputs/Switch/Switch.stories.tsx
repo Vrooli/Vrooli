@@ -38,14 +38,14 @@ export const SwitchShowcase: Story = {
         // State for individual switch controls - all switches default to ON
         const [switchStates, setSwitchStates] = useState<Record<string, boolean>>({
             // Live preview states
-            'preview-default': true,
-            'preview-success': true,
-            'preview-warning': true,
-            'preview-danger': true,
-            'preview-space': true,
-            'preview-neon': true,
-            'preview-theme': true,
-            'preview-custom': true,
+            "preview-default": true,
+            "preview-success": true,
+            "preview-warning": true,
+            "preview-danger": true,
+            "preview-space": true,
+            "preview-neon": true,
+            "preview-theme": true,
+            "preview-custom": true,
             // All variants section
             default: true,
             success: true,
@@ -56,13 +56,13 @@ export const SwitchShowcase: Story = {
             theme: true,
             custom: true,
             // Size comparison
-            'size-sm': true,
-            'size-md': true,
-            'size-lg': true,
+            "size-sm": true,
+            "size-md": true,
+            "size-lg": true,
             // Label positioning
-            'label-left': true,
-            'label-right': true,
-            'label-none': true,
+            "label-left": true,
+            "label-right": true,
+            "label-none": true,
             // Common use cases
             notifications: true,
             darkMode: true,
@@ -86,14 +86,14 @@ export const SwitchShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1400, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -102,14 +102,14 @@ export const SwitchShowcase: Story = {
                         borderRadius: 2, 
                         boxShadow: 1,
                         height: "fit-content",
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Switch Controls</Typography>
                         
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(5, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
 
                             {/* Size Control */}
@@ -148,7 +148,7 @@ export const SwitchShowcase: Story = {
                                     onChange={(e) => setLabelText(e.target.value)}
                                     size="small"
                                     placeholder="Enter label text..."
-                                    sx={{ width: '100%' }}
+                                    sx={{ width: "100%" }}
                                 />
                             </FormControl>
 
@@ -160,7 +160,7 @@ export const SwitchShowcase: Story = {
                                     value={customColor}
                                     onChange={(e) => setCustomColor(e.target.value)}
                                     size="small"
-                                    sx={{ width: '100%' }}
+                                    sx={{ width: "100%" }}
                                 />
                             </FormControl>
 
@@ -184,7 +184,7 @@ export const SwitchShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Live Preview - All Variants</Typography>
                         
@@ -194,9 +194,9 @@ export const SwitchShowcase: Story = {
                                 xs: "1fr", 
                                 sm: "repeat(2, 1fr)",
                                 md: "repeat(3, 1fr)",
-                                lg: "repeat(4, 1fr)"
+                                lg: "repeat(4, 1fr)",
                             }, 
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {variants.map(v => (
                                 <Box 
@@ -205,7 +205,7 @@ export const SwitchShowcase: Story = {
                                         p: 3,
                                         borderRadius: 2,
                                         backgroundColor: (v === "space" || v === "neon") ? "#001122" : "grey.50",
-                                        textAlign: "center"
+                                        textAlign: "center",
                                     }}
                                 >
                                     <Typography 
@@ -213,7 +213,7 @@ export const SwitchShowcase: Story = {
                                         sx={{ 
                                             mb: 2, 
                                             textTransform: "capitalize",
-                                            color: (v === "space" || v === "neon") ? "#fff" : "inherit"
+                                            color: (v === "space" || v === "neon") ? "#fff" : "inherit",
                                         }}
                                     >
                                         {v}
@@ -239,7 +239,7 @@ export const SwitchShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>All Switch Variants</Typography>
                         
@@ -249,9 +249,9 @@ export const SwitchShowcase: Story = {
                                 xs: "1fr", 
                                 sm: "repeat(2, 1fr)",
                                 md: "repeat(3, 1fr)",
-                                lg: "repeat(4, 1fr)"
+                                lg: "repeat(4, 1fr)",
                             }, 
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {variants.map(v => (
                                 <Box 
@@ -260,7 +260,7 @@ export const SwitchShowcase: Story = {
                                         p: 3,
                                         borderRadius: 2,
                                         backgroundColor: (v === "space" || v === "neon") ? "#001122" : "grey.50",
-                                        textAlign: "center"
+                                        textAlign: "center",
                                     }}
                                 >
                                     <Typography 
@@ -268,7 +268,7 @@ export const SwitchShowcase: Story = {
                                         sx={{ 
                                             mb: 2, 
                                             textTransform: "capitalize",
-                                            color: (v === "space" || v === "neon") ? "#fff" : "inherit"
+                                            color: (v === "space" || v === "neon") ? "#fff" : "inherit",
                                         }}
                                     >
                                         {v}
@@ -293,7 +293,7 @@ export const SwitchShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Size Comparison</Typography>
                         
@@ -301,7 +301,7 @@ export const SwitchShowcase: Story = {
                             display: "flex", 
                             flexDirection: "column",
                             gap: 3,
-                            alignItems: "center"
+                            alignItems: "center",
                         }}>
                             {sizes.map(s => (
                                 <Box key={s} sx={{ textAlign: "center" }}>
@@ -326,7 +326,7 @@ export const SwitchShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Label Positioning</Typography>
                         
@@ -334,7 +334,7 @@ export const SwitchShowcase: Story = {
                             display: "flex", 
                             flexDirection: "column",
                             gap: 3,
-                            alignItems: "center"
+                            alignItems: "center",
                         }}>
                             {labelPositions.map(pos => (
                                 <Box key={pos} sx={{ textAlign: "center" }}>
@@ -360,7 +360,7 @@ export const SwitchShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Common Use Cases</Typography>
                         
@@ -461,7 +461,7 @@ export const SwitchShowcase: Story = {
                                     gap: 2, 
                                     p: 3, 
                                     bgcolor: "#001122", 
-                                    borderRadius: 1 
+                                    borderRadius: 1, 
                                 }}>
                                     <Switch
                                         variant="space"

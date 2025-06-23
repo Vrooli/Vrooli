@@ -1,9 +1,9 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import InputAdornment from "@mui/material/InputAdornment";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -99,7 +99,7 @@ export function LinkInputBase({
                 handleCancel={closeSearch}
                 handleComplete={closeSearch}
             />
-            <Box sx={sxs?.root}>
+            <Box sx={sxs?.root} data-testid="link-input-root">
                 {/* Text field with button to open search dialog */}
                 <Stack direction="row" spacing={0}>
                     <TextField
@@ -116,6 +116,7 @@ export function LinkInputBase({
                         tabIndex={tabIndex}
                         value={value}
                         InputProps={linkInputProps}
+                        inputProps={{ "data-testid": "link-input-field" }}
                         sx={{
                             "& .MuiInputBase-root": {
                                 borderRadius: "5px 0 0 5px",
@@ -126,6 +127,8 @@ export function LinkInputBase({
                         aria-label={t("SearchObjectLink")}
                         disabled={disabled}
                         onClick={openSearch}
+                        variant="transparent"
+                        data-testid="link-search-button"
                         sx={{
                             background: palette.secondary.main,
                             borderRadius: "0 5px 5px 0",
@@ -140,13 +143,14 @@ export function LinkInputBase({
                 {title && (
                     <Tooltip title={subtitle}>
                         <MarkdownDisplay
+                            data-testid="link-display-text"
                             sx={{ marginLeft: "8px", paddingTop: "8px" }}
                             content={`${title}${subtitle ? " - " + subtitle : ""}`}
                         />
                     </Tooltip>
                 )}
                 {helperText && (
-                    <Box sx={{ paddingTop: "8px", color: palette.error.main, fontSize: "0.75rem" }}>
+                    <Box data-testid="link-helper-text" sx={{ paddingTop: "8px", color: palette.error.main, fontSize: "0.75rem" }}>
                         {typeof helperText === "string" ? helperText : JSON.stringify(helperText)}
                     </Box>
                 )}

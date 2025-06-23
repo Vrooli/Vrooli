@@ -1,5 +1,5 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../buttons/IconButton.js";
 import { styled } from "@mui/material";
 import { useCallback } from "react";
 import { IconCommon } from "../../icons/Icons.js";
@@ -51,10 +51,10 @@ export function PartialNavbar({
                 {children}
             </Box>
             <PartialHeaderBox>
-                <IconButton onClick={handleSwapView} sx={{ mr: 1 }}>
+                <IconButton onClick={handleSwapView} variant="transparent" sx={{ mr: 1 }}>
                     <IconCommon name="MoveLeftRight" />
                 </IconButton>
-                <IconButton onClick={handleCloseDrawer}>
+                <IconButton onClick={handleCloseDrawer} variant="transparent">
                     <IconCommon name="Close" />
                 </IconButton>
             </PartialHeaderBox>

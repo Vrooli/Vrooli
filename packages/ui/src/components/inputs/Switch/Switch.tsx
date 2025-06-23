@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { forwardRef, useCallback, useMemo, useId } from "react";
 import { cn } from "../../../utils/tailwind-theme.js";
 import {
@@ -11,32 +11,10 @@ import {
     getThumbPosition,
     getCustomSwitchStyle,
 } from "./switchStyles.js";
+import type { SwitchProps, SwitchVariant, SwitchSize, LabelPosition } from "./types.js";
 
-// Export types for external use
-export type SwitchVariant = "default" | "success" | "warning" | "danger" | "space" | "neon" | "theme" | "custom";
-export type SwitchSize = "sm" | "md" | "lg";
-export type LabelPosition = "left" | "right" | "none";
-
-export interface SwitchProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "type"> {
-    /** Visual style variant of the switch */
-    variant?: SwitchVariant;
-    /** Size of the switch */
-    size?: SwitchSize;
-    /** Position of the label relative to the switch */
-    labelPosition?: LabelPosition;
-    /** Label text to display */
-    label?: ReactNode;
-    /** Custom color for the custom variant (hex, rgb, hsl, etc.) */
-    color?: string;
-    /** Whether the switch is checked */
-    checked?: boolean;
-    /** Whether the switch is disabled */
-    disabled?: boolean;
-    /** Additional CSS classes */
-    className?: string;
-    /** Change handler */
-    onChange?: (checked: boolean, event: React.ChangeEvent<HTMLInputElement>) => void;
-}
+// Re-export types for backward compatibility
+export type { SwitchProps, SwitchVariant, SwitchSize, LabelPosition } from "./types.js";
 
 /**
  * Label component that handles positioning and styling
@@ -45,7 +23,7 @@ const SwitchLabel = ({
     children, 
     htmlFor, 
     position, 
-    disabled 
+    disabled, 
 }: { 
     children: ReactNode; 
     htmlFor: string; 
@@ -59,7 +37,7 @@ const SwitchLabel = ({
             htmlFor={htmlFor}
             className={cn(
                 SWITCH_LABEL_STYLES,
-                disabled && "tw-opacity-50 tw-cursor-not-allowed"
+                disabled && "tw-opacity-50 tw-cursor-not-allowed",
             )}
         >
             {children}
@@ -112,7 +90,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
             "aria-describedby": ariaDescribedBy,
             ...props
         },
-        ref
+        ref,
     ) => {
         // Generate unique ID for accessibility
         const generatedId = useId();
@@ -131,19 +109,19 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
                 disabled,
                 className,
             }),
-            [variant, size, disabled, className]
+            [variant, size, disabled, className],
         );
         
         // Memoize track classes
         const trackClasses = useMemo(() => cn(
             "tw-rounded-full tw-relative tw-flex-shrink-0",
-            SWITCH_TRACK_STYLES[variant]
+            SWITCH_TRACK_STYLES[variant],
         ), [variant]);
         
         // Memoize thumb classes
         const thumbClasses = useMemo(() => cn(
             "tw-absolute tw-top-1/2 tw-transform -tw-translate-y-1/2",
-            SWITCH_THUMB_STYLES[variant]
+            SWITCH_THUMB_STYLES[variant],
         ), [variant]);
         
         // Handle change events
@@ -173,7 +151,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
         // Custom style for custom variant
         const customStyle = useMemo(() => 
             variant === "custom" ? getCustomSwitchStyle(color) : {},
-            [variant, color]
+            [variant, color],
         );
         
         // Determine aria-label
@@ -183,7 +161,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
             <div 
                 className={cn(
                     "tw-inline-flex tw-items-center tw-gap-3",
-                    labelPosition === "right" && "tw-flex-row-reverse"
+                    labelPosition === "right" && "tw-flex-row-reverse",
                 )}
                 style={customStyle}
             >
@@ -217,6 +195,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
                 {/* Visual switch container */}
                 <div 
                     className={switchClasses}
+                    data-testid="switch-visual-container"
                     onClick={() => {
                         if (!disabled) {
                             const syntheticEvent = {
@@ -259,7 +238,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
                                         className={cn(
                                             "tw-absolute tw-fill-current",
                                             "tw-transition-all tw-duration-300",
-                                            checked ? "tw-opacity-0 tw-scale-50 tw-rotate-180" : "tw-opacity-100 tw-scale-100 tw-rotate-0"
+                                            checked ? "tw-opacity-0 tw-scale-50 tw-rotate-180" : "tw-opacity-100 tw-scale-100 tw-rotate-0",
                                         )}
                                         width={thumbDimensions.size}
                                         height={thumbDimensions.size}
@@ -273,7 +252,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
                                         className={cn(
                                             "tw-absolute tw-fill-current",
                                             "tw-transition-all tw-duration-300",
-                                            checked ? "tw-opacity-100 tw-scale-100 tw-rotate-0" : "tw-opacity-0 tw-scale-50 tw-rotate-180"
+                                            checked ? "tw-opacity-100 tw-scale-100 tw-rotate-0" : "tw-opacity-0 tw-scale-50 tw-rotate-180",
                                         )}
                                         width={thumbDimensions.size}
                                         height={thumbDimensions.size}
@@ -324,7 +303,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
                 </span>
             </div>
         );
-    }
+    },
 );
 
 Switch.displayName = "Switch";

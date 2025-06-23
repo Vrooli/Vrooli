@@ -1,4 +1,4 @@
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../buttons/IconButton.js";
 import Slider, { SliderThumb } from "@mui/material/Slider";
 import { useTheme } from "@mui/material";
 import { useCallback, useState } from "react";
@@ -59,6 +59,8 @@ export function TextSizeButtons() {
     return (
         <div style={{ display: "flex", alignItems: "center" }}>
             <IconButton
+                variant="transparent"
+                size="md"
                 aria-label="Decrease text size"
                 disabled={size === FONT_SIZE_MIN}
                 onClick={decreaseByOne}
@@ -91,6 +93,8 @@ export function TextSizeButtons() {
                 }}
             />
             <IconButton
+                variant="transparent"
+                size="md"
                 aria-label="Increase text size"
                 disabled={size === FONT_SIZE_MAX}
                 onClick={increaseByOne}

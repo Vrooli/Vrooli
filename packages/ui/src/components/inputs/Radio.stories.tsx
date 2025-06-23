@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import TextField from "@mui/material/TextField";
-import { Radio, RadioVariant, RadioSize } from "./Radio.js";
+import { Radio, type RadioVariant, type RadioSize } from "./Radio.js";
 import { FormControlLabel } from "./FormControlLabel.js";
 import { FormGroup } from "./FormGroup.js";
 import { Switch } from "./Switch/Switch.js";
@@ -46,14 +46,14 @@ export const RadioShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1200, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -62,14 +62,14 @@ export const RadioShowcase: Story = {
                         borderRadius: 2, 
                         boxShadow: 1,
                         height: "fit-content",
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Radio Controls</Typography>
                         
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {/* Size Control */}
                             <FormControl component="fieldset">
@@ -111,7 +111,7 @@ export const RadioShowcase: Story = {
                                     value={customColor}
                                     onChange={(e) => setCustomColor(e.target.value)}
                                     size="small"
-                                    sx={{ width: '100%' }}
+                                    sx={{ width: "100%" }}
                                 />
                             </FormControl>
                         </Box>
@@ -123,7 +123,7 @@ export const RadioShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Radio Button Variants</Typography>
                         
@@ -132,9 +132,9 @@ export const RadioShowcase: Story = {
                             gridTemplateColumns: { 
                                 xs: "1fr", 
                                 sm: "repeat(2, 1fr)", 
-                                md: "repeat(3, 1fr)"
+                                md: "repeat(3, 1fr)",
                             }, 
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {variants.map(variant => (
                                 <Box key={variant}>
@@ -142,7 +142,7 @@ export const RadioShowcase: Story = {
                                         variant="subtitle2" 
                                         sx={{ 
                                             mb: 1, 
-                                            textTransform: "capitalize"
+                                            textTransform: "capitalize",
                                         }}
                                     >
                                         {variant}
@@ -162,7 +162,7 @@ export const RadioShowcase: Story = {
                                                             if (e.target.checked) {
                                                                 setSelectedColor(prev => ({
                                                                     ...prev,
-                                                                    [variant]: value
+                                                                    [variant]: value,
                                                                 }));
                                                             }
                                                         }}
@@ -184,7 +184,7 @@ export const RadioShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Size Comparison</Typography>
                         
@@ -209,7 +209,7 @@ export const RadioShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Radio Group Example</Typography>
                         
