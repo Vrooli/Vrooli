@@ -1,6 +1,6 @@
-import { generatePK, generatePublicId } from "../../../../../shared/src/id/index.js";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
-import { chatConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/chatConfigFixtures.js";
+import { chatConfigFixtures } from "@vrooli/shared/test-fixtures";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 

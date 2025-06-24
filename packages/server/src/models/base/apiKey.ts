@@ -1,10 +1,10 @@
-import { apiKeyValidation, ApiKeySortBy, generatePK, MaxObjects } from "@vrooli/shared";
+import { ApiKeySortBy, apiKeyValidation, generatePK, MaxObjects } from "@vrooli/shared";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CacheService } from "../../redisConn.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { ApiKeyFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { type ApiKeyModelLogic } from "./types.js";

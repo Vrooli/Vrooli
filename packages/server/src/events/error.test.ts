@@ -1,5 +1,4 @@
 import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";
-
 import { CustomError } from "./error.js";
 import { logger } from "./logger.js";
 
@@ -47,7 +46,7 @@ describe("CustomError", () => {
             userId: "123",
             action: "upload",
             msg: "CouldNotReadObject",
-            trace: expect.stringMatching(/TEST-/)
+            trace: expect.stringMatching(/TEST-/),
         });
     });
 

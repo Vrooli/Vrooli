@@ -74,26 +74,45 @@ graph TD
 ## Fixture Types Overview
 
 ### 🎨 UI Fixtures (`packages/ui/src/__test/fixtures/`)
-**Purpose**: Frontend testing infrastructure for forms, components, and round-trip testing
+**Purpose**: Production-grade frontend testing infrastructure with real database integration
 
 **Key Features**:
-- Form data generation for all object types
-- Round-trip testing orchestration (Form → Database → UI)
-- MSW integration for API mocking
-- Component testing utilities
-- Error and loading state fixtures
+- Type-safe fixture factories using real @vrooli/shared functions
+- True round-trip testing (Form → API → Database → Response → UI)
+- Testcontainers PostgreSQL integration for real database testing
+- MSW handlers generated from fixture responses
+- React Hook Form integration for component testing
+- Comprehensive scenario orchestration (create, update, delete, verify)
+
+**Architecture**:
+```
+fixtures/
+├── factories/          # Type-safe fixture factories
+├── integrations/       # Real database integration tests
+├── scenarios/          # Multi-step workflow orchestrators
+├── states/             # UI state management fixtures
+├── api-responses/      # MSW response handlers
+├── form-data/          # React Hook Form integration
+└── types.ts           # Core type definitions
+```
 
 **Usage**:
 ```typescript
-import { userFormData, userRoundTripFactory } from "@/test/fixtures";
+import { BookmarkFixtureFactory, BookmarkIntegrationTest } from "@/test/fixtures";
 
-// Form testing
-const formData = userFormData.minimal.create;
-render(<UserForm initialData={formData} />);
+// Type-safe form data generation
+const factory = new BookmarkFixtureFactory();
+const formData = factory.createFormData('withNewList');
 
-// Round-trip testing
-const result = await userRoundTripFactory.executeFullCycle(formData);
+// Real database integration testing
+const integration = new BookmarkIntegrationTest();
+const result = await integration.testCompleteFlow({
+  formData,
+  shouldSucceed: true
+});
+
 expect(result.success).toBe(true);
+expect(result.data.databaseRecord).toBeDefined();
 ```
 
 ### 🔗 API Fixtures (`packages/shared/src/__test/fixtures/api/`)
@@ -444,60 +463,74 @@ Without fixtures, each test would need to manually create these complex data str
 ### Step 1: Identify What You're Testing
 
 ```typescript
-// Testing an API endpoint?
-import { endpointsUser } from "@vrooli/shared";
-import { userFixtures } from "@vrooli/shared/__test/fixtures/api";
+// Testing a UI component with form interaction?
+import { BookmarkFixtureFactory } from "@/test/fixtures/factories";
+import { renderWithProviders } from "@/test/testUtils";
 
-// Testing a UI component?
-import { apiFixtures } from "@vrooli/shared/__test/fixtures";
-import { server } from "../mocks/server.js"; // MSW server
+// Testing complete data flow (form to database)?
+import { BookmarkIntegrationTest } from "@/test/fixtures/integrations";
+
+// Testing multi-step workflows?
+import { UserBookmarksProjectScenario } from "@/test/fixtures/scenarios";
+
+// Testing API endpoints directly?
+import { userFixtures } from "@vrooli/shared/__test/fixtures/api";
 
 // Testing data transformation?
 import { shapeProject, projectValidation } from "@vrooli/shared";
 ```
 
-### Step 2: Choose the Right Fixture
+### Step 2: Choose the Right Fixture Type
 
 ```typescript
-// Need a complete object with all fields?
-const fullUser = userFixtures.complete.create;
+// Type-safe form data for UI components
+const factory = new BookmarkFixtureFactory();
+const formData = factory.createFormData('minimal');
 
-// Need minimal valid data?
-const minimalUser = userFixtures.minimal.create;
+// MSW handlers for component testing
+const mswHandlers = factory.createMSWHandlers().success;
+server.use(...mswHandlers);
 
-// Need specific scenario?
-const adminUser = userFixtures.admin.create;
-const guestUser = userFixtures.guest.create;
+// UI state fixtures for different scenarios
+const loadingState = factory.createUIState('loading');
+const errorState = factory.createUIState('error', { message: 'Failed to save' });
 ```
 
-### Step 3: Use Real Functions
+### Step 3: Execute Tests
 
 ```typescript
-// ✅ DO: Use real transformation functions
-const shaped = shapeUser.create(formData);
-const validated = await userValidation.create.validate(shaped);
-
-// ❌ DON'T: Create mock transformation logic
-const mockTransform = (data) => ({ ...data, transformed: true });
-```
-
-### Step 4: Write Your Test
-
-```typescript
-describe("User Creation", () => {
-    it("should create user with valid data", async () => {
-        // Arrange
-        const userData = userFixtures.complete.create;
+// Component testing
+describe("BookmarkForm", () => {
+    it("should submit valid form data", async () => {
+        const factory = new BookmarkFixtureFactory();
+        const formData = factory.createFormData('complete');
         
-        // Act
-        const result = await endpointsUser.create({
-            input: userData,
-            context: createTestContext()
+        const { getByRole } = renderWithProviders(<BookmarkForm />);
+        
+        // Simulate user filling form
+        await userEvent.type(getByRole('textbox', { name: /list name/i }), formData.newListLabel);
+        await userEvent.click(getByRole('button', { name: /save/i }));
+        
+        await waitFor(() => {
+            expect(getByRole('alert')).toHaveTextContent('Bookmark saved');
+        });
+    });
+});
+
+// Integration testing
+describe("Bookmark Integration", () => {
+    it("should complete full bookmark creation flow", async () => {
+        const integration = new BookmarkIntegrationTest();
+        const factory = new BookmarkFixtureFactory();
+        
+        const result = await integration.testCompleteFlow({
+            formData: factory.createFormData('withNewList'),
+            shouldSucceed: true
         });
         
-        // Assert
         expect(result.success).toBe(true);
-        expect(result.data.id).toBeDefined();
+        expect(result.data.databaseRecord).toBeDefined();
+        expect(result.data.apiResponse.list.label).toBe('My New List');
     });
 });
 ```
@@ -594,62 +627,76 @@ beforeEach(async () => {
 
 For detailed database fixture documentation, see [Database Fixtures README](/packages/server/src/__test/fixtures/db/README.md).
 
-## UI Test Helpers
+## UI Fixtures Architecture
 
-UI Test Helpers provide the transformation and mock service layer for UI testing. They're located in `packages/ui/src/__test/fixtures/helpers/` and provide:
+The UI fixtures provide a complete testing infrastructure for React components with real database integration. The architecture consists of multiple specialized layers:
 
-### Purpose
-- **Data Transformations**: Convert between UI form data and API request/response formats
-- **Mock Services**: In-memory API simulation for component testing
-- **Form Testing**: Utilities for testing form interactions and validation
-- **MSW Integration**: Seamless API mocking for component and integration tests
+### Production-Grade Features
+- **Zero `any` Types**: Full TypeScript safety throughout all fixtures
+- **Real Database Integration**: Uses testcontainers PostgreSQL for authentic testing
+- **Testcontainers Integration**: Isolated test environments with real database constraints
+- **React Hook Form Integration**: Tests actual form components and validation
+- **Scenario Orchestration**: Multi-step workflow testing capabilities
 
-### Key Features
+### Factory Layers
 ```typescript
-// Import transformation utilities
-import { transformFormToCreateRequest, validateBookmarkFormData } from "../__test/fixtures/helpers/bookmarkTransformations";
+// 1. Fixture Factory - Type-safe data generation
+const factory = new BookmarkFixtureFactory();
+const formData = factory.createFormData('withNewList');
+const apiInput = factory.transformToAPIInput(formData);
 
-// Transform form data to API request
-const apiRequest = transformFormToCreateRequest(formData);
+// 2. Integration Test - Real database testing
+const integration = new BookmarkIntegrationTest();
+const result = await integration.testCompleteFlow({
+  formData,
+  shouldSucceed: true
+});
 
-// Validate form before submission
-const errors = validateBookmarkFormData(formData);
-
-// Use mock service for testing
-const bookmark = await mockBookmarkService.create(apiRequest);
-const updated = await mockBookmarkService.update(id, updateData);
-
-// Transform API response back to form
-const formData = transformApiResponseToForm(bookmark);
-```
-
-### Integration with Component Tests
-```typescript
-import { renderWithProviders } from "../__test/testUtils";
-import { mockTeamService } from "../__test/fixtures/helpers/teamTransformations";
-
-it("should create team through form submission", async () => {
-  const { user, getByRole } = renderWithProviders(<TeamForm />);
-  
-  // Fill form fields
-  await user.type(getByRole("textbox", { name: /team name/i }), "Test Team");
-  
-  // Submit form
-  await user.click(getByRole("button", { name: /create/i }));
-  
-  // Verify mock service was called
-  const teams = await mockTeamService.findMany();
-  expect(teams).toHaveLength(1);
+// 3. Scenario Orchestration - Multi-step workflows
+const scenario = new UserBookmarksProjectScenario();
+await scenario.execute({
+  user: userConfig,
+  project: projectConfig,
+  bookmarks: bookmarkConfigs
 });
 ```
 
-### Best Practices
-1. **Use TypeScript Types**: Always use types from `@vrooli/shared` for consistency
-2. **Validate Transformations**: Ensure data integrity through round-trip testing
-3. **Mock Realistically**: Include API delays and error scenarios in mock services
-4. **Test Accessibility**: Use semantic queries and verify keyboard navigation
+### Component Testing Integration
+```typescript
+import { renderWithProviders, setupTestContainers } from "@/test/testUtils";
+import { BookmarkFixtureFactory } from "@/test/fixtures/factories";
 
-For detailed UI test helper documentation, see [UI Test Helpers README](/packages/ui/src/__test/fixtures/helpers/README.md).
+describe("BookmarkForm Integration", () => {
+  let postgres: StartedPostgreSQLContainer;
+  
+  beforeAll(async () => {
+    postgres = await setupTestContainers();
+  });
+  
+  it("should save bookmark to real database", async () => {
+    const factory = new BookmarkFixtureFactory();
+    const formData = factory.createFormData('complete');
+    
+    const { getByRole } = renderWithProviders(<BookmarkForm />);
+    
+    // Fill and submit form
+    await userEvent.type(getByRole('textbox', { name: /list name/i }), formData.newListLabel);
+    await userEvent.click(getByRole('button', { name: /save/i }));
+    
+    // Verify data was saved to real database
+    const saved = await prisma.bookmark.findFirst({
+      where: { list: { label: formData.newListLabel } }
+    });
+    expect(saved).toBeDefined();
+  });
+});
+```
+
+### Testcontainers Integration
+- **Isolated Database**: Each test suite gets a fresh PostgreSQL container
+- **Transaction Rollback**: Tests run in transactions that are automatically rolled back
+- **Real Constraints**: Tests validate actual foreign key constraints and database rules
+- **Performance Testing**: Measure actual database query performance
 
 ## Unified Round-Trip Testing
 

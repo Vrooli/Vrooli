@@ -1,4 +1,4 @@
-import { type ServerError, type TranslationKeyError } from "@vrooli/shared";
+import { type ServerError, type TranslationKeyError, type VrooliError } from "@vrooli/shared";
 import { randomString } from "../auth/codes.js";
 import { logger } from "./logger.js";
 
@@ -19,11 +19,13 @@ function genTrace(locationCode: string): string {
     return `${locationCode}-${randomString(TRACE_LENGTH)}`;
 }
 
-export class CustomError extends Error {
+export class CustomError extends Error implements VrooliError {
     /** The translation key for the error message */
     public code: TranslationKeyError;
     /** The full trace (unique identifier for spot in codebase + random string to locate in logs) */
     public trace: string;
+    /** Optional error data/context */
+    public data?: Record<string, any>;
 
     constructor(traceBase: string, errorCode: TranslationKeyError, data?: ErrorTrace) {
         // Generate unique trace
@@ -31,6 +33,7 @@ export class CustomError extends Error {
         super(`${errorCode}: ${trace}`);
         this.code = errorCode;
         this.trace = trace;
+        this.data = data;
         Object.defineProperty(this, "name", { value: errorCode });
         logger.error({ ...(data ?? {}), msg: errorCode, trace });
     }

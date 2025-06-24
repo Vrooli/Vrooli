@@ -34,7 +34,7 @@ export interface TransactionTestContext {
  * ```
  */
 export function withDbTransaction<T>(
-    testFn: () => Promise<T>
+    testFn: () => Promise<T>,
 ): () => Promise<T> {
     return async () => {
         // Make sure DbProvider is available
@@ -88,7 +88,7 @@ export function withDbTransaction<T>(
             {
                 maxWait: 30000, // Max time to wait for transaction slot
                 timeout: 60000, // Max time for transaction to complete
-            }
+            },
         ).catch(error => {
             // If it's our rollback error, return the result
             if (error instanceof RollbackError) {
@@ -105,7 +105,7 @@ export function withDbTransaction<T>(
  * Use withDbTransaction instead for better integration with existing code
  */
 export function withTransaction<T>(
-    testFn: (ctx: TransactionTestContext) => Promise<T>
+    testFn: (ctx: TransactionTestContext) => Promise<T>,
 ): () => Promise<T> {
     return async () => {
         const client = DbProvider.get();
@@ -122,7 +122,7 @@ export function withTransaction<T>(
             {
                 maxWait: 30000, // Max time to wait for transaction slot
                 timeout: 60000, // Max time for transaction to complete
-            }
+            },
         ).catch(error => {
             // If it's our rollback error, return the result
             if (error instanceof RollbackError) {
@@ -152,7 +152,7 @@ class RollbackError<T> extends Error {
 export async function withSavepoint<T>(
     prisma: PrismaClient,
     name: string,
-    fn: () => Promise<T>
+    fn: () => Promise<T>,
 ): Promise<T> {
     await prisma.$executeRawUnsafe(`SAVEPOINT ${name}`);
     try {

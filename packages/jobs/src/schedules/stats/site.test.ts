@@ -349,7 +349,9 @@ describe("logSiteStats integration tests", () => {
                 id: generatePK(),
                 name: "Test Run 1",
                 status: "Running",
-                createdById: owner.id,
+                user: {
+                    connect: { id: owner.id },
+                },
                 isPrivate: false,
                 startedAt: runStartedTime,
             },
@@ -362,7 +364,9 @@ describe("logSiteStats integration tests", () => {
                 id: generatePK(),
                 name: "Test Run 2",
                 status: "Completed",
-                createdById: owner.id,
+                user: {
+                    connect: { id: owner.id },
+                },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,

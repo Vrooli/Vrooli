@@ -67,6 +67,7 @@ describe("logResourceStats integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -78,6 +79,7 @@ describe("logResourceStats integration tests", () => {
         const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: resource.id,
                 versionLabel: "1.0.0",
                 complexity: 5,
@@ -130,6 +132,7 @@ describe("logResourceStats integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -140,6 +143,7 @@ describe("logResourceStats integration tests", () => {
         const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: resource.id,
                 versionLabel: "1.0.0",
                 complexity: 5,
@@ -157,8 +161,14 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 name: "Started Run",
                 status: "Running",
-                createdById: user.id,
-                resourceVersionId: resourceVersion.id,
+                user: {
+                    connect: { id: user.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: resourceVersion.id },
+
+                },
                 isPrivate: false,
                 startedAt: runStartedTime,
             },
@@ -171,8 +181,14 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 name: "Completed Run",
                 status: "Completed",
-                createdById: user.id,
-                resourceVersionId: resourceVersion.id,
+                user: {
+                    connect: { id: user.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: resourceVersion.id },
+
+                },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -222,6 +238,7 @@ describe("logResourceStats integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -232,6 +249,7 @@ describe("logResourceStats integration tests", () => {
         const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: resource.id,
                 versionLabel: "1.0.0",
                 complexity: 5,
@@ -249,8 +267,14 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 name: "Run 1",
                 status: "Completed",
-                createdById: user.id,
-                resourceVersionId: resourceVersion.id,
+                user: {
+                    connect: { id: user.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: resourceVersion.id },
+
+                },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -265,8 +289,14 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 name: "Run 2",
                 status: "Completed",
-                createdById: user.id,
-                resourceVersionId: resourceVersion.id,
+                user: {
+                    connect: { id: user.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: resourceVersion.id },
+
+                },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -314,6 +344,7 @@ describe("logResourceStats integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -325,6 +356,7 @@ describe("logResourceStats integration tests", () => {
         const oldVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: resource.id,
                 versionLabel: "1.0.0",
                 complexity: 5,
@@ -340,6 +372,7 @@ describe("logResourceStats integration tests", () => {
         const latestVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: resource.id,
                 versionLabel: "2.0.0",
                 complexity: 7,
@@ -357,8 +390,14 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 name: "Old Run",
                 status: "Running",
-                createdById: user.id,
-                resourceVersionId: oldVersion.id,
+                user: {
+                    connect: { id: user.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: oldVersion.id },
+
+                },
                 isPrivate: false,
                 startedAt: runStartedTime,
             },
@@ -371,8 +410,14 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 name: "Latest Run",
                 status: "Running",
-                createdById: user.id,
-                resourceVersionId: latestVersion.id,
+                user: {
+                    connect: { id: user.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: latestVersion.id },
+
+                },
                 isPrivate: false,
                 startedAt: runStartedTime,
             },
@@ -415,6 +460,7 @@ describe("logResourceStats integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -426,6 +472,7 @@ describe("logResourceStats integration tests", () => {
         const deletedVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: resource.id,
                 versionLabel: "1.0.0",
                 complexity: 5,
@@ -471,6 +518,7 @@ describe("logResourceStats integration tests", () => {
         const deletedResource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: true, // Deleted root
@@ -481,6 +529,7 @@ describe("logResourceStats integration tests", () => {
         const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: deletedResource.id,
                 versionLabel: "1.0.0",
                 complexity: 5,
@@ -527,6 +576,7 @@ describe("logResourceStats integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -537,6 +587,7 @@ describe("logResourceStats integration tests", () => {
         const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: resource.id,
                 versionLabel: "1.0.0",
                 complexity: 5,
@@ -554,8 +605,14 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 name: "No Time Run",
                 status: "Completed",
-                createdById: user.id,
-                resourceVersionId: resourceVersion.id,
+                user: {
+                    connect: { id: user.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: resourceVersion.id },
+
+                },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -602,6 +659,7 @@ describe("logResourceStats integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: user.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -612,6 +670,7 @@ describe("logResourceStats integration tests", () => {
         const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: resource.id,
                 versionLabel: "1.0.0",
                 complexity: 5,

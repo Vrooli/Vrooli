@@ -301,25 +301,6 @@ Implement functionality to allow routines to specify role-based restrictions for
 
 ---
 
-# Advanced Input Component Refactoring
-Priority: MEDIUM  
-Status: TODO
-Dependencies: None
-ParentTask: None
-
-**Description:**  
-Remove legacy input components (RichInput, RichInputBase, ChatMessageInput, etc.) after fully implementing AdvancedInput as their replacement.
-
-**Key Deliverables:**
-- [ ] Ensure AdvancedInput fully supports all features of legacy components
-- [ ] Migrate all instances of legacy components to AdvancedInput
-- [ ] Remove deprecated components: RichInput, RichInputBase, ChatMessageInput, RichInputLexical, RichInputMarkdown, RichInputTagDropdown
-- [ ] Look into removing TextInput and TranslatedTextInput components
-- [ ] Remove associated hooks including useTagDropdown
-- [ ] Update documentation to reflect new input component architecture
-
----
-
 # Enhance IntegerInput Component
 Priority: LOW  
 Status: TODO

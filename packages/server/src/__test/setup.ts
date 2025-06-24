@@ -26,7 +26,7 @@ async function preloadServices() {
     }
 }
 
-let componentsInitialized = {
+const componentsInitialized = {
     modelMap: false,
     dbProvider: false,
     mocks: false,
@@ -39,10 +39,10 @@ beforeAll(async function setup() {
     try {
         // Debug environment variables
         console.log("Environment check:", {
-            REDIS_URL: process.env.REDIS_URL ? 'SET' : 'NOT SET',
-            DB_URL: process.env.DB_URL ? 'SET' : 'NOT SET',
+            REDIS_URL: process.env.REDIS_URL ? "SET" : "NOT SET",
+            DB_URL: process.env.DB_URL ? "SET" : "NOT SET",
             NODE_ENV: process.env.NODE_ENV,
-            VITEST: process.env.VITEST
+            VITEST: process.env.VITEST,
         });
         
         // Preload services to avoid dynamic import issues in cleanup
@@ -167,7 +167,7 @@ async function cleanup() {
             resolve();
         });
         const timeoutPromise = new Promise<void>((_, reject) => 
-            setTimeout(() => reject(new Error('Mock restore timeout')), 5000)
+            setTimeout(() => reject(new Error("Mock restore timeout")), 5000),
         );
         await Promise.race([restorePromise, timeoutPromise]);
         console.log("✓ Mocks restored");
@@ -187,7 +187,7 @@ async function cleanup() {
     try {
         if (CacheService && CacheService.reset) {
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('CacheService reset timeout')), 10000)
+                setTimeout(() => reject(new Error("CacheService reset timeout")), 10000),
             );
             await Promise.race([CacheService.reset(), timeoutPromise]);
             console.log("✓ CacheService reset");
@@ -239,7 +239,7 @@ async function cleanup() {
 }
 
 afterAll(async () => {
-    const testFile = expect.getState().testPath?.split('/').pop() || 'unknown';
+    const testFile = expect.getState().testPath?.split("/").pop() || "unknown";
     console.log(`[${new Date().toISOString()}] afterAll cleanup starting for ${testFile}`);
     const timeoutId = setTimeout(() => {
         console.error(`[${new Date().toISOString()}] CLEANUP TIMEOUT WARNING for ${testFile} - cleanup taking too long!`);

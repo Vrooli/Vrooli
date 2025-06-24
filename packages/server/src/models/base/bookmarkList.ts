@@ -2,7 +2,7 @@ import { BookmarkListSortBy, bookmarkListValidation, MaxObjects } from "@vrooli/
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { BookmarkListFormat } from "../formats.js";
 import { type BookmarkListModelLogic } from "./types.js";
 

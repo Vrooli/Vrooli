@@ -1,5 +1,5 @@
 import path from 'path';
-import { defineConfig } from 'vitest/config';
+import { defineProject } from 'vitest/config';
 
 // Custom plugin to handle ../types.js imports
 const typeImportPlugin = {
@@ -20,7 +20,7 @@ const typeImportPlugin = {
     }
 };
 
-export default defineConfig({
+export default defineProject({
     plugins: [typeImportPlugin],
     resolve: {
         alias: {

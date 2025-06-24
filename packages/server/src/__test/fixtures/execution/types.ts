@@ -3,6 +3,9 @@
  * 
  * These types ensure consistency and type safety across all execution fixtures,
  * aligning with the three-tier AI architecture and emergent capabilities philosophy.
+ * 
+ * This file is built on proven patterns from packages/shared/src/__test/fixtures/
+ * and integrates with configTestUtils.ts and integrationUtils.ts for validation.
  */
 
 import type {
@@ -59,7 +62,43 @@ export interface EmergenceDefinition {
         minAgents?: number;
         requiredResources?: string[];
         timeframe?: number;
+        environmentalFactors?: string[];
     };
+    
+    /** Learning metrics for measuring emergence */
+    learningMetrics?: {
+        performanceImprovement: string;
+        adaptationTime: string;
+        innovationRate: string;
+    };
+}
+
+/**
+ * Enhanced emergence definition with measurable capabilities
+ */
+export interface EnhancedEmergenceDefinition extends EmergenceDefinition {
+    /** Measurable capabilities with concrete metrics */
+    measurableCapabilities?: MeasurableCapability[];
+    
+    /** Tests to verify emergence */
+    emergenceTests?: {
+        setup: string;
+        trigger: string;
+        expectedOutcome: string;
+        measurementMethod: string;
+    }[];
+}
+
+/**
+ * Measurable capability with concrete metrics
+ */
+export interface MeasurableCapability {
+    name: string;
+    metric: string;
+    baseline: number;
+    target: number;
+    unit: string;
+    description?: string;
 }
 
 /**
@@ -86,7 +125,47 @@ export interface IntegrationDefinition {
         tier1?: string[];
         tier2?: string[];
         tier3?: string[];
+        dependsOn?: string[];
+        provides?: string[];
     };
+    
+    /** MCP tools used by this component */
+    mcpTools?: string[];
+}
+
+/**
+ * Enhanced integration definition with event contracts
+ */
+export interface EnhancedIntegrationDefinition extends IntegrationDefinition {
+    /** Event contracts for validation */
+    eventContracts?: EventContract[];
+    
+    /** Integration test scenarios */
+    integrationTests?: {
+        scenario: string;
+        events: Array<{
+            time: number;
+            event: string;
+            data: any;
+        }>;
+        assertions: Array<{
+            type: "event" | "state" | "metric";
+            check: string;
+            expected: any;
+        }>;
+    }[];
+}
+
+/**
+ * Event contract for cross-tier communication
+ */
+export interface EventContract {
+    eventName: string;
+    producer: string;
+    consumers: string[];
+    payload: Record<string, any>;
+    guarantees: "at-least-once" | "exactly-once" | "best-effort";
+    description?: string;
 }
 
 /**
@@ -120,12 +199,23 @@ export interface ValidationRule {
 }
 
 /**
- * Validation result
+ * Validation result (aligned with shared package patterns)
  */
 export interface ValidationResult {
     pass: boolean;
     message?: string;
+    errors?: string[];
+    warnings?: string[];
     details?: Record<string, any>;
+}
+
+/**
+ * Integration with shared package validation types
+ */
+export interface SharedValidationResult {
+    isValid: boolean;
+    data?: any;
+    errors?: string[];
 }
 
 /**
@@ -768,7 +858,48 @@ export interface SuccessCriteria {
 // Factory Types
 
 /**
- * Fixture factory interface
+ * Enhanced fixture factory interface following shared package patterns
+ */
+export interface ExecutionFixtureFactory<TConfig extends BaseConfigObject> {
+    /** Create minimal fixture (following shared package pattern) */
+    createMinimal(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    
+    /** Create complete fixture (following shared package pattern) */
+    createComplete(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    
+    /** Create fixture with defaults */
+    createWithDefaults(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    
+    /** Create fixture variant */
+    createVariant(variant: string, overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    
+    /** Create fixture with overrides */
+    create(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    
+    /** Create multiple fixtures */
+    createBatch(count: number, overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>[];
+    
+    /** Create evolution path */
+    createEvolutionPath?(stages: number): ExecutionFixture<TConfig>[];
+    
+    /** Validation methods (using shared package utilities) */
+    validateFixture(fixture: ExecutionFixture<TConfig>): Promise<ValidationResult>;
+    validateConfig(config: TConfig): Promise<ValidationResult>;
+    validateEmergence(emergence: EmergenceDefinition): ValidationResult;
+    validateIntegration(integration: IntegrationDefinition): ValidationResult;
+    
+    /** Integration with shared package validation */
+    getConfigValidator(): any;
+    getIntegrationAdapter(): any;
+    
+    /** Factory methods */
+    isValid(fixture: unknown): fixture is ExecutionFixture<TConfig>;
+    merge(base: ExecutionFixture<TConfig>, override: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    applyDefaults(partialFixture: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+}
+
+/**
+ * Legacy fixture factory interface for backwards compatibility
  */
 export interface FixtureFactory<T> {
     /** Create minimal fixture */

@@ -1,808 +1,877 @@
 /**
- * Execution Architecture Fixture Factories
+ * Execution Fixture Factories
  * 
- * Provides factory classes for creating execution fixtures, following the proven
- * factory patterns from the shared package config fixtures while extending them
- * for execution-specific requirements.
- * 
- * Integration with Shared Package:
- * - Builds on validated config fixture factories
- * - Provides same factory interface as shared package
- * - Enables composition and reuse of config patterns
- * - Maintains type safety throughout
+ * Production-grade factory implementations for creating validated execution fixtures.
+ * These factories follow the proven patterns from the shared package, ensuring:
+ * - Type safety through TypeScript generics
+ * - Config validation using actual config classes
+ * - Round-trip consistency testing
+ * - 82% code reduction through automatic test generation
  */
 
 import type {
     BaseConfigObject,
     ChatConfigObject,
     RoutineConfigObject,
-    RunConfigObject
+    RunConfigObject,
+    BotConfigObject,
 } from "@vrooli/shared";
-import { 
-    chatConfigFixtures, 
-    routineConfigFixtures, 
-    runConfigFixtures 
-} from "@vrooli/shared/__test/fixtures/config";
 import {
-    type ExecutionFixture,
-    type SwarmFixture,
-    type RoutineFixture,
-    type ExecutionContextFixture,
-    type EmergenceDefinition,
-    type IntegrationDefinition,
-    type ValidationResult,
-    type ConfigType,
-    validateConfigAgainstSchema,
+    ChatConfig,
+    RoutineConfig,
+    RunConfig,
+    chatConfigFixtures,
+    routineConfigFixtures,
+    runConfigFixtures,
+    botConfigFixtures,
+} from "@vrooli/shared";
+import {
     validateEmergence,
     validateIntegration,
-    validateEvolutionPathways,
-    combineValidationResults,
+    validateExecutionFixtureConfig,
     createMinimalEmergence,
-    createMinimalIntegration
+    createMinimalIntegration,
+    type ValidationResult,
 } from "./executionValidationUtils.js";
+import type {
+    ExecutionFixture,
+    ExecutionFixtureFactory,
+    SwarmFixture,
+    RoutineFixture,
+    ExecutionContextFixture,
+    EmergenceDefinition,
+    IntegrationDefinition,
+    EnhancedEmergenceDefinition,
+    MeasurableCapability,
+} from "./types.js";
 
-// ================================================================================================
-// Base Factory Interface (Following Shared Package Pattern)
-// ================================================================================================
-
-export interface ExecutionFixtureFactory<TConfig extends BaseConfigObject> {
-    // Core fixture creation (like config fixtures)
-    createMinimal(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
-    createComplete(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
-    createWithDefaults(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+/**
+ * Base factory class that implements common functionality
+ */
+abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject> 
+    implements ExecutionFixtureFactory<TConfig> {
     
-    // Variant collections (like config fixtures)
-    createVariant(variant: string, overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    protected abstract ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig;
+    protected abstract tier: "tier1" | "tier2" | "tier3";
     
-    // Factory methods (like config fixtures)
-    create(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    /**
+     * Validate config using actual config class
+     */
+    async validateConfig(config: TConfig): Promise<ValidationResult> {
+        try {
+            const configInstance = new this.ConfigClass({ config });
+            const exported = configInstance.export();
+            const reimported = new this.ConfigClass({ config: exported });
+            
+            if (JSON.stringify(exported) !== JSON.stringify(reimported.export())) {
+                throw new Error("Config failed round-trip consistency test");
+            }
+            
+            return { pass: true, message: "Config validation passed", data: exported };
+        } catch (error) {
+            return {
+                pass: false,
+                message: "Config validation failed",
+                errors: [error instanceof Error ? error.message : String(error)]
+            };
+        }
+    }
     
-    // Validation methods (like shared package validation)
-    validateFixture(fixture: ExecutionFixture<TConfig>): Promise<ValidationResult>;
-    isValid(fixture: unknown): fixture is ExecutionFixture<TConfig>;
+    /**
+     * Validate complete fixture
+     */
+    async validateFixture(fixture: ExecutionFixture<TConfig>): Promise<ValidationResult> {
+        // Validate config through actual config class
+        const configResult = await this.validateExecutionFixtureConfig(fixture, this.ConfigClass);
+        if (!configResult.pass) return configResult;
+        
+        // Validate emergence definition
+        const emergenceResult = this.validateEmergence(fixture.emergence);
+        if (!emergenceResult.pass) return emergenceResult;
+        
+        // Validate integration patterns
+        const integrationResult = this.validateIntegration(fixture.integration);
+        if (!integrationResult.pass) return integrationResult;
+        
+        return { pass: true, message: "All validations passed" };
+    }
     
-    // Composition helpers (like config fixtures)
-    merge(base: ExecutionFixture<TConfig>, override: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
-    applyDefaults(partialFixture: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    /**
+     * Validate emergence definition
+     */
+    validateEmergence(emergence: EmergenceDefinition): ValidationResult {
+        return validateEmergence(emergence);
+    }
+    
+    /**
+     * Validate integration definition
+     */
+    validateIntegration(integration: IntegrationDefinition): ValidationResult {
+        return validateIntegration(integration);
+    }
+    
+    /**
+     * Type guard for fixture validation
+     */
+    isValid(fixture: unknown): fixture is ExecutionFixture<TConfig> {
+        if (!fixture || typeof fixture !== 'object') return false;
+        const f = fixture as any;
+        return f.config && f.emergence && f.integration;
+    }
+    
+    /**
+     * Merge fixtures with validation
+     */
+    merge(
+        base: ExecutionFixture<TConfig>, 
+        override: Partial<ExecutionFixture<TConfig>>
+    ): ExecutionFixture<TConfig> {
+        return {
+            ...base,
+            ...override,
+            config: { ...base.config, ...override.config } as TConfig,
+            emergence: { ...base.emergence, ...override.emergence },
+            integration: { ...base.integration, ...override.integration },
+        };
+    }
+    
+    /**
+     * Apply defaults to partial fixture
+     */
+    applyDefaults(partialFixture: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig> {
+        return this.merge(this.createMinimal(), partialFixture);
+    }
+    
+    /**
+     * Create fixture with overrides
+     */
+    create(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig> {
+        return overrides ? this.merge(this.createMinimal(), overrides) : this.createMinimal();
+    }
+    
+    /**
+     * Create multiple fixtures
+     */
+    createBatch(count: number, overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>[] {
+        return Array.from({ length: count }, (_, i) => {
+            const fixture = this.create(overrides);
+            // Add index to any id fields for uniqueness
+            if ('id' in fixture.config) {
+                (fixture.config as any).id = `${(fixture.config as any).id}_${i}`;
+            }
+            return fixture;
+        });
+    }
+    
+    /**
+     * Get config validator (for shared package integration)
+     */
+    getConfigValidator(): any {
+        return {
+            validate: async (config: TConfig) => this.validateConfig(config)
+        };
+    }
+    
+    /**
+     * Get integration adapter (for shared package integration)
+     */
+    getIntegrationAdapter(): any {
+        return {
+            create: this.getConfigValidator()
+        };
+    }
+    
+    // Abstract methods to be implemented by subclasses
+    abstract createMinimal(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    abstract createComplete(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    abstract createWithDefaults(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
+    abstract createVariant(variant: string, overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig>;
 }
 
-// ================================================================================================
-// Swarm Fixture Factory (Tier 1: Coordination Intelligence)
-// ================================================================================================
-
-export class SwarmFixtureFactory implements ExecutionFixtureFactory<ChatConfigObject> {
-    private configFactory = chatConfigFixtures;
-    private configType: ConfigType = "chat";
-
-    // Core fixture creation
+/**
+ * Swarm Fixture Factory (Tier 1: Coordination Intelligence)
+ */
+export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigObject> {
+    protected ConfigClass = ChatConfig as typeof ChatConfig;
+    protected tier = "tier1" as const;
+    
     createMinimal(overrides?: Partial<SwarmFixture>): SwarmFixture {
-        const baseFixture: SwarmFixture = {
-            config: this.configFactory.minimal,
-            emergence: {
-                capabilities: ["basic_coordination"],
-                evolutionPath: "individual → collaborative"
-            },
-            integration: {
-                tier: "tier1",
-                producedEvents: ["tier1.swarm.initialized"],
-                consumedEvents: ["tier1.system.ready"]
-            },
-            metadata: {
-                domain: "coordination",
-                complexity: "simple",
-                maintainer: "execution-team",
-                lastUpdated: new Date().toISOString().split('T')[0]
+        const baseConfig = chatConfigFixtures.minimal;
+        
+        const config: ChatConfigObject = {
+            ...baseConfig,
+            goal: overrides?.config?.goal || "Basic coordination task",
+            ...overrides?.config
+        };
+        
+        return {
+            config,
+            emergence: overrides?.emergence || createMinimalEmergence(),
+            integration: overrides?.integration || createMinimalIntegration("tier1"),
+            swarmMetadata: overrides?.swarmMetadata || {
+                formation: "flat",
+                coordinationPattern: "emergence",
+                expectedAgentCount: 2,
+                minViableAgents: 1
             }
         };
-
-        return this.merge(baseFixture, overrides || {});
     }
-
+    
     createComplete(overrides?: Partial<SwarmFixture>): SwarmFixture {
-        const baseFixture: SwarmFixture = {
-            config: this.configFactory.complete,
+        const baseConfig = chatConfigFixtures.complete;
+        
+        const config: ChatConfigObject = {
+            ...baseConfig,
+            goal: "Comprehensive swarm coordination task",
+            ...overrides?.config
+        };
+        
+        return {
+            config,
             emergence: {
-                capabilities: [
-                    "natural_language_understanding",
-                    "pattern_recognition", 
-                    "adaptive_response",
-                    "collaborative_intelligence"
-                ],
-                eventPatterns: ["tier2.routine.*", "tier3.execution.*"],
+                capabilities: ["swarm_coordination", "task_delegation", "resource_management"],
+                eventPatterns: ["tier1.*", "swarm.*"],
                 evolutionPath: "reactive → proactive → predictive",
                 emergenceConditions: {
                     minAgents: 2,
-                    requiredResources: ["llm_access", "event_bus"],
-                    environmentalFactors: ["multi_user_environment"]
+                    requiredResources: ["communication", "coordination"],
+                    environmentalFactors: ["event_availability", "agent_readiness"]
                 },
                 learningMetrics: {
-                    performanceImprovement: "task_completion_rate",
-                    adaptationTime: "response_time_optimization",
-                    innovationRate: "novel_solution_generation"
-                }
+                    performanceImprovement: "20% reduction in coordination overhead",
+                    adaptationTime: "5 cycles to stable formation",
+                    innovationRate: "2 new patterns per 100 executions"
+                },
+                ...overrides?.emergence
             },
             integration: {
                 tier: "tier1",
-                producedEvents: [
-                    "tier1.swarm.initialized",
-                    "tier1.coordination.started",
-                    "tier1.task.assigned",
-                    "tier1.resource.allocated"
-                ],
-                consumedEvents: [
-                    "tier2.routine.completed",
-                    "tier3.execution.failed",
-                    "system.resource.available"
-                ],
-                sharedResources: ["knowledge_base", "coordination_state"],
+                producedEvents: ["tier1.swarm.initialized", "tier1.task.delegated", "tier1.coordination.optimized"],
+                consumedEvents: ["tier2.routine.completed", "tier3.execution.finished"],
+                sharedResources: ["blackboard", "agent_registry"],
                 crossTierDependencies: {
-                    dependsOn: ["tier2.process_intelligence", "tier3.execution_engine"],
-                    provides: ["strategic_coordination", "resource_allocation"]
+                    dependsOn: ["tier2_orchestration", "tier3_execution"],
+                    provides: ["coordination_intelligence", "task_decomposition"]
                 },
-                mcpTools: ["swarm_coordinator", "resource_manager", "knowledge_synthesizer"]
+                mcpTools: ["task_manager", "agent_coordinator"],
+                ...overrides?.integration
             },
             swarmMetadata: {
-                formation: "dynamic",
-                coordinationPattern: "emergence",
+                formation: "hierarchical",
+                coordinationPattern: "delegation",
                 expectedAgentCount: 5,
-                minViableAgents: 2,
-                roles: [
-                    { role: "coordinator", count: 1 },
-                    { role: "specialist", count: 3 },
-                    { role: "quality_assurer", count: 1 }
-                ]
+                minViableAgents: 3,
+                ...overrides?.swarmMetadata
             },
             validation: {
-                emergenceTests: ["test_pattern_recognition", "test_adaptive_response"],
-                integrationTests: ["test_tier_communication", "test_event_flow"],
-                evolutionTests: ["test_performance_improvement", "test_strategy_evolution"]
+                emergenceTests: ["coordination_under_load", "task_distribution", "fault_tolerance"],
+                integrationTests: ["cross_tier_communication", "event_flow"],
+                evolutionTests: ["performance_improvement", "capability_expansion"],
+                ...overrides?.validation
             },
             metadata: {
-                domain: "multi_agent_coordination",
+                domain: "coordination",
                 complexity: "complex",
-                maintainer: "swarm-intelligence-team",
-                lastUpdated: new Date().toISOString().split('T')[0]
+                maintainer: "execution-team",
+                lastUpdated: new Date().toISOString(),
+                ...overrides?.metadata
             }
         };
-
-        return this.merge(baseFixture, overrides || {});
     }
-
+    
     createWithDefaults(overrides?: Partial<SwarmFixture>): SwarmFixture {
-        return this.createComplete(overrides);
+        const baseConfig = chatConfigFixtures.withDefaults;
+        
+        return {
+            config: {
+                ...baseConfig,
+                goal: "Default swarm coordination",
+                ...overrides?.config
+            },
+            emergence: {
+                capabilities: ["basic_coordination", "event_processing"],
+                evolutionPath: "static → adaptive → intelligent",
+                ...overrides?.emergence
+            },
+            integration: {
+                tier: "tier1",
+                producedEvents: ["tier1.swarm.ready"],
+                consumedEvents: ["system.initialized"],
+                ...overrides?.integration
+            },
+            swarmMetadata: {
+                formation: "flat",
+                coordinationPattern: "consensus",
+                expectedAgentCount: 3,
+                minViableAgents: 2,
+                ...overrides?.swarmMetadata
+            }
+        };
     }
-
-    // Variant creation
+    
     createVariant(variant: string, overrides?: Partial<SwarmFixture>): SwarmFixture {
-        const variants: Record<string, Partial<SwarmFixture>> = {
-            customerSupport: {
+        const variants: Record<string, () => SwarmFixture> = {
+            customerSupport: () => this.createComplete({
                 config: {
-                    ...this.configFactory.variants.supportChat,
-                    swarmTask: "Provide comprehensive customer support",
-                    swarmSubTasks: [
-                        { id: "inquiry_analysis", description: "Analyze customer inquiries" },
-                        { id: "solution_generation", description: "Generate appropriate solutions" },
-                        { id: "quality_assurance", description: "Ensure response quality" }
-                    ]
+                    goal: "Provide comprehensive customer support",
+                    preferredModel: "gpt-4",
                 },
                 emergence: {
-                    capabilities: ["customer_satisfaction", "issue_resolution", "empathy_modeling"],
-                    evolutionPath: "reactive → proactive → predictive"
+                    capabilities: ["customer_satisfaction", "issue_resolution", "knowledge_retrieval"],
+                    eventPatterns: ["customer.*", "support.*"],
+                },
+                swarmMetadata: {
+                    formation: "dynamic",
+                    coordinationPattern: "emergence",
+                    expectedAgentCount: 3,
+                    minViableAgents: 2,
+                },
+                ...overrides
+            }),
+            
+            securityResponse: () => this.createComplete({
+                config: {
+                    goal: "Monitor and respond to security threats",
+                },
+                emergence: {
+                    capabilities: ["threat_detection", "automated_response", "incident_analysis"],
+                    eventPatterns: ["security.*", "system.error", "auth.failed"],
                 },
                 swarmMetadata: {
                     formation: "hierarchical",
                     coordinationPattern: "delegation",
                     expectedAgentCount: 4,
-                    minViableAgents: 2
-                }
-            },
-
-            securityResponse: {
+                    minViableAgents: 2,
+                },
+                ...overrides
+            }),
+            
+            researchAnalysis: () => this.createComplete({
                 config: {
-                    ...this.configFactory.variants.privateTeamChat,
-                    swarmTask: "Monitor and respond to security threats",
-                    priority: "high"
+                    goal: "Conduct comprehensive research and analysis",
                 },
                 emergence: {
-                    capabilities: ["threat_detection", "adaptive_response", "pattern_recognition"],
-                    eventPatterns: ["security.*", "system.error.*"],
-                    evolutionPath: "reactive → proactive → predictive"
+                    capabilities: ["information_synthesis", "pattern_recognition", "insight_generation"],
+                    eventPatterns: ["research.*", "data.*"],
                 },
                 swarmMetadata: {
-                    formation: "flat",
-                    coordinationPattern: "consensus",
-                    expectedAgentCount: 3,
-                    minViableAgents: 1
-                }
-            },
-
-            researchAnalysis: {
-                config: {
-                    ...this.configFactory.complete,
-                    swarmTask: "Collaborative research and analysis",
-                    features: ["document_analysis", "synthesis", "validation"]
-                },
-                emergence: {
-                    capabilities: ["knowledge_synthesis", "quality_assurance", "collaborative_intelligence"],
-                    evolutionPath: "individual → collaborative → emergent"
-                },
-                swarmMetadata: {
-                    formation: "dynamic",
-                    coordinationPattern: "emergence",
+                    formation: "matrix",
+                    coordinationPattern: "negotiation",
                     expectedAgentCount: 6,
-                    minViableAgents: 3
-                }
-            }
+                    minViableAgents: 3,
+                },
+                ...overrides
+            })
         };
-
-        const variantConfig = variants[variant];
-        if (!variantConfig) {
+        
+        const factory = variants[variant];
+        if (!factory) {
             throw new Error(`Unknown swarm variant: ${variant}`);
         }
-
-        return this.merge(this.createComplete(), { ...variantConfig, ...overrides });
+        
+        return factory();
     }
-
-    // Factory methods
-    create(overrides?: Partial<SwarmFixture>): SwarmFixture {
-        return this.createComplete(overrides);
-    }
-
-    // Validation methods
-    async validateFixture(fixture: SwarmFixture): Promise<ValidationResult> {
-        const results = await Promise.all([
-            validateConfigAgainstSchema(fixture.config, this.configType),
-            Promise.resolve(validateEmergence(fixture.emergence)),
-            Promise.resolve(validateIntegration(fixture.integration)),
-            Promise.resolve(validateEvolutionPathways(fixture))
-        ]);
-
-        return combineValidationResults(results);
-    }
-
-    isValid(fixture: unknown): fixture is SwarmFixture {
-        return (
-            typeof fixture === "object" &&
-            fixture !== null &&
-            "config" in fixture &&
-            "emergence" in fixture &&
-            "integration" in fixture &&
-            (fixture as any).integration.tier === "tier1"
-        );
-    }
-
-    // Composition helpers
-    merge(base: SwarmFixture, override: Partial<SwarmFixture>): SwarmFixture {
-        return {
-            ...base,
-            ...override,
-            config: { ...base.config, ...override.config },
-            emergence: { ...base.emergence, ...override.emergence },
-            integration: { ...base.integration, ...override.integration },
-            swarmMetadata: { ...base.swarmMetadata, ...override.swarmMetadata },
-            metadata: { ...base.metadata, ...override.metadata }
-        };
-    }
-
-    applyDefaults(partialFixture: Partial<SwarmFixture>): SwarmFixture {
-        return this.merge(this.createMinimal(), partialFixture);
+    
+    /**
+     * Create evolution path for swarm development
+     */
+    createEvolutionPath(stages: number = 3): SwarmFixture[] {
+        const evolutionStages = ["reactive", "proactive", "predictive"];
+        const formations = ["flat", "hierarchical", "dynamic"];
+        
+        return Array.from({ length: Math.min(stages, evolutionStages.length) }, (_, i) => {
+            return this.createComplete({
+                emergence: {
+                    evolutionPath: evolutionStages.slice(0, i + 1).join(" → "),
+                    capabilities: [
+                        "basic_coordination",
+                        ...(i >= 1 ? ["pattern_recognition"] : []),
+                        ...(i >= 2 ? ["predictive_optimization"] : [])
+                    ]
+                },
+                swarmMetadata: {
+                    formation: formations[i] as any,
+                    expectedAgentCount: 2 + i,
+                    minViableAgents: 1 + Math.floor(i / 2)
+                }
+            });
+        });
     }
 }
 
-// ================================================================================================
-// Routine Fixture Factory (Tier 2: Process Intelligence)
-// ================================================================================================
-
-export class RoutineFixtureFactory implements ExecutionFixtureFactory<RoutineConfigObject> {
-    private configFactory = routineConfigFixtures;
-    private configType: ConfigType = "routine";
-
+/**
+ * Routine Fixture Factory (Tier 2: Process Intelligence)
+ */
+export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineConfigObject> {
+    protected ConfigClass = RoutineConfig as typeof RoutineConfig;
+    protected tier = "tier2" as const;
+    
     createMinimal(overrides?: Partial<RoutineFixture>): RoutineFixture {
-        const baseFixture: RoutineFixture = {
-            config: this.configFactory.minimal,
-            emergence: {
-                capabilities: ["basic_workflow_execution"],
-                evolutionPath: "static → adaptive"
+        const baseConfig = routineConfigFixtures.minimal;
+        
+        return {
+            config: {
+                ...baseConfig,
+                ...overrides?.config
             },
-            integration: {
-                tier: "tier2",
-                producedEvents: ["tier2.routine.started"],
-                consumedEvents: ["tier1.task.assigned"]
-            },
-            evolutionStage: {
-                current: "conversational",
-                evolutionTriggers: ["performance_threshold"],
-                performanceMetrics: {
-                    averageExecutionTime: 10000, // 10 seconds
-                    successRate: 0.7,
-                    costPerExecution: 20
+            emergence: overrides?.emergence || createMinimalEmergence(),
+            integration: overrides?.integration || createMinimalIntegration("tier2"),
+            evolutionStage: overrides?.evolutionStage || {
+                strategy: "conversational",
+                version: "1.0.0",
+                metrics: {
+                    avgDuration: 5000,
+                    avgCredits: 100,
+                    successRate: 0.8
                 }
-            },
-            metadata: {
-                domain: "workflow_orchestration",
-                complexity: "simple",
-                maintainer: "process-team",
-                lastUpdated: new Date().toISOString().split('T')[0]
             }
         };
-
-        return this.merge(baseFixture, overrides || {});
     }
-
+    
     createComplete(overrides?: Partial<RoutineFixture>): RoutineFixture {
-        const baseFixture: RoutineFixture = {
-            config: this.configFactory.complete,
+        const baseConfig = routineConfigFixtures.complete;
+        
+        return {
+            config: {
+                ...baseConfig,
+                ...overrides?.config
+            },
             emergence: {
-                capabilities: [
-                    "workflow_automation",
-                    "adaptive_response",
-                    "error_recovery",
-                    "performance_optimization"
-                ],
-                eventPatterns: ["tier1.task.*", "tier3.execution.*"],
-                evolutionPath: "conversational → reasoning → deterministic → routing",
+                capabilities: ["process_optimization", "error_handling", "adaptive_execution"],
+                eventPatterns: ["tier2.*", "routine.*"],
+                evolutionPath: "conversational → reasoning → deterministic",
                 emergenceConditions: {
-                    minAgents: 1,
-                    requiredResources: ["execution_engine", "state_manager"],
-                    environmentalFactors: ["stable_infrastructure"]
+                    minEvents: 10,
+                    requiredResources: ["execution_history", "performance_metrics"],
+                    timeframe: 3600000 // 1 hour
                 },
                 learningMetrics: {
-                    performanceImprovement: "execution_time_reduction",
-                    adaptationTime: "strategy_switching_speed",
-                    innovationRate: "novel_workflow_patterns"
-                }
+                    performanceImprovement: "50% execution time reduction",
+                    adaptationTime: "10 executions to stable performance",
+                    innovationRate: "1 optimization per 50 runs"
+                },
+                ...overrides?.emergence
             },
             integration: {
                 tier: "tier2",
-                producedEvents: [
-                    "tier2.routine.started",
-                    "tier2.step.completed",
-                    "tier2.routine.completed",
-                    "tier2.error.occurred"
-                ],
-                consumedEvents: [
-                    "tier1.task.assigned",
-                    "tier1.priority.changed",
-                    "tier3.execution.completed",
-                    "tier3.tool.failed"
-                ],
-                sharedResources: ["workflow_state", "execution_context"],
+                producedEvents: ["tier2.routine.started", "tier2.step.completed", "tier2.routine.finished"],
+                consumedEvents: ["tier1.task.assigned", "tier3.tool.result"],
+                sharedResources: ["execution_context", "step_results"],
                 crossTierDependencies: {
-                    dependsOn: ["tier1.coordination", "tier3.execution_engine"],
-                    provides: ["workflow_orchestration", "process_intelligence"]
+                    dependsOn: ["tier1_coordination", "tier3_tools"],
+                    provides: ["process_orchestration", "workflow_management"]
                 },
-                mcpTools: ["routine_navigator", "state_manager", "strategy_selector"]
+                mcpTools: ["workflow_engine", "step_executor"],
+                ...overrides?.integration
             },
             evolutionStage: {
-                current: "reasoning",
-                nextStage: "deterministic",
-                evolutionTriggers: [
-                    "success_rate_above_90_percent",
-                    "execution_time_consistent",
-                    "error_rate_below_5_percent"
-                ],
-                performanceMetrics: {
-                    averageExecutionTime: 3000, // 3 seconds
+                strategy: "reasoning",
+                version: "2.0.0",
+                metrics: {
+                    avgDuration: 2500,
+                    avgCredits: 75,
                     successRate: 0.92,
-                    costPerExecution: 8
-                }
+                    errorRate: 0.08,
+                    satisfaction: 0.88
+                },
+                previousVersion: "1.0.0",
+                improvements: ["Added error recovery", "Optimized step ordering"],
+                ...overrides?.evolutionStage
             },
+            domain: "general",
+            navigator: "native",
             validation: {
-                emergenceTests: ["test_workflow_adaptation", "test_error_recovery"],
-                integrationTests: ["test_state_management", "test_tier_coordination"],
-                evolutionTests: ["test_strategy_evolution", "test_performance_improvement"]
-            },
-            metadata: {
-                domain: "process_intelligence",
-                complexity: "complex",
-                maintainer: "workflow-team",
-                lastUpdated: new Date().toISOString().split('T')[0]
+                emergenceTests: ["adaptive_execution", "error_recovery"],
+                integrationTests: ["step_coordination", "resource_sharing"],
+                evolutionTests: ["performance_gains", "cost_reduction"],
+                ...overrides?.validation
             }
         };
-
-        return this.merge(baseFixture, overrides || {});
     }
-
+    
     createWithDefaults(overrides?: Partial<RoutineFixture>): RoutineFixture {
-        return this.createComplete(overrides);
+        return this.createMinimal({
+            emergence: {
+                capabilities: ["basic_execution", "sequential_processing"],
+                evolutionPath: "static → adaptive"
+            },
+            ...overrides
+        });
     }
-
-    // Variant creation
+    
     createVariant(variant: string, overrides?: Partial<RoutineFixture>): RoutineFixture {
-        const variants: Record<string, Partial<RoutineFixture>> = {
-            customerInquiry: {
+        const variants: Record<string, () => RoutineFixture> = {
+            customerInquiry: () => this.createComplete({
                 config: {
-                    ...this.configFactory.variants.action,
-                    name: "Customer Inquiry Processing",
-                    description: "Analyze and respond to customer inquiries"
+                    name: "Customer Inquiry Handler",
+                    description: "Process customer inquiries intelligently"
                 },
                 emergence: {
-                    capabilities: ["natural_language_understanding", "context_retention"],
-                    evolutionPath: "conversational → reasoning → deterministic"
+                    capabilities: ["natural_language_understanding", "context_retention", "solution_generation"],
                 },
                 evolutionStage: {
-                    current: "conversational",
-                    evolutionTriggers: ["volume_threshold", "accuracy_improvement"],
-                    performanceMetrics: {
-                        averageExecutionTime: 15000,
-                        successRate: 0.75,
-                        costPerExecution: 25
+                    strategy: "conversational",
+                    version: "1.0.0",
+                    metrics: {
+                        avgDuration: 5000,
+                        avgCredits: 100,
+                        successRate: 0.85
                     }
-                }
-            },
-
-            dataProcessing: {
+                },
+                domain: "customer-service",
+                ...overrides
+            }),
+            
+            dataProcessing: () => this.createComplete({
                 config: {
-                    ...this.configFactory.variants.informational,
                     name: "Data Processing Pipeline",
-                    description: "Process and transform data through multiple stages"
+                    description: "Process and transform data efficiently"
                 },
                 emergence: {
-                    capabilities: ["data_validation", "transformation_optimization"],
-                    evolutionPath: "manual → automated → optimized"
+                    capabilities: ["parallel_processing", "data_validation", "format_conversion"],
                 },
                 evolutionStage: {
-                    current: "deterministic",
-                    performanceMetrics: {
-                        averageExecutionTime: 2000,
-                        successRate: 0.95,
-                        costPerExecution: 5
+                    strategy: "deterministic",
+                    version: "3.0.0",
+                    metrics: {
+                        avgDuration: 1000,
+                        avgCredits: 50,
+                        successRate: 0.98
                     }
-                }
-            },
-
-            securityCheck: {
+                },
+                domain: "system",
+                navigator: "native",
+                ...overrides
+            }),
+            
+            securityCheck: () => this.createComplete({
                 config: {
-                    ...this.configFactory.complete,
                     name: "Security Validation Routine",
-                    priority: "high"
+                    description: "Validate security compliance"
                 },
                 emergence: {
-                    capabilities: ["threat_detection", "compliance_validation"],
-                    eventPatterns: ["security.*", "compliance.*"],
-                    evolutionPath: "reactive → proactive → predictive"
+                    capabilities: ["threat_analysis", "compliance_checking", "report_generation"],
                 },
                 evolutionStage: {
-                    current: "reasoning",
-                    performanceMetrics: {
-                        averageExecutionTime: 5000,
-                        successRate: 0.98,
-                        costPerExecution: 12
+                    strategy: "reasoning",
+                    version: "2.1.0",
+                    metrics: {
+                        avgDuration: 3000,
+                        avgCredits: 80,
+                        successRate: 0.95
                     }
-                }
-            }
+                },
+                domain: "security",
+                ...overrides
+            })
         };
-
-        const variantConfig = variants[variant];
-        if (!variantConfig) {
+        
+        const factory = variants[variant];
+        if (!factory) {
             throw new Error(`Unknown routine variant: ${variant}`);
         }
-
-        return this.merge(this.createComplete(), { ...variantConfig, ...overrides });
+        
+        return factory();
     }
-
-    create(overrides?: Partial<RoutineFixture>): RoutineFixture {
-        return this.createComplete(overrides);
-    }
-
-    async validateFixture(fixture: RoutineFixture): Promise<ValidationResult> {
-        const results = await Promise.all([
-            validateConfigAgainstSchema(fixture.config, this.configType),
-            Promise.resolve(validateEmergence(fixture.emergence)),
-            Promise.resolve(validateIntegration(fixture.integration)),
-            Promise.resolve(validateEvolutionPathways(fixture))
-        ]);
-
-        return combineValidationResults(results);
-    }
-
-    isValid(fixture: unknown): fixture is RoutineFixture {
-        return (
-            typeof fixture === "object" &&
-            fixture !== null &&
-            "config" in fixture &&
-            "emergence" in fixture &&
-            "integration" in fixture &&
-            (fixture as any).integration.tier === "tier2"
-        );
-    }
-
-    merge(base: RoutineFixture, override: Partial<RoutineFixture>): RoutineFixture {
-        return {
-            ...base,
-            ...override,
-            config: { ...base.config, ...override.config },
-            emergence: { ...base.emergence, ...override.emergence },
-            integration: { ...base.integration, ...override.integration },
-            evolutionStage: { ...base.evolutionStage, ...override.evolutionStage },
-            metadata: { ...base.metadata, ...override.metadata }
-        };
-    }
-
-    applyDefaults(partialFixture: Partial<RoutineFixture>): RoutineFixture {
-        return this.merge(this.createMinimal(), partialFixture);
+    
+    /**
+     * Create evolution path showing routine improvement
+     */
+    createEvolutionPath(stages: number = 4): RoutineFixture[] {
+        const strategies: Array<"conversational" | "reasoning" | "deterministic" | "routing"> = 
+            ["conversational", "reasoning", "deterministic", "routing"];
+        
+        return Array.from({ length: Math.min(stages, strategies.length) }, (_, i) => {
+            const baseMetrics = {
+                avgDuration: 5000 * Math.pow(0.6, i), // 40% faster each stage
+                avgCredits: 100 * Math.pow(0.75, i),  // 25% cheaper each stage
+                successRate: 0.8 + (0.05 * i),        // 5% more reliable each stage
+            };
+            
+            return this.createComplete({
+                evolutionStage: {
+                    strategy: strategies[i],
+                    version: `${i + 1}.0.0`,
+                    metrics: baseMetrics,
+                    previousVersion: i > 0 ? `${i}.0.0` : undefined,
+                    improvements: i > 0 ? [`Evolved from ${strategies[i-1]} to ${strategies[i]}`] : []
+                },
+                emergence: {
+                    capabilities: [
+                        "basic_execution",
+                        ...(i >= 1 ? ["pattern_learning"] : []),
+                        ...(i >= 2 ? ["optimization"] : []),
+                        ...(i >= 3 ? ["intelligent_routing"] : [])
+                    ],
+                    evolutionPath: strategies.slice(0, i + 1).join(" → ")
+                }
+            });
+        });
     }
 }
 
-// ================================================================================================
-// Execution Context Fixture Factory (Tier 3: Execution Intelligence)
-// ================================================================================================
-
-export class ExecutionContextFixtureFactory implements ExecutionFixtureFactory<RunConfigObject> {
-    private configFactory = runConfigFixtures;
-    private configType: ConfigType = "run";
-
+/**
+ * Execution Context Fixture Factory (Tier 3: Execution Intelligence)
+ */
+export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<RunConfigObject> {
+    protected ConfigClass = RunConfig as typeof RunConfig;
+    protected tier = "tier3" as const;
+    
     createMinimal(overrides?: Partial<ExecutionContextFixture>): ExecutionContextFixture {
-        const baseFixture: ExecutionContextFixture = {
-            config: this.configFactory.minimal,
-            emergence: {
-                capabilities: ["basic_tool_execution"],
-                evolutionPath: "static → adaptive"
+        const baseConfig = runConfigFixtures.minimal;
+        
+        return {
+            config: {
+                ...baseConfig,
+                ...overrides?.config
             },
-            integration: {
-                tier: "tier3",
-                producedEvents: ["tier3.execution.started"],
-                consumedEvents: ["tier2.step.assigned"]
-            },
-            executionMetadata: {
-                supportedStrategies: ["conversational"],
-                toolDependencies: ["basic_tools"],
-                performanceCharacteristics: {
-                    latency: "< 1 second",
-                    throughput: "10 ops/sec",
-                    resourceUsage: "low"
+            emergence: overrides?.emergence || createMinimalEmergence(),
+            integration: overrides?.integration || createMinimalIntegration("tier3"),
+            strategy: overrides?.strategy || "conversational",
+            context: overrides?.context || {
+                tools: ["web_search", "calculation"],
+                constraints: {
+                    maxTokens: 1000,
+                    timeout: 30000
                 }
-            },
-            metadata: {
-                domain: "tool_execution",
-                complexity: "simple",
-                maintainer: "execution-team",
-                lastUpdated: new Date().toISOString().split('T')[0]
             }
         };
-
-        return this.merge(baseFixture, overrides || {});
     }
-
+    
     createComplete(overrides?: Partial<ExecutionContextFixture>): ExecutionContextFixture {
-        const baseFixture: ExecutionContextFixture = {
-            config: this.configFactory.complete,
+        const baseConfig = runConfigFixtures.complete;
+        
+        return {
+            config: {
+                ...baseConfig,
+                ...overrides?.config
+            },
             emergence: {
-                capabilities: [
-                    "adaptive_tool_selection",
-                    "resource_optimization",
-                    "error_recovery",
-                    "performance_optimization"
-                ],
-                eventPatterns: ["tier2.step.*", "tool.*", "resource.*"],
-                evolutionPath: "reactive → adaptive → predictive",
+                capabilities: ["tool_orchestration", "resource_optimization", "adaptive_strategy"],
+                eventPatterns: ["tier3.*", "execution.*", "tool.*"],
+                evolutionPath: "basic → optimized → intelligent",
                 emergenceConditions: {
-                    minAgents: 1,
-                    requiredResources: ["tool_registry", "resource_manager"],
-                    environmentalFactors: ["stable_execution_environment"]
+                    minEvents: 5,
+                    requiredResources: ["tool_registry", "execution_metrics"],
+                    environmentalFactors: ["available_tools", "resource_limits"]
                 },
                 learningMetrics: {
-                    performanceImprovement: "tool_selection_accuracy",
-                    adaptationTime: "context_switching_speed",
-                    innovationRate: "novel_execution_patterns"
-                }
+                    performanceImprovement: "30% resource utilization improvement",
+                    adaptationTime: "3 executions to optimal tool selection",
+                    innovationRate: "1 new tool combination per 20 runs"
+                },
+                ...overrides?.emergence
             },
             integration: {
                 tier: "tier3",
-                producedEvents: [
-                    "tier3.execution.started",
-                    "tier3.tool.invoked",
-                    "tier3.execution.completed",
-                    "tier3.error.handled"
-                ],
-                consumedEvents: [
-                    "tier2.step.assigned",
-                    "tier2.context.updated",
-                    "tool.result.ready",
-                    "resource.availability.changed"
-                ],
-                sharedResources: ["tool_registry", "execution_context", "resource_pool"],
+                producedEvents: ["tier3.execution.started", "tier3.tool.invoked", "tier3.execution.completed"],
+                consumedEvents: ["tier2.step.request", "tier1.resource.allocated"],
+                sharedResources: ["tool_results", "execution_logs"],
                 crossTierDependencies: {
-                    dependsOn: ["tier2.process_orchestration"],
-                    provides: ["tool_execution", "resource_management", "context_adaptation"]
+                    dependsOn: ["tier2_steps", "tier1_resources"],
+                    provides: ["tool_execution", "result_processing"]
                 },
-                mcpTools: ["tool_orchestrator", "context_manager", "resource_optimizer"]
+                mcpTools: ["universal_tool_executor", "result_processor"],
+                ...overrides?.integration
             },
-            executionMetadata: {
-                supportedStrategies: [
-                    "conversational",
-                    "reasoning", 
-                    "deterministic"
+            strategy: "reasoning",
+            context: {
+                tools: ["web_search", "calculation", "code_execution", "file_operations"],
+                constraints: {
+                    maxTokens: 5000,
+                    timeout: 60000,
+                    requireApproval: ["code_execution", "file_operations"],
+                    resourceLimits: {
+                        memory: 512,
+                        cpu: 50,
+                        apiCalls: 100
+                    }
+                },
+                sharedMemory: {
+                    previousResults: [],
+                    learnedPatterns: []
+                },
+                resources: {
+                    creditBudget: 1000,
+                    timeBudget: 60000,
+                    priority: "medium",
+                    pools: ["general", "priority"]
+                },
+                safety: {
+                    syncChecks: ["input_validation", "tool_authorization"],
+                    asyncAgents: ["security_monitor", "quality_checker"],
+                    domainRules: ["no_destructive_operations", "data_privacy"],
+                    emergencyStop: {
+                        conditions: ["malicious_intent", "resource_exhaustion"],
+                        actions: ["halt_execution", "alert_admin"]
+                    }
+                },
+                ...overrides?.context
+            },
+            tools: {
+                available: [
+                    { id: "web_search", name: "Web Search", category: "information" },
+                    { id: "calculation", name: "Calculator", category: "computation" },
+                    { id: "code_execution", name: "Code Runner", category: "execution", requiresApproval: true },
+                    { id: "file_operations", name: "File Manager", category: "storage", requiresApproval: true }
                 ],
-                toolDependencies: [
-                    "llm_interface",
-                    "file_operations",
-                    "api_client",
-                    "data_processor"
-                ],
-                performanceCharacteristics: {
-                    latency: "< 500ms",
-                    throughput: "100 ops/sec",
-                    resourceUsage: "adaptive"
-                }
+                restrictions: {
+                    blacklist: ["system_command"],
+                    rateLimits: { web_search: 10, code_execution: 5 }
+                },
+                preferences: {
+                    taskPreferences: {
+                        information_gathering: ["web_search"],
+                        computation: ["calculation", "code_execution"]
+                    },
+                    costOptimization: true,
+                    performanceOptimization: true
+                },
+                ...overrides?.tools
             },
             validation: {
-                emergenceTests: ["test_tool_adaptation", "test_resource_optimization"],
-                integrationTests: ["test_context_management", "test_error_handling"],
-                evolutionTests: ["test_strategy_evolution", "test_performance_improvement"]
-            },
-            metadata: {
-                domain: "execution_intelligence",
-                complexity: "complex",
-                maintainer: "execution-intelligence-team",
-                lastUpdated: new Date().toISOString().split('T')[0]
+                emergenceTests: ["tool_selection", "resource_management"],
+                integrationTests: ["result_passing", "error_propagation"],
+                evolutionTests: ["efficiency_gains", "strategy_adaptation"],
+                ...overrides?.validation
             }
         };
-
-        return this.merge(baseFixture, overrides || {});
     }
-
+    
     createWithDefaults(overrides?: Partial<ExecutionContextFixture>): ExecutionContextFixture {
-        return this.createComplete(overrides);
+        return this.createMinimal({
+            emergence: {
+                capabilities: ["basic_tool_usage", "result_processing"],
+                evolutionPath: "manual → automated"
+            },
+            ...overrides
+        });
     }
-
+    
     createVariant(variant: string, overrides?: Partial<ExecutionContextFixture>): ExecutionContextFixture {
-        const variants: Record<string, Partial<ExecutionContextFixture>> = {
-            highPerformance: {
-                config: {
-                    ...this.configFactory.complete,
-                    priority: "high",
-                    resourceLimits: { maxMemory: "4GB", maxCPU: "2 cores" }
-                },
-                emergence: {
-                    capabilities: ["performance_optimization", "resource_management"],
-                    evolutionPath: "basic → optimized → peak_performance"
-                },
-                executionMetadata: {
-                    supportedStrategies: ["deterministic"],
-                    performanceCharacteristics: {
-                        latency: "< 100ms",
-                        throughput: "500 ops/sec",
-                        resourceUsage: "high"
+        const variants: Record<string, () => ExecutionContextFixture> = {
+            highPerformance: () => this.createComplete({
+                strategy: "deterministic",
+                context: {
+                    tools: ["calculation", "data_processing"],
+                    constraints: {
+                        maxTokens: 10000,
+                        timeout: 10000,
+                        resourceLimits: {
+                            memory: 2048,
+                            cpu: 80,
+                            apiCalls: 1000
+                        }
+                    },
+                    resources: {
+                        creditBudget: 5000,
+                        timeBudget: 10000,
+                        priority: "high",
+                        pools: ["priority", "dedicated"]
                     }
-                }
-            },
-
-            secureExecution: {
-                config: {
-                    ...this.configFactory.complete,
-                    securityLevel: "high",
-                    auditMode: true
                 },
-                emergence: {
-                    capabilities: ["security_validation", "audit_trail_generation"],
-                    eventPatterns: ["security.*", "audit.*"],
-                    evolutionPath: "basic → secure → hardened"
-                },
-                executionMetadata: {
-                    supportedStrategies: ["reasoning", "deterministic"],
-                    toolDependencies: ["security_validator", "audit_logger"]
-                }
-            },
-
-            resourceConstrained: {
-                config: {
-                    ...this.configFactory.minimal,
-                    resourceLimits: { maxMemory: "512MB", maxCPU: "0.5 cores" }
-                },
-                emergence: {
-                    capabilities: ["resource_optimization", "efficiency_maximization"],
-                    evolutionPath: "basic → efficient → ultra_efficient"
-                },
-                executionMetadata: {
-                    supportedStrategies: ["conversational"],
-                    performanceCharacteristics: {
-                        latency: "< 2 seconds",
-                        throughput: "10 ops/sec",
-                        resourceUsage: "minimal"
+                ...overrides
+            }),
+            
+            secureExecution: () => this.createComplete({
+                strategy: "reasoning",
+                context: {
+                    tools: ["secure_compute", "encrypted_storage"],
+                    constraints: {
+                        requireApproval: ["all"],
+                        maxTokens: 2000,
+                        timeout: 120000
+                    },
+                    safety: {
+                        syncChecks: ["comprehensive_validation", "authorization"],
+                        asyncAgents: ["security_monitor", "compliance_checker", "audit_logger"],
+                        domainRules: ["zero_trust", "data_encryption", "access_control"],
+                        emergencyStop: {
+                            conditions: ["unauthorized_access", "data_breach_attempt"],
+                            actions: ["immediate_halt", "security_alert", "session_termination"]
+                        }
                     }
-                }
-            }
+                },
+                ...overrides
+            }),
+            
+            resourceConstrained: () => this.createMinimal({
+                strategy: "conversational",
+                context: {
+                    tools: ["basic_search"],
+                    constraints: {
+                        maxTokens: 500,
+                        timeout: 15000,
+                        resourceLimits: {
+                            memory: 128,
+                            cpu: 10,
+                            apiCalls: 10
+                        }
+                    },
+                    resources: {
+                        creditBudget: 100,
+                        timeBudget: 15000,
+                        priority: "low",
+                        pools: ["shared"]
+                    }
+                },
+                ...overrides
+            })
         };
-
-        const variantConfig = variants[variant];
-        if (!variantConfig) {
+        
+        const factory = variants[variant];
+        if (!factory) {
             throw new Error(`Unknown execution context variant: ${variant}`);
         }
-
-        return this.merge(this.createComplete(), { ...variantConfig, ...overrides });
-    }
-
-    create(overrides?: Partial<ExecutionContextFixture>): ExecutionContextFixture {
-        return this.createComplete(overrides);
-    }
-
-    async validateFixture(fixture: ExecutionContextFixture): Promise<ValidationResult> {
-        const results = await Promise.all([
-            validateConfigAgainstSchema(fixture.config, this.configType),
-            Promise.resolve(validateEmergence(fixture.emergence)),
-            Promise.resolve(validateIntegration(fixture.integration)),
-            Promise.resolve(validateEvolutionPathways(fixture))
-        ]);
-
-        return combineValidationResults(results);
-    }
-
-    isValid(fixture: unknown): fixture is ExecutionContextFixture {
-        return (
-            typeof fixture === "object" &&
-            fixture !== null &&
-            "config" in fixture &&
-            "emergence" in fixture &&
-            "integration" in fixture &&
-            (fixture as any).integration.tier === "tier3"
-        );
-    }
-
-    merge(base: ExecutionContextFixture, override: Partial<ExecutionContextFixture>): ExecutionContextFixture {
-        return {
-            ...base,
-            ...override,
-            config: { ...base.config, ...override.config },
-            emergence: { ...base.emergence, ...override.emergence },
-            integration: { ...base.integration, ...override.integration },
-            executionMetadata: { ...base.executionMetadata, ...override.executionMetadata },
-            metadata: { ...base.metadata, ...override.metadata }
-        };
-    }
-
-    applyDefaults(partialFixture: Partial<ExecutionContextFixture>): ExecutionContextFixture {
-        return this.merge(this.createMinimal(), partialFixture);
+        
+        return factory();
     }
 }
 
-// ================================================================================================
-// Factory Registry and Utilities
-// ================================================================================================
-
-export const executionFixtureFactories = {
-    swarm: new SwarmFixtureFactory(),
-    routine: new RoutineFixtureFactory(),
-    executionContext: new ExecutionContextFixtureFactory()
-} as const;
-
-export type FixtureFactoryType = keyof typeof executionFixtureFactories;
+/**
+ * Create factory instances for easy import
+ */
+export const swarmFactory = new SwarmFixtureFactory();
+export const routineFactory = new RoutineFixtureFactory();
+export const executionFactory = new ExecutionContextFixtureFactory();
 
 /**
- * Get a factory by type with proper typing
+ * Helper function to create measurable capabilities
  */
-export function getExecutionFixtureFactory<T extends FixtureFactoryType>(
-    type: T
-): typeof executionFixtureFactories[T] {
-    return executionFixtureFactories[type];
+export function createMeasurableCapability(
+    name: string,
+    metric: string,
+    baseline: number,
+    target: number,
+    unit: string,
+    description?: string
+): MeasurableCapability {
+    return {
+        name,
+        metric,
+        baseline,
+        target,
+        unit,
+        description
+    };
 }
 
 /**
- * Create execution fixture from factory type and variant
+ * Helper function to create enhanced emergence definition
  */
-export function createExecutionFixture<T extends FixtureFactoryType>(
-    type: T,
-    variant?: string,
-    overrides?: any
-): T extends "swarm" ? SwarmFixture : 
-   T extends "routine" ? RoutineFixture : 
-   T extends "executionContext" ? ExecutionContextFixture : never {
-    const factory = getExecutionFixtureFactory(type);
-    
-    if (variant) {
-        return factory.createVariant(variant, overrides) as any;
-    }
-    
-    return factory.create(overrides) as any;
-}
-
-/**
- * Validate any execution fixture using appropriate factory
- */
-export async function validateExecutionFixture(
-    fixture: ExecutionFixture<any>,
-    factoryType: FixtureFactoryType
-): Promise<ValidationResult> {
-    const factory = getExecutionFixtureFactory(factoryType);
-    return factory.validateFixture(fixture as any);
+export function createEnhancedEmergence(
+    base: EmergenceDefinition,
+    measurableCapabilities: MeasurableCapability[],
+    emergenceTests?: Array<{
+        setup: string;
+        trigger: string;
+        expectedOutcome: string;
+        measurementMethod: string;
+    }>
+): EnhancedEmergenceDefinition {
+    return {
+        ...base,
+        measurableCapabilities,
+        emergenceTests
+    };
 }

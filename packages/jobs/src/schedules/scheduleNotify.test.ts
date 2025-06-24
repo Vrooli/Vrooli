@@ -53,7 +53,8 @@ describe("scheduleNotify integration tests", () => {
     // Store test entity IDs for cleanup
     const testUserIds: bigint[] = [];
     const testRunIds: bigint[] = [];
-    const testRoutineIds: bigint[] = [];
+    const testResourceIds: bigint[] = [];
+    const testResourceVersionIds: bigint[] = [];
     const testScheduleIds: bigint[] = [];
     const testNotificationSubscriptionIds: bigint[] = [];
     const testMeetingIds: bigint[] = [];
@@ -63,7 +64,8 @@ describe("scheduleNotify integration tests", () => {
         // Clear test ID arrays
         testUserIds.length = 0;
         testRunIds.length = 0;
-        testRoutineIds.length = 0;
+        testResourceIds.length = 0;
+        testResourceVersionIds.length = 0;
         testScheduleIds.length = 0;
         testNotificationSubscriptionIds.length = 0;
         testMeetingIds.length = 0;
@@ -90,8 +92,11 @@ describe("scheduleNotify integration tests", () => {
         if (testScheduleIds.length > 0) {
             await db.schedule.deleteMany({ where: { id: { in: testScheduleIds } } });
         }
-        if (testRoutineIds.length > 0) {
-            await db.routine.deleteMany({ where: { id: { in: testRoutineIds } } });
+        if (testResourceVersionIds.length > 0) {
+            await db.resource_version.deleteMany({ where: { id: { in: testResourceVersionIds } } });
+        }
+        if (testResourceIds.length > 0) {
+            await db.resource.deleteMany({ where: { id: { in: testResourceIds } } });
         }
         if (testTeamIds.length > 0) {
             await db.team.deleteMany({ where: { id: { in: testTeamIds } } });
@@ -115,15 +120,32 @@ describe("scheduleNotify integration tests", () => {
         });
         testUserIds.push(user.id);
 
-        // Create routine
-        const routine = await DbProvider.get().routine.create({
+        // Create resource (routine)
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
+                resourceType: "Routine",
                 isPrivate: false,
                 isInternal: false,
+                isDeleted: false,
+            },
+        });
+        testResourceIds.push(resource.id);
+
+        // Create resource version
+        const resourceVersion = await DbProvider.get().resource_version.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                rootId: resource.id,
+                versionLabel: "1.0.0",
+                isPrivate: false,
+                isDeleted: false,
+                isComplete: true,
+                isLatest: true,
                 translations: {
                     create: {
                         id: generatePK(),
@@ -134,7 +156,7 @@ describe("scheduleNotify integration tests", () => {
                 },
             },
         });
-        testRoutineIds.push(routine.id);
+        testResourceVersionIds.push(resourceVersion.id);
 
         // Create schedule
         const schedule = await DbProvider.get().schedule.create({
@@ -153,12 +175,18 @@ describe("scheduleNotify integration tests", () => {
         const run = await DbProvider.get().run.create({
             data: {
                 id: generatePK(),
-                routineId: routine.id,
-                scheduleId: schedule.id,
+                resourceVersion: {
+                    connect: { id: resourceVersion.id },
+                },
+                schedule: {
+                    connect: { id: schedule.id },
+                },
                 isPrivate: false,
                 status: "Scheduled",
                 name: "Test Scheduled Run",
-                createdById: user.id,
+                user: {
+                    connect: { id: user.id },
+                },
             },
         });
         testRunIds.push(run.id);
@@ -303,14 +331,30 @@ describe("scheduleNotify integration tests", () => {
         });
         testUserIds.push(user.id);
 
-        const routine = await DbProvider.get().routine.create({
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
+                resourceType: "Routine",
                 isPrivate: false,
                 isInternal: false,
+                isDeleted: false,
+            },
+        });
+        testResourceIds.push(resource.id);
+
+        const resourceVersion = await DbProvider.get().resource_version.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                rootId: resource.id,
+                versionLabel: "1.0.0",
+                isPrivate: false,
+                isDeleted: false,
+                isComplete: true,
+                isLatest: true,
                 translations: {
                     create: {
                         id: generatePK(),
@@ -321,7 +365,7 @@ describe("scheduleNotify integration tests", () => {
                 },
             },
         });
-        testRoutineIds.push(routine.id);
+        testResourceVersionIds.push(resourceVersion.id);
 
         const schedule = await DbProvider.get().schedule.create({
             data: {
@@ -338,12 +382,18 @@ describe("scheduleNotify integration tests", () => {
         const run = await DbProvider.get().run.create({
             data: {
                 id: generatePK(),
-                routineId: routine.id,
-                scheduleId: schedule.id,
+                resourceVersion: {
+                    connect: { id: resourceVersion.id },
+                },
+                schedule: {
+                    connect: { id: schedule.id },
+                },
                 isPrivate: false,
                 status: "Scheduled",
                 name: "Silent Run",
-                createdById: user.id,
+                user: {
+                    connect: { id: user.id },
+                },
             },
         });
         testRunIds.push(run.id);
@@ -382,14 +432,30 @@ describe("scheduleNotify integration tests", () => {
         });
         testUserIds.push(user.id);
 
-        const routine = await DbProvider.get().routine.create({
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
+                resourceType: "Routine",
                 isPrivate: false,
                 isInternal: false,
+                isDeleted: false,
+            },
+        });
+        testResourceIds.push(resource.id);
+
+        const resourceVersion = await DbProvider.get().resource_version.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                rootId: resource.id,
+                versionLabel: "1.0.0",
+                isPrivate: false,
+                isDeleted: false,
+                isComplete: true,
+                isLatest: true,
                 translations: {
                     create: {
                         id: generatePK(),
@@ -400,7 +466,7 @@ describe("scheduleNotify integration tests", () => {
                 },
             },
         });
-        testRoutineIds.push(routine.id);
+        testResourceVersionIds.push(resourceVersion.id);
 
         const schedule = await DbProvider.get().schedule.create({
             data: {
@@ -417,12 +483,18 @@ describe("scheduleNotify integration tests", () => {
         const run = await DbProvider.get().run.create({
             data: {
                 id: generatePK(),
-                routineId: routine.id,
-                scheduleId: schedule.id,
+                resourceVersion: {
+                    connect: { id: resourceVersion.id },
+                },
+                schedule: {
+                    connect: { id: schedule.id },
+                },
                 isPrivate: false,
                 status: "Scheduled",
                 name: "Invalid Context Run",
-                createdById: user.id,
+                user: {
+                    connect: { id: user.id },
+                },
             },
         });
         testRunIds.push(run.id);
@@ -517,14 +589,30 @@ describe("scheduleNotify integration tests", () => {
         ]);
         users.forEach(u => testUserIds.push(u.id));
 
-        const routine = await DbProvider.get().routine.create({
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: users[0].id,
                 ownedByUserId: users[0].id,
+                resourceType: "Routine",
                 isPrivate: false,
                 isInternal: false,
+                isDeleted: false,
+            },
+        });
+        testResourceIds.push(resource.id);
+
+        const resourceVersion = await DbProvider.get().resource_version.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                rootId: resource.id,
+                versionLabel: "1.0.0",
+                isPrivate: false,
+                isDeleted: false,
+                isComplete: true,
+                isLatest: true,
                 translations: {
                     create: {
                         id: generatePK(),
@@ -535,7 +623,7 @@ describe("scheduleNotify integration tests", () => {
                 },
             },
         });
-        testRoutineIds.push(routine.id);
+        testResourceVersionIds.push(resourceVersion.id);
 
         const schedule = await DbProvider.get().schedule.create({
             data: {
@@ -552,12 +640,18 @@ describe("scheduleNotify integration tests", () => {
         const run = await DbProvider.get().run.create({
             data: {
                 id: generatePK(),
-                routineId: routine.id,
-                scheduleId: schedule.id,
+                resourceVersion: {
+                    connect: { id: resourceVersion.id },
+                },
+                schedule: {
+                    connect: { id: schedule.id },
+                },
                 isPrivate: false,
                 status: "Scheduled",
                 name: "Multi User Run",
-                createdById: users[0].id,
+                user: {
+                    connect: { id: users[0].id },
+                },
             },
         });
         testRunIds.push(run.id);
@@ -631,14 +725,30 @@ describe("scheduleNotify integration tests", () => {
         });
         testUserIds.push(user.id);
 
-        const routine = await DbProvider.get().routine.create({
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
+                resourceType: "Routine",
                 isPrivate: false,
                 isInternal: false,
+                isDeleted: false,
+            },
+        });
+        testResourceIds.push(resource.id);
+
+        const resourceVersion = await DbProvider.get().resource_version.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                rootId: resource.id,
+                versionLabel: "1.0.0",
+                isPrivate: false,
+                isDeleted: false,
+                isComplete: true,
+                isLatest: true,
                 translations: {
                     create: {
                         id: generatePK(),
@@ -649,7 +759,7 @@ describe("scheduleNotify integration tests", () => {
                 },
             },
         });
-        testRoutineIds.push(routine.id);
+        testResourceVersionIds.push(resourceVersion.id);
 
         const schedule = await DbProvider.get().schedule.create({
             data: {
@@ -666,12 +776,18 @@ describe("scheduleNotify integration tests", () => {
         const run = await DbProvider.get().run.create({
             data: {
                 id: generatePK(),
-                routineId: routine.id,
-                scheduleId: schedule.id,
+                resourceVersion: {
+                    connect: { id: resourceVersion.id },
+                },
+                schedule: {
+                    connect: { id: schedule.id },
+                },
                 isPrivate: false,
                 status: "Scheduled",
                 name: "Cached Run",
-                createdById: user.id,
+                user: {
+                    connect: { id: user.id },
+                },
             },
         });
         testRunIds.push(run.id);
@@ -713,14 +829,30 @@ describe("scheduleNotify integration tests", () => {
         });
         testUserIds.push(user.id);
 
-        const routine = await DbProvider.get().routine.create({
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
+                resourceType: "Routine",
                 isPrivate: false,
                 isInternal: false,
+                isDeleted: false,
+            },
+        });
+        testResourceIds.push(resource.id);
+
+        const resourceVersion = await DbProvider.get().resource_version.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                rootId: resource.id,
+                versionLabel: "1.0.0",
+                isPrivate: false,
+                isDeleted: false,
+                isComplete: true,
+                isLatest: true,
                 translations: {
                     create: {
                         id: generatePK(),
@@ -731,7 +863,7 @@ describe("scheduleNotify integration tests", () => {
                 },
             },
         });
-        testRoutineIds.push(routine.id);
+        testResourceVersionIds.push(resourceVersion.id);
 
         const schedule = await DbProvider.get().schedule.create({
             data: {
@@ -748,12 +880,18 @@ describe("scheduleNotify integration tests", () => {
         const run = await DbProvider.get().run.create({
             data: {
                 id: generatePK(),
-                routineId: routine.id,
-                scheduleId: schedule.id,
+                resourceVersion: {
+                    connect: { id: resourceVersion.id },
+                },
+                schedule: {
+                    connect: { id: schedule.id },
+                },
                 isPrivate: false,
                 status: "Scheduled",
                 name: "No Subscription Run",
-                createdById: user.id,
+                user: {
+                    connect: { id: user.id },
+                },
             },
         });
         testRunIds.push(run.id);
@@ -781,14 +919,30 @@ describe("scheduleNotify integration tests", () => {
         });
         testUserIds.push(user.id);
 
-        const routine = await DbProvider.get().routine.create({
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: user.id,
                 ownedByUserId: user.id,
+                resourceType: "Routine",
                 isPrivate: false,
                 isInternal: false,
+                isDeleted: false,
+            },
+        });
+        testResourceIds.push(resource.id);
+
+        const resourceVersion = await DbProvider.get().resource_version.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                rootId: resource.id,
+                versionLabel: "1.0.0",
+                isPrivate: false,
+                isDeleted: false,
+                isComplete: true,
+                isLatest: true,
                 translations: {
                     create: {
                         id: generatePK(),
@@ -799,7 +953,7 @@ describe("scheduleNotify integration tests", () => {
                 },
             },
         });
-        testRoutineIds.push(routine.id);
+        testResourceVersionIds.push(resourceVersion.id);
 
         const schedule = await DbProvider.get().schedule.create({
             data: {
@@ -816,12 +970,18 @@ describe("scheduleNotify integration tests", () => {
         const run = await DbProvider.get().run.create({
             data: {
                 id: generatePK(),
-                routineId: routine.id,
-                scheduleId: schedule.id,
+                resourceVersion: {
+                    connect: { id: resourceVersion.id },
+                },
+                schedule: {
+                    connect: { id: schedule.id },
+                },
                 isPrivate: false,
                 status: "Scheduled",
                 name: "Invalid Reminder Run",
-                createdById: user.id,
+                user: {
+                    connect: { id: user.id },
+                },
             },
         });
         testRunIds.push(run.id);

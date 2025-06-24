@@ -439,18 +439,18 @@ const MCP_TOOL_SCHEMAS: TypeToSchema[] = [
 
 // Define the desired order of top-level fields in the output
 const FIELD_ORDER = [
-    '$schema',
-    'name',
-    'title',
-    'description',
-    'inputSchema',
-    'annotations',
-    'type',
-    'properties',
-    'required',
-    'enum',
-    'items',
-    'additionalProperties',
+    "$schema",
+    "name",
+    "title",
+    "description",
+    "inputSchema",
+    "annotations",
+    "type",
+    "properties",
+    "required",
+    "enum",
+    "items",
+    "additionalProperties",
 ];
 
 /**

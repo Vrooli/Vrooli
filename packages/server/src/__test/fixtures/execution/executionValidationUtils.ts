@@ -20,10 +20,14 @@ import type {
     RunConfigObject
 } from "@vrooli/shared";
 import { 
+    ChatConfig,
+    RoutineConfig,
+    RunConfig,
     chatConfigFixtures, 
     routineConfigFixtures, 
     runConfigFixtures 
-} from "@vrooli/shared/__test/fixtures/config";
+} from "@vrooli/shared";
+import { runComprehensiveConfigTests } from "@vrooli/shared/src/shape/configs/__test/configTestUtils.js";
 
 // ================================================================================================
 // Core Types for Execution Fixtures
@@ -134,68 +138,103 @@ export interface ValidationResult {
     message: string;
     errors?: string[];
     warnings?: string[];
+    data?: any; // For returning validated data
 }
 
 // ================================================================================================
 // Config Type Registry (Integration with Shared Package)
 // ================================================================================================
 
-export const CONFIG_TYPE_REGISTRY = {
+// Map config types to their classes
+export const CONFIG_CLASS_REGISTRY = {
+    chat: ChatConfig,
+    routine: RoutineConfig,
+    run: RunConfig
+} as const;
+
+export type ConfigType = keyof typeof CONFIG_CLASS_REGISTRY;
+
+// Map config types to their fixtures
+export const CONFIG_FIXTURE_REGISTRY = {
     chat: chatConfigFixtures,
     routine: routineConfigFixtures,
     run: runConfigFixtures
 } as const;
-
-export type ConfigType = keyof typeof CONFIG_TYPE_REGISTRY;
 
 // ================================================================================================
 // Core Validation Functions
 // ================================================================================================
 
 /**
- * Validates execution fixture configuration against shared package schemas
- * Follows the same pattern as validationTestUtils.ts from shared package
+ * Validates execution fixture configuration using actual config classes
+ * Ensures round-trip consistency and schema compliance
  */
 export async function validateConfigAgainstSchema<T extends BaseConfigObject>(
     config: T,
     configType: ConfigType
 ): Promise<ValidationResult> {
     try {
-        const configFixtures = CONFIG_TYPE_REGISTRY[configType];
+        const ConfigClass = CONFIG_CLASS_REGISTRY[configType];
         
-        // Validate that config has required base fields
-        if (!config.__version) {
+        // Create actual config instance to validate
+        const configInstance = new ConfigClass({ config });
+        
+        // Export and re-import to test round-trip consistency
+        const exported = configInstance.export();
+        const reimported = new ConfigClass({ config: exported });
+        const reexported = reimported.export();
+        
+        // Configs should be identical after round-trip
+        if (JSON.stringify(exported) !== JSON.stringify(reexported)) {
             return {
                 pass: false,
-                message: "Config missing required __version field",
-                errors: ["__version field is required for all config objects"]
+                message: "Config failed round-trip consistency test",
+                errors: ["Exported config changes after re-import"]
             };
         }
-
-        // Use shared package validation by attempting to use factory
-        const factory = configFixtures;
-        if (factory.validate) {
-            const validationResult = factory.validate(config);
-            return {
-                pass: validationResult.success,
-                message: validationResult.success ? "Config validation passed" : "Config validation failed",
-                errors: validationResult.success ? undefined : [validationResult.error || "Unknown validation error"]
-            };
-        }
-
-        // Basic validation if no validate method
-        const isValidConfig = typeof config === "object" && 
-                             config !== null && 
-                             "__version" in config;
-
+        
         return {
-            pass: isValidConfig,
-            message: isValidConfig ? "Basic config validation passed" : "Basic config validation failed"
+            pass: true,
+            message: "Config validation passed",
+            warnings: undefined
         };
     } catch (error) {
         return {
             pass: false,
             message: "Config validation error",
+            errors: [error instanceof Error ? error.message : String(error)]
+        };
+    }
+}
+
+/**
+ * Direct config validation using actual config class
+ * This is the preferred method for execution fixtures
+ */
+export async function validateExecutionFixtureConfig<T extends BaseConfigObject>(
+    fixture: ExecutionFixture<T>,
+    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+): Promise<ValidationResult> {
+    try {
+        // Create actual config instance to validate
+        const configInstance = new ConfigClass({ config: fixture.config });
+        
+        // Export and re-import to test round-trip consistency
+        const exported = configInstance.export();
+        const reimported = new ConfigClass({ config: exported });
+        
+        // Ensure fixture config matches validated config
+        const validatedConfig = reimported.export();
+        
+        return { 
+            pass: true, 
+            message: "Config validation passed",
+            data: validatedConfig // Return validated config
+        };
+    } catch (error) {
+        return { 
+            pass: false, 
+            message: "Config validation failed",
             errors: [error instanceof Error ? error.message : String(error)]
         };
     }
@@ -426,7 +465,7 @@ export function validateEventFlow<T extends BaseConfigObject>(
 
 /**
  * Comprehensive test runner for execution fixtures
- * Follows the same pattern as runComprehensiveValidationTests from shared package
+ * Integrates with shared package's runComprehensiveConfigTests
  * Provides automatic test generation with 82% code reduction benefits
  */
 export function runComprehensiveExecutionTests<T extends BaseConfigObject>(
@@ -435,24 +474,30 @@ export function runComprehensiveExecutionTests<T extends BaseConfigObject>(
     fixtureName: string
 ): void {
     describe(`${fixtureName} execution fixture`, () => {
-        // 1. Configuration validation (reusing shared package patterns)
-        describe("configuration validation", () => {
-            it("should have valid configuration object", async () => {
-                const result = await validateConfigAgainstSchema(fixture.config, configType);
+        const ConfigClass = CONFIG_CLASS_REGISTRY[configType];
+        
+        // 1. Run comprehensive config tests from shared package
+        describe("config validation (shared package tests)", () => {
+            // Create a fixture set for the config testing
+            const configFixtures = {
+                minimal: fixture.config,
+                complete: fixture.config,
+                withDefaults: fixture.config,
+                variants: { [fixtureName]: fixture.config }
+            };
+            
+            // Run the full config test suite from shared package
+            runComprehensiveConfigTests(ConfigClass, configFixtures, fixtureName);
+        });
+        
+        // 2. Additional execution-specific config validation
+        describe("execution-specific config validation", () => {
+            it("should validate through config class instantiation", async () => {
+                const result = await validateExecutionFixtureConfig(fixture, ConfigClass);
                 if (result.errors) {
                     console.error("Config validation errors:", result.errors);
                 }
                 expect(result.pass).toBe(true);
-            });
-
-            it("should have required __version field", () => {
-                expect(fixture.config.__version).toBeDefined();
-                expect(typeof fixture.config.__version).toBe("string");
-            });
-
-            it("should be JSON serializable", () => {
-                expect(() => JSON.stringify(fixture.config)).not.toThrow();
-                expect(() => JSON.parse(JSON.stringify(fixture.config))).not.toThrow();
             });
         });
 

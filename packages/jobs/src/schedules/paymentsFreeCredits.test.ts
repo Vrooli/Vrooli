@@ -1,21 +1,24 @@
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import { API_CREDITS_PREMIUM, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockBusService, mockBusPublish, mockSocketService, mockSocketEmit, mockNotify, resetAllMocks } from "../__test/mocks/services.js";
 
-// Mock services before imports
+// Mock the services at module level
 vi.mock("@vrooli/server", async () => {
     const actual = await vi.importActual("@vrooli/server");
     return {
         ...actual,
-        BusService: mockBusService,
-        SocketService: mockSocketService,
-        Notify: mockNotify,
+        BusService: {
+            get: vi.fn(),
+        },
+        SocketService: {
+            get: vi.fn(),
+        },
+        Notify: vi.fn(),
     };
 });
 
 import { paymentsCreditsFreePremium } from "./paymentsFreeCredits.js";
-import { DbProvider } from "@vrooli/server";
+import { DbProvider, BusService, SocketService, Notify } from "@vrooli/server";
 
 describe("paymentsCreditsFreePremium integration tests", () => {
     // Store test entity IDs for cleanup
@@ -23,14 +26,38 @@ describe("paymentsCreditsFreePremium integration tests", () => {
     const testCreditAccountIds: bigint[] = [];
     const testPlanIds: bigint[] = [];
 
+    // Mock services
+    const mockBusPublish = vi.fn().mockResolvedValue(undefined);
+    const mockSocketEmit = vi.fn();
+    const mockNotify = vi.fn(() => ({
+        pushFreeCreditsReceived: vi.fn().mockReturnValue({ 
+            toUser: vi.fn().mockResolvedValue(undefined), 
+        }),
+    }));
+
     beforeEach(async () => {
         // Clear test ID arrays
         testUserIds.length = 0;
         testCreditAccountIds.length = 0;
         testPlanIds.length = 0;
 
+        // Setup mocks
+        vi.mocked(BusService.get).mockReturnValue({
+            getBus: () => ({
+                publish: mockBusPublish,
+            }),
+        } as any);
+
+        vi.mocked(SocketService.get).mockReturnValue({
+            emitSocketEvent: mockSocketEmit,
+        } as any);
+
+        vi.mocked(Notify).mockImplementation(mockNotify);
+
         // Reset mocks
-        resetAllMocks();
+        mockBusPublish.mockClear();
+        mockSocketEmit.mockClear();
+        mockNotify.mockClear();
     });
 
     afterEach(async () => {
@@ -102,7 +129,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                     jobName: "paymentsCreditsFreePremium",
                     originalUserId: user.id.toString(),
                 }),
-            })
+            }),
         );
 
         // Check that notification was sent
@@ -112,7 +139,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         expect(mockSocketEmit).toHaveBeenCalledWith(
             "apiCredits",
             user.id.toString(),
-            { credits: (BigInt(100) + API_CREDITS_PREMIUM).toString() }
+            { credits: (BigInt(100) + API_CREDITS_PREMIUM).toString() },
         );
     });
 
@@ -162,14 +189,14 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         expect(mockBusPublish).toHaveBeenCalledWith(
             expect.objectContaining({
                 delta: BigInt(100).toString(), // Only add enough to reach max
-            })
+            }),
         );
 
         // Check socket event shows max balance
         expect(mockSocketEmit).toHaveBeenCalledWith(
             "apiCredits",
             user.id.toString(),
-            { credits: MAX_FREE_CREDITS.toString() }
+            { credits: MAX_FREE_CREDITS.toString() },
         );
     });
 
@@ -224,7 +251,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         expect(mockSocketEmit).toHaveBeenCalledWith(
             "apiCredits",
             user.id.toString(),
-            { credits: MAX_FREE_CREDITS.toString() }
+            { credits: MAX_FREE_CREDITS.toString() },
         );
     });
 
@@ -439,7 +466,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                         languages: ["en"],
                         stripeCustomerId: `cus_batch${i}`,
                     },
-                })
+                }),
             );
         }
         const users = await Promise.all(userPromises);
@@ -456,7 +483,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                         userId: users[i].id,
                         currentBalance: BigInt(i * 1000), // Varying balances
                     },
-                })
+                }),
             );
             
             // Only create active plans for some users
@@ -469,7 +496,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                             enabledAt: pastDate,
                             expiresAt: futureDate,
                         },
-                    })
+                    }),
                 );
             }
         }

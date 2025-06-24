@@ -20,6 +20,7 @@
 export * from "./executionValidationUtils.js";
 export * from "./executionFactories.js";
 export * from "./executionTestUtils.js";
+export * from "./integrationScenarios.js";
 export * from "./types.js";
 
 // Tier 1: Coordination Intelligence
@@ -58,13 +59,28 @@ export {
     SwarmFixtureFactory,
     RoutineFixtureFactory,
     ExecutionContextFixtureFactory,
-    executionFixtureFactories,
-    getExecutionFixtureFactory,
-    createExecutionFixture,
-    validateExecutionFixture,
+    swarmFactory,
+    routineFactory,
+    executionFactory,
+    createMeasurableCapability,
+    createEnhancedEmergence,
 } from "./executionFactories.js";
 
-// Re-export key types for convenience (NEW IMPLEMENTATION)
+// Re-export integration scenario utilities
+export {
+    IntegrationScenarioTester,
+    IntegrationScenarioFactory,
+    runIntegrationScenarioTests,
+    runMultipleIntegrationTests,
+    validateIntegrationScenario,
+    ScenarioBuilder,
+    createEventContract,
+    commonScenarios,
+    createCustomScenario,
+    runIntegrationScenarioWithValidation,
+} from "./integrationScenarios.js";
+
+// Re-export key types for convenience
 export type {
     ExecutionFixture,
     SwarmFixture,
@@ -72,21 +88,42 @@ export type {
     ExecutionContextFixture,
     EmergenceDefinition,
     IntegrationDefinition,
+    EnhancedEmergenceDefinition,
+    EnhancedIntegrationDefinition,
+    MeasurableCapability,
+    EventContract,
     ValidationResult,
     ConfigType,
     ExecutionFixtureFactory,
-} from "./executionValidationUtils.js";
+} from "./types.js";
 
-// Legacy types from original implementation
+// Additional types from types.ts
 export type {
-    ExecutionValidationResult,
-    ExecutionTestFixtures,
-    ExecutionValidationOptions,
     ValidationDefinition,
     IntegrationScenario,
     ExecutionTier,
     ExecutionStrategy,
+    TestMetadata,
+    PerformanceBenchmarks,
+    SwarmAgent,
+    MOISEOrganization,
+    EvolutionStage,
+    RoutineMetrics,
+    ExecutionContext,
+    ExecutionConstraints,
+    ResourceAllocation,
+    SafetyConfiguration,
+    ToolConfiguration,
 } from "./types.js";
+
+// Integration scenario types
+export type {
+    IntegrationTestResult,
+    TestScenarioResult,
+    IntegrationMetrics,
+    TestScenario,
+    SuccessCriteria,
+} from "./integrationScenarios.js";
 
 /**
  * Quick Access to Key Fixtures
