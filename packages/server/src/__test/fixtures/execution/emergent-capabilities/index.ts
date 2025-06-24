@@ -3,7 +3,15 @@
  * 
  * Cross-tier emergent behaviors where capabilities emerge from specialized agents
  * rather than being built-in features.
+ * 
+ * Enhanced with comprehensive validation utilities and factory-based creation.
  */
+
+// Core validation utilities
+export * from "./emergentValidationUtils.js";
+
+// Factory implementations
+export * from "./EmergentFixtureFactory.js";
 
 // Agent type configurations
 export * from "./agent-types/emergentAgentFixtures.js";

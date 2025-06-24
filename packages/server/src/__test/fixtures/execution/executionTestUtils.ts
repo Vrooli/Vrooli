@@ -455,13 +455,22 @@ function validateBenchmarks(benchmarks: PerformanceBenchmarks): void {
 }
 
 /**
- * Test data factory for execution fixtures
+ * Enhanced test data factory for execution fixtures with shared package integration
+ * Follows patterns from shared package factories with automatic validation and round-trip testing
  */
 export class ExecutionFixtureFactory<TConfig> {
+    private sharedFixtures: any;
+    private configType: string;
+
     constructor(
         private baseFixtures: ExecutionTestFixtures<TConfig>,
         private ConfigClass?: any,
-    ) {}
+        configType?: string,
+        sharedFixtures?: any
+    ) {
+        this.configType = configType || 'unknown';
+        this.sharedFixtures = sharedFixtures;
+    }
     
     createMinimal(overrides?: Partial<ExecutionFixture<TConfig>>): ExecutionFixture<TConfig> {
         return {
@@ -490,34 +499,378 @@ export class ExecutionFixtureFactory<TConfig> {
             ...overrides,
         };
     }
-    
+
+    /**
+     * Create fixture with shared package foundation
+     * Uses shared package fixtures as the base and adds execution-specific enhancements
+     */
+    createWithSharedFoundation(
+        sharedFixtureName: string,
+        overrides?: Partial<ExecutionFixture<TConfig>>
+    ): ExecutionFixture<TConfig> {
+        if (!this.sharedFixtures) {
+            throw new Error(`No shared fixtures provided for config type '${this.configType}'`);
+        }
+
+        const sharedConfig = this.sharedFixtures.variants?.[sharedFixtureName] || this.sharedFixtures[sharedFixtureName];
+        if (!sharedConfig) {
+            throw new Error(`Shared fixture '${sharedFixtureName}' not found for config type '${this.configType}'`);
+        }
+
+        // Create enhanced config by merging shared config with execution-specific fields
+        const enhancedConfig = {
+            ...sharedConfig,
+            ...this.getExecutionSpecificFields(),
+        };
+
+        // Create execution fixture with enhanced config
+        const baseFixture = this.createComplete({
+            config: enhancedConfig as TConfig,
+            ...overrides,
+        });
+
+        // Add metadata about shared foundation
+        if (baseFixture.metadata) {
+            baseFixture.metadata = {
+                ...baseFixture.metadata,
+                sharedFoundation: sharedFixtureName,
+                configType: this.configType,
+            };
+        }
+
+        return baseFixture;
+    }
+
+    /**
+     * Create multiple fixture variants for comprehensive testing including shared variants
+     */
+    createVariantSet(): Record<string, ExecutionFixture<TConfig>> {
+        const variants: Record<string, ExecutionFixture<TConfig>> = {};
+
+        // Create basic variants
+        variants.minimal = this.createMinimal();
+        variants.complete = this.createComplete();
+
+        // Create existing variants
+        for (const [variantName, variant] of Object.entries(this.baseFixtures.variants)) {
+            variants[variantName] = this.createVariant(variantName);
+        }
+
+        // Create shared package integration variants if available
+        if (this.sharedFixtures?.variants) {
+            for (const [sharedName] of Object.entries(this.sharedFixtures.variants)) {
+                try {
+                    variants[`shared_${sharedName}`] = this.createWithSharedFoundation(sharedName);
+                } catch (error) {
+                    console.warn(`Failed to create variant for shared fixture '${sharedName}':`, error);
+                }
+            }
+        }
+
+        // Create tier-specific variants
+        const baseTier = this.inferTierFromConfig();
+        if (baseTier !== 'cross-tier') {
+            variants[`${baseTier}_optimized`] = this.createComplete({
+                integration: { 
+                    tier: baseTier,
+                    producedEvents: [`${baseTier}.${this.configType}.optimized`],
+                    consumedEvents: [`${baseTier}.system.optimize_request`],
+                },
+                emergence: {
+                    capabilities: [...(this.baseFixtures.complete.emergence.capabilities || []), 'optimization'],
+                    evolutionPath: 'baseline → optimized → expert',
+                }
+            });
+        }
+
+        // Create evolution stage variants for routine configs
+        if (this.configType === 'routine') {
+            const evolutionStages = ['conversational', 'reasoning', 'deterministic'];
+            evolutionStages.forEach((stage, index) => {
+                variants[`evolution_${stage}`] = this.createComplete({
+                    emergence: {
+                        ...this.baseFixtures.complete.emergence,
+                        evolutionPath: evolutionStages.join(' → '),
+                        learningMetrics: {
+                            performanceImprovement: `stage_${index + 1}_improvement`,
+                            adaptationTime: `${Math.max(100 - index * 30, 10)}ms`,
+                            innovationRate: index === 0 ? 'high' : index === 1 ? 'medium' : 'low',
+                        }
+                    }
+                });
+            });
+        }
+
+        return variants;
+    }
+
+    /**
+     * Enhanced validation with shared package integration
+     * Includes comprehensive round-trip testing and shared fixture compatibility
+     */
     async validateAll(): Promise<Record<string, ValidationResult>> {
         const results: Record<string, ValidationResult> = {};
         
-        // Validate minimal
-        results.minimal = await testExecutionFixture(
+        // Validate minimal with enhanced checks
+        results.minimal = await this.validateFixtureComprehensive(
             this.baseFixtures.minimal,
-            this.ConfigClass,
-            "minimal",
+            "minimal"
         );
         
-        // Validate complete
-        results.complete = await testExecutionFixture(
+        // Validate complete with enhanced checks
+        results.complete = await this.validateFixtureComprehensive(
             this.baseFixtures.complete,
-            this.ConfigClass,
-            "complete",
+            "complete"
         );
         
-        // Validate variants
+        // Validate all variants
         for (const [name, variant] of Object.entries(this.baseFixtures.variants)) {
-            results[`variant_${name}`] = await testExecutionFixture(
+            results[`variant_${name}`] = await this.validateFixtureComprehensive(
                 variant,
-                this.ConfigClass,
-                `variant: ${name}`,
+                `variant: ${name}`
             );
         }
+
+        // Validate shared foundation variants if available
+        if (this.sharedFixtures?.variants) {
+            for (const [sharedName] of Object.entries(this.sharedFixtures.variants)) {
+                try {
+                    const sharedVariant = this.createWithSharedFoundation(sharedName);
+                    results[`shared_${sharedName}`] = await this.validateFixtureComprehensive(
+                        sharedVariant,
+                        `shared: ${sharedName}`
+                    );
+                } catch (error) {
+                    results[`shared_${sharedName}`] = {
+                        pass: false,
+                        message: `Failed to create shared variant: ${error instanceof Error ? error.message : String(error)}`
+                    };
+                }
+            }
+        }
+
+        // Create summary result
+        const passedValidations = Object.values(results).filter(r => r.pass).length;
+        const totalValidations = Object.keys(results).length;
+        
+        results._summary = {
+            pass: passedValidations === totalValidations,
+            message: `Validation summary: ${passedValidations}/${totalValidations} passed`,
+            data: {
+                passedValidations,
+                totalValidations,
+                successRate: passedValidations / totalValidations,
+                configType: this.configType,
+                hasSharedIntegration: !!this.sharedFixtures
+            }
+        };
         
         return results;
+    }
+
+    /**
+     * Comprehensive fixture validation including round-trip testing and shared compatibility
+     */
+    private async validateFixtureComprehensive(
+        fixture: ExecutionFixture<TConfig>,
+        description: string
+    ): Promise<ValidationResult> {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+        const validationSteps: Record<string, any> = {};
+
+        try {
+            // 1. Basic structure validation
+            const basicValidation = await testExecutionFixture(fixture, this.ConfigClass, description);
+            validationSteps.basic = basicValidation;
+            if (!basicValidation.pass) {
+                errors.push(`Basic validation failed: ${basicValidation.message}`);
+            }
+
+            // 2. Config round-trip testing if ConfigClass available
+            if (this.ConfigClass) {
+                try {
+                    const configInstance = new this.ConfigClass({ config: fixture.config });
+                    const exported = configInstance.export();
+                    const reimported = new this.ConfigClass({ config: exported });
+                    const reexported = reimported.export();
+                    
+                    const roundTripConsistent = JSON.stringify(exported) === JSON.stringify(reexported);
+                    validationSteps.roundTrip = {
+                        pass: roundTripConsistent,
+                        message: roundTripConsistent ? "Round-trip consistent" : "Round-trip inconsistent"
+                    };
+                    
+                    if (!roundTripConsistent) {
+                        errors.push("Config failed round-trip consistency test");
+                    }
+                } catch (error) {
+                    validationSteps.roundTrip = {
+                        pass: false,
+                        message: `Round-trip test failed: ${error instanceof Error ? error.message : String(error)}`
+                    };
+                    errors.push(`Round-trip test error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+            }
+
+            // 3. Emergence validation using built-in validators
+            const emergenceValidation = fixtureValidators.hasMinimalEmergence(fixture);
+            validationSteps.emergence = emergenceValidation;
+            if (!emergenceValidation.pass) {
+                warnings.push(`Emergence validation: ${emergenceValidation.message}`);
+            }
+
+            // 4. Event naming validation
+            const eventValidation = fixtureValidators.hasValidEventNames(fixture);
+            validationSteps.events = eventValidation;
+            if (!eventValidation.pass) {
+                warnings.push(`Event naming validation: ${eventValidation.message}`);
+            }
+
+            // 5. Tier consistency validation
+            const tierValidation = fixtureValidators.hasTierConsistency(fixture);
+            validationSteps.tierConsistency = tierValidation;
+            if (!tierValidation.pass) {
+                warnings.push(`Tier consistency validation: ${tierValidation.message}`);
+            }
+
+            // 6. Shared fixture compatibility (if available)
+            if (this.sharedFixtures && fixture.metadata?.sharedFoundation) {
+                try {
+                    const sharedConfig = this.sharedFixtures.variants?.[fixture.metadata.sharedFoundation];
+                    if (sharedConfig && this.ConfigClass) {
+                        const sharedInstance = new this.ConfigClass({ config: sharedConfig });
+                        const executionInstance = new this.ConfigClass({ config: fixture.config });
+                        
+                        // Basic compatibility check
+                        const sharedKeys = Object.keys(sharedInstance.export());
+                        const executionKeys = Object.keys(executionInstance.export());
+                        const missingKeys = sharedKeys.filter(key => !executionKeys.includes(key));
+                        
+                        validationSteps.sharedCompatibility = {
+                            pass: missingKeys.length === 0,
+                            message: missingKeys.length === 0 
+                                ? "Shared compatibility validated" 
+                                : `Missing shared keys: ${missingKeys.join(', ')}`
+                        };
+                        
+                        if (missingKeys.length > 0) {
+                            warnings.push(`Shared compatibility issues: ${missingKeys.join(', ')}`);
+                        }
+                    }
+                } catch (error) {
+                    validationSteps.sharedCompatibility = {
+                        pass: false,
+                        message: `Shared compatibility test failed: ${error instanceof Error ? error.message : String(error)}`
+                    };
+                    warnings.push(`Shared compatibility test error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+            }
+
+            return {
+                pass: errors.length === 0,
+                message: errors.length === 0 
+                    ? `Comprehensive validation passed for ${description} (${warnings.length} warnings)`
+                    : `Comprehensive validation failed for ${description}`,
+                errors: errors.length > 0 ? errors : undefined,
+                warnings: warnings.length > 0 ? warnings : undefined,
+                data: {
+                    validationSteps,
+                    description,
+                    configType: this.configType,
+                    hasSharedIntegration: !!this.sharedFixtures,
+                    totalSteps: Object.keys(validationSteps).length,
+                    passedSteps: Object.values(validationSteps).filter((step: any) => step.pass).length
+                }
+            };
+        } catch (error) {
+            return {
+                pass: false,
+                message: `Comprehensive validation error for ${description}: ${error instanceof Error ? error.message : String(error)}`,
+                errors: [error instanceof Error ? error.message : String(error)],
+                data: { validationSteps, description, configType: this.configType }
+            };
+        }
+    }
+
+    /**
+     * Batch validate multiple fixtures with detailed reporting
+     */
+    async validateFixtureSet(fixtures: Record<string, ExecutionFixture<TConfig>>): Promise<ValidationResult> {
+        const results: Record<string, ValidationResult> = {};
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        for (const [fixtureName, fixture] of Object.entries(fixtures)) {
+            const result = await this.validateFixtureComprehensive(fixture, fixtureName);
+            results[fixtureName] = result;
+
+            if (!result.pass) {
+                errors.push(`Fixture '${fixtureName}' failed validation`);
+                if (result.errors) {
+                    errors.push(...result.errors.map(err => `  ${fixtureName}: ${err}`));
+                }
+            }
+
+            if (result.warnings) {
+                warnings.push(...result.warnings.map(warn => `${fixtureName}: ${warn}`));
+            }
+        }
+
+        const passedFixtures = Object.values(results).filter(r => r.pass).length;
+        const totalFixtures = Object.keys(fixtures).length;
+
+        return {
+            pass: errors.length === 0,
+            message: errors.length === 0 
+                ? `Batch validation passed for ${totalFixtures} fixtures (${warnings.length} warnings)`
+                : `Batch validation failed: ${errors.length} errors found`,
+            errors: errors.length > 0 ? errors : undefined,
+            warnings: warnings.length > 0 ? warnings : undefined,
+            data: {
+                results,
+                passedFixtures,
+                totalFixtures,
+                successRate: passedFixtures / totalFixtures,
+                configType: this.configType,
+                hasSharedIntegration: !!this.sharedFixtures
+            }
+        };
+    }
+
+    // Helper methods for intelligent fixture creation
+
+    private inferTierFromConfig(): "tier1" | "tier2" | "tier3" | "cross-tier" {
+        // Try to infer from config type
+        switch (this.configType) {
+            case "chat": return "tier1";
+            case "routine": return "tier2";
+            case "run": return "tier3";
+            default: 
+                // Try to infer from base fixtures
+                return this.baseFixtures.complete.integration.tier;
+        }
+    }
+
+    private getExecutionSpecificFields(): Partial<TConfig> {
+        const fields: any = {};
+        
+        switch (this.configType) {
+            case "chat":
+                fields.swarmTask = "Execution-enhanced swarm task";
+                fields.swarmSubTasks = [];
+                break;
+            case "routine":
+                fields.routineType = "conversational";
+                fields.steps = [];
+                break;
+            case "run":
+                fields.executionStrategy = "conversational";
+                fields.toolConfiguration = [];
+                break;
+        }
+
+        return fields;
     }
 }
 

@@ -16,12 +16,21 @@
  * - docs/architecture/execution/ for architecture documentation
  */
 
-// Core utilities and types (NEW IMPLEMENTATION)
+// Core utilities and types (ENHANCED IMPLEMENTATION - Phase 1-4 Improvements)
 export * from "./executionValidationUtils.js";
 export * from "./executionFactories.js";
 export * from "./executionTestUtils.js";
 export * from "./integrationScenarios.js";
 export * from "./types.js";
+
+// Phase 2: Runtime Integration Testing
+export * from "./executionRunner.js";
+
+// Phase 3: Error Scenario Testing
+export * from "./errorScenarios.js";
+
+// Phase 4: Performance Benchmarking
+export * from "./performanceBenchmarking.js";
 
 // Tier 1: Coordination Intelligence
 export * from "./tier1-coordination/index.js";
@@ -41,10 +50,13 @@ export * from "./integration-scenarios/index.js";
 // Shared utilities
 export * from "./testIdGenerator.js";
 
-// Re-export key utilities for convenience (NEW IMPLEMENTATION)
+// Re-export key utilities for convenience (ENHANCED IMPLEMENTATION - Phase 1-4)
 export { 
     runComprehensiveExecutionTests,
+    runEnhancedComprehensiveExecutionTests,
     validateConfigAgainstSchema,
+    validateConfigWithSharedFixtures,
+    validateConfigCompatibility,
     validateEmergence,
     validateIntegration,
     validateEvolutionPathways,
@@ -52,7 +64,32 @@ export {
     combineValidationResults,
     createMinimalEmergence,
     createMinimalIntegration,
+    FixtureCreationUtils,
+    CONFIG_INTEGRATION_MAP,
+    CONFIG_CLASS_REGISTRY,
+    CONFIG_FIXTURE_REGISTRY,
 } from "./executionValidationUtils.js";
+
+// Phase 2: Runtime Integration Testing Exports
+export {
+    ExecutionFixtureRunner,
+    createRuntimeTestScenarios,
+    validateRuntimeExecution,
+} from "./executionRunner.js";
+
+// Phase 3: Error Scenario Testing Exports
+export {
+    ErrorScenarioRunner,
+    createStandardErrorScenarios,
+    runErrorScenarioTests,
+} from "./errorScenarios.js";
+
+// Phase 4: Performance Benchmarking Exports
+export {
+    PerformanceBenchmarker,
+    runPerformanceBenchmarkTests,
+    runEvolutionBenchmarkTests,
+} from "./performanceBenchmarking.js";
 
 // Re-export factories for convenience
 export {
