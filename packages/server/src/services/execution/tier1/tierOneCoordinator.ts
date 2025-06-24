@@ -170,7 +170,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             }
 
             // Validate swarmId format
-            if (!config.swarmId || typeof config.swarmId !== 'string') {
+            if (!config.swarmId || typeof config.swarmId !== "string") {
                 throw new Error("Invalid swarmId: must be a non-empty string");
             }
 
@@ -182,7 +182,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 if (existingConversationId) {
                     const prisma = DbProvider.get();
                     const existingChat = await prisma.chat.findUnique({
-                        where: { id: BigInt(existingConversationId) }
+                        where: { id: BigInt(existingConversationId) },
                     });
                     if (existingChat) {
                         // Swarm already initialized, return success
@@ -207,7 +207,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                         credits: config.resources.maxCredits,
                         tokens: config.resources.maxTokens,
                         time: config.resources.maxTime,
-                    }
+                    },
                 );
 
                 if (!reservationResult.success) {
@@ -259,8 +259,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                         publicId: generatePublicId(),
                         creators: {
                             create: {
-                                user: { connect: { id: config.userId } }
-                            }
+                                user: { connect: { id: config.userId } },
+                            },
                         },
                         config: ChatConfig.default().export() as any,
                         labels: ["swarm", config.name],
@@ -360,7 +360,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     organizationId: config.organizationId,
                     version: "2.0.0",
                     parentSwarmId: config.parentSwarmId, // Also store in metadata for easy access
-                    conversationId: conversationId, // Store conversation ID mapping
+                    conversationId, // Store conversation ID mapping
                 },
             };
 
@@ -400,7 +400,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             const initiatingUser = { 
                 id: config.userId, 
                 name: "User", 
-                hasPremium: false 
+                hasPremium: false, 
             } as SessionUser;
             await stateMachine.start(conversationId, config.goal, initiatingUser);
 
@@ -439,7 +439,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 try {
                     const prisma = DbProvider.get();
                     await prisma.chat.delete({
-                        where: { id: BigInt(conversationId) }
+                        where: { id: BigInt(conversationId) },
                     });
                     this.logger.info("[TierOneCoordinator] Cleaned up orphaned chat", {
                         conversationId,
@@ -499,8 +499,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     runId: request.runId,
                     routineVersionId: request.routineVersionId,
                     inputs: request.inputs,
-                    config: request.config
-                }
+                    config: request.config,
+                },
             });
 
             // NEW: Also delegate to TierTwo through the standardized interface
@@ -517,8 +517,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     workflow: {
                         steps: [], // Will be loaded by TierTwo from routineVersionId
                         dependencies: [],
-                        parallelBranches: []
-                    }
+                        parallelBranches: [],
+                    },
                 },
                 allocation: {
                     maxCredits: swarm.resources.remaining.credits,
@@ -530,7 +530,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     model: request.config.model,
                     maxSteps: request.config.maxSteps,
                     timeout: request.config.timeout,
-                }
+                },
             };
 
             // Delegate to Tier 2 for actual run execution
@@ -569,8 +569,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 payload: { 
                     type: "run_failed", 
                     runId: request.runId,
-                    error: error instanceof Error ? error.message : String(error)
-                }
+                    error: error instanceof Error ? error.message : String(error),
+                },
             });
             
             throw error;
@@ -684,7 +684,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     async reserveResourcesForChild(
         parentSwarmId: string,
         childSwarmId: string,
-        reservation: { credits: number; tokens: number; time: number }
+        reservation: { credits: number; tokens: number; time: number },
     ): Promise<{ success: boolean; message?: string }> {
         try {
             const swarm = await this.stateStore.getSwarm(parentSwarmId);
@@ -704,7 +704,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 reservation.time > available.time) {
                 return {
                     success: false,
-                    message: `Insufficient resources. Available: ${JSON.stringify(available)}, Requested: ${JSON.stringify(reservation)}`
+                    message: `Insufficient resources. Available: ${JSON.stringify(available)}, Requested: ${JSON.stringify(reservation)}`,
                 };
             }
 
@@ -732,7 +732,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 reservation,
             });
 
-            this.logger.info(`[TierOneCoordinator] Reserved resources for child swarm`, {
+            this.logger.info("[TierOneCoordinator] Reserved resources for child swarm", {
                 parentSwarmId,
                 childSwarmId,
                 reservation,
@@ -755,7 +755,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
      */
     async releaseResourcesFromChild(
         parentSwarmId: string,
-        childSwarmId: string
+        childSwarmId: string,
     ): Promise<{ success: boolean; message?: string }> {
         try {
             const swarm = await this.stateStore.getSwarm(parentSwarmId);
@@ -765,7 +765,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
 
             // Find and remove the child reservation
             const reservationIndex = swarm.resources.childReservations.findIndex(
-                r => r.childSwarmId === childSwarmId
+                r => r.childSwarmId === childSwarmId,
             );
 
             if (reservationIndex === -1) {
@@ -800,7 +800,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 released: reservation.reserved,
             });
 
-            this.logger.info(`[TierOneCoordinator] Released resources from child swarm`, {
+            this.logger.info("[TierOneCoordinator] Released resources from child swarm", {
                 parentSwarmId,
                 childSwarmId,
                 released: reservation.reserved,
@@ -824,7 +824,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
      * Execute a tier execution request
      */
     async execute<TInput, TOutput>(
-        request: TierExecutionRequest<TInput>
+        request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
         this.logger.info("[TierOneCoordinator] Executing tier request", {
             contextType: typeof request.input,
@@ -845,14 +845,14 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                         maxTime: request.allocation.maxTime,
                         tools: swarmInput.availableAgents?.map((agent: any) => ({
                             name: agent.name,
-                            description: agent.capabilities?.join(", ") || ""
-                        })) || []
+                            description: agent.capabilities?.join(", ") || "",
+                        })) || [],
                     },
                     config: {
                         model: "gpt-4",
                         temperature: 0.7,
                         autoApproveTools: false,
-                        parallelExecutionLimit: 3
+                        parallelExecutionLimit: 3,
                     },
                     userId: request.context.userId || "system",
                     organizationId: request.context.organizationId,
@@ -865,9 +865,9 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     resourceUsage: {
                         credits: 0,
                         tokens: 0,
-                        duration: 0
+                        duration: 0,
                     },
-                    duration: 0
+                    duration: 0,
                 };
             } else {
                 throw new Error(`Unsupported input type for Tier 1: ${typeof request.input}`);
@@ -882,14 +882,14 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 status: "failed",
                 error: {
                     code: "EXECUTION_FAILED",
-                    message: error instanceof Error ? error.message : "Unknown error"
+                    message: error instanceof Error ? error.message : "Unknown error",
                 },
                 resourceUsage: {
                     credits: 0,
                     tokens: 0,
-                    duration: 0
+                    duration: 0,
                 },
-                duration: 0
+                duration: 0,
             };
         }
     }
@@ -909,7 +909,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 "Completed": "completed",
                 "Failed": "failed",
                 "Cancelled": "cancelled",
-                "Unknown": "failed"
+                "Unknown": "failed",
             };
 
             return {
@@ -920,8 +920,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     currentPhase: swarmStatus.currentPhase,
                     activeRuns: swarmStatus.activeRuns,
                     completedRuns: swarmStatus.completedRuns,
-                    errors: swarmStatus.errors
-                }
+                    errors: swarmStatus.errors,
+                },
             };
         } catch (error) {
             this.logger.error("[TierOneCoordinator] Failed to get execution status", {
@@ -934,8 +934,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 status: "failed",
                 error: {
                     code: "STATUS_ERROR",
-                    message: error instanceof Error ? error.message : "Unknown error"
-                }
+                    message: error instanceof Error ? error.message : "Unknown error",
+                },
             };
         }
     }
@@ -966,13 +966,13 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             estimatedLatency: {
                 p50: 5000,  // 5 seconds
                 p95: 15000, // 15 seconds  
-                p99: 30000  // 30 seconds
+                p99: 30000,  // 30 seconds
             },
             resourceLimits: {
                 maxCredits: "unlimited",
                 maxDurationMs: 3600000, // 1 hour
-                maxMemoryMB: 1024
-            }
+                maxMemoryMB: 1024,
+            },
         };
     }
 
@@ -1029,7 +1029,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     type: "internal_status_update",
                     conversationId,
                     sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
-                    payload: { type: "run_completed", runId }
+                    payload: { type: "run_completed", runId },
                 });
             }
         });
@@ -1044,7 +1044,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     type: "internal_status_update",
                     conversationId,
                     sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
-                    payload: { type: "resource_alert", ...event.data }
+                    payload: { type: "resource_alert", ...event.data },
                 });
             }
         });
@@ -1059,7 +1059,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     type: "internal_status_update",
                     conversationId,
                     sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
-                    payload: { type: "metacognitive_insight", ...event.data }
+                    payload: { type: "metacognitive_insight", ...event.data },
                 });
             }
         });
@@ -1081,8 +1081,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                         payload: { 
                             type: "child_swarm_completed", 
                             childSwarmId: swarmId,
-                            completedAt: new Date().toISOString()
-                        }
+                            completedAt: new Date().toISOString(),
+                        },
                     });
                 }
                 
@@ -1109,8 +1109,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                             type: "child_swarm_failed", 
                             childSwarmId: swarmId,
                             error,
-                            failedAt: new Date().toISOString()
-                        }
+                            failedAt: new Date().toISOString(),
+                        },
                     });
                 }
                 

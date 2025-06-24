@@ -5,8 +5,8 @@
  * Projects are Resources with resourceType="Project" in the Vrooli system.
  */
 
-import { useForm, type UseFormReturn, type FieldErrors } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
+import { useFormik, type FormikProps, type FormikErrors } from "formik";
+
 import * as yup from "yup";
 import { act, waitFor } from "@testing-library/react";
 import type { 

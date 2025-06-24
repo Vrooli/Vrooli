@@ -1,6 +1,7 @@
-import { Alert, Box, Chip, Divider, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Skeleton, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Divider, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Skeleton, Typography } from "@mui/material";
+import { IconButton } from "../buttons/IconButton.js";
 import { styled, useTheme } from "@mui/material/styles";
-import { ChatConfigObject, ExecutionStates, PendingToolCallStatus, getObjectUrl } from "@vrooli/shared";
+import { type ChatConfigObject, ExecutionStates, PendingToolCallStatus, getObjectUrl } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
@@ -119,6 +120,10 @@ export interface SwarmDetailPanelProps {
     onApproveToolCall?: (pendingId: string) => void;
     onRejectToolCall?: (pendingId: string, reason?: string) => void;
     onConfigUpdate?: (config: Partial<ChatConfigObject>) => void;
+    onStart?: () => void;
+    onPause?: () => void;
+    onResume?: () => void;
+    onStop?: () => void;
     isLoading?: boolean;
 }
 
@@ -133,6 +138,10 @@ export function SwarmDetailPanel({
     onApproveToolCall,
     onRejectToolCall,
     onConfigUpdate,
+    onStart,
+    onPause,
+    onResume,
+    onStop,
     isLoading = false,
 }: SwarmDetailPanelProps) {
     const { t } = useTranslation();
@@ -175,13 +184,13 @@ export function SwarmDetailPanel({
     
     // Debug logging
     useEffect(() => {
-        console.log('SwarmDetailPanel - swarmConfig:', swarmConfig);
-        console.log('SwarmDetailPanel - teamId from config:', swarmConfig?.teamId);
-        console.log('SwarmDetailPanel - team loaded:', team);
-        console.log('SwarmDetailPanel - loading states:', { 
+        console.log("SwarmDetailPanel - swarmConfig:", swarmConfig);
+        console.log("SwarmDetailPanel - teamId from config:", swarmConfig?.teamId);
+        console.log("SwarmDetailPanel - team loaded:", team);
+        console.log("SwarmDetailPanel - loading states:", { 
             isLoading: loading.team, 
             team: loading.team,
-            errors: errors.team 
+            errors: errors.team, 
         });
     }, [team, swarmConfig, loading, errors]);
 
@@ -239,7 +248,7 @@ export function SwarmDetailPanel({
     const handleClose = useCallback(() => {
         PubSub.get().publish("menu", {
             id: ELEMENT_IDS.RightDrawer,
-            isOpen: false
+            isOpen: false,
         });
     }, []);
 
@@ -251,7 +260,7 @@ export function SwarmDetailPanel({
         const completedTasks = swarmConfig.subtasks?.filter(t => t.status === "done").length || 0;
         const failedTasks = swarmConfig.subtasks?.filter(t => t.status === "failed").length || 0;
         const pendingApprovals = swarmConfig.pendingToolCalls?.filter(
-            tc => tc.status === PendingToolCallStatus.PENDING_APPROVAL
+            tc => tc.status === PendingToolCallStatus.PENDING_APPROVAL,
         ).length || 0;
 
         const elapsedTime = swarmConfig.stats.startedAt
@@ -281,6 +290,28 @@ export function SwarmDetailPanel({
             return t("SwarmElapsedMinutes", { minutes, seconds: seconds % 60 });
         } else {
             return t("SwarmElapsedSeconds", { seconds });
+        }
+    }, [t]);
+
+    // Get status chip color and label
+    const getStatusDisplay = useCallback((status: string) => {
+        switch (status) {
+            case ExecutionStates.RUNNING:
+                return { label: t("Running"), color: "success" as const };
+            case ExecutionStates.PAUSED:
+                return { label: t("Paused"), color: "warning" as const };
+            case ExecutionStates.IDLE:
+                return { label: t("Idle"), color: "info" as const };
+            case ExecutionStates.STOPPED:
+                return { label: t("Stopped"), color: "default" as const };
+            case ExecutionStates.FAILED:
+                return { label: t("Failed"), color: "error" as const };
+            case ExecutionStates.STARTING:
+                return { label: t("Starting"), color: "info" as const };
+            case ExecutionStates.TERMINATED:
+                return { label: t("Terminated"), color: "error" as const };
+            default:
+                return { label: t("Inactive"), color: "default" as const };
         }
     }, [t]);
 
@@ -325,7 +356,7 @@ export function SwarmDetailPanel({
             <PanelContainer>
                 <PanelHeader>
                     <Typography variant="h6">{t("SwarmDetails")}</Typography>
-                    <IconButton onClick={handleClose}>
+                    <IconButton variant="transparent" size="md" onClick={handleClose}>
                         <IconCommon name="Close" />
                     </IconButton>
                 </PanelHeader>
@@ -348,7 +379,7 @@ export function SwarmDetailPanel({
                         <Skeleton variant="text" width={140} height={28} />
                         <Skeleton variant="text" width={200} height={20} sx={{ mt: 0.5 }} />
                     </Box>
-                    <IconButton onClick={handleClose}>
+                    <IconButton variant="transparent" size="md" onClick={handleClose}>
                         <IconCommon name="Close" />
                     </IconButton>
                 </PanelHeader>
@@ -406,15 +437,91 @@ export function SwarmDetailPanel({
     return (
         <PanelContainer>
             <PanelHeader>
-                <Box>
-                    <Typography variant="h6">{t("SwarmDetails")}</Typography>
+                <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                        <Typography variant="h6">{t("SwarmDetails")}</Typography>
+                        <Chip 
+                            label={getStatusDisplay(localSwarmStatus).label}
+                            color={getStatusDisplay(localSwarmStatus).color}
+                            size="small"
+                            variant="filled"
+                        />
+                    </Box>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                         {swarmConfig.goal || t("NoGoalSet")}
                     </Typography>
                 </Box>
-                <IconButton onClick={handleClose}>
-                    <IconCommon name="Close" />
-                </IconButton>
+                
+                {/* Control buttons */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {/* Start button - show when stopped/inactive */}
+                    {[ExecutionStates.STOPPED, ExecutionStates.UNINITIALIZED, ExecutionStates.TERMINATED].includes(localSwarmStatus) && onStart && (
+                        <IconButton
+                            variant="transparent"
+                            size="sm"
+                            onClick={() => {
+                                setLocalSwarmStatus(ExecutionStates.STARTING);
+                                onStart();
+                            }}
+                            title={t("StartSwarm")}
+                            color="success"
+                        >
+                            <IconCommon name="Play" />
+                        </IconButton>
+                    )}
+                    
+                    {/* Pause button - show when running/idle */}
+                    {[ExecutionStates.RUNNING, ExecutionStates.IDLE].includes(localSwarmStatus) && onPause && (
+                        <IconButton
+                            variant="transparent"
+                            size="sm"
+                            onClick={() => {
+                                setLocalSwarmStatus(ExecutionStates.PAUSED);
+                                onPause();
+                            }}
+                            title={t("PauseSwarm")}
+                            color="warning"
+                        >
+                            <IconCommon name="Pause" />
+                        </IconButton>
+                    )}
+                    
+                    {/* Resume button - show when paused */}
+                    {localSwarmStatus === ExecutionStates.PAUSED && onResume && (
+                        <IconButton
+                            variant="transparent"
+                            size="sm"
+                            onClick={() => {
+                                setLocalSwarmStatus(ExecutionStates.RUNNING);
+                                onResume();
+                            }}
+                            title={t("ResumeSwarm")}
+                            color="success"
+                        >
+                            <IconCommon name="Play" />
+                        </IconButton>
+                    )}
+                    
+                    {/* Stop button - show when running/paused/idle */}
+                    {[ExecutionStates.RUNNING, ExecutionStates.PAUSED, ExecutionStates.IDLE].includes(localSwarmStatus) && onStop && (
+                        <IconButton
+                            variant="transparent"
+                            size="sm"
+                            onClick={() => {
+                                setLocalSwarmStatus(ExecutionStates.STOPPED);
+                                onStop();
+                            }}
+                            title={t("StopSwarm")}
+                            color="error"
+                        >
+                            <IconCommon name="Stop" />
+                        </IconButton>
+                    )}
+                    
+                    <IconButton variant="transparent" size="md" onClick={handleClose}>
+                        <IconCommon name="Close" />
+                    </IconButton>
+                </Box>
             </PanelHeader>
 
             {/* Statistics Overview */}
@@ -475,7 +582,20 @@ export function SwarmDetailPanel({
                 </Box>
 
                 {stats && stats.pendingApprovals > 0 && (
-                    <Alert severity="warning" sx={{ mt: 2 }}>
+                    <Alert 
+                        severity="warning" 
+                        sx={{ 
+                            mt: 2,
+                            cursor: "pointer",
+                            "&:hover": {
+                                bgcolor: "warning.light",
+                                "& .MuiAlert-message": {
+                                    textDecoration: "underline",
+                                },
+                            },
+                        }}
+                        onClick={() => setCurrTab(tabOptions[3])} // Navigate to Approvals tab (index 3)
+                    >
                         {t("PendingApprovals", { count: stats.pendingApprovals })}
                     </Alert>
                 )}
@@ -539,11 +659,11 @@ export function SwarmDetailPanel({
 
             {/* Agents Tab */}
             <CustomTabPanel value={currTab.index} index={1} sx={{ p: 0 }}>
-                {console.log('SwarmDetailPanel - Agents tab render:', { 
+                {console.log("SwarmDetailPanel - Agents tab render:", { 
                     currTabIndex: currTab.index, 
                     teamId: swarmConfig?.teamId,
                     team,
-                    teamConfig: team?.config 
+                    teamConfig: team?.config, 
                 })}
                 <List>
                     {swarmConfig.swarmLeader && (() => {
@@ -567,10 +687,10 @@ export function SwarmDetailPanel({
                                             loading.bots ? (
                                                 <Skeleton variant="text" width={120} />
                                             ) : display ? (
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                                                     {display.title}
                                                     {display.adornments.map(adornment => 
-                                                        <Box key={adornment.key}>{adornment.Adornment}</Box>
+                                                        <Box key={adornment.key}>{adornment.Adornment}</Box>,
                                                     )}
                                                     {display.subtitle && (
                                                         <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
@@ -607,10 +727,10 @@ export function SwarmDetailPanel({
                                             loading.team ? (
                                                 <Skeleton variant="text" width={100} />
                                             ) : display ? (
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                                                     {display.title}
                                                     {display.adornments.map(adornment => 
-                                                        <Box key={adornment.key}>{adornment.Adornment}</Box>
+                                                        <Box key={adornment.key}>{adornment.Adornment}</Box>,
                                                     )}
                                                     {display.subtitle && (
                                                         <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
@@ -652,10 +772,10 @@ export function SwarmDetailPanel({
                                             loading.bots ? (
                                                 <Skeleton variant="text" width={100} />
                                             ) : display ? (
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                                                     {display.title}
                                                     {display.adornments.map(adornment => 
-                                                        <Box key={adornment.key}>{adornment.Adornment}</Box>
+                                                        <Box key={adornment.key}>{adornment.Adornment}</Box>,
                                                     )}
                                                     {display.subtitle && (
                                                         <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
@@ -674,12 +794,12 @@ export function SwarmDetailPanel({
                     })}
                     
                     {/* MOISE+ Organization Structure */}
-                    {console.log('SwarmDetailPanel - MOISE+ check:', { 
+                    {console.log("SwarmDetailPanel - MOISE+ check:", { 
                         hasTeam: !!team,
                         hasConfig: !!team?.config,
                         teamConfig: team?.config,
                         configType: typeof team?.config,
-                        teamLoading: loading.team
+                        teamLoading: loading.team,
                     })}
                     {loading.team && swarmConfig.teamId ? (
                         <>
@@ -688,19 +808,19 @@ export function SwarmDetailPanel({
                                 <Skeleton variant="text" width={150} />
                             </Typography>
                             <ListItem>
-                                <Box sx={{ width: '100%', p: 2 }}>
+                                <Box sx={{ width: "100%", p: 2 }}>
                                     <Skeleton variant="rectangular" width="100%" height={120} />
                                 </Box>
                             </ListItem>
                         </>
                     ) : team?.config && (() => {
                         try {
-                            const teamConfig = typeof team.config === 'string' ? JSON.parse(team.config) : team.config;
-                            console.log('SwarmDetailPanel - parsed teamConfig:', teamConfig);
-                            console.log('SwarmDetailPanel - has structure?:', !!teamConfig.structure);
-                            console.log('SwarmDetailPanel - has content?:', !!teamConfig.structure?.content);
+                            const teamConfig = typeof team.config === "string" ? JSON.parse(team.config) : team.config;
+                            console.log("SwarmDetailPanel - parsed teamConfig:", teamConfig);
+                            console.log("SwarmDetailPanel - has structure?:", !!teamConfig.structure);
+                            console.log("SwarmDetailPanel - has content?:", !!teamConfig.structure?.content);
                             if (teamConfig.structure && teamConfig.structure.content) {
-                                console.log('SwarmDetailPanel - rendering MOISE+ structure');
+                                console.log("SwarmDetailPanel - rendering MOISE+ structure");
                                 return (
                                     <>
                                         <Divider sx={{ my: 1 }} />
@@ -709,16 +829,16 @@ export function SwarmDetailPanel({
                                         </Typography>
                                         <ListItem>
                                             <Box sx={{ 
-                                                width: '100%',
+                                                width: "100%",
                                                 p: 2,
-                                                bgcolor: 'background.default',
+                                                bgcolor: "background.default",
                                                 borderRadius: 1,
-                                                fontFamily: 'monospace',
-                                                fontSize: '0.875rem',
-                                                overflow: 'auto',
+                                                fontFamily: "monospace",
+                                                fontSize: "0.875rem",
+                                                overflow: "auto",
                                                 maxHeight: 200,
-                                                whiteSpace: 'pre-wrap',
-                                                wordBreak: 'break-word'
+                                                whiteSpace: "pre-wrap",
+                                                wordBreak: "break-word",
                                             }}>
                                                 <pre style={{ margin: 0 }}>
                                                     {teamConfig.structure.content}
@@ -752,7 +872,7 @@ export function SwarmDetailPanel({
                                 {resource.meta && (
                                     <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
                                         {Object.entries(resource.meta).map(([key, value]) =>
-                                            `${key}: ${value}`
+                                            `${key}: ${value}`,
                                         ).join(" • ")}
                                     </Typography>
                                 )}
@@ -773,6 +893,25 @@ export function SwarmDetailPanel({
             <CustomTabPanel value={currTab.index} index={3}>
                 {swarmConfig.pendingToolCalls
                     ?.filter(tc => tc.status === PendingToolCallStatus.PENDING_APPROVAL)
+                    .sort((a, b) => {
+                        // Sort by urgency - most urgent first
+                        // 1. No timeout (manual approval required) goes last
+                        if (!a.approvalTimeoutAt && !b.approvalTimeoutAt) return 0;
+                        if (!a.approvalTimeoutAt) return 1;
+                        if (!b.approvalTimeoutAt) return -1;
+                        
+                        // 2. Sort by time remaining (least time = most urgent)
+                        const timeRemainingA = a.approvalTimeoutAt - Date.now();
+                        const timeRemainingB = b.approvalTimeoutAt - Date.now();
+                        
+                        // If either is already expired, put it first
+                        if (timeRemainingA <= 0 && timeRemainingB <= 0) return 0;
+                        if (timeRemainingA <= 0) return -1;
+                        if (timeRemainingB <= 0) return 1;
+                        
+                        // Otherwise sort by time remaining (ascending)
+                        return timeRemainingA - timeRemainingB;
+                    })
                     .map((toolCall) => {
                         const timeRemaining = toolCall.approvalTimeoutAt
                             ? toolCall.approvalTimeoutAt - Date.now()
@@ -819,20 +958,24 @@ export function SwarmDetailPanel({
                                 </Box>
 
                                 <Box display="flex" gap={1} justifyContent="flex-end">
-                                    <IconButton
+                                    <Button
+                                        variant="outlined"
                                         color="error"
                                         onClick={() => onRejectToolCall?.(toolCall.pendingId)}
-                                        title={t("Reject")}
+                                        startIcon={<IconCommon name="Close" />}
+                                        size="small"
                                     >
-                                        <IconCommon name="Close" />
-                                    </IconButton>
-                                    <IconButton
+                                        {t("Deny")}
+                                    </Button>
+                                    <Button
+                                        variant="contained"
                                         color="success"
                                         onClick={() => onApproveToolCall?.(toolCall.pendingId)}
-                                        title={t("Approve")}
+                                        startIcon={<IconCommon name="Complete" />}
+                                        size="small"
                                     >
-                                        <IconCommon name="Check" />
-                                    </IconButton>
+                                        {t("Approve")}
+                                    </Button>
                                 </Box>
                             </ApprovalCard>
                         );

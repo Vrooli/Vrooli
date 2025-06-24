@@ -55,7 +55,7 @@ const ButtonIcon = ({ children }: { children: ReactNode }) => (
 const RippleEffect = ({
     ripples,
     onRippleComplete,
-    color
+    color,
 }: {
     ripples: Ripple[];
     onRippleComplete: (id: number) => void;
@@ -79,7 +79,7 @@ const RippleEffect = ({
  */
 const SpaceBackground = ({
     ripples,
-    onRippleComplete
+    onRippleComplete,
 }: {
     ripples: Ripple[];
     onRippleComplete: (id: number) => void;
@@ -109,7 +109,7 @@ const SpaceBackground = ({
  */
 const NeonBackground = ({
     ripples,
-    onRippleComplete
+    onRippleComplete,
 }: {
     ripples: Ripple[];
     onRippleComplete: (id: number) => void;
@@ -166,7 +166,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             onClick,
             ...props
         },
-        ref
+        ref,
     ) => {
         // Determine if button should be disabled (either explicitly or when loading)
         const isDisabled = disabled || isLoading;
@@ -184,7 +184,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 disabled: isDisabled,
                 className,
             }),
-            [variant, size, borderRadius, fullWidth, isDisabled, className]
+            [variant, size, borderRadius, fullWidth, isDisabled, className],
         );
 
         // Memoize start element (loading spinner or start icon) for performance
@@ -267,7 +267,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 {/* Button content with proper spacing and z-index for space and neon variants */}
                 <span className={cn(
                     "tw-inline-flex tw-items-center tw-justify-center tw-gap-2",
-                    (variant === "space" || variant === "neon") && "tw-relative tw-z-10"
+                    (variant === "space" || variant === "neon") && "tw-relative tw-z-10",
                 )}>
                     {startElement && <ButtonIcon>{startElement}</ButtonIcon>}
                     {children}
@@ -282,7 +282,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 )}
             </button>
         );
-    }
+    },
 );
 
 Button.displayName = "Button";

@@ -11,6 +11,6 @@ export { type IRunStateStore } from "./state/runStateStore.js";
 // Path optimization now provided by emergent agents analyzing execution patterns
 
 export type {
-    BranchState, CheckpointData, MOISENorm, MOISERole, NavigationResult, OptimizationSuggestion, PerformanceMetrics, RunInitParams, RunPhase, RunState
+    BranchState, CheckpointData, MOISENorm, MOISERole, NavigationResult, OptimizationSuggestion, PerformanceMetrics, RunInitParams, RunPhase, RunState,
 } from "@vrooli/shared";
 

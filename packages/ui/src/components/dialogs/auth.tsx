@@ -1,15 +1,12 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import DialogContent from "@mui/material/DialogContent";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
 import { getInstalledWalletProviders, walletDownloadUrls } from "../../utils/authentication/walletIntegration.js";
-import { ELEMENT_IDS } from "../../utils/consts.js";
-import { DialogTitle } from "./DialogTitle/DialogTitle.js";
-import { LargeDialog } from "./LargeDialog/LargeDialog.js";
+import { Dialog, DialogContent } from "./Dialog/Dialog.js";
 import { type WalletInstallDialogProps, type WalletSelectDialogProps } from "./types.js";
 
 function installExtension(url: string) {
@@ -23,17 +20,12 @@ export function WalletInstallDialog({
     const { t } = useTranslation();
 
     return (
-        <LargeDialog
-            id="wallet-install-dialog"
-            onClose={onClose}
+        <Dialog
             isOpen={open}
-            titleId={ELEMENT_IDS.WalletInstallDialogTitle}
+            onClose={onClose}
+            title={t("InstallWalletExtension")}
+            size="md"
         >
-            <DialogTitle
-                id={ELEMENT_IDS.WalletInstallDialogTitle}
-                title={t("InstallWalletExtension")}
-                onClose={onClose}
-            />
             <DialogContent>
                 {Object.entries(walletDownloadUrls).map(([walletProvider, [name, url]]) => {
                     function handleClick() {
@@ -47,7 +39,7 @@ export function WalletInstallDialog({
                     );
                 })}
             </DialogContent>
-        </LargeDialog>
+        </Dialog>
     );
 }
 
@@ -75,18 +67,12 @@ export function WalletSelectDialog({
     }
 
     return (
-        <LargeDialog
-            id="wallet-select-dialog"
-            onClose={handleClose}
+        <Dialog
             isOpen={open}
-            titleId={ELEMENT_IDS.WalletSelectDialogTitle}
+            onClose={handleClose}
+            title={t("InstalledWallets")}
+            size="md"
         >
-            <DialogTitle
-                id={ELEMENT_IDS.WalletSelectDialogTitle}
-                help={helpText}
-                title={t("InstalledWallets")}
-                onClose={handleClose}
-            />
             <DialogContent>
                 <Stack direction="column" spacing={2} paddingTop={2}>
                     {walletsInfo.map(([walletProvider, { name, icon }]) => {
@@ -121,6 +107,6 @@ export function WalletSelectDialog({
                     </Button>
                 </Stack>
             </DialogContent>
-        </LargeDialog>
+        </Dialog>
     );
 }

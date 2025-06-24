@@ -93,10 +93,10 @@ export class TierThreeExecutor extends BaseComponent implements TierCommunicatio
             if (context.config?.exportContext) {
                 const runContext = new ExecutionRunContext({
                     runId: context.runId,
-                    routineId: context.routineId || '',
-                    routineName: context.routineName || '',
+                    routineId: context.routineId || "",
+                    routineName: context.routineName || "",
                     currentStepId: context.stepId,
-                    userData: context.userData || { id: '' },
+                    userData: context.userData || { id: "" },
                 });
                 
                 const exportedContext = await this.contextExporter.exportContext(
@@ -187,7 +187,7 @@ export class TierThreeExecutor extends BaseComponent implements TierCommunicatio
      * Execute a step execution request
      */
     async execute<TInput extends StepExecutionInput, TOutput>(
-        request: TierExecutionRequest<TInput>
+        request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
         const { context, input, allocation, options } = request;
         const executionId = context.executionId;
@@ -271,13 +271,13 @@ export class TierThreeExecutor extends BaseComponent implements TierCommunicatio
             const errorResult: ExecutionResult<TOutput> = {
                 success: false,
                 error: {
-                    code: 'TIER3_EXECUTION_FAILED',
-                    message: error instanceof Error ? error.message : 'Unknown error',
-                    tier: 'tier3',
-                    type: error instanceof Error ? error.constructor.name : 'Error',
+                    code: "TIER3_EXECUTION_FAILED",
+                    message: error instanceof Error ? error.message : "Unknown error",
+                    tier: "tier3",
+                    type: error instanceof Error ? error.constructor.name : "Error",
                 },
                 resourcesUsed: {
-                    creditsUsed: '0',
+                    creditsUsed: "0",
                     durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
                     memoryUsedMB: 0,
                     stepsExecuted: 0,
@@ -285,8 +285,8 @@ export class TierThreeExecutor extends BaseComponent implements TierCommunicatio
                 duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
                 context,
                 metadata: {
-                    strategy: 'step_execution',
-                    version: '1.0.0',
+                    strategy: "step_execution",
+                    version: "1.0.0",
                     timestamp: new Date().toISOString(),
                 },
                 confidence: 0.0,
@@ -325,9 +325,9 @@ export class TierThreeExecutor extends BaseComponent implements TierCommunicatio
      */
     async getCapabilities(): Promise<TierCapabilities> {
         return {
-            tier: 'tier3',
-            supportedInputTypes: ['StepExecutionInput'],
-            supportedStrategies: ['conversational', 'reasoning', 'deterministic'],
+            tier: "tier3",
+            supportedInputTypes: ["StepExecutionInput"],
+            supportedStrategies: ["conversational", "reasoning", "deterministic"],
             maxConcurrency: 20,
             estimatedLatency: {
                 p50: 5000,
@@ -335,7 +335,7 @@ export class TierThreeExecutor extends BaseComponent implements TierCommunicatio
                 p99: 120000,
             },
             resourceLimits: {
-                maxCredits: '10000',
+                maxCredits: "10000",
                 maxDurationMs: 1800000, // 30 minutes
                 maxMemoryMB: 2048,
             },

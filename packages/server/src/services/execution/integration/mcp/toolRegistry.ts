@@ -398,7 +398,7 @@ export class IntegratedToolRegistry {
         
         this.pendingApprovals.set(approvalId, approval);
         
-        this.logger.info(`[IntegratedToolRegistry] Registered pending approval`, {
+        this.logger.info("[IntegratedToolRegistry] Registered pending approval", {
             approvalId,
             toolName,
             stepId: context.stepId,
@@ -425,7 +425,7 @@ export class IntegratedToolRegistry {
         approval.approvedAt = new Date();
         approval.reason = approved ? "User approved" : "User rejected";
         
-        this.logger.info(`[IntegratedToolRegistry] Processed approval`, {
+        this.logger.info("[IntegratedToolRegistry] Processed approval", {
             approvalId,
             approved,
             toolName: approval.toolName,

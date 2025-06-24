@@ -1,14 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TierTwoRunStateMachine } from "./runStateMachine.js";
 import { type Logger } from "winston";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { EventBus } from "../../cross-cutting/events/eventBus.js";
 import { type IRunStateStore } from "../state/runStateStore.js";
 import { type TierCommunicationInterface, type TierExecutionRequest, type ExecutionResult } from "@vrooli/shared";
-import { createMockLogger } from "../../../../../__test/globalHelpers.js";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
-import { RedisClientType } from "redis";
-import { createRedisClient } from "../../../../redisConn.js";
-import { EventBusImplementation } from "../../cross-cutting/events/eventBus.js";
 import { InMemoryRunStateStore } from "../state/inMemoryRunStateStore.js";
 import { BaseStates } from "../../shared/BaseStateMachine.js";
 import { generatePK, RunState, RunEventType } from "@vrooli/shared";
@@ -35,20 +30,15 @@ describe("TierTwoRunStateMachine - Adaptive Process Intelligence", () => {
     let stateStore: IRunStateStore;
     let tier3Executor: TierCommunicationInterface;
     let runStateMachine: TierTwoRunStateMachine;
-    let redisContainer: StartedTestContainer;
-    let redisClient: RedisClientType;
 
-    beforeEach(async () => {
-        // Use real Redis for event bus - no mocking infrastructure
-        redisContainer = await new GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .start();
-
-        const redisUrl = `redis://localhost:${redisContainer.getMappedPort(6379)}`;
-        redisClient = await createRedisClient({ url: redisUrl });
-
-        logger = createMockLogger();
-        eventBus = new EventBusImplementation(logger, redisClient as any);
+    beforeEach(() => {
+        logger = {
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+        } as unknown as Logger;
+        eventBus = new EventBus(logger);
         stateStore = new InMemoryRunStateStore();
         
         // Mock Tier 3 executor - represents execution intelligence
@@ -65,13 +55,12 @@ describe("TierTwoRunStateMachine - Adaptive Process Intelligence", () => {
             logger,
             eventBus,
             stateStore,
-            tier3Executor
+            tier3Executor,
         );
     });
 
-    afterEach(async () => {
-        await redisClient?.quit();
-        await redisContainer?.stop();
+    afterEach(() => {
+        vi.clearAllMocks();
     });
 
     describe("Minimal Orchestration Infrastructure", () => {
@@ -105,7 +94,7 @@ describe("TierTwoRunStateMachine - Adaptive Process Intelligence", () => {
                     payload: expect.objectContaining({
                         runId: expect.any(String),
                     }),
-                })
+                }),
             );
         });
 
@@ -174,7 +163,7 @@ describe("TierTwoRunStateMachine - Adaptive Process Intelligence", () => {
                         payload: expect.objectContaining({
                             routineId,
                         }),
-                    })
+                    }),
                 );
             }
         });
@@ -250,7 +239,7 @@ describe("TierTwoRunStateMachine - Adaptive Process Intelligence", () => {
                         runId: expect.any(String),
                         routineId: request.payload.routineId,
                     }),
-                })
+                }),
             );
 
             expect(capturedEvents).toContainEqual(
@@ -259,7 +248,7 @@ describe("TierTwoRunStateMachine - Adaptive Process Intelligence", () => {
                     data: expect.objectContaining({
                         runId: expect.any(String),
                     }),
-                })
+                }),
             );
         });
 
@@ -386,7 +375,7 @@ describe("TierTwoRunStateMachine - Adaptive Process Intelligence", () => {
                         creditsUsed: 50,
                         executionTime: 2500,
                     }),
-                })
+                }),
             );
         });
     });
@@ -446,7 +435,7 @@ describe("TierTwoRunStateMachine - Adaptive Process Intelligence", () => {
 
             // Simulate Tier 3 failure
             vi.mocked(tier3Executor.execute).mockRejectedValue(
-                new Error("Tier 3 temporarily unavailable")
+                new Error("Tier 3 temporarily unavailable"),
             );
 
             const result = await runStateMachine.execute(request);
@@ -483,7 +472,7 @@ describe("TierTwoRunStateMachine - Adaptive Process Intelligence", () => {
                 
                 // Simulate varying execution times
                 await new Promise(resolve => 
-                    setTimeout(resolve, Math.random() * 100)
+                    setTimeout(resolve, Math.random() * 100),
                 );
                 
                 return {

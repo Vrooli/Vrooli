@@ -109,7 +109,7 @@ export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmSta
             oldState === ExecutionStates.UNINITIALIZED ? null : oldState,
             state,
             (s) => this.getStateIndexKey(s),
-            Object.values(ExecutionStates)
+            Object.values(ExecutionStates),
         );
     }
 
@@ -717,7 +717,7 @@ export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmSta
                 null, // No old state for new swarms
                 swarm.state,
                 (s) => this.getStateIndexKey(s),
-                Object.values(ExecutionStates)
+                Object.values(ExecutionStates),
             );
         }
         

@@ -205,7 +205,7 @@ export class ResourceManager extends BaseTierResourceManager<SwarmResourceAdapte
         // Get allocations and convert to legacy format
         const allocations = this.unifiedManager.getAllocations(swarmId).map(a => ({
             id: a.id,
-            swarmId: swarmId,
+            swarmId,
             agentId: a.entityId,
             resourceType: this.getResourceTypeFromAllocation(a),
             amount: this.getAmountFromAllocation(a),

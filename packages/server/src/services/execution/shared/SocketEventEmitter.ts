@@ -2,7 +2,7 @@ import { logger } from "../../../events/logger.js";
 import { SwarmSocketEmitter } from "../../swarmSocketEmitter.js";
 import { SwarmStateMapper } from "../../swarmStateMapper.js";
 import { type ISwarmStateStore } from "../tier1/state/swarmStateStore.js";
-import { type Swarm, type SwarmConfiguration, ExecutionState } from "@vrooli/shared";
+import { type Swarm, type SwarmConfiguration, type ExecutionState } from "@vrooli/shared";
 
 /**
  * Helper class for emitting socket events from execution tiers.

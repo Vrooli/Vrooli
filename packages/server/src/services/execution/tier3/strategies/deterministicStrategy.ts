@@ -97,7 +97,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
      */
     protected async executeStrategy(
         context: StrategyExecutionContext,
-        metadata: MinimalExecutionMetadata
+        metadata: MinimalExecutionMetadata,
     ): Promise<StrategyExecutionResult> {
         const stepId = context.stepId;
 
@@ -133,7 +133,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
                 resourcesUsed: this.calculateResourceUsage(
                     metadata.startTime,
                     new Date(),
-                    executionResult.resourcesUsed
+                    executionResult.resourcesUsed,
                 ),
             };
 
@@ -409,7 +409,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         await this.cache.set(cacheKey, {
             value: result,
             createdAt: new Date(),
-            expiresAt: new Date(Date.now() + (typeof ttl === 'number' ? ttl : 3600000)),
+            expiresAt: new Date(Date.now() + (typeof ttl === "number" ? ttl : 3600000)),
             contextHash: this.hashContext(context),
             executionTime: 0, // Will be set by metrics
         });
@@ -417,7 +417,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
 
     private createCachedResult(
         cachedValue: unknown,
-        metadata: MinimalExecutionMetadata
+        metadata: MinimalExecutionMetadata,
     ): StrategyExecutionResult {
         return {
             success: true,
@@ -682,7 +682,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         const { input, transformRules, outputFormat } = params;
         
         // Apply transformation rules
-        const transformed = input && typeof input === 'object' ? { ...input } : input;
+        const transformed = input && typeof input === "object" ? { ...input } : input;
         
         // TODO: Implement actual transformation logic
         

@@ -1,5 +1,4 @@
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
 import { styled, useTheme } from "@mui/material/styles";
 import type { BoxProps } from "@mui/material/Box";
@@ -12,7 +11,7 @@ import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { type SxType } from "../../types.js";
 import { BottomActionsGrid } from "./BottomActionsGrid.js";
-import { LoadableButton } from "./LoadableButton.js";
+import { Button } from "./Button.js";
 import { type BottomActionsButtonsProps } from "./types.js";
 
 interface SideActionsBoxProps extends BoxProps {
@@ -97,7 +96,7 @@ export function BottomActionsButtons({
             {/* Create/Save button. On hover or press, displays formik errors if disabled */}
             {!hideButtons ? <Grid item xs={6}>
                 <Box onClick={handleSubmit}>
-                    <LoadableButton
+                    <Button
                         aria-label={t(isCreate ? "Create" : "Save")}
                         disabled={isSubmitDisabled}
                         isLoading={loading}
@@ -105,9 +104,10 @@ export function BottomActionsButtons({
                             decorative
                             name={isCreate ? "Create" : "Save"}
                         />}
-                        sx={buttonStyle}
-                        variant="contained"
-                    >{hideTextOnMobile && isMobile ? "" : t(isCreate ? "Create" : "Save")}</LoadableButton>
+                        style={buttonStyle}
+                        variant="primary"
+                        fullWidth
+                    >{hideTextOnMobile && isMobile ? "" : t(isCreate ? "Create" : "Save")}</Button>
                 </Box>
             </Grid> : null}
             {/* Cancel button */}
@@ -121,8 +121,8 @@ export function BottomActionsButtons({
                         decorative
                         name="Cancel"
                     />}
-                    variant="outlined"
-                    sx={buttonStyle}
+                    variant="outline"
+                    style={buttonStyle}
                 >{hideTextOnMobile && isMobile ? "" : t("Cancel")}</Button>
             </Grid> : null}
         </BottomActionsGrid>

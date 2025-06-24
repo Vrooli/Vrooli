@@ -2,11 +2,10 @@
  * Bookmark Form Data Fixtures
  * 
  * This file provides comprehensive form data fixtures for bookmark forms,
- * including React Hook Form integration and user interaction simulation.
+ * including Formik integration and user interaction simulation.
  */
 
-import { useForm, type UseFormReturn, type FieldErrors } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
+import { useFormik, type FormikProps, type FormikErrors } from "formik";
 import * as yup from "yup";
 import { act, waitFor } from "@testing-library/react";
 import type { 
@@ -269,12 +268,12 @@ export class BookmarkFormDataFactory {
     }
     
     /**
-     * Create React Hook Form instance with pre-configured data
+     * Create Formik instance with pre-configured data
      */
     createFormInstance(
         initialData?: Partial<BookmarkFormData>,
         config?: Partial<FormValidationConfig>,
-    ): UseFormReturn<BookmarkFormData> {
+    ): FormikProps<BookmarkFormData> {
         const defaultValues: BookmarkFormData = {
             bookmarkFor: BookmarkForEnum.Resource,
             forConnect: "",
@@ -288,12 +287,15 @@ export class BookmarkFormDataFactory {
             ...config,
         };
         
-        return useForm<BookmarkFormData>({
-            mode: validationConfig.mode,
-            reValidateMode: validationConfig.reValidateMode,
-            shouldFocusError: validationConfig.shouldFocusError,
-            defaultValues,
-            resolver: yupResolver(this.createValidationSchema()),
+        return useFormik<BookmarkFormData>({
+            initialValues: defaultValues,
+            validationSchema: this.createValidationSchema(),
+            validateOnChange: validationConfig.mode === "onChange",
+            validateOnBlur: validationConfig.mode === "onBlur",
+            onSubmit: (values) => {
+                // This is a mock - real submit would be passed in
+                console.log("Form submitted with values:", values);
+            },
         });
     }
     
@@ -375,7 +377,7 @@ export class BookmarkFormInteractionSimulator {
      * Simulate filling a form field
      */
     async fillField(
-        formInstance: UseFormReturn<BookmarkFormData>,
+        formInstance: FormikProps<BookmarkFormData>,
         fieldName: keyof BookmarkFormData,
         value: any,
         options?: { shouldValidate?: boolean; shouldTouch?: boolean },
@@ -383,17 +385,16 @@ export class BookmarkFormInteractionSimulator {
         const { shouldValidate = true, shouldTouch = true } = options || {};
         
         act(() => {
-            formInstance.setValue(fieldName, value, {
-                shouldDirty: true,
-                shouldTouch,
-                shouldValidate,
-            });
+            formInstance.setFieldValue(fieldName, value, shouldValidate);
+            if (shouldTouch) {
+                formInstance.setFieldTouched(fieldName, true, shouldValidate);
+            }
         });
         
         // Wait for validation to complete
         if (shouldValidate) {
             await waitFor(() => {
-                expect(formInstance.formState.isValidating).toBe(false);
+                expect(formInstance.isValidating).toBe(false);
             });
         }
     }
@@ -402,7 +403,7 @@ export class BookmarkFormInteractionSimulator {
      * Simulate typing in a text field with realistic delays
      */
     async simulateTyping(
-        formInstance: UseFormReturn<BookmarkFormData>,
+        formInstance: FormikProps<BookmarkFormData>,
         fieldName: keyof BookmarkFormData,
         text: string,
         options?: { charDelay?: number; shouldValidateOnChange?: boolean },
@@ -429,20 +430,20 @@ export class BookmarkFormInteractionSimulator {
      * Simulate field focus and blur events
      */
     async simulateFieldFocus(
-        formInstance: UseFormReturn<BookmarkFormData>,
+        formInstance: FormikProps<BookmarkFormData>,
         fieldName: keyof BookmarkFormData,
         duration = 1000,
     ): Promise<void> {
-        // Simulate focus
+        // Simulate focus by marking field as touched
         act(() => {
-            formInstance.setFocus(fieldName);
+            formInstance.setFieldTouched(fieldName, true, false);
         });
         
         await new Promise(resolve => setTimeout(resolve, duration));
         
         // Simulate blur by triggering validation
         act(() => {
-            formInstance.trigger(fieldName);
+            formInstance.validateField(fieldName);
         });
     }
     
@@ -450,31 +451,33 @@ export class BookmarkFormInteractionSimulator {
      * Simulate form submission
      */
     async simulateFormSubmission(
-        formInstance: UseFormReturn<BookmarkFormData>,
+        formInstance: FormikProps<BookmarkFormData>,
         onSubmit?: (data: BookmarkFormData) => Promise<void> | void,
-        onError?: (errors: FieldErrors<BookmarkFormData>) => void,
-    ): Promise<{ success: boolean; data?: BookmarkFormData; errors?: FieldErrors<BookmarkFormData> }> {
+        onError?: (errors: FormikErrors<BookmarkFormData>) => void,
+    ): Promise<{ success: boolean; data?: BookmarkFormData; errors?: FormikErrors<BookmarkFormData> }> {
         return new Promise((resolve) => {
-            const handleSubmit = async (data: BookmarkFormData) => {
+            const handleSubmit = async () => {
                 try {
-                    if (onSubmit) {
-                        await onSubmit(data);
+                    await formInstance.validateForm();
+                    if (formInstance.isValid && Object.keys(formInstance.errors).length === 0) {
+                        if (onSubmit) {
+                            await onSubmit(formInstance.values);
+                        }
+                        resolve({ success: true, data: formInstance.values });
+                    } else {
+                        if (onError) {
+                            onError(formInstance.errors);
+                        }
+                        resolve({ success: false, errors: formInstance.errors });
                     }
-                    resolve({ success: true, data });
                 } catch (error) {
-                    resolve({ success: false, errors: { root: { type: "submit", message: "Submission failed" } } });
+                    resolve({ success: false, errors: { _error: "Submission failed" } });
                 }
-            };
-            
-            const handleError = (errors: FieldErrors<BookmarkFormData>) => {
-                if (onError) {
-                    onError(errors);
-                }
-                resolve({ success: false, errors });
             };
             
             act(() => {
-                formInstance.handleSubmit(handleSubmit, handleError)();
+                formInstance.handleSubmit();
+                handleSubmit();
             });
         });
     }
@@ -483,7 +486,7 @@ export class BookmarkFormInteractionSimulator {
      * Simulate complete form filling workflow
      */
     async simulateCompleteFormFilling(
-        formInstance: UseFormReturn<BookmarkFormData>,
+        formInstance: FormikProps<BookmarkFormData>,
         formData: BookmarkFormData,
         options?: {
             withTypingDelay?: boolean;
@@ -556,7 +559,7 @@ export class BookmarkFormInteractionSimulator {
      * Simulate error recovery workflow
      */
     async simulateErrorRecovery(
-        formInstance: UseFormReturn<BookmarkFormData>,
+        formInstance: FormikProps<BookmarkFormData>,
         errorField: keyof BookmarkFormData,
         correctValue: any,
     ): Promise<void> {
@@ -565,7 +568,7 @@ export class BookmarkFormInteractionSimulator {
         
         // Wait for error to appear
         await waitFor(() => {
-            expect(formInstance.formState.errors[errorField]).toBeDefined();
+            expect(formInstance.errors[errorField]).toBeDefined();
         });
         
         // Simulate user noticing error and correcting it
@@ -579,7 +582,7 @@ export class BookmarkFormInteractionSimulator {
         
         // Wait for error to clear
         await waitFor(() => {
-            expect(formInstance.formState.errors[errorField]).toBeUndefined();
+            expect(formInstance.errors[errorField]).toBeUndefined();
         });
     }
 }
@@ -612,7 +615,7 @@ export const bookmarkFormScenarios = {
     },
     
     // Form interaction workflows
-    async completeFormFillWorkflow(formInstance: UseFormReturn<BookmarkFormData>) {
+    async completeFormFillWorkflow(formInstance: FormikProps<BookmarkFormData>) {
         const simulator = new BookmarkFormInteractionSimulator(50);
         const factory = new BookmarkFormDataFactory();
         const formData = factory.createFormData("complete");
@@ -626,7 +629,7 @@ export const bookmarkFormScenarios = {
         return formData;
     },
     
-    async errorRecoveryWorkflow(formInstance: UseFormReturn<BookmarkFormData>) {
+    async errorRecoveryWorkflow(formInstance: FormikProps<BookmarkFormData>) {
         const simulator = new BookmarkFormInteractionSimulator();
         
         // Simulate error in forConnect field

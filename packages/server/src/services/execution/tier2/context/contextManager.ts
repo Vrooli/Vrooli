@@ -74,8 +74,8 @@ export class ContextManager {
                 keyPrefix: "tier2.context",
                 defaultTTL: 3600, // 1 hour
                 publishEvents: true,
-                eventChannelPrefix: "context"
-            }
+                eventChannelPrefix: "context",
+            },
         );
     }
 

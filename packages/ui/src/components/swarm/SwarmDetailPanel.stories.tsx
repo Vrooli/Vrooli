@@ -1,11 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Box, FormControl, FormControlLabel, FormLabel, Radio, RadioGroup, TextField, Typography } from "@mui/material";
-import { ChatConfigObject, ExecutionStates, PendingToolCallStatus, SwarmSubTask, generatePK } from "@vrooli/shared";
-import { useState } from "react";
+import { type ChatConfigObject, ExecutionStates, PendingToolCallStatus, type SwarmSubTask, generatePK } from "@vrooli/shared";
+import React, { useState } from "react";
 import { SwarmDetailPanel } from "./SwarmDetailPanel.js";
 import { Switch } from "../inputs/Switch/Switch.js";
 import { http, HttpResponse } from "msw";
-import { API_URL } from "../../__test/storybookConsts.js";
+import { API_URL, signedInUserId } from "../../__test/storybookConsts.js";
+import { getMockApiUrl } from "../../__test/helpers/storybookMocking.js";
 
 const meta: Meta<typeof SwarmDetailPanel> = {
     title: "Components/Chat/SwarmDetailPanel",
@@ -14,18 +15,19 @@ const meta: Meta<typeof SwarmDetailPanel> = {
         layout: "fullscreen",
         msw: {
             handlers: [
-                // Mock single team endpoint with MOISE+ structure
-                http.get(`${API_URL}/v2/team/:publicId`, ({ params }) => {
-                    console.log('MSW - Single team endpoint hit!');
+                // Mock single team endpoint with MOISE+ structure - try multiple patterns
+                http.get(getMockApiUrl("/team/:publicId"), ({ params, request }) => {
+                    console.log("MSW - Team endpoint hit with URL:", request.url);
+                    console.log("MSW - Single team endpoint hit!");
                     const teamId = params.publicId as string;
                     
-                    console.log('Team MSW handler - request:', { 
+                    console.log("Team MSW handler - request:", { 
                         teamId,
-                        mockTeamId: mockIds.team
+                        mockTeamId: mockIds.team,
                     });
                     
                     if (teamId === mockIds.team) {
-                        console.log('MSW - Returning team with MOISE+ structure');
+                        console.log("MSW - Returning team with MOISE+ structure");
                         const teamData = {
                             __typename: "Team" as const,
                             id: mockIds.team,
@@ -57,8 +59,8 @@ const meta: Meta<typeof SwarmDetailPanel> = {
   }
   
   link researchTeam.coordinator > qualityControl.reviewer delegation
-}`
-                                }
+}`,
+                                },
                             }),
                             translations: [
                                 {
@@ -66,25 +68,82 @@ const meta: Meta<typeof SwarmDetailPanel> = {
                                     id: generatePK().toString(),
                                     language: "en",
                                     name: "Analytics Swarm Team",
-                                    bio: "A specialized team for market analysis and reporting"
-                                }
-                            ]
+                                    bio: "A specialized team for market analysis and reporting",
+                                },
+                            ],
                         };
                         
-                        console.log('MSW - Team response:', { data: teamData });
+                        console.log("MSW - Team response:", { data: teamData });
                         return HttpResponse.json({ data: teamData });
                     }
                     
-                    console.log('MSW - No matching team found, returning 404');
+                    console.log("MSW - No matching team found, returning 404");
+                    return new HttpResponse(null, { status: 404 });
+                }),
+                // Try plural form too
+                http.get(getMockApiUrl("/teams/:publicId"), ({ params, request }) => {
+                    console.log("MSW - Teams (plural) endpoint hit with URL:", request.url);
+                    const teamId = params.publicId as string;
+                    
+                    if (teamId === mockIds.team) {
+                        console.log("MSW - Returning team data from plural endpoint");
+                        const teamData = {
+                            __typename: "Team" as const,
+                            id: mockIds.team,
+                            name: "Analytics Swarm Team",
+                            handle: "analytics_team",
+                            config: JSON.stringify({
+                                __version: "1.0",
+                                structure: {
+                                    type: "MOISE+",
+                                    version: "1.0",
+                                    content: `structure AnalyticsSwarm {
+  group researchTeam {
+    role coordinator cardinality 1..1
+    role dataCollector cardinality 1..3
+    role analyst cardinality 2..5
+    role reporter cardinality 1..2
+    
+    link coordinator > dataCollector
+    link coordinator > analyst
+    link coordinator > reporter
+    link analyst > dataCollector communication
+  }
+  
+  group qualityControl {
+    role reviewer cardinality 1..2
+    role validator cardinality 1..1
+    
+    link reviewer > validator authority
+  }
+  
+  link researchTeam.coordinator > qualityControl.reviewer delegation
+}`,
+                                },
+                            }),
+                            translations: [
+                                {
+                                    __typename: "TeamTranslation" as const,
+                                    id: generatePK().toString(),
+                                    language: "en",
+                                    name: "Analytics Swarm Team",
+                                    bio: "A specialized team for market analysis and reporting",
+                                },
+                            ],
+                        };
+                        
+                        return HttpResponse.json({ data: teamData });
+                    }
+                    
                     return new HttpResponse(null, { status: 404 });
                 }),
                 // Mock users endpoint for bots
-                http.get(`${API_URL}/v2/users`, ({ request }) => {
-                    console.log('MSW - Users endpoint hit!');
+                http.get(getMockApiUrl("/users"), ({ request }) => {
+                    console.log("MSW - Users endpoint hit!");
                     const url = new URL(request.url);
                     
                     // Parse the 'where' parameter which contains the query filters
-                    const whereParam = url.searchParams.get('where');
+                    const whereParam = url.searchParams.get("where");
                     let botIds: string[] = [];
                     let isBot = false;
                     
@@ -96,13 +155,13 @@ const meta: Meta<typeof SwarmDetailPanel> = {
                             }
                             isBot = where.isBot === true;
                         } catch (e) {
-                            console.error('Failed to parse where param:', e);
+                            console.error("Failed to parse where param:", e);
                         }
                     }
                     
                     // Also check direct params as fallback
                     if (botIds.length === 0) {
-                        const idParam = url.searchParams.get('id');
+                        const idParam = url.searchParams.get("id");
                         if (idParam) {
                             try {
                                 const idObj = JSON.parse(idParam);
@@ -117,21 +176,21 @@ const meta: Meta<typeof SwarmDetailPanel> = {
                     }
                     
                     if (!isBot) {
-                        const isBotParam = url.searchParams.get('isBot');
-                        isBot = isBotParam === 'true';
+                        const isBotParam = url.searchParams.get("isBot");
+                        isBot = isBotParam === "true";
                     }
                     
-                    console.log('Users MSW handler - request:', { 
+                    console.log("Users MSW handler - request:", { 
                         url: request.url, 
                         searchParams: Object.fromEntries(url.searchParams),
                         whereParam,
                         botIds,
                         isBot,
-                        mockBotIds: Object.keys(mockIds)
+                        mockBotIds: Object.keys(mockIds),
                     });
                     
                     if (isBot && botIds.length > 0) {
-                        console.log('MSW - Returning bot users');
+                        console.log("MSW - Returning bot users");
                         // botIds already parsed above
                         const mockBots = {
                             [mockIds.swarmLeader]: { name: "Strategic Coordinator Bot", bio: "Manages overall swarm coordination" },
@@ -140,48 +199,116 @@ const meta: Meta<typeof SwarmDetailPanel> = {
                             [mockIds.trendAnalystBot]: { name: "Trend Analyzer Bot", bio: "Identifies market trends and patterns" },
                             [mockIds.reportWriterBot]: { name: "Report Generator Bot", bio: "Creates comprehensive reports" },
                             [mockIds.reportGeneratorBot]: { name: "Report Generator", bio: "Generates various report formats" },
-                            [mockIds.notificationBot]: { name: "Notification Bot", bio: "Handles team notifications" }
+                            [mockIds.notificationBot]: { name: "Notification Bot", bio: "Handles team notifications" },
                         };
                         
-                        const edges = botIds.map((id: string) => ({
-                            cursor: id,
-                            node: {
-                                __typename: "User" as const,
-                                id,
-                                name: mockBots[id]?.name || id,
-                                handle: id.toLowerCase().replace(/_/g, ''),
-                                isBot: true,
-                                translations: [
-                                    {
-                                        __typename: "UserTranslation" as const,
-                                        id: generatePK().toString(),
-                                        language: "en",
-                                        bio: mockBots[id]?.bio || "An AI assistant bot"
-                                    }
-                                ]
-                            }
-                        }));
-                        
-                        return HttpResponse.json({
-                            data: {
-                                edges,
-                                pageInfo: {
-                                    __typename: "PageInfo" as const,
-                                    endCursor: null,
-                                    hasNextPage: false
-                                }
-                            }
+                        const edges = botIds.map((id: string) => {
+                            const botData = {
+                                cursor: id,
+                                node: {
+                                    __typename: "User" as const,
+                                    id,
+                                    name: mockBots[id]?.name || `Bot ${id}`,
+                                    handle: (mockBots[id]?.name || id).toLowerCase().replace(/\s+/g, "").replace(/_/g, ""),
+                                    isBot: true,
+                                    isBotDepictingPerson: false,
+                                    translations: [
+                                        {
+                                            __typename: "UserTranslation" as const,
+                                            id: generatePK().toString(),
+                                            language: "en",
+                                            bio: mockBots[id]?.bio || "An AI assistant bot",
+                                        },
+                                    ],
+                                },
+                            };
+                            console.log("MSW - Creating bot edge for ID:", id, botData);
+                            return botData;
                         });
+                        
+                        const response = {
+                            edges,
+                            pageInfo: {
+                                __typename: "PageInfo" as const,
+                                endCursor: null,
+                                hasNextPage: false,
+                            },
+                        };
+                        
+                        console.log("MSW - Returning users response:", response);
+                        return HttpResponse.json(response);
                     }
                     
-                    return HttpResponse.json({ data: { edges: [], pageInfo: { endCursor: null, hasNextPage: false } } });
+                    return HttpResponse.json({ edges: [], pageInfo: { endCursor: null, hasNextPage: false } });
                 }),
                 // Mock notes endpoint for resources
-                http.get(`${API_URL}/v2/notes/versions`, () => {
+                http.get(getMockApiUrl("/notes/versions"), () => {
                     return HttpResponse.json({ data: { edges: [], pageInfo: { endCursor: null, hasNextPage: false } } });
-                })
-            ]
-        }
+                }),
+                // Catch-all handler to debug any other requests
+                http.get(`${API_URL}/*`, ({ request }) => {
+                    console.log("MSW - Catch-all handler hit with URL:", request.url);
+                    // Check if this is a team request
+                    if (request.url.includes("/team/") || request.url.includes("/teams/")) {
+                        console.log("MSW - This is a team request!", request.url);
+                        const urlParts = request.url.split("/");
+                        const teamId = urlParts[urlParts.length - 1];
+                        console.log("MSW - Extracted team ID:", teamId);
+                        
+                        if (teamId === mockIds.team) {
+                            console.log("MSW - Returning team data from catch-all handler");
+                            const teamData = {
+                                __typename: "Team" as const,
+                                id: mockIds.team,
+                                name: "Analytics Swarm Team",
+                                handle: "analytics_team",
+                                config: JSON.stringify({
+                                    __version: "1.0",
+                                    structure: {
+                                        type: "MOISE+",
+                                        version: "1.0",
+                                        content: `structure AnalyticsSwarm {
+  group researchTeam {
+    role coordinator cardinality 1..1
+    role dataCollector cardinality 1..3
+    role analyst cardinality 2..5
+    role reporter cardinality 1..2
+    
+    link coordinator > dataCollector
+    link coordinator > analyst
+    link coordinator > reporter
+    link analyst > dataCollector communication
+  }
+  
+  group qualityControl {
+    role reviewer cardinality 1..2
+    role validator cardinality 1..1
+    
+    link reviewer > validator authority
+  }
+  
+  link researchTeam.coordinator > qualityControl.reviewer delegation
+}`,
+                                    },
+                                }),
+                                translations: [
+                                    {
+                                        __typename: "TeamTranslation" as const,
+                                        id: generatePK().toString(),
+                                        language: "en",
+                                        name: "Analytics Swarm Team",
+                                        bio: "A specialized team for market analysis and reporting",
+                                    },
+                                ],
+                            };
+                            
+                            return HttpResponse.json({ data: teamData });
+                        }
+                    }
+                    return new HttpResponse(null, { status: 404 });
+                }),
+            ],
+        },
     },
 };
 
@@ -196,21 +323,21 @@ const createMockId = (seed: string) => {
         hash = hash & hash; // Convert to 32-bit integer
     }
     // Use the hash to create a consistent but valid-looking Snowflake ID
-    return Math.abs(hash).toString().padEnd(18, '0').slice(0, 18);
+    return Math.abs(hash).toString().padEnd(18, "0").slice(0, 18);
 };
 
 const mockIds = {
-    team: createMockId('analytics_team_001'),
-    swarmLeader: createMockId('coordinator_bot_123'),
-    dataCollectorBot: createMockId('data_collector_bot_789'),
-    competitiveAnalystBot: createMockId('competitive_analyst_bot_101'),
-    trendAnalystBot: createMockId('trend_analyst_bot_202'),
-    reportWriterBot: createMockId('report_writer_bot_303'),
-    reportGeneratorBot: createMockId('ReportGenerator'),
-    notificationBot: createMockId('NotificationBot'),
+    team: createMockId("analytics_team_001"),
+    swarmLeader: createMockId("coordinator_bot_123"),
+    dataCollectorBot: createMockId("data_collector_bot_789"),
+    competitiveAnalystBot: createMockId("competitive_analyst_bot_101"),
+    trendAnalystBot: createMockId("trend_analyst_bot_202"),
+    reportWriterBot: createMockId("report_writer_bot_303"),
+    reportGeneratorBot: createMockId("ReportGenerator"),
+    notificationBot: createMockId("NotificationBot"),
 };
 
-console.log('SwarmDetailPanel.stories - mockIds:', mockIds);
+console.log("SwarmDetailPanel.stories - mockIds:", mockIds);
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -288,7 +415,7 @@ export const SwarmDetailPanelShowcase: Story = {
         const [goalLength, setGoalLength] = useState<"short" | "medium" | "long">("medium");
         const [creditAmount, setCreditAmount] = useState<"low" | "medium" | "high">("medium");
         const [taskProgress, setTaskProgress] = useState<"none" | "partial" | "complete">("partial");
-        const [hasPendingApprovals, setHasPendingApprovals] = useState(false);
+        const [hasPendingApprovals, setHasPendingApprovals] = useState(true);
         const [hasResources, setHasResources] = useState(true);
         const [hasRecords, setHasRecords] = useState(true);
 
@@ -372,36 +499,105 @@ export const SwarmDetailPanelShowcase: Story = {
                 },
             ] : [],
             pendingToolCalls: hasPendingApprovals ? [
+                // Required approval - will wait indefinitely
                 {
                     pendingId: "pending_001",
                     toolCallId: "call_001",
-                    toolName: "WriteFile",
+                    toolName: "DeleteFile",
                     toolArguments: JSON.stringify({
-                        path: "/reports/analysis.pdf",
-                        content: "Base64 encoded PDF content...",
+                        path: "/data/customer_database.csv",
+                        reason: "Cleanup old data files",
                     }),
-                    callerBotId: mockIds.reportGeneratorBot,
+                    callerBotId: mockIds.dataCollectorBot,
                     conversationId: "conv_123",
-                    requestedAt: Date.now() - 60000,
+                    requestedAt: Date.now() - 120000, // 2 minutes ago
                     status: PendingToolCallStatus.PENDING_APPROVAL,
-                    approvalTimeoutAt: Date.now() + 240000,
+                    approvalTimeoutAt: null, // No timeout - requires manual approval
                     executionAttempts: 0,
                 },
+                // Auto-accept after timeout
                 {
                     pendingId: "pending_002",
                     toolCallId: "call_002",
+                    toolName: "WriteFile",
+                    toolArguments: JSON.stringify({
+                        path: "/reports/analysis_summary.txt",
+                        content: "Q1 2024 Market Analysis Summary\n\nKey Findings:\n- Market growth: 15%\n- Top competitors: A, B, C\n- Opportunities: Mobile, AI integration",
+                    }),
+                    callerBotId: mockIds.reportWriterBot,
+                    conversationId: "conv_123",
+                    requestedAt: Date.now() - 30000, // 30 seconds ago
+                    status: PendingToolCallStatus.PENDING_APPROVAL,
+                    approvalTimeoutAt: Date.now() + 60000, // Auto-approve in 1 minute
+                    executionAttempts: 0,
+                },
+                // Urgent - auto-accept soon
+                {
+                    pendingId: "pending_003",
+                    toolCallId: "call_003",
                     toolName: "SendEmail",
                     toolArguments: JSON.stringify({
                         to: ["team@example.com"],
                         subject: "Analysis Report Ready",
-                        body: "The market analysis report is complete...",
+                        body: "The Q1 2024 market analysis report has been completed and is ready for review.\n\nView the full report at: https://example.com/reports/q1-2024",
                     }),
                     callerBotId: mockIds.notificationBot,
                     conversationId: "conv_123",
-                    requestedAt: Date.now() - 30000,
+                    requestedAt: Date.now() - 45000,
                     status: PendingToolCallStatus.PENDING_APPROVAL,
-                    approvalTimeoutAt: Date.now() + 45000, // urgent!
+                    approvalTimeoutAt: Date.now() + 15000, // Urgent! Only 15 seconds left
                     executionAttempts: 0,
+                },
+                // Already approved
+                {
+                    pendingId: "pending_004",
+                    toolCallId: "call_004",
+                    toolName: "HttpRequest",
+                    toolArguments: JSON.stringify({
+                        url: "https://api.marketdata.com/v1/trends",
+                        method: "GET",
+                        headers: {
+                            "Authorization": "Bearer [REDACTED]",
+                        },
+                    }),
+                    callerBotId: mockIds.dataCollectorBot,
+                    conversationId: "conv_123",
+                    requestedAt: Date.now() - 300000, // 5 minutes ago
+                    status: PendingToolCallStatus.APPROVED,
+                    approvalTimeoutAt: Date.now() - 240000, // Approved 4 minutes ago
+                    approvedAt: Date.now() - 240000,
+                    approvedBy: signedInUserId,
+                    executionAttempts: 1,
+                },
+                // Already executed after approval
+                {
+                    pendingId: "pending_005",
+                    toolCallId: "call_005",
+                    toolName: "CreateChart",
+                    toolArguments: JSON.stringify({
+                        type: "line",
+                        title: "Market Growth Trends Q1 2024",
+                        data: {
+                            labels: ["Jan", "Feb", "Mar"],
+                            datasets: [{
+                                label: "Revenue",
+                                data: [1200000, 1350000, 1500000],
+                            }],
+                        },
+                    }),
+                    callerBotId: mockIds.trendAnalystBot,
+                    conversationId: "conv_123",
+                    requestedAt: Date.now() - 600000, // 10 minutes ago
+                    status: PendingToolCallStatus.EXECUTED,
+                    approvalTimeoutAt: Date.now() - 540000,
+                    approvedAt: Date.now() - 540000,
+                    approvedBy: signedInUserId,
+                    executedAt: Date.now() - 535000,
+                    executionAttempts: 1,
+                    result: JSON.stringify({
+                        success: true,
+                        chartUrl: "/charts/market-growth-q1-2024.png",
+                    }),
                 },
             ] : [],
             records: hasRecords ? [
@@ -445,14 +641,14 @@ export const SwarmDetailPanelShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1200, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -471,7 +667,7 @@ export const SwarmDetailPanelShowcase: Story = {
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {/* Status Control */}
                             <FormControl component="fieldset" size="small">
@@ -486,7 +682,7 @@ export const SwarmDetailPanelShowcase: Story = {
                                             key={s} 
                                             value={s} 
                                             control={<Radio size="small" />} 
-                                            label={s.charAt(0) + s.slice(1).toLowerCase().replace('_', ' ')} 
+                                            label={s.charAt(0) + s.slice(1).toLowerCase().replace("_", " ")} 
                                             sx={{ m: 0 }} 
                                         />
                                     ))}
@@ -596,6 +792,23 @@ export const SwarmDetailPanelShowcase: Story = {
                                 }}
                                 onRejectToolCall={(pendingId, reason) => {
                                     console.log("Reject tool:", pendingId, reason);
+                                }}
+                                onStart={() => {
+                                    console.log("Start swarm");
+                                    setStatus(ExecutionStates.STARTING);
+                                    setTimeout(() => setStatus(ExecutionStates.RUNNING), 1000);
+                                }}
+                                onPause={() => {
+                                    console.log("Pause swarm");
+                                    setStatus(ExecutionStates.PAUSED);
+                                }}
+                                onResume={() => {
+                                    console.log("Resume swarm");
+                                    setStatus(ExecutionStates.RUNNING);
+                                }}
+                                onStop={() => {
+                                    console.log("Stop swarm");
+                                    setStatus(ExecutionStates.STOPPED);
                                 }}
                             />
                         </Box>

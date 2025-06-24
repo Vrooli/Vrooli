@@ -7,8 +7,8 @@ import {
 import { ConversationalStrategy } from "./conversationalStrategy.js";
 import { DeterministicStrategy } from "./deterministicStrategy.js";
 import { ReasoningStrategy } from "./reasoningStrategy.js";
-import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
-import { ValidationEngine } from "../engine/validationEngine.js";
+import { type ToolOrchestrator } from "../engine/toolOrchestrator.js";
+import { type ValidationEngine } from "../engine/validationEngine.js";
 
 /**
  * StrategyFactory - Creates and manages execution strategies
@@ -45,10 +45,10 @@ export class StrategyFactory {
         
         // Update existing strategies with shared services
         for (const strategy of this.strategies.values()) {
-            if ('setToolOrchestrator' in strategy && typeof strategy.setToolOrchestrator === 'function') {
+            if ("setToolOrchestrator" in strategy && typeof strategy.setToolOrchestrator === "function") {
                 strategy.setToolOrchestrator(toolOrchestrator);
             }
-            if ('setValidationEngine' in strategy && typeof strategy.setValidationEngine === 'function') {
+            if ("setValidationEngine" in strategy && typeof strategy.setValidationEngine === "function") {
                 strategy.setValidationEngine(validationEngine);
             }
         }
@@ -142,7 +142,7 @@ export class StrategyFactory {
         
         // Select highest scoring strategy
         const bestStrategy = scores.reduce((best, current) => 
-            current.score > best.score ? current : best
+            current.score > best.score ? current : best,
         );
         
         if (bestStrategy.score > 0) {

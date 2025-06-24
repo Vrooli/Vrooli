@@ -9,6 +9,6 @@ export * from "./tierOneCoordinator.js";
 
 export type {
     MetacognitiveReflection,
-    StrategySelectionResult, SwarmAgent, SwarmConfig, SwarmDecision, SwarmInitParams, SwarmPerformance, SwarmTeam, TeamFormation
+    StrategySelectionResult, SwarmAgent, SwarmConfig, SwarmDecision, SwarmInitParams, SwarmPerformance, SwarmTeam, TeamFormation,
 } from "@vrooli/shared";
 

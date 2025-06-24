@@ -33,7 +33,7 @@ interface AdminRouteProps {
 export const AdminRoute: React.FC<AdminRouteProps> = ({ 
     children, 
     fallback,
-    showLoading = true 
+    showLoading = true, 
 }) => {
     const { isAdmin, loading } = useIsAdmin();
     const [{ pathname }] = useLocation();
@@ -42,10 +42,10 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({
     if (loading && showLoading) {
         return (
             <div style={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                minHeight: '200px' 
+                display: "flex", 
+                justifyContent: "center", 
+                alignItems: "center", 
+                minHeight: "200px", 
             }}>
                 <DiagonalWaveLoader />
             </div>
@@ -80,11 +80,11 @@ export const AdminAccessDenied: React.FC = () => {
             sx={{ 
                 m: 2, 
                 p: 2, 
-                border: '1px solid',
-                borderColor: 'error.main',
+                border: "1px solid",
+                borderColor: "error.main",
                 borderRadius: 1,
-                backgroundColor: 'error.light',
-                color: 'error.contrastText'
+                backgroundColor: "error.light",
+                color: "error.contrastText",
             }}
         >
             <Typography variant="h6" component="h2" gutterBottom>
@@ -102,7 +102,7 @@ export const AdminAccessDenied: React.FC = () => {
  * Higher-order component version of AdminRoute for class components
  */
 export const withAdminProtection = <P extends object>(
-    Component: React.ComponentType<P>
+    Component: React.ComponentType<P>,
 ) => {
     const ProtectedComponent: React.FC<P> = (props) => (
         <AdminRoute>

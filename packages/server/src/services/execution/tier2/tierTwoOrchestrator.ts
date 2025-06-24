@@ -276,7 +276,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
      * Execute a routine execution request
      */
     async execute<TInput extends RoutineExecutionInput, TOutput>(
-        request: TierExecutionRequest<TInput>
+        request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
         const { context, input, allocation, options } = request;
         const executionId = context.executionId;
@@ -306,16 +306,16 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                 routine: { workflow: input.workflow }, // Simplified routine data
                 inputs: input.parameters,
                 config: {
-                    strategy: options?.strategy || 'reasoning',
-                    model: 'gpt-4',
+                    strategy: options?.strategy || "reasoning",
+                    model: "gpt-4",
                     maxSteps: 50,
-                    timeout: parseInt(allocation.maxDurationMs?.toString() || '300000'),
+                    timeout: parseInt(allocation.maxDurationMs?.toString() || "300000"),
                 },
-                userId: context.userId || 'system',
+                userId: context.userId || "system",
             });
 
             // Wait for completion (simplified - in practice this would be more sophisticated)
-            const result = await this.waitForCompletion(runId, parseInt(allocation.maxDurationMs?.toString() || '300000'));
+            const result = await this.waitForCompletion(runId, parseInt(allocation.maxDurationMs?.toString() || "300000"));
 
             // Update execution status
             this.activeExecutions.set(executionId, {
@@ -329,7 +329,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                 result: result as TOutput,
                 outputs: result as Record<string, unknown>,
                 resourcesUsed: {
-                    creditsUsed: '10', // Simplified
+                    creditsUsed: "10", // Simplified
                     durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
                     memoryUsedMB: 64,
                     stepsExecuted: 1,
@@ -337,8 +337,8 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                 duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
                 context,
                 metadata: {
-                    strategy: 'routine_execution',
-                    version: '1.0.0',
+                    strategy: "routine_execution",
+                    version: "1.0.0",
                     timestamp: new Date().toISOString(),
                 },
                 confidence: 0.85,
@@ -352,7 +352,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
             this.activeExecutions.set(executionId, {
                 status: ExecutionStatus.FAILED,
                 startTime: this.activeExecutions.get(executionId)!.startTime,
-                runId: this.activeExecutions.get(executionId)?.runId || 'unknown',
+                runId: this.activeExecutions.get(executionId)?.runId || "unknown",
             });
 
             this.logger.error("[TierTwoOrchestrator] Tier execution failed", {
@@ -363,13 +363,13 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
             const errorResult: ExecutionResult<TOutput> = {
                 success: false,
                 error: {
-                    code: 'TIER2_EXECUTION_FAILED',
-                    message: error instanceof Error ? error.message : 'Unknown error',
-                    tier: 'tier2',
-                    type: error instanceof Error ? error.constructor.name : 'Error',
+                    code: "TIER2_EXECUTION_FAILED",
+                    message: error instanceof Error ? error.message : "Unknown error",
+                    tier: "tier2",
+                    type: error instanceof Error ? error.constructor.name : "Error",
                 },
                 resourcesUsed: {
-                    creditsUsed: '0',
+                    creditsUsed: "0",
                     durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
                     memoryUsedMB: 0,
                     stepsExecuted: 0,
@@ -377,8 +377,8 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                 duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
                 context,
                 metadata: {
-                    strategy: 'routine_execution',
-                    version: '1.0.0',
+                    strategy: "routine_execution",
+                    version: "1.0.0",
                     timestamp: new Date().toISOString(),
                 },
                 confidence: 0.0,
@@ -409,7 +409,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
             });
 
             // Cancel the associated run
-            await this.cancelRun(execution.runId, 'Execution cancelled');
+            await this.cancelRun(execution.runId, "Execution cancelled");
 
             this.logger.info("[TierTwoOrchestrator] Execution cancelled", { executionId });
         }
@@ -420,9 +420,9 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
      */
     async getCapabilities(): Promise<TierCapabilities> {
         return {
-            tier: 'tier2',
-            supportedInputTypes: ['RoutineExecutionInput'],
-            supportedStrategies: ['reasoning', 'deterministic', 'conversational'],
+            tier: "tier2",
+            supportedInputTypes: ["RoutineExecutionInput"],
+            supportedStrategies: ["reasoning", "deterministic", "conversational"],
             maxConcurrency: 5,
             estimatedLatency: {
                 p50: 15000,
@@ -430,7 +430,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                 p99: 300000,
             },
             resourceLimits: {
-                maxCredits: '100000',
+                maxCredits: "100000",
                 maxDurationMs: 3600000, // 1 hour
                 maxMemoryMB: 4096,
             },
@@ -459,7 +459,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                     }
 
                     if (run.state === RunState.FAILED) {
-                        reject(new Error(`Run ${runId} failed: ${run.errors?.join(', ')}`));
+                        reject(new Error(`Run ${runId} failed: ${run.errors?.join(", ")}`));
                         return;
                     }
 

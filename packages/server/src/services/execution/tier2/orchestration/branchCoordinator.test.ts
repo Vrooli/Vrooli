@@ -85,7 +85,7 @@ describe("BranchCoordinator", () => {
 
             const branches = await branchCoordinator.createBranchesFromConfig(
                 "run-123",
-                config
+                config,
             );
 
             expect(branches).toHaveLength(2);
@@ -106,7 +106,7 @@ describe("BranchCoordinator", () => {
 
             const branches = await branchCoordinator.createBranchesFromConfig(
                 "run-123",
-                config
+                config,
             );
 
             expect(branches).toHaveLength(1);
@@ -150,7 +150,7 @@ describe("BranchCoordinator", () => {
                 run,
                 branches,
                 mockNavigator as any,
-                mockStepExecutor as any
+                mockStepExecutor as any,
             );
 
             expect(results).toHaveLength(2);
@@ -188,7 +188,7 @@ describe("BranchCoordinator", () => {
                 run,
                 branches,
                 mockNavigator as any,
-                mockStepExecutor as any
+                mockStepExecutor as any,
             );
 
             expect(results).toHaveLength(1);
@@ -230,7 +230,7 @@ describe("BranchCoordinator", () => {
                 run,
                 branches,
                 mockNavigator as any,
-                mockStepExecutor as any
+                mockStepExecutor as any,
             );
 
             expect(results).toHaveLength(1);
@@ -268,7 +268,7 @@ describe("BranchCoordinator", () => {
 
             const merged = await branchCoordinator.mergeBranchResults(
                 parentContext,
-                results
+                results,
             );
 
             expect(merged.variables.parentVar).toBe("value");
@@ -304,7 +304,7 @@ describe("BranchCoordinator", () => {
 
             const merged = await branchCoordinator.mergeBranchResults(
                 parentContext,
-                results
+                results,
             );
 
             expect(merged.variables.result_merged).toEqual(["value1", "value2"]);
@@ -322,7 +322,7 @@ describe("BranchCoordinator", () => {
 
             const branches = await branchCoordinator.createBranchesFromConfig(
                 "run-123",
-                config
+                config,
             );
 
             // Manually mark one as completed and one as failed
@@ -360,7 +360,7 @@ describe("BranchCoordinator", () => {
                 expect.objectContaining({
                     state: "pending",
                     parallel: false,
-                })
+                }),
             );
         });
 
@@ -384,12 +384,12 @@ describe("BranchCoordinator", () => {
             expect(mockStateStore.updateBranch).toHaveBeenCalledWith(
                 "run-123",
                 branches[0].id,
-                { state: "running" }
+                { state: "running" },
             );
             expect(mockStateStore.updateBranch).toHaveBeenCalledWith(
                 "run-123", 
                 branches[0].id,
-                { state: "completed" }
+                { state: "completed" },
             );
         });
 
@@ -437,7 +437,7 @@ describe("BranchCoordinator", () => {
             expect(branches).toHaveLength(1);
             expect(mockLogger.error).toHaveBeenCalledWith(
                 expect.stringContaining("Failed to persist branch to state store"),
-                expect.any(Object)
+                expect.any(Object),
             );
         });
     });
@@ -462,7 +462,7 @@ describe("BranchCoordinator", () => {
                     source: expect.objectContaining({
                         instanceId: expect.stringMatching(/^branch-coordinator-[a-f0-9-]+$/),
                     }),
-                })
+                }),
             );
         });
     });

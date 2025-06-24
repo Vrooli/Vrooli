@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { SwarmStateStore, InMemorySwarmStateStore } from "./swarmStateStore.js";
-import { createMockLogger } from "../../../../../__test/globalHelpers.js";
+import { InMemorySwarmStateStore } from "./swarmStateStore.js";
+import { RedisSwarmStateStore } from "./redisSwarmStateStore.js";
 import { type Logger } from "winston";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
-import { RedisClientType } from "redis";
-import { createRedisClient } from "../../../../redisConn.js";
-import { EventBusImplementation } from "../../cross-cutting/events/eventBus.js";
 import {
     type Swarm,
     ExecutionStates,
@@ -37,32 +33,30 @@ import {
 describe("SwarmStateStore - State Management Infrastructure", () => {
     let logger: Logger;
     let store: InMemorySwarmStateStore;
-    let redisStore: SwarmStateStore;
-    let redisContainer: StartedTestContainer;
-    let redisClient: RedisClientType;
-    let eventBus: any;
+    let redisStore: RedisSwarmStateStore;
 
     beforeEach(async () => {
-        logger = createMockLogger();
+        logger = {
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+        } as unknown as Logger;
         
         // Test both in-memory and Redis implementations
         store = new InMemorySwarmStateStore(logger);
         
-        // Setup Redis for distributed state store
-        redisContainer = await new GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .start();
-
-        const redisUrl = `redis://localhost:${redisContainer.getMappedPort(6379)}`;
-        redisClient = await createRedisClient({ url: redisUrl });
-        eventBus = new EventBusImplementation(logger, redisClient as any);
+        // RedisSwarmStateStore uses CacheService internally
+        redisStore = new RedisSwarmStateStore(logger);
         
-        redisStore = new SwarmStateStore(logger, redisClient as any, eventBus);
+        // Note: EventBus is not needed for the state store itself
+        // If tests need EventBus, they should create it separately
     });
 
     afterEach(async () => {
-        await redisClient?.quit();
-        await redisContainer?.stop();
+        // RedisSwarmStateStore will handle its own cleanup
+        // We don't need to manually clear Redis data as each test
+        // should use unique IDs to avoid conflicts
     });
 
     describe("Swarm Lifecycle Management", () => {
@@ -305,7 +299,7 @@ describe("SwarmStateStore - State Management Infrastructure", () => {
             
             // Filter by type
             const goalItems = await store.getBlackboardItems!(swarmId, 
-                item => item.type === "goal"
+                item => item.type === "goal",
             );
             expect(goalItems).toHaveLength(1);
             expect(goalItems[0].content).toBe("Build recommendation system");
@@ -461,7 +455,7 @@ describe("SwarmStateStore - State Management Infrastructure", () => {
             const updatePromises = Array.from({ length: 10 }, (_, i) => 
                 redisStore.updateSwarm(swarmId, {
                     config: { counter: i, timestamp: Date.now() },
-                })
+                }),
             );
             
             await Promise.all(updatePromises);

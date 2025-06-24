@@ -1,14 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TierTwoOrchestrator } from "./tierTwoOrchestrator.js";
 import { type Logger } from "winston";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { EventBus } from "../cross-cutting/events/eventBus.js";
 import { type TierCommunicationInterface, type TierExecutionRequest, type ExecutionResult } from "@vrooli/shared";
-import { createMockLogger } from "../../../../__test/globalHelpers.js";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
-import { RedisClientType } from "redis";
-import { createRedisClient } from "../../../redisConn.js";
-import { EventBusImplementation } from "../cross-cutting/events/eventBus.js";
-import { generatePK, ExecutionStatus, RunState } from "@vrooli/shared";
+import { generatePK, type ExecutionStatus, RunState } from "@vrooli/shared";
 
 /**
  * TierTwoOrchestrator Tests - Process Intelligence Infrastructure
@@ -30,20 +25,15 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
     let eventBus: EventBus;
     let tier3Executor: TierCommunicationInterface;
     let orchestrator: TierTwoOrchestrator;
-    let redisContainer: StartedTestContainer;
-    let redisClient: RedisClientType;
 
     beforeEach(async () => {
-        // Use real Redis for event-driven orchestration
-        redisContainer = await new GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .start();
-
-        const redisUrl = `redis://localhost:${redisContainer.getMappedPort(6379)}`;
-        redisClient = await createRedisClient({ url: redisUrl });
-
-        logger = createMockLogger();
-        eventBus = new EventBusImplementation(logger, redisClient as any);
+        logger = {
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+        } as unknown as Logger;
+        eventBus = new EventBus(logger);
         
         // Mock Tier 3 executor
         tier3Executor = {
@@ -58,9 +48,9 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
         orchestrator = new TierTwoOrchestrator(logger, eventBus, tier3Executor);
     });
 
-    afterEach(async () => {
-        await redisClient?.quit();
-        await redisContainer?.stop();
+    afterEach(() => {
+        // Clean up any mocks
+        vi.clearAllMocks();
     });
 
     describe("Navigator Registry for Universal Execution", () => {
@@ -100,7 +90,7 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
                         payload: expect.objectContaining({
                             routineId,
                         }),
-                    })
+                    }),
                 );
             }
         });
@@ -485,7 +475,7 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
 
             // Execute all requests concurrently
             const results = await Promise.all(
-                requests.map(req => orchestrator.execute(req))
+                requests.map(req => orchestrator.execute(req)),
             );
 
             expect(results).toHaveLength(5);
@@ -510,7 +500,7 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
 
             // Simulate Tier 3 failure
             vi.mocked(tier3Executor.execute).mockRejectedValue(
-                new Error("Tier 3 communication failed")
+                new Error("Tier 3 communication failed"),
             );
 
             const result = await orchestrator.execute(request);
@@ -536,7 +526,7 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
             };
 
             vi.mocked(tier3Executor.execute).mockRejectedValue(
-                new Error("Execution failed")
+                new Error("Execution failed"),
             );
 
             await orchestrator.execute(request);

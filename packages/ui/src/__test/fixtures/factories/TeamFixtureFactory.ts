@@ -18,14 +18,20 @@ import type {
 import { 
     teamValidation,
     shapeTeam,
-    MemberRole,
 } from "@vrooli/shared";
 import type { 
     FixtureFactory, 
     ValidationResult, 
     MSWHandlers,
 } from "../types.js";
-import { rest } from "msw";
+import { http } from "msw";
+
+// Define MemberRole locally since it's not exported from shared
+export enum MemberRole {
+    ADMIN = "admin",
+    EDITOR = "editor",
+    VIEWER = "viewer",
+}
 
 /**
  * UI-specific form data for team creation
@@ -406,7 +412,7 @@ export class TeamFixtureFactory implements FixtureFactory<
         return {
             success: [
                 // Create team
-                rest.post(`${baseUrl}/api/team`, async (req, res, ctx) => {
+                http.post(`${baseUrl}/api/team`, async (req, res, ctx) => {
                     const body = await req.json();
                     
                     // Validate the request body
@@ -435,7 +441,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                 }),
 
                 // Update team
-                rest.put(`${baseUrl}/api/team/:id`, async (req, res, ctx) => {
+                http.put(`${baseUrl}/api/team/:id`, async (req, res, ctx) => {
                     const { id } = req.params;
                     const body = await req.json();
 
@@ -452,7 +458,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                 }),
 
                 // Get team
-                rest.get(`${baseUrl}/api/team/:handle`, (req, res, ctx) => {
+                http.get(`${baseUrl}/api/team/:handle`, (req, res, ctx) => {
                     const { handle } = req.params;
                     const mockTeam = this.createMockResponse({ 
                         handle: handle as string, 
@@ -465,7 +471,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                 }),
 
                 // Add member
-                rest.post(`${baseUrl}/api/team/:id/member`, async (req, res, ctx) => {
+                http.post(`${baseUrl}/api/team/:id/member`, async (req, res, ctx) => {
                     const { id } = req.params;
                     const body = await req.json();
 
@@ -524,7 +530,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                 }),
 
                 // Delete team
-                rest.delete(`${baseUrl}/api/team/:id`, (req, res, ctx) => {
+                http.delete(`${baseUrl}/api/team/:id`, (req, res, ctx) => {
                     return res(
                         ctx.status(204),
                     );
@@ -532,7 +538,7 @@ export class TeamFixtureFactory implements FixtureFactory<
             ],
 
             error: [
-                rest.post(`${baseUrl}/api/team`, (req, res, ctx) => {
+                http.post(`${baseUrl}/api/team`, (req, res, ctx) => {
                     return res(
                         ctx.status(409),
                         ctx.json({ 
@@ -542,7 +548,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     );
                 }),
 
-                rest.put(`${baseUrl}/api/team/:id`, (req, res, ctx) => {
+                http.put(`${baseUrl}/api/team/:id`, (req, res, ctx) => {
                     return res(
                         ctx.status(403),
                         ctx.json({ 
@@ -552,7 +558,7 @@ export class TeamFixtureFactory implements FixtureFactory<
                     );
                 }),
 
-                rest.get(`${baseUrl}/api/team/:handle`, (req, res, ctx) => {
+                http.get(`${baseUrl}/api/team/:handle`, (req, res, ctx) => {
                     return res(
                         ctx.status(404),
                         ctx.json({ 
@@ -564,7 +570,7 @@ export class TeamFixtureFactory implements FixtureFactory<
             ],
 
             loading: [
-                rest.post(`${baseUrl}/api/team`, (req, res, ctx) => {
+                http.post(`${baseUrl}/api/team`, (req, res, ctx) => {
                     return res(
                         ctx.delay(2000), // 2 second delay
                         ctx.status(201),
@@ -574,7 +580,7 @@ export class TeamFixtureFactory implements FixtureFactory<
             ],
 
             networkError: [
-                rest.post(`${baseUrl}/api/team`, (req, res, ctx) => {
+                http.post(`${baseUrl}/api/team`, (req, res, ctx) => {
                     return res.networkError("Network connection failed");
                 }),
             ],

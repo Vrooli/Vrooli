@@ -15,7 +15,7 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { EventPublisher } from "./EventPublisher.js";
-import { ErrorHandler, ComponentErrorHandler } from "./ErrorHandler.js";
+import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
  * Base component interface
@@ -86,7 +86,7 @@ export abstract class BaseComponent implements IBaseComponent {
     protected async executeWithErrorHandling<T>(
         operation: () => Promise<T>,
         operationName: string,
-        context?: Record<string, any>
+        context?: Record<string, any>,
     ): Promise<T> {
         return this.errorHandler.execute(operation, {
             operation: operationName,
@@ -101,7 +101,7 @@ export abstract class BaseComponent implements IBaseComponent {
     protected async publishEvent(
         eventType: string,
         payload: any,
-        metadata?: Record<string, any>
+        metadata?: Record<string, any>,
     ): Promise<void> {
         await this.eventPublisher.publish(eventType, payload, { metadata });
     }
@@ -114,14 +114,14 @@ export abstract class BaseComponent implements IBaseComponent {
         entityId: string,
         fromState: T,
         toState: T,
-        context?: Record<string, any>
+        context?: Record<string, any>,
     ): Promise<void> {
         await this.eventPublisher.publishStateChange(
             entityType,
             entityId,
             fromState,
             toState,
-            context
+            context,
         );
     }
 
@@ -131,7 +131,7 @@ export abstract class BaseComponent implements IBaseComponent {
     protected async publishError(
         operation: string,
         error: Error,
-        context?: Record<string, any>
+        context?: Record<string, any>,
     ): Promise<void> {
         await this.eventPublisher.publishError(operation, error, context);
     }
@@ -142,7 +142,7 @@ export abstract class BaseComponent implements IBaseComponent {
     protected async publishMetric(
         metricName: string,
         value: number,
-        tags?: Record<string, string>
+        tags?: Record<string, string>,
     ): Promise<void> {
         await this.eventPublisher.publishMetric(metricName, value, tags);
     }
@@ -154,7 +154,7 @@ export abstract class BaseComponent implements IBaseComponent {
 export class ComponentFactory {
     constructor(
         private readonly logger: Logger,
-        private readonly eventBus: EventBus
+        private readonly eventBus: EventBus,
     ) {}
 
     /**
@@ -180,10 +180,10 @@ export class ComponentFactory {
         componentSpecs: Array<{
             ComponentClass: new (logger: Logger, eventBus: EventBus, ...args: any[]) => T;
             args?: any[];
-        }>
+        }>,
     ): Promise<T[]> {
         const creationPromises = componentSpecs.map(spec =>
-            this.create(spec.ComponentClass, ...(spec.args || []))
+            this.create(spec.ComponentClass, ...(spec.args || [])),
         );
         
         return Promise.all(creationPromises);

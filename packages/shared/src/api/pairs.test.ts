@@ -8,7 +8,7 @@ import {
     updateOne, 
     updateMany, 
     standardCRUD, 
-    resourceVersion 
+    resourceVersion, 
 } from "./pairs.js";
 
 describe("API endpoint helper functions", () => {
@@ -18,8 +18,8 @@ describe("API endpoint helper functions", () => {
             expect(result).toEqual({
                 findOne: {
                     endpoint: "/user/:publicId",
-                    method: "GET"
-                }
+                    method: "GET",
+                },
             });
         });
 
@@ -27,15 +27,15 @@ describe("API endpoint helper functions", () => {
             expect(findOne("post")).toEqual({
                 findOne: {
                     endpoint: "/post/:publicId",
-                    method: "GET"
-                }
+                    method: "GET",
+                },
             });
             
             expect(findOne("comment")).toEqual({
                 findOne: {
                     endpoint: "/comment/:publicId",
-                    method: "GET"
-                }
+                    method: "GET",
+                },
             });
         });
 
@@ -47,8 +47,8 @@ describe("API endpoint helper functions", () => {
             expect(result).toEqual({
                 findMany: {
                     endpoint: "/users",
-                    method: "GET"
-                }
+                    method: "GET",
+                },
             });
         });
 
@@ -56,15 +56,15 @@ describe("API endpoint helper functions", () => {
             expect(findMany("posts")).toEqual({
                 findMany: {
                     endpoint: "/posts",
-                    method: "GET"
-                }
+                    method: "GET",
+                },
             });
             
             expect(findMany("comments")).toEqual({
                 findMany: {
                     endpoint: "/comments",
-                    method: "GET"
-                }
+                    method: "GET",
+                },
             });
         });
 
@@ -76,8 +76,8 @@ describe("API endpoint helper functions", () => {
             expect(result).toEqual({
                 createOne: {
                     endpoint: "/user",
-                    method: "POST"
-                }
+                    method: "POST",
+                },
             });
         });
 
@@ -85,8 +85,8 @@ describe("API endpoint helper functions", () => {
             expect(createOne("post")).toEqual({
                 createOne: {
                     endpoint: "/post",
-                    method: "POST"
-                }
+                    method: "POST",
+                },
             });
         });
 
@@ -98,8 +98,8 @@ describe("API endpoint helper functions", () => {
             expect(result).toEqual({
                 createMany: {
                     endpoint: "/users",
-                    method: "POST"
-                }
+                    method: "POST",
+                },
             });
         });
 
@@ -107,8 +107,8 @@ describe("API endpoint helper functions", () => {
             expect(createMany("posts")).toEqual({
                 createMany: {
                     endpoint: "/posts",
-                    method: "POST"
-                }
+                    method: "POST",
+                },
             });
         });
 
@@ -120,8 +120,8 @@ describe("API endpoint helper functions", () => {
             expect(result).toEqual({
                 updateOne: {
                     endpoint: "/user/:id",
-                    method: "PUT"
-                }
+                    method: "PUT",
+                },
             });
         });
 
@@ -129,8 +129,8 @@ describe("API endpoint helper functions", () => {
             expect(updateOne("post")).toEqual({
                 updateOne: {
                     endpoint: "/post/:id",
-                    method: "PUT"
-                }
+                    method: "PUT",
+                },
             });
         });
 
@@ -142,8 +142,8 @@ describe("API endpoint helper functions", () => {
             expect(result).toEqual({
                 updateMany: {
                     endpoint: "/users",
-                    method: "PUT"
-                }
+                    method: "PUT",
+                },
             });
         });
 
@@ -151,8 +151,8 @@ describe("API endpoint helper functions", () => {
             expect(updateMany("posts")).toEqual({
                 updateMany: {
                     endpoint: "/posts",
-                    method: "PUT"
-                }
+                    method: "PUT",
+                },
             });
         });
 
@@ -164,20 +164,20 @@ describe("API endpoint helper functions", () => {
             expect(result).toEqual({
                 findOne: {
                     endpoint: "/user/:publicId",
-                    method: "GET"
+                    method: "GET",
                 },
                 findMany: {
                     endpoint: "/users",
-                    method: "GET"
+                    method: "GET",
                 },
                 createOne: {
                     endpoint: "/user",
-                    method: "POST"
+                    method: "POST",
                 },
                 updateOne: {
                     endpoint: "/user/:id",
-                    method: "PUT"
-                }
+                    method: "PUT",
+                },
             });
         });
 
@@ -186,20 +186,20 @@ describe("API endpoint helper functions", () => {
             expect(result).toEqual({
                 findOne: {
                     endpoint: "/post/:publicId",
-                    method: "GET"
+                    method: "GET",
                 },
                 findMany: {
                     endpoint: "/posts",
-                    method: "GET"
+                    method: "GET",
                 },
                 createOne: {
                     endpoint: "/post",
-                    method: "POST"
+                    method: "POST",
                 },
                 updateOne: {
                     endpoint: "/post/:id",
-                    method: "PUT"
-                }
+                    method: "PUT",
+                },
             });
         });
 
@@ -210,19 +210,19 @@ describe("API endpoint helper functions", () => {
             const result = resourceVersion("api");
             expect(result).toEqual({
                 endpoint: "/api/:publicId/v/:versionLabel",
-                method: "GET"
+                method: "GET",
             });
         });
 
         it("should handle different resource names", () => {
             expect(resourceVersion("routine")).toEqual({
                 endpoint: "/routine/:publicId/v/:versionLabel",
-                method: "GET"
+                method: "GET",
             });
 
             expect(resourceVersion("project")).toEqual({
                 endpoint: "/project/:publicId/v/:versionLabel",
-                method: "GET"
+                method: "GET",
             });
         });
 

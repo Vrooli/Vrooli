@@ -1,19 +1,18 @@
 import { type PrismaClient } from "@prisma/client";
-import { type Logger } from "winston";
 import {
-    type Run,
+    type ResourceUsage,
     type RunState,
     type StepStatus,
-    type ResourceUsage,
-    generatePK,
+    generatePK
 } from "@vrooli/shared";
+import { type Logger } from "winston";
 
 /**
  * Execution status mapping between shared types and database enums
  */
 const RUN_STATUS_MAP = {
     "UNINITIALIZED": "Scheduled",
-    "LOADING": "InProgress", 
+    "LOADING": "InProgress",
     "READY": "InProgress",
     "RUNNING": "InProgress",
     "PAUSED": "InProgress",
@@ -25,7 +24,7 @@ const RUN_STATUS_MAP = {
 
 const STEP_STATUS_MAP = {
     "pending": "InProgress",
-    "running": "InProgress", 
+    "running": "InProgress",
     "completed": "Completed",
     "failed": "Failed",
     "skipped": "Skipped",
@@ -193,7 +192,7 @@ export class RunPersistenceService {
 
         try {
             const dbStatus = STEP_STATUS_MAP[stepData.state] || "InProgress";
-            
+
             // Calculate time elapsed if completed
             let timeElapsed: number | undefined;
             if (stepData.completedAt) {
@@ -234,7 +233,7 @@ export class RunPersistenceService {
                 // Create new step record
                 await this.prisma.run_step.create({
                     data: {
-                        id: BigInt(generatePk()),
+                        id: BigInt(generatePK()),
                         runId: BigInt(runId),
                         nodeId: stepData.stepId,
                         name: `Step ${stepData.stepId}`,
@@ -396,9 +395,9 @@ export class RunPersistenceService {
             });
 
             const history = runs.map(run => {
-                const routineName = run.resourceVersion?.translations?.[0]?.name || 
-                                 `Routine ${run.resourceVersion?.publicId || "Unknown"}`;
-                
+                const routineName = run.resourceVersion?.translations?.[0]?.name ||
+                    `Routine ${run.resourceVersion?.publicId || "Unknown"}`;
+
                 let duration: number | undefined;
                 if (run.startedAt && run.completedAt) {
                     duration = run.completedAt.getTime() - run.startedAt.getTime();
@@ -436,13 +435,13 @@ export class RunPersistenceService {
      */
     private estimateStepComplexity(resourceUsage?: ResourceUsage): number {
         if (!resourceUsage) return 1;
-        
+
         let complexity = 1;
-        
+
         if (resourceUsage.tokens && resourceUsage.tokens > 1000) complexity += 1;
         if (resourceUsage.apiCalls && resourceUsage.apiCalls > 5) complexity += 1;
         if (resourceUsage.computeTime && resourceUsage.computeTime > 30000) complexity += 2;
-        
+
         return Math.min(complexity, 10);
     }
 }

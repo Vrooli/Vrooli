@@ -1,5 +1,5 @@
 import Box from "@mui/material/Box";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material";
 import { useTheme } from "@mui/material";

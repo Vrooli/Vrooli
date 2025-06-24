@@ -160,7 +160,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                     { state: "STARTING" },
                     { goal },
                     "You are starting a new swarm. Set up the team and plan as needed.",
-                    convoId
+                    convoId,
                 );
 
                 // Update conversation config
@@ -213,7 +213,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 // Process any queued events
                 if (this.eventQueue.length > 0) {
                     this.drain().catch(err => 
-                        this.logger.error("Error draining initial event queue", { error: err, conversationId: convoId })
+                        this.logger.error("Error draining initial event queue", { error: err, conversationId: convoId }),
                     );
                 }
             }, "startSwarm", { conversationId: convoId, goal });
@@ -237,7 +237,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
      * Override to ensure conversationId is provided
      */
     async handleEvent(ev: SwarmEvent): Promise<void> {
-        if (!this.validateEvent(ev, ['conversationId'])) {
+        if (!this.validateEvent(ev, ["conversationId"])) {
             return;
         }
         
@@ -306,10 +306,10 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             { state: "STARTED", goal: event.goal },
             convoState.config,
             `The swarm has started with goal: "${event.goal}". Initialize the team and create a plan.`,
-            event.conversationId
+            event.conversationId,
         );
 
-        this.logger.info(`[SwarmStateMachine] Leader response to swarm start`, {
+        this.logger.info("[SwarmStateMachine] Leader response to swarm start", {
             conversationId: event.conversationId,
             responseLength: response.length,
         });
@@ -323,7 +323,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             {
                 goal: event.goal,
                 leaderId: leaderBot.id,
-            }
+            },
         );
     }
 
@@ -363,7 +363,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         const subtasks = convoState.config.subtasks || [];
         const totalSubTasks = subtasks.length;
         const completedSubTasks = subtasks.filter((task: SwarmSubTask) => 
-            task.status === "done"
+            task.status === "done",
         ).length;
 
         const finalState = {
@@ -392,7 +392,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     protected async onIdle(): Promise<void> {
         // Could implement autonomous monitoring here
         // For now, just log
-        this.logger.debug(`[SwarmStateMachine] Entered IDLE state`, {
+        this.logger.debug("[SwarmStateMachine] Entered IDLE state", {
             conversationId: this.conversationId,
         });
     }
@@ -450,7 +450,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     private async createConversationState(
         conversationId: string, 
         goal: string, 
-        user: SessionUser
+        user: SessionUser,
     ): Promise<ConversationState> {
         // Check if conversation already exists
         const state = await this.conversationBridge.getConversationState(conversationId);
@@ -491,7 +491,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
     private async updateConversationConfig(
         conversationId: string, 
-        updates: Partial<ChatConfigObject>
+        updates: Partial<ChatConfigObject>,
     ): Promise<void> {
         // Update config in state store
         this.logger.debug(`Updating conversation config for ${conversationId}`, updates);
@@ -504,7 +504,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
     private async handleExternalMessage(event: SwarmEvent): Promise<void> {
         // Handle external messages by routing to appropriate agents
-        this.logger.info(`[SwarmStateMachine] Handling external message`, {
+        this.logger.info("[SwarmStateMachine] Handling external message", {
             conversationId: event.conversationId,
         });
 
@@ -529,10 +529,10 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 { state: this.state, messageReceived: true },
                 convoState.config,
                 `Process this message: "${messageText}"`,
-                event.conversationId
+                event.conversationId,
             );
 
-            this.logger.info(`[SwarmStateMachine] Generated response to external message`, {
+            this.logger.info("[SwarmStateMachine] Generated response to external message", {
                 conversationId: event.conversationId,
                 responseLength: response.length,
             });
@@ -548,7 +548,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
     private async handleApprovedTool(event: SwarmEvent): Promise<void> {
         // Handle approved tool execution
-        this.logger.info(`[SwarmStateMachine] Handling approved tool`, {
+        this.logger.info("[SwarmStateMachine] Handling approved tool", {
             conversationId: event.conversationId,
             tool: event.payload?.pendingToolCall?.toolName,
         });
@@ -556,7 +556,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         await this.errorHandler.execute(async () => {
             const pendingToolCall = event.payload?.pendingToolCall;
             if (!pendingToolCall) {
-                this.logger.error(`[SwarmStateMachine] No pending tool call in approved tool event`);
+                this.logger.error("[SwarmStateMachine] No pending tool call in approved tool event");
                 return;
             }
 
@@ -580,14 +580,14 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 { 
                     state: this.state, 
                     toolExecution: true,
-                    approvedTool: pendingToolCall 
+                    approvedTool: pendingToolCall, 
                 },
                 convoState.config,
                 toolPrompt,
-                event.conversationId
+                event.conversationId,
             );
 
-            this.logger.info(`[SwarmStateMachine] Executed approved tool`, {
+            this.logger.info("[SwarmStateMachine] Executed approved tool", {
                 conversationId: event.conversationId,
                 toolName: pendingToolCall.toolName,
                 responseLength: response.length,
@@ -602,13 +602,13 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             });
         }, "handleApprovedTool", { 
             conversationId: event.conversationId,
-            tool: event.payload?.pendingToolCall?.toolName 
+            tool: event.payload?.pendingToolCall?.toolName, 
         });
     }
 
     private async handleRejectedTool(event: SwarmEvent): Promise<void> {
         // Handle rejected tool
-        this.logger.info(`[SwarmStateMachine] Handling rejected tool`, {
+        this.logger.info("[SwarmStateMachine] Handling rejected tool", {
             conversationId: event.conversationId,
             tool: event.payload?.pendingToolCall?.toolName,
             reason: event.payload?.reason,
@@ -619,7 +619,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             const rejectionReason = event.payload?.reason || "Tool use was rejected";
 
             if (!pendingToolCall) {
-                this.logger.error(`[SwarmStateMachine] No pending tool call in rejected tool event`);
+                this.logger.error("[SwarmStateMachine] No pending tool call in rejected tool event");
                 return;
             }
 
@@ -644,14 +644,14 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                     state: this.state, 
                     toolRejected: true,
                     rejectedTool: pendingToolCall,
-                    rejectionReason 
+                    rejectionReason, 
                 },
                 convoState.config,
                 fallbackPrompt,
-                event.conversationId
+                event.conversationId,
             );
 
-            this.logger.info(`[SwarmStateMachine] Generated fallback strategy for rejected tool`, {
+            this.logger.info("[SwarmStateMachine] Generated fallback strategy for rejected tool", {
                 conversationId: event.conversationId,
                 toolName: pendingToolCall.toolName,
                 responseLength: response.length,
@@ -666,13 +666,13 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             });
         }, "handleRejectedTool", { 
             conversationId: event.conversationId,
-            tool: event.payload?.pendingToolCall?.toolName 
+            tool: event.payload?.pendingToolCall?.toolName, 
         });
     }
 
     private async handleInternalTaskAssignment(event: SwarmEvent): Promise<void> {
         // Handle internal task assignment (e.g., run execution requests)
-        this.logger.info(`[SwarmStateMachine] Handling internal task assignment`, {
+        this.logger.info("[SwarmStateMachine] Handling internal task assignment", {
             conversationId: event.conversationId,
             payload: event.payload,
         });
@@ -698,14 +698,14 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 { 
                     state: this.state, 
                     taskAssignment: true,
-                    assignedTask: event.payload 
+                    assignedTask: event.payload, 
                 },
                 convoState.config,
                 taskPrompt,
-                event.conversationId
+                event.conversationId,
             );
 
-            this.logger.info(`[SwarmStateMachine] Coordinated task assignment`, {
+            this.logger.info("[SwarmStateMachine] Coordinated task assignment", {
                 conversationId: event.conversationId,
                 taskType: event.payload?.runId ? "run_execution" : "general_task",
                 responseLength: response.length,
@@ -722,7 +722,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
     private async handleInternalStatusUpdate(event: SwarmEvent): Promise<void> {
         // Handle internal status updates (e.g., run completion, resource alerts)
-        this.logger.info(`[SwarmStateMachine] Handling internal status update`, {
+        this.logger.info("[SwarmStateMachine] Handling internal status update", {
             conversationId: event.conversationId,
             updateType: event.payload?.type,
         });
@@ -772,14 +772,14 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 { 
                     state: this.state, 
                     statusUpdate: true,
-                    updateData: event.payload 
+                    updateData: event.payload, 
                 },
                 convoState.config,
                 statusPrompt,
-                event.conversationId
+                event.conversationId,
             );
 
-            this.logger.info(`[SwarmStateMachine] Processed status update`, {
+            this.logger.info("[SwarmStateMachine] Processed status update", {
                 conversationId: event.conversationId,
                 updateType: event.payload?.type,
                 responseLength: response.length,
@@ -794,7 +794,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             });
         }, "handleInternalStatusUpdate", { 
             conversationId: event.conversationId,
-            updateType: event.payload?.type 
+            updateType: event.payload?.type, 
         });
     }
 }

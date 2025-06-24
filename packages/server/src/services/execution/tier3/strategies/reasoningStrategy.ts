@@ -48,7 +48,7 @@ export class ReasoningStrategy extends MinimalStrategyBase {
      */
     protected async executeStrategy(
         context: ExecutionContext,
-        metadata: MinimalExecutionMetadata
+        metadata: MinimalExecutionMetadata,
     ): Promise<StrategyExecutionResult> {
         const startTime = Date.now();
         const stepId = context.stepId;
@@ -142,10 +142,10 @@ export class ReasoningStrategy extends MinimalStrategyBase {
 Task: ${context.stepType}
 
 Inputs available:
-${Object.entries(inputs).map(([key, value]) => `- ${key}: ${JSON.stringify(value)}`).join('\n')}
+${Object.entries(inputs).map(([key, value]) => `- ${key}: ${JSON.stringify(value)}`).join("\n")}
 
 Expected outputs:
-${Object.keys(outputs).map(key => `- ${key}`).join('\n')}
+${Object.keys(outputs).map(key => `- ${key}`).join("\n")}
 
 Please provide your reasoning and the required outputs in a clear, structured format.`;
     }
@@ -161,7 +161,7 @@ Please provide your reasoning and the required outputs in a clear, structured fo
         // Basic attempt to extract outputs from response
         for (const outputKey of expectedOutputs) {
             // Simple pattern matching - agents can improve this
-            const pattern = new RegExp(`${outputKey}[:\\s]*(.+?)(?=\\n|$)`, 'i');
+            const pattern = new RegExp(`${outputKey}[:\\s]*(.+?)(?=\\n|$)`, "i");
             const match = response.match(pattern);
             
             if (match && match[1]) {

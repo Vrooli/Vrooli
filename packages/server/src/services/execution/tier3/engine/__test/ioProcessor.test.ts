@@ -75,9 +75,9 @@ describe("IOProcessor", () => {
             };
 
             // Valid reference should work
-            let result = await ioProcessor.buildInputPayload(
+            const result = await ioProcessor.buildInputPayload(
                 { validRef: inputs.validRef }, 
-                mockContext as RoutineContextImpl
+                mockContext as RoutineContextImpl,
             );
             expect(result.validRef).toBe("Hello World");
 
@@ -85,16 +85,16 @@ describe("IOProcessor", () => {
             await expect(
                 ioProcessor.buildInputPayload(
                     { invalidStep: inputs.invalidStep }, 
-                    mockContext as RoutineContextImpl
-                )
+                    mockContext as RoutineContextImpl,
+                ),
             ).rejects.toThrow("Referenced step 'nonexistent-step' not found");
 
             // Invalid key should throw
             await expect(
                 ioProcessor.buildInputPayload(
                     { invalidKey: inputs.invalidKey }, 
-                    mockContext as RoutineContextImpl
-                )
+                    mockContext as RoutineContextImpl,
+                ),
             ).rejects.toThrow("Invalid step reference: Output key 'nonexistent' not found in step 'step-1'");
         });
 
@@ -137,7 +137,7 @@ describe("IOProcessor", () => {
             const result = await ioProcessor.processOutputs(
                 outputs, 
                 undefined, 
-                mockContext as RoutineContextImpl
+                mockContext as RoutineContextImpl,
             );
 
             expect(result).toEqual(outputs);
@@ -153,7 +153,7 @@ describe("IOProcessor", () => {
             const result = await ioProcessor.processOutputs(
                 rawOutput, 
                 undefined, 
-                mockContext as RoutineContextImpl
+                mockContext as RoutineContextImpl,
             );
 
             expect(result).toEqual({
@@ -170,12 +170,12 @@ describe("IOProcessor", () => {
 
             // Valid reference should work
             await expect(
-                ioProcessor.buildInputPayload(validInputs, mockContext as RoutineContextImpl)
+                ioProcessor.buildInputPayload(validInputs, mockContext as RoutineContextImpl),
             ).resolves.toBeDefined();
 
             // Invalid reference should throw
             await expect(
-                ioProcessor.buildInputPayload(invalidInputs, mockContext as RoutineContextImpl)
+                ioProcessor.buildInputPayload(invalidInputs, mockContext as RoutineContextImpl),
             ).rejects.toThrow("Referenced step 'invalid-step' not found");
         });
     });

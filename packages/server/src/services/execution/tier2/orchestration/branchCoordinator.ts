@@ -186,7 +186,7 @@ export class BranchCoordinator extends BaseComponent {
             for (const branch of persistedBranches) {
                 this.activeBranches.set(branch.id, branch);
                 
-                this.logger.debug(`[BranchCoordinator] Restored branch from storage`, {
+                this.logger.debug("[BranchCoordinator] Restored branch from storage", {
                     runId,
                     branchId: branch.id,
                     state: branch.state,
@@ -286,13 +286,13 @@ export class BranchCoordinator extends BaseComponent {
             // Persist branch to state store
             try {
                 await this.stateStore.createBranch(runId, branch);
-                this.logger.debug(`[BranchCoordinator] Branch persisted to state store`, {
+                this.logger.debug("[BranchCoordinator] Branch persisted to state store", {
                     runId,
                     branchId: branch.id,
                     instanceId: this.instanceId,
                 });
             } catch (error) {
-                this.logger.error(`[BranchCoordinator] Failed to persist branch to state store`, {
+                this.logger.error("[BranchCoordinator] Failed to persist branch to state store", {
                     runId,
                     branchId: branch.id,
                     error: error instanceof Error ? error.message : String(error),
@@ -542,7 +542,7 @@ export class BranchCoordinator extends BaseComponent {
         try {
             await this.stateStore.updateBranch(run.id, branch.id, { state: "running" });
         } catch (error) {
-            this.logger.error(`[BranchCoordinator] Failed to persist branch state update to running`, {
+            this.logger.error("[BranchCoordinator] Failed to persist branch state update to running", {
                 runId: run.id,
                 branchId: branch.id,
                 error: error instanceof Error ? error.message : String(error),
@@ -602,7 +602,7 @@ export class BranchCoordinator extends BaseComponent {
             try {
                 await this.stateStore.updateBranch(run.id, branch.id, { state: "completed" });
             } catch (error) {
-                this.logger.error(`[BranchCoordinator] Failed to persist branch state update to completed`, {
+                this.logger.error("[BranchCoordinator] Failed to persist branch state update to completed", {
                     runId: run.id,
                     branchId: branch.id,
                     error: error instanceof Error ? error.message : String(error),
@@ -640,7 +640,7 @@ export class BranchCoordinator extends BaseComponent {
             try {
                 await this.stateStore.updateBranch(run.id, branch.id, { state: "failed" });
             } catch (error) {
-                this.logger.error(`[BranchCoordinator] Failed to persist branch state update to failed`, {
+                this.logger.error("[BranchCoordinator] Failed to persist branch state update to failed", {
                     runId: run.id,
                     branchId: branch.id,
                     error: error instanceof Error ? error.message : String(error),
@@ -720,7 +720,7 @@ export class BranchCoordinator extends BaseComponent {
             try {
                 await this.stateStore.updateBranch(runId, branch.id, { state: "failed" });
             } catch (error) {
-                this.logger.error(`[BranchCoordinator] Failed to persist branch cancellation state`, {
+                this.logger.error("[BranchCoordinator] Failed to persist branch cancellation state", {
                     runId,
                     branchId: branch.id,
                     error: error instanceof Error ? error.message : String(error),
