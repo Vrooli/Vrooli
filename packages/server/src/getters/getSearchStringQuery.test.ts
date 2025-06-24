@@ -26,57 +26,57 @@ describe("getSearchStringQuery basic tests", () => {
             return { 
                 processedQuery: true,
                 trimmedSearch: searchString.trim(),
-                hasLanguages: !!params.languages
+                hasLanguages: !!params.languages,
             };
         };
         
         const result = mockGetSearchStringQuery({
             objectType: "User",
             searchString: "  test search  ",
-            languages: ["en", "es"]
+            languages: ["en", "es"],
         });
         
         expect(result).toEqual({
             processedQuery: true,
             trimmedSearch: "test search",
-            hasLanguages: true
+            hasLanguages: true,
         });
     });
 
     it("should handle trimming of search strings", () => {
         const mockInsensitivePattern = (searchString: string) => ({
             contains: searchString.trim(),
-            mode: "insensitive"
+            mode: "insensitive",
         });
         
         const result = mockInsensitivePattern("  hello world  ");
         expect(result).toEqual({
             contains: "hello world",
-            mode: "insensitive"
+            mode: "insensitive",
         });
     });
 
     it("should handle languages parameter correctly", () => {
         const mockTranslationQuery = (params: { languages?: string[] }) => ({
             some: {
-                language: params.languages ? { in: params.languages } : undefined
-            }
+                language: params.languages ? { in: params.languages } : undefined,
+            },
         });
         
         // Test with languages
         const withLangs = mockTranslationQuery({ languages: ["en", "es"] });
         expect(withLangs).toEqual({
             some: {
-                language: { in: ["en", "es"] }
-            }
+                language: { in: ["en", "es"] },
+            },
         });
         
         // Test without languages
         const withoutLangs = mockTranslationQuery({});
         expect(withoutLangs).toEqual({
             some: {
-                language: undefined
-            }
+                language: undefined,
+            },
         });
     });
 });

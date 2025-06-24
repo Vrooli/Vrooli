@@ -15,13 +15,13 @@ describe("Notification Email Integration", () => {
             return;
         }
         
-        const template = fs.readFileSync(templatePath, 'utf8');
+        const template = fs.readFileSync(templatePath, "utf8");
         
         const result = formatNotificationEmail(
             template,
             "Test Notification",
             "This is a test notification message.\n\nIt has multiple lines.",
-            "https://vrooli.com/notifications/123"
+            "https://vrooli.com/notifications/123",
         );
         
         // Verify all key elements are present
@@ -30,7 +30,7 @@ describe("Notification Email Integration", () => {
         expect(result).toContain("Test Notification</h1>");
         expect(result).toContain("This is a test notification message.<br><br>It has multiple lines.");
         expect(result).toContain("View Details");
-        expect(result).toContain('href="https:&#x2F;&#x2F;vrooli.com&#x2F;notifications&#x2F;123"');
+        expect(result).toContain("href=\"https:&#x2F;&#x2F;vrooli.com&#x2F;notifications&#x2F;123\"");
         expect(result).toContain(`© ${new Date().getFullYear()} Vrooli`);
         expect(result).toContain("Best regards,<br>The Vrooli Team");
     });
@@ -44,12 +44,12 @@ describe("Notification Email Integration", () => {
             return;
         }
         
-        const template = fs.readFileSync(templatePath, 'utf8');
+        const template = fs.readFileSync(templatePath, "utf8");
         
         const result = formatNotificationEmail(
             template,
             "Simple Notification",
-            "Just a simple message without any action required."
+            "Just a simple message without any action required.",
         );
         
         expect(result).toContain("Simple Notification");

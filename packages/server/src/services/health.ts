@@ -24,7 +24,7 @@ import { AIServiceRegistry, AIServiceState } from "./conversation/registry.js";
 import { EmbeddingService } from "./embedding.js";
 import { runWithMcpContext } from "./mcp/context.js";
 import { getMcpServer } from "./mcp/index.js";
-import { McpToolName } from "./types/tools.js";
+import { McpToolName } from "@vrooli/shared";
 
 const exec = promisify(execCb);
 

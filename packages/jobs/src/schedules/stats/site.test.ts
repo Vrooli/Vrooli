@@ -483,7 +483,6 @@ describe("logSiteStats integration tests", () => {
                 rootId: routine.id,
                 versionLabel: "1.0.0",
                 complexity: 10,
-                simplicity: 5,
                 isLatest: true,
                 isDeleted: false,
                 isPrivate: false,

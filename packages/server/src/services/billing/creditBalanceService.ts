@@ -14,8 +14,8 @@ export async function calculateFreeCreditsBalance(creditAccountId: bigint): Prom
     try {
         // Get all credit ledger entries for this account, ordered by creation time (FIFO)
         const ledgerEntries = await DbProvider.get().credit_ledger_entry.findMany({
-            where: { creditAccountId },
-            orderBy: { createdAt: 'asc' },
+            where: { accountId: creditAccountId },
+            orderBy: { createdAt: "asc" },
             select: {
                 id: true,
                 amount: true,
@@ -52,9 +52,9 @@ export async function calculateFreeCreditsBalance(creditAccountId: bigint): Prom
                 // Transfers - check meta for original source tracking
                 else if (entry.type === CreditEntryType.TransferIn) {
                     // Check if meta contains source information
-                    if (entry.meta && typeof entry.meta === 'object' && 'originalSource' in entry.meta) {
+                    if (entry.meta && typeof entry.meta === "object" && "originalSource" in entry.meta) {
                         const meta = entry.meta as { originalSource?: string };
-                        if (meta.originalSource === 'free') {
+                        if (meta.originalSource === "free") {
                             freeCreditsAdded += amount;
                         } else {
                             purchasedCreditsAdded += amount;

@@ -2,7 +2,7 @@ import { MaxObjects, walletValidation } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { WalletFormat } from "../formats.js";
 import { type WalletModelLogic } from "./types.js";
 

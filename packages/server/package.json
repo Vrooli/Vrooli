@@ -58,9 +58,9 @@
         "seed": "./dist/db/seeds/init.js"
     },
     "scripts": {
-        "test": "NODE_OPTIONS='--max-old-space-size=8192' npx vitest run -c vitest.config.local.ts",
-        "test-watch": "npx vitest -c vitest.config.local.ts",
-        "test-coverage": "NODE_OPTIONS='--max-old-space-size=8192' npx vitest run -c vitest.config.local.ts --coverage",
+        "test": "bash ../../scripts/package-test.sh server",
+        "test-watch": "npx vitest -c vitest.config.ts",
+        "test-coverage": "NODE_OPTIONS='--max-old-space-size=8192' npx vitest run -c vitest.config.ts --coverage",
         "lint": "eslint src",
         "build": "rimraf dist && cross-env NODE_ENV=production swc src -d dist --source-maps --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs\" && pnpm run post-build",
         "pre-prod": "pnpm run prisma:migrate && pnpm run prisma-generate",

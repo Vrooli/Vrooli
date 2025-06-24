@@ -36,7 +36,7 @@ describe("formatNotificationEmail", () => {
         expect(result).toContain("Test body content");
         expect(result).toContain("View Details");
         // URL will be escaped in href attribute
-        expect(result).toContain('href="https:&#x2F;&#x2F;example.com&#x2F;action"');
+        expect(result).toContain("href=\"https:&#x2F;&#x2F;example.com&#x2F;action\"");
     });
 
     it("should escape HTML in title and body", () => {
@@ -87,7 +87,7 @@ describe("formatNotificationEmail", () => {
 });
 
 describe("formatNotificationEmail edge cases", () => {
-    const mockTemplate = `<html><h1>\${TITLE}</h1><div>\${BODY}</div>\${ACTION_BUTTON}</html>`;
+    const mockTemplate = "<html><h1>${TITLE}</h1><div>${BODY}</div>${ACTION_BUTTON}</html>";
 
     it("should handle empty title gracefully", () => {
         const result = formatNotificationEmail(mockTemplate, "", "Body text");
@@ -125,7 +125,7 @@ describe("formatNotificationEmail edge cases", () => {
     });
 
     it("should replace YEAR placeholder with current year", () => {
-        const templateWithYear = `<html>\${TITLE} \${BODY} \${ACTION_BUTTON} Copyright \${YEAR}</html>`;
+        const templateWithYear = "<html>${TITLE} ${BODY} ${ACTION_BUTTON} Copyright ${YEAR}</html>";
         const result = formatNotificationEmail(templateWithYear, "Title", "Body");
         const currentYear = new Date().getFullYear().toString();
         expect(result).toContain(`Copyright ${currentYear}`);
@@ -144,10 +144,10 @@ describe("validateEmailTemplate", () => {
         const badTemplate = "<html><body>Missing placeholders</body></html>";
         const validation = validateEmailTemplate(badTemplate);
         expect(validation.isValid).toBe(false);
-        expect(validation.missingPlaceholders).toContain('${TITLE}');
-        expect(validation.missingPlaceholders).toContain('${BODY}');
-        expect(validation.missingPlaceholders).toContain('${ACTION_BUTTON}');
-        expect(validation.missingPlaceholders).toContain('${YEAR}');
+        expect(validation.missingPlaceholders).toContain("${TITLE}");
+        expect(validation.missingPlaceholders).toContain("${BODY}");
+        expect(validation.missingPlaceholders).toContain("${ACTION_BUTTON}");
+        expect(validation.missingPlaceholders).toContain("${YEAR}");
     });
 
     it("should identify partially missing placeholders", () => {
@@ -155,8 +155,8 @@ describe("validateEmailTemplate", () => {
         const validation = validateEmailTemplate(partialTemplate);
         expect(validation.isValid).toBe(false);
         expect(validation.missingPlaceholders).toHaveLength(3);
-        expect(validation.missingPlaceholders).toContain('${BODY}');
-        expect(validation.missingPlaceholders).toContain('${ACTION_BUTTON}');
-        expect(validation.missingPlaceholders).toContain('${YEAR}');
+        expect(validation.missingPlaceholders).toContain("${BODY}");
+        expect(validation.missingPlaceholders).toContain("${ACTION_BUTTON}");
+        expect(validation.missingPlaceholders).toContain("${YEAR}");
     });
 });

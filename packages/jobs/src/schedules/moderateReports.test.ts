@@ -125,7 +125,9 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: objectOwner.id,
+                createdBy: {
+                    connect: { id: objectOwner.id },
+                },
                 translations: {
                     create: {
                         id: generatePK(),
@@ -159,8 +161,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: reporter.id,
-                commentId: comment.id,
+                createdBy: {
+                    connect: { id: reporter.id },
+                },
+                comment: {
+                    connect: { id: comment.id },
+                },
                 reason: "Spam",
                 details: "This is spam content",
                 status: ReportStatus.Open,
@@ -173,8 +179,12 @@ describe("moderateReports integration tests", () => {
         const response = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: highRepUser.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: highRepUser.id },
+                },
                 actionSuggested: ReportSuggestedAction.Delete,
                 details: "This should be deleted",
             },
@@ -247,8 +257,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
-                ownedByUserId: owner.id,
+                createdBy: {
+                    connect: { id: owner.id },
+                },
+                ownedByUser: {
+                    connect: { id: owner.id },
+                },
                 isPrivate: false,
                 isInternal: false,
                 resourceType: "Routine",
@@ -272,8 +286,14 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: reporter.id,
-                resourceVersionId: resourceVersion.id,
+                createdBy: {
+                    connect: { id: reporter.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: resourceVersion.id },
+
+                },
                 reason: "Bug",
                 details: "Has a critical bug",
                 status: ReportStatus.Open,
@@ -286,8 +306,12 @@ describe("moderateReports integration tests", () => {
         const response1 = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: moderator1.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: moderator1.id },
+                },
                 actionSuggested: ReportSuggestedAction.HideUntilFixed,
             },
         });
@@ -296,8 +320,12 @@ describe("moderateReports integration tests", () => {
         const response2 = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: moderator2.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: moderator2.id },
+                },
                 actionSuggested: ReportSuggestedAction.HideUntilFixed,
             },
         });
@@ -356,7 +384,9 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
+                createdBy: {
+                    connect: { id: owner.id },
+                },
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -374,8 +404,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: badReporter.id,
-                issueId: issue.id,
+                createdBy: {
+                    connect: { id: badReporter.id },
+                },
+                issue: {
+                    connect: { id: issue.id },
+                },
                 reason: "Spam",
                 details: "False accusation",
                 status: ReportStatus.Open,
@@ -388,8 +422,12 @@ describe("moderateReports integration tests", () => {
         const response = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: reviewer.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: reviewer.id },
+                },
                 actionSuggested: ReportSuggestedAction.FalseReport,
                 details: "This is clearly a false report",
             },
@@ -460,7 +498,9 @@ describe("moderateReports integration tests", () => {
         const tag = await DbProvider.get().tag.create({
             data: {
                 id: generatePK(),
-                createdById: owner.id,
+                createdBy: {
+                    connect: { id: owner.id },
+                },
                 tag: "test-tag",
             },
         });
@@ -471,8 +511,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: reporter.id,
-                tagId: tag.id,
+                createdBy: {
+                    connect: { id: reporter.id },
+                },
+                tag: {
+                    connect: { id: tag.id },
+                },
                 reason: "Inappropriate",
                 status: ReportStatus.Open,
                 language: "en",
@@ -484,8 +528,12 @@ describe("moderateReports integration tests", () => {
         const deleteResponse = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: deleteVoter.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: deleteVoter.id },
+                },
                 actionSuggested: ReportSuggestedAction.Delete,
             },
         });
@@ -494,8 +542,12 @@ describe("moderateReports integration tests", () => {
         const nonIssueResponse = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: nonIssueVoter.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: nonIssueVoter.id },
+                },
                 actionSuggested: ReportSuggestedAction.NonIssue,
             },
         });
@@ -553,7 +605,9 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
+                createdBy: {
+                    connect: { id: owner.id },
+                },
                 handle: "testteam",
             },
         });
@@ -564,8 +618,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: reporter.id,
-                teamId: team.id,
+                createdBy: {
+                    connect: { id: reporter.id },
+                },
+                team: {
+                    connect: { id: team.id },
+                },
                 reason: "Spam",
                 status: ReportStatus.Open,
                 language: "en",
@@ -578,8 +636,12 @@ describe("moderateReports integration tests", () => {
         const response = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: lowRepUser.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: lowRepUser.id },
+                },
                 actionSuggested: ReportSuggestedAction.Delete,
             },
         });
@@ -648,8 +710,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: reporter.id,
-                commentId: comment.id,
+                createdBy: {
+                    connect: { id: reporter.id },
+                },
+                comment: {
+                    connect: { id: comment.id },
+                },
                 reason: "Inappropriate",
                 status: ReportStatus.Open,
                 language: "en",
@@ -662,8 +728,12 @@ describe("moderateReports integration tests", () => {
         const response = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: voter.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: voter.id },
+                },
                 actionSuggested: ReportSuggestedAction.HideUntilFixed,
             },
         });
@@ -715,8 +785,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
-                ownedByUserId: owner.id,
+                createdBy: {
+                    connect: { id: owner.id },
+                },
+                ownedByUser: {
+                    connect: { id: owner.id },
+                },
                 isPrivate: false,
                 isInternal: false,
                 resourceType: "Api",
@@ -740,8 +814,14 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: reporter.id,
-                resourceVersionId: resourceVersion.id,
+                createdBy: {
+                    connect: { id: reporter.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: resourceVersion.id },
+
+                },
                 reason: "Malicious",
                 status: ReportStatus.Open,
                 language: "en",
@@ -753,8 +833,12 @@ describe("moderateReports integration tests", () => {
         const response = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: moderator.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: moderator.id },
+                },
                 actionSuggested: ReportSuggestedAction.Delete,
             },
         });
@@ -848,7 +932,9 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
+                createdBy: {
+                    connect: { id: owner.id },
+                },
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -866,8 +952,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: reporter.id,
-                issueId: issue.id,
+                createdBy: {
+                    connect: { id: reporter.id },
+                },
+                issue: {
+                    connect: { id: issue.id },
+                },
                 reason: "Inappropriate",
                 status: ReportStatus.Open,
                 language: "en",
@@ -883,32 +973,48 @@ describe("moderateReports integration tests", () => {
             DbProvider.get().report_response.create({
                 data: {
                     id: generatePK(),
-                    reportId: report.id,
-                    createdById: voters[0].id,
+                    report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: voters[0].id },
+                },
                     actionSuggested: ReportSuggestedAction.Delete,
                 },
             }),
             DbProvider.get().report_response.create({
                 data: {
                     id: generatePK(),
-                    reportId: report.id,
-                    createdById: voters[1].id,
+                    report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: voters[1].id },
+                },
                     actionSuggested: ReportSuggestedAction.Delete,
                 },
             }),
             DbProvider.get().report_response.create({
                 data: {
                     id: generatePK(),
-                    reportId: report.id,
-                    createdById: voters[2].id,
+                    report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: voters[2].id },
+                },
                     actionSuggested: ReportSuggestedAction.HideUntilFixed,
                 },
             }),
             DbProvider.get().report_response.create({
                 data: {
                     id: generatePK(),
-                    reportId: report.id,
-                    createdById: voters[3].id,
+                    report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: voters[3].id },
+                },
                     actionSuggested: ReportSuggestedAction.NonIssue,
                 },
             }),
@@ -954,7 +1060,9 @@ describe("moderateReports integration tests", () => {
         const tag = await DbProvider.get().tag.create({
             data: {
                 id: generatePK(),
-                createdById: owner.id,
+                createdBy: {
+                    connect: { id: owner.id },
+                },
                 tag: "lonely-tag",
             },
         });
@@ -965,8 +1073,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: reporter.id,
-                tagId: tag.id,
+                createdBy: {
+                    connect: { id: reporter.id },
+                },
+                tag: {
+                    connect: { id: tag.id },
+                },
                 reason: "Spam",
                 status: ReportStatus.Open,
                 language: "en",
@@ -998,7 +1110,9 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: teamOwner.id,
+                createdBy: {
+                    connect: { id: teamOwner.id },
+                },
                 handle: "ownerteam",
             },
         });
@@ -1030,8 +1144,12 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: teamOwner.id,
-                ownedByTeamId: team.id,
+                createdBy: {
+                    connect: { id: teamOwner.id },
+                },
+                ownedByTeam: {
+                    connect: { id: team.id },
+                },
                 isPrivate: false,
                 isInternal: false,
                 resourceType: "Routine",
@@ -1056,8 +1174,14 @@ describe("moderateReports integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: reporter.id,
-                resourceVersionId: resourceVersion.id,
+                createdBy: {
+                    connect: { id: reporter.id },
+                },
+                resourceVersion: {
+
+                    connect: { id: resourceVersion.id },
+
+                },
                 reason: "Malicious",
                 status: ReportStatus.Open,
                 language: "en",
@@ -1069,8 +1193,12 @@ describe("moderateReports integration tests", () => {
         const response = await DbProvider.get().report_response.create({
             data: {
                 id: generatePK(),
-                reportId: report.id,
-                createdById: moderator.id,
+                report: {
+                    connect: { id: report.id },
+                },
+                createdBy: {
+                    connect: { id: moderator.id },
+                },
                 actionSuggested: ReportSuggestedAction.Delete,
             },
         });

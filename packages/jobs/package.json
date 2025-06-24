@@ -8,7 +8,7 @@
     "type": "module",
     "scripts": {
         "pretest": "cd ../shared && pnpm run build && cd ../server && pnpm run build",
-        "test": "NODE_OPTIONS='--max-old-space-size=8192' npx vitest run",
+        "test": "bash ../../scripts/package-test.sh jobs",
         "test-watch": "npx vitest",
         "test-coverage": "NODE_OPTIONS='--max-old-space-size=8192' npx vitest run --coverage",
         "lint": "eslint src",

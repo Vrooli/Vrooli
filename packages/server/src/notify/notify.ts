@@ -52,27 +52,27 @@ function loadNotificationTemplate(): string {
     
     try {
         if (fs.existsSync(notificationTemplatePath)) {
-            const templateContent = fs.readFileSync(notificationTemplatePath, 'utf8');
+            const templateContent = fs.readFileSync(notificationTemplatePath, "utf8");
             const validation = validateEmailTemplate(templateContent);
             
             if (!validation.isValid) {
-                logger.warn('Notification template missing placeholders', { 
+                logger.warn("Notification template missing placeholders", { 
                     missing: validation.missingPlaceholders,
-                    path: notificationTemplatePath
+                    path: notificationTemplatePath,
                 });
             }
             
             notificationTemplate = templateContent;
         } else {
             logger.error(`Could not find notification email template at ${srcTemplatePath} or ${distTemplatePath}`);
-            notificationTemplate = '';
+            notificationTemplate = "";
         }
     } catch (error) {
-        logger.error('Failed to load notification template', { 
+        logger.error("Failed to load notification template", { 
             error: error instanceof Error ? error.message : String(error),
-            path: notificationTemplatePath 
+            path: notificationTemplatePath, 
         });
-        notificationTemplate = '';
+        notificationTemplate = "";
     }
     
     return notificationTemplate;
@@ -480,10 +480,10 @@ async function push({
                             htmlContent = formatNotificationEmail(template, currTitle, currBody, link);
                         }
                     } catch (formatError) {
-                        logger.warn('HTML email formatting failed, falling back to plain text', { 
+                        logger.warn("HTML email formatting failed, falling back to plain text", { 
                             error: formatError instanceof Error ? formatError.message : String(formatError),
                             userId: currentUser.userId,
-                            category
+                            category,
                         });
                         // htmlContent remains empty string, so plain text will be used
                     }

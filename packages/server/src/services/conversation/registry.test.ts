@@ -1,6 +1,5 @@
 import { AnthropicModel, MistralModel, OpenAIModel } from "@vrooli/shared";
 import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";
-
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry.js";
 
 describe("LlmServiceRegistry", () => {
