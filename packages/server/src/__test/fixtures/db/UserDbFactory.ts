@@ -6,7 +6,7 @@ import type {
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { botConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+import { botConfigFixtures } from "@vrooli/shared/test-fixtures";
 
 interface UserRelationConfig extends RelationConfig {
     withAuth?: boolean;

@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-24
 /**
  * Calculates and stores embeddings for all searchable objects (that don't have one yet), including 
  * root objects, versions, and tags

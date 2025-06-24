@@ -39,7 +39,7 @@ export class ToolApprovalManager {
         try {
             // Check if approval is already pending
             if (this.pendingApprovals.has(approvalId)) {
-                this.logger.debug(`[ToolApprovalManager] Approval already pending`, {
+                this.logger.debug("[ToolApprovalManager] Approval already pending", {
                     approvalId,
                     eventId: event.id,
                 });
@@ -71,7 +71,7 @@ export class ToolApprovalManager {
 
             // Check capacity
             if (this.pendingApprovals.size >= this.MAX_PENDING_APPROVALS) {
-                this.logger.warn(`[ToolApprovalManager] Too many pending approvals, auto-rejecting`, {
+                this.logger.warn("[ToolApprovalManager] Too many pending approvals, auto-rejecting", {
                     approvalId,
                     pendingCount: this.pendingApprovals.size,
                 });
@@ -86,7 +86,7 @@ export class ToolApprovalManager {
 
             this.pendingApprovals.set(approvalId, pendingApproval);
 
-            this.logger.info(`[ToolApprovalManager] Created approval request`, {
+            this.logger.info("[ToolApprovalManager] Created approval request", {
                 approvalId,
                 eventId: event.id,
                 eventType: event.type,
@@ -99,7 +99,7 @@ export class ToolApprovalManager {
             await this.publishApprovalRequiredEvent(pendingApproval);
 
         } catch (error) {
-            this.logger.error(`[ToolApprovalManager] Error processing approval request`, {
+            this.logger.error("[ToolApprovalManager] Error processing approval request", {
                 approvalId,
                 eventId: event.id,
                 error: error instanceof Error ? error.message : String(error),
@@ -154,7 +154,7 @@ export class ToolApprovalManager {
             timestamp: new Date(),
         });
 
-        this.logger.info(`[ToolApprovalManager] Approval granted`, {
+        this.logger.info("[ToolApprovalManager] Approval granted", {
             approvalId,
             approvedBy,
             reason,
@@ -211,7 +211,7 @@ export class ToolApprovalManager {
             timestamp: new Date(),
         });
 
-        this.logger.info(`[ToolApprovalManager] Approval rejected`, {
+        this.logger.info("[ToolApprovalManager] Approval rejected", {
             approvalId,
             rejectedBy,
             reason,
@@ -281,7 +281,7 @@ export class ToolApprovalManager {
     registerApprovalPolicy(policy: ApprovalPolicy): void {
         this.approvalPolicies.set(policy.name, policy);
         
-        this.logger.info(`[ToolApprovalManager] Registered approval policy`, {
+        this.logger.info("[ToolApprovalManager] Registered approval policy", {
             policyName: policy.name,
             requiredApprovers: policy.requiredApprovers,
             threshold: policy.threshold,

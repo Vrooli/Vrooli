@@ -109,13 +109,13 @@ export async function logSiteStats(
 
             if (count > 0) {
                 const result = await DbProvider.get().$queryRaw<[{ time: bigint | null }]>`
-                    SELECT SUM(EXTRACT(EPOCH FROM (completedAt - createdAt))) AS time
+                    SELECT SUM(EXTRACT(EPOCH FROM ("completedAt" - "createdAt"))) AS time
                     FROM resource
-                    WHERE resourceType = ${type}
-                      AND completedAt >= ${periodStart}::timestamptz
-                      AND completedAt <= ${periodEnd}::timestamptz
-                      AND isDeleted = false
-                      ${(type === ResourceType.Routine || type === ResourceType.Standard) ? Prisma.sql`AND isInternal = false` : Prisma.empty}`; // Add isInternal filter conditionally - Use PascalCase
+                    WHERE "resourceType" = ${type}
+                      AND "completedAt" >= ${periodStart}::timestamptz
+                      AND "completedAt" <= ${periodEnd}::timestamptz
+                      AND "isDeleted" = false
+                      ${(type === ResourceType.Routine || type === ResourceType.Standard) ? Prisma.sql`AND "isInternal" = false` : Prisma.empty}`; // Add isInternal filter conditionally - Use PascalCase
 
                 const sumSeconds = result && Array.isArray(result) && result.length > 0 && result[0]?.time ? Number(result[0].time) : 0;
                 resourceCompletionTimeSumByType[type] = sumSeconds;
@@ -174,9 +174,9 @@ export async function logSiteStats(
 
         if (runsCompleted > 0) {
             const resultRunTime = await DbProvider.get().$queryRaw<[{ time: bigint | null }]>`
-                SELECT SUM(EXTRACT(EPOCH FROM (completedAt - startedAt))) AS time
+                SELECT SUM(EXTRACT(EPOCH FROM ("completedAt" - "startedAt"))) AS time
                 FROM run
-                WHERE completedAt >= ${periodStart}::timestamptz AND completedAt <= ${periodEnd}::timestamptz`;
+                WHERE "completedAt" >= ${periodStart}::timestamptz AND "completedAt" <= ${periodEnd}::timestamptz`;
             totalRunCompletionTimeSum = resultRunTime && Array.isArray(resultRunTime) && resultRunTime.length > 0 && resultRunTime[0]?.time ? Number(resultRunTime[0].time) : 0;
 
             const resultRunSwitches = await DbProvider.get().run.aggregate({
@@ -222,5 +222,9 @@ export async function logSiteStats(
             calculatedData: data,
             trace: "0423",
         });
+        // Re-throw in test environment so tests can detect failures
+        if (process.env.NODE_ENV === "test") {
+            throw error;
+        }
     }
 }

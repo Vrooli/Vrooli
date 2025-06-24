@@ -1,10 +1,10 @@
-import { type Logger } from "winston";
-import { type EventBus } from "../events/eventBus.js";
 import {
     type ExecutionResourceUsage,
     type ResourceType,
-    generatePk,
+    generatePK,
 } from "@vrooli/shared";
+import { type Logger } from "winston";
+import { type EventBus } from "../events/eventBus.js";
 
 /**
  * Usage tracking configuration
@@ -77,7 +77,7 @@ export class UsageTracker {
     private readonly aggregated: Map<ResourceType, AggregatedUsage> = new Map();
     private aggregationTimer?: NodeJS.Timeout;
     private windowStartTime: Date;
-    
+
     constructor(
         config: UsageTrackerConfig,
         logger: Logger,
@@ -87,19 +87,19 @@ export class UsageTracker {
         this.logger = logger;
         this.eventBus = eventBus;
         this.windowStartTime = new Date();
-        
+
         // Start aggregation timer if configured
         if (config.aggregationInterval) {
             this.startAggregationTimer();
         }
-        
+
         this.logger.debug("[UsageTracker] Initialized", {
             trackerId: config.trackerId,
             scope: config.scope,
             scopeId: config.scopeId,
         });
     }
-    
+
     /**
      * Record resource usage
      */
@@ -110,29 +110,29 @@ export class UsageTracker {
         metadata?: Record<string, unknown>,
     ): Promise<void> {
         const record: UsageRecord = {
-            id: generatePk(),
+            id: generatePK(),
             timestamp: new Date(),
             resourceType,
             amount,
             cost,
             metadata,
         };
-        
+
         // Add to records
         this.records.push(record);
-        
+
         // Update aggregated metrics
         this.updateAggregatedMetrics(record);
-        
+
         // Cleanup old records if window configured
         if (this.config.windowSize) {
             this.cleanupOldRecords();
         }
-        
+
         // Emit usage event
         if (this.eventBus) {
             await this.eventBus.emit({
-                type: 'usage.recorded',
+                type: "usage.recorded",
                 timestamp: new Date(),
                 data: {
                     trackerId: this.config.trackerId,
@@ -144,7 +144,7 @@ export class UsageTracker {
                 },
             });
         }
-        
+
         this.logger.debug("[UsageTracker] Recorded usage", {
             trackerId: this.config.trackerId,
             resourceType,
@@ -152,7 +152,7 @@ export class UsageTracker {
             cost,
         });
     }
-    
+
     /**
      * Record execution usage
      */
@@ -165,7 +165,7 @@ export class UsageTracker {
                 usage.cost,
             );
         }
-        
+
         // Record time
         if (usage.durationMs) {
             await this.record(
@@ -173,7 +173,7 @@ export class UsageTracker {
                 usage.durationMs,
             );
         }
-        
+
         // Record memory
         if (usage.memoryUsedMB) {
             await this.record(
@@ -181,7 +181,7 @@ export class UsageTracker {
                 usage.memoryUsedMB,
             );
         }
-        
+
         // Record tokens
         if (usage.tokens) {
             await this.record(
@@ -189,7 +189,7 @@ export class UsageTracker {
                 usage.tokens,
             );
         }
-        
+
         // Record API calls
         if (usage.apiCalls) {
             await this.record(
@@ -198,7 +198,7 @@ export class UsageTracker {
             );
         }
     }
-    
+
     /**
      * Get current usage summary
      */
@@ -208,12 +208,12 @@ export class UsageTracker {
             start: this.windowStartTime,
             end: now,
         };
-        
+
         let totalCost = 0;
         for (const metrics of this.aggregated.values()) {
             totalCost += metrics.cost;
         }
-        
+
         return {
             scope: this.config.scope,
             scopeId: this.config.scopeId,
@@ -222,8 +222,8 @@ export class UsageTracker {
             totalCost,
         };
     }
-    
-    
+
+
     /**
      * Reset tracker
      */
@@ -231,12 +231,12 @@ export class UsageTracker {
         this.records.length = 0;
         this.aggregated.clear();
         this.windowStartTime = new Date();
-        
+
         this.logger.debug("[UsageTracker] Reset", {
             trackerId: this.config.trackerId,
         });
     }
-    
+
     /**
      * Shutdown tracker
      */
@@ -245,12 +245,12 @@ export class UsageTracker {
             clearInterval(this.aggregationTimer);
             this.aggregationTimer = undefined;
         }
-        
+
         // Emit final summary
         if (this.eventBus) {
             const summary = this.getSummary();
             this.eventBus.emit({
-                type: 'usage.summary',
+                type: "usage.summary",
                 timestamp: new Date(),
                 data: {
                     trackerId: this.config.trackerId,
@@ -260,19 +260,19 @@ export class UsageTracker {
                 this.logger.error("[UsageTracker] Failed to emit summary", { error: err });
             });
         }
-        
+
         this.logger.info("[UsageTracker] Shutdown", {
             trackerId: this.config.trackerId,
             recordCount: this.records.length,
         });
     }
-    
+
     /**
      * Update aggregated metrics
      */
     private updateAggregatedMetrics(record: UsageRecord): void {
         let metrics = this.aggregated.get(record.resourceType);
-        
+
         if (!metrics) {
             metrics = {
                 resourceType: record.resourceType,
@@ -286,7 +286,7 @@ export class UsageTracker {
             };
             this.aggregated.set(record.resourceType, metrics);
         }
-        
+
         // Update metrics
         metrics.total += record.amount;
         metrics.count++;
@@ -295,7 +295,7 @@ export class UsageTracker {
         metrics.cost += record.cost || 0;
         metrics.lastSeen = record.timestamp;
     }
-    
+
     /**
      * Clean up old records outside window
      */
@@ -303,22 +303,22 @@ export class UsageTracker {
         if (!this.config.windowSize) {
             return;
         }
-        
+
         const cutoff = Date.now() - this.config.windowSize;
         const oldCount = this.records.length;
-        
+
         // Remove old records
         let i = 0;
         while (i < this.records.length && this.records[i].timestamp.getTime() < cutoff) {
             i++;
         }
-        
+
         if (i > 0) {
             this.records.splice(0, i);
-            
+
             // Recalculate aggregated metrics
             this.recalculateAggregatedMetrics();
-            
+
             this.logger.debug("[UsageTracker] Cleaned up old records", {
                 trackerId: this.config.trackerId,
                 removed: i,
@@ -326,19 +326,19 @@ export class UsageTracker {
             });
         }
     }
-    
+
     /**
      * Recalculate aggregated metrics from scratch
      */
     private recalculateAggregatedMetrics(): void {
         this.aggregated.clear();
-        
+
         for (const record of this.records) {
             this.updateAggregatedMetrics(record);
         }
     }
-    
-    
+
+
     /**
      * Start aggregation timer
      */
@@ -346,22 +346,22 @@ export class UsageTracker {
         if (!this.config.aggregationInterval) {
             return;
         }
-        
+
         this.aggregationTimer = setInterval(() => {
             this.performAggregation();
         }, this.config.aggregationInterval);
     }
-    
+
     /**
      * Perform periodic aggregation
      */
     private async performAggregation(): Promise<void> {
         const summary = this.getSummary();
-        
+
         // Emit aggregated event
         if (this.eventBus) {
             await this.eventBus.emit({
-                type: 'usage.aggregated',
+                type: "usage.aggregated",
                 timestamp: new Date(),
                 data: {
                     trackerId: this.config.trackerId,
@@ -369,7 +369,7 @@ export class UsageTracker {
                 },
             });
         }
-        
+
         this.logger.debug("[UsageTracker] Performed aggregation", {
             trackerId: this.config.trackerId,
             totalCost: summary.totalCost,

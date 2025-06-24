@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
 import { DAYS_90_MS, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanupRevokedSessions } from "./cleanupRevokedSessions.js";

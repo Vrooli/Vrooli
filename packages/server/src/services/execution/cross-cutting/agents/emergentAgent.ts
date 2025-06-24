@@ -28,7 +28,7 @@ export class EmergentAgent {
         agentId: string, 
         goal: string, 
         initialRoutine: string,
-        logger?: Logger
+        logger?: Logger,
     ) {
         this.agentId = agentId;
         this.goal = goal;
@@ -231,7 +231,7 @@ export class EmergentAgent {
         
         // Simple keyword-based relevance (could be enhanced with ML)
         const overlap = goalKeywords.filter(keyword => 
-            eventContext.some(context => context.toLowerCase().includes(keyword.toLowerCase()))
+            eventContext.some(context => context.toLowerCase().includes(keyword.toLowerCase())),
         );
         
         const score = overlap.length / Math.max(goalKeywords.length, 1);
@@ -484,7 +484,7 @@ export class EmergentAgent {
         return Array.from(this.eventPatterns.values())
             .filter(pattern => 
                 pattern.pattern === currentPattern || 
-                pattern.averageRelevance > 0.7
+                pattern.averageRelevance > 0.7,
             )
             .slice(0, 5);
     }

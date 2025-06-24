@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { getPrisma, createTestUser, waitForJobs } from "../utils/test-helpers.js";
+import { getPrisma } from "../setup/test-setup.js";
+import { enhancedTestUtils, EnhancedDataFactory } from "../fixtures/index.js";
 import { shape, transformInput } from "@vrooli/shared";
 import { User, Team, Project } from "@vrooli/server";
 import type { 
@@ -24,11 +25,15 @@ describe("User Onboarding Scenario", () => {
         // 5. User invites team members
 
         // Step 1: Create new user (simulating signup)
-        const { user: newUser, sessionData } = await createTestUser({
-            handle: "newbie",
-            name: null, // Profile not complete yet
-            bio: null,
+        await EnhancedDataFactory.initialize();
+        const newUser = await enhancedTestUtils.createData('user', 'minimal', {
+            customData: {
+                handle: "newbie", 
+                name: null, // Profile not complete yet
+                bio: null,
+            }
         });
+        const sessionData = await enhancedTestUtils.getSession('standard');
 
         expect(newUser).toBeDefined();
         expect(newUser.handle).toBe("newbie");
@@ -160,8 +165,8 @@ describe("User Onboarding Scenario", () => {
         // For now, we'll just verify the data structure is correct
         expect(inviteData.invitedEmails).toHaveLength(2);
 
-        // Wait for any background jobs
-        await waitForJobs();
+        // Wait for any background jobs (using timeout for now)
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         // Final verification: Check complete user state
         const finalUser = await prisma.user.findUnique({

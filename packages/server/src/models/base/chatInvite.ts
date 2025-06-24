@@ -2,8 +2,7 @@ import { ChatInviteSortBy, ChatInviteStatus, chatInviteValidation, MaxObjects, v
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { defaultPermissions, getSingleTypePermissions } from "../../validators/permissions.js";
 import { ChatInviteFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
@@ -82,7 +81,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
             User: (data?.chat as ChatModelInfo["DbModel"])?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
-            const inviteUserId = data.userId.toString() ?? data.user?.id.toString();
+            const inviteUserId = data.userId?.toString() ?? data.user?.id?.toString();
             const isYourInvite = validatePK(userId) && inviteUserId === userId;
             const basePermissions = defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic });
             return {

@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
 import { describe, expect, it } from "vitest";
 import { moderatePullRequests } from "./moderatePullRequests.js";
 

@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-24
 /**
  * Per-test-file setup that runs after global setup
  * Global setup handles containers and migrations

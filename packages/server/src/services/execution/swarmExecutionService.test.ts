@@ -1,12 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { SwarmExecutionService } from "./swarmExecutionService.js";
-import { type Logger } from "winston";
-import { createMockLogger } from "../../../__test/globalHelpers.js";
-import { DbProvider } from "../../db/provider.js";
 import { generatePK, RunStatus, SwarmStatus } from "@vrooli/shared";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
-import { PostgreSqlContainer } from "@testcontainers/postgresql";
-import { PrismaClient } from "@prisma/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type Logger } from "winston";
+import { DbProvider } from "../../db/provider.js";
+import { SwarmExecutionService } from "./swarmExecutionService.js";
 
 /**
  * SwarmExecutionService Tests - Three-Tier Integration
@@ -26,38 +22,18 @@ import { PrismaClient } from "@prisma/client";
 describe("SwarmExecutionService - Three-Tier Integration", () => {
     let logger: Logger;
     let service: SwarmExecutionService;
-    let pgContainer: StartedTestContainer;
-    let redisContainer: StartedTestContainer;
-    let prisma: PrismaClient;
 
     beforeEach(async () => {
-        // Use real PostgreSQL for persistence
-        pgContainer = await new PostgreSqlContainer("postgres:16-alpine")
-            .withDatabase("test_db")
-            .withUsername("test_user")
-            .withPassword("test_pass")
-            .start();
+        logger = {
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+        } as unknown as Logger;
 
-        // Use real Redis for event bus
-        redisContainer = await new GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .start();
+        // Get the prisma client from DbProvider
+        const prisma = DbProvider.get().client;
 
-        // Setup database connection
-        const databaseUrl = pgContainer.getConnectionUri();
-        process.env.DATABASE_URL = databaseUrl;
-        
-        prisma = new PrismaClient({
-            datasources: {
-                db: { url: databaseUrl }
-            }
-        });
-
-        // Mock DbProvider to return our test prisma instance
-        vi.spyOn(DbProvider, "get").mockReturnValue(prisma);
-
-        logger = createMockLogger();
-        
         // Mock required database queries
         prisma.user = {
             findUnique: vi.fn().mockResolvedValue({
@@ -89,10 +65,7 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
         service = new SwarmExecutionService(logger);
     });
 
-    afterEach(async () => {
-        await prisma?.$disconnect();
-        await pgContainer?.stop();
-        await redisContainer?.stop();
+    afterEach(() => {
         vi.restoreAllMocks();
     });
 
@@ -126,14 +99,14 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
 
             expect(result).toHaveProperty("swarmId");
             expect(result.swarmId).toBe(swarmConfig.swarmId);
-            
+
             // Verify tier initialization
             expect(logger.info).toHaveBeenCalledWith(
                 "[SwarmExecutionService] Starting new swarm",
                 expect.objectContaining({
                     swarmId: swarmConfig.swarmId,
                     name: swarmConfig.name,
-                })
+                }),
             );
         });
 
@@ -188,7 +161,7 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
 
             expect(result).toHaveProperty("runId");
             expect(result.runId).toBe(runConfig.runId);
-            
+
             // Run created in persistence layer
             expect(prisma.run.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({
@@ -213,7 +186,7 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
 
             // Start runs in parallel
             const results = await Promise.all(
-                runs.map(config => service.startRun(config))
+                runs.map(config => service.startRun(config)),
             );
 
             expect(results).toHaveLength(3);
@@ -226,7 +199,7 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
     describe("Event-Driven Cross-Tier Communication", () => {
         it("should propagate events across tiers", async () => {
             const capturedEvents: any[] = [];
-            
+
             // Mock event capturing (would normally use event bus subscription)
             const originalInfo = logger.info;
             logger.info = vi.fn((message: string, meta?: any) => {
@@ -257,14 +230,14 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
             };
 
             await service.startSwarm(swarmConfig);
-            
+
             // Simulate some activity
             await new Promise(resolve => setTimeout(resolve, 100));
 
             // Events should flow through tiers
             expect(logger.info).toHaveBeenCalledWith(
                 expect.stringContaining("SwarmExecutionService"),
-                expect.any(Object)
+                expect.any(Object),
             );
         });
 
@@ -353,7 +326,7 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
     describe("Status and Monitoring", () => {
         it("should provide unified status across all tiers", async () => {
             const swarmId = generatePK();
-            
+
             // Mock swarm data
             prisma.swarm = {
                 findUnique: vi.fn().mockResolvedValue({
@@ -400,7 +373,7 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
             expect(metrics.tiers).toHaveProperty("tier1");
             expect(metrics.tiers).toHaveProperty("tier2");
             expect(metrics.tiers).toHaveProperty("tier3");
-            
+
             // Each tier provides its metrics
             expect(metrics.tiers.tier1).toHaveProperty("activeSwarms");
             expect(metrics.tiers.tier2).toHaveProperty("activeRuns");
@@ -411,7 +384,7 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
     describe("Graceful Shutdown", () => {
         it("should shutdown tiers in correct order", async () => {
             const shutdownOrder: string[] = [];
-            
+
             // Mock shutdown tracking
             const originalInfo = logger.info;
             logger.info = vi.fn((message: string) => {
@@ -426,7 +399,7 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
             // Should shutdown in reverse dependency order (1 -> 2 -> 3)
             expect(shutdownOrder.length).toBeGreaterThan(0);
             expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining("shutdown complete")
+                expect.stringContaining("shutdown complete"),
             );
         });
 
@@ -438,10 +411,10 @@ describe("SwarmExecutionService - Three-Tier Integration", () => {
 
             // Should not throw, but log error
             await expect(service.shutdown()).resolves.not.toThrow();
-            
+
             expect(logger.error).toHaveBeenCalledWith(
                 expect.stringContaining("Error during shutdown"),
-                expect.any(Object)
+                expect.any(Object),
             );
         });
     });

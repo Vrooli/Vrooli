@@ -1,5 +1,5 @@
-import { type ChatMessage, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, ChatMessageSortBy, chatMessageValidation, DEFAULT_LANGUAGE, generatePK, MaxObjects, type TaskContextInfo, validatePK } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { type ChatMessage, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, ChatMessageSortBy, chatMessageValidation, DEFAULT_LANGUAGE, generatePK, MaxObjects, type TaskContextInfo, validatePK } from "@vrooli/shared";
 import { type Request } from "express";
 import { SessionService } from "../../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../../builders/infoConverter.js";
@@ -16,8 +16,7 @@ import { QueueService } from "../../tasks/queues.js";
 import { type LLMCompletionTask, QueueTaskType } from "../../tasks/taskTypes.js";
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
 import { type ChatMessagePre, MessageInfoCollector, type PreMapChatData, type PreMapMessageData } from "../../utils/messageTree.js";
-import { isOwnerAdminCheck } from "../../validators/isOwnerAdminCheck.js";
-import { getSingleTypePermissions, permissionsCheck } from "../../validators/permissions.js";
+import { getSingleTypePermissions, isOwnerAdminCheck, permissionsCheck } from "../../validators/permissions.js";
 import { ChatMessageFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";

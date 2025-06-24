@@ -1,7 +1,7 @@
 import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import { projectConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+import { projectConfigFixtures } from "@vrooli/shared/test-fixtures";
 import type { 
     DbTestFixtures, 
     RelationConfig,

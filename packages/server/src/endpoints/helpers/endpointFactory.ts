@@ -1,4 +1,4 @@
-import { ModelType, VisibilityType } from "@vrooli/shared";
+import { type ModelType, type VisibilityType } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readManyWithEmbeddingsHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -100,7 +100,7 @@ type ExtractEndpointsType<T extends StandardCrudConfig> = {
  * ```
  */
 export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
-    config: T
+    config: T,
 ): ExtractEndpointsType<T> {
     const result: any = {};
     const { objectType, endpoints } = config;

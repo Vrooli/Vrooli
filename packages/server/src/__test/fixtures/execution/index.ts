@@ -23,6 +23,9 @@ export * from "./executionTestUtils.js";
 export * from "./integrationScenarios.js";
 export * from "./types.js";
 
+// Production fixtures with defensive security focus
+export * from "./fixtures.js";
+
 // Phase 2: Runtime Integration Testing
 export * from "./executionRunner.js";
 
@@ -46,6 +49,9 @@ export * from "./emergent-capabilities/index.js";
 
 // Integration Scenarios
 export * from "./integration-scenarios/index.js";
+
+// Tool fixtures (including MCP)
+export * from "./tools/index.js";
 
 // Shared utilities
 export * from "./testIdGenerator.js";
@@ -165,6 +171,40 @@ export type {
 /**
  * Quick Access to Key Fixtures
  */
+
+// Production security-focused fixtures
+import {
+    securityMonitoringSwarm,
+    complianceAuditSwarm,
+    vulnerabilityAssessmentRoutine,
+    dataPrivacyComplianceRoutine,
+    secureCodeExecutionContext,
+    highPerformanceAnalyticsContext,
+    securityResponseIntegration,
+    complianceMonitoringIntegration,
+    executionFixtures
+} from "./fixtures.js";
+
+export const productionFixtures = {
+    // Tier 1: Coordination Intelligence
+    securityMonitoringSwarm,
+    complianceAuditSwarm,
+    
+    // Tier 2: Process Intelligence
+    vulnerabilityAssessmentRoutine,
+    dataPrivacyComplianceRoutine,
+    
+    // Tier 3: Execution Intelligence
+    secureCodeExecutionContext,
+    highPerformanceAnalyticsContext,
+    
+    // Integration Scenarios
+    securityResponseIntegration,
+    complianceMonitoringIntegration,
+    
+    // Complete collection
+    all: executionFixtures
+};
 
 // Get all swarm configurations
 import { minimalSwarmConfig, completeSwarmConfig, customerSupportSwarmDb } from "./tier1-coordination/swarms/swarmFixtures.js";

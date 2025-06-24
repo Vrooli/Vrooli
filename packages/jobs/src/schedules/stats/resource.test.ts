@@ -1,4 +1,5 @@
-import { PeriodType } from "@prisma/client";
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
+import { PeriodType, RunStatus } from "@prisma/client";
 import { ResourceType, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logResourceStats } from "./resource.js";
@@ -81,6 +82,7 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 rootId: resource.id,
+                versionIndex: 1,
                 versionLabel: "1.0.0",
                 complexity: 5,
                 isLatest: true,
@@ -144,6 +146,7 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 rootId: resource.id,
+                versionIndex: 1,
                 versionLabel: "1.0.0",
                 complexity: 5,
                 isLatest: true,
@@ -158,7 +161,7 @@ describe("logResourceStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Started Run",
-                status: "Running",
+                status: RunStatus.InProgress,
                 user: {
                     connect: { id: user.id },
                 },
@@ -178,7 +181,7 @@ describe("logResourceStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Completed Run",
-                status: "Completed",
+                status: RunStatus.Completed,
                 user: {
                     connect: { id: user.id },
                 },
@@ -249,6 +252,7 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 rootId: resource.id,
+                versionIndex: 1,
                 versionLabel: "1.0.0",
                 complexity: 5,
                 isLatest: true,
@@ -263,7 +267,7 @@ describe("logResourceStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Run 1",
-                status: "Completed",
+                status: RunStatus.Completed,
                 user: {
                     connect: { id: user.id },
                 },
@@ -285,7 +289,7 @@ describe("logResourceStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Run 2",
-                status: "Completed",
+                status: RunStatus.Completed,
                 user: {
                     connect: { id: user.id },
                 },
@@ -355,6 +359,7 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 rootId: resource.id,
+                versionIndex: 1,
                 versionLabel: "1.0.0",
                 complexity: 5,
                 isLatest: false, // Not latest
@@ -370,6 +375,7 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 rootId: resource.id,
+                versionIndex: 2,
                 versionLabel: "2.0.0",
                 complexity: 7,
                 isLatest: true, // Latest
@@ -384,7 +390,7 @@ describe("logResourceStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Old Run",
-                status: "Running",
+                status: RunStatus.InProgress,
                 user: {
                     connect: { id: user.id },
                 },
@@ -404,7 +410,7 @@ describe("logResourceStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Latest Run",
-                status: "Running",
+                status: RunStatus.InProgress,
                 user: {
                     connect: { id: user.id },
                 },
@@ -469,6 +475,7 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 rootId: resource.id,
+                versionIndex: 1,
                 versionLabel: "1.0.0",
                 complexity: 5,
                 isLatest: true,
@@ -582,6 +589,7 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 rootId: resource.id,
+                versionIndex: 1,
                 versionLabel: "1.0.0",
                 complexity: 5,
                 isLatest: true,
@@ -596,7 +604,7 @@ describe("logResourceStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "No Time Run",
-                status: "Completed",
+                status: RunStatus.Completed,
                 user: {
                     connect: { id: user.id },
                 },
@@ -664,6 +672,7 @@ describe("logResourceStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 rootId: resource.id,
+                versionIndex: 1,
                 versionLabel: "1.0.0",
                 complexity: 5,
                 isLatest: true,
@@ -712,6 +721,7 @@ describe("logResourceStats integration tests", () => {
             const resource = await DbProvider.get().resource.create({
                 data: {
                     id: generatePK(),
+                    publicId: generatePublicId(),
                     createdById: user.id,
                     resourceType: ResourceType.Routine,
                     isDeleted: false,
@@ -723,10 +733,11 @@ describe("logResourceStats integration tests", () => {
             const resourceVersion = await DbProvider.get().resource_version.create({
                 data: {
                     id: generatePK(),
+                    publicId: generatePublicId(),
                     rootId: resource.id,
+                    versionIndex: 1,
                     versionLabel: "1.0.0",
                     complexity: 5,
-                    simplicity: 8,
                     isLatest: true,
                     isDeleted: false,
                     isPrivate: false,

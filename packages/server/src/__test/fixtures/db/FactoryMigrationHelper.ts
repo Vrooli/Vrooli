@@ -116,7 +116,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
             Object.entries(obj).forEach(([key, value]) => {
                 if (key.endsWith("Settings") || key.endsWith("Config")) {
                     const configName = key.replace("Settings", "").replace("Config", "");
-                    imports.add(`import { ${configName}ConfigFixtures } from "@vrooli/shared/__test/fixtures/config";`);
+                    imports.add(`import { ${configName}ConfigFixtures } from "@vrooli/shared/test-fixtures";`);
                 } else if (typeof value === "object") {
                     checkForConfigs(value);
                 }

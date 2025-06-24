@@ -1,21 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { generatePK, generatePublicId } from "@vrooli/shared";
-import { DbProvider } from "@vrooli/server";
 import { countViews } from "./countViews.js";
 
-// Remove the batch mock - use the real implementation from testcontainers
+const { DbProvider } = await import("@vrooli/server");
 
-vi.mock("@vrooli/server", async () => {
-    const actual = await vi.importActual("@vrooli/server");
-    return {
-        ...actual,
-        logger: {
-            info: vi.fn(),
-            warning: vi.fn(),
-            error: vi.fn(),
-        },
-    };
-});
 
 describe("countViews integration tests", () => {
     // Store test entity IDs for cleanup
@@ -378,24 +367,6 @@ describe("countViews integration tests", () => {
             ],
         });
 
-        // Check the counts before running countViews
-        const beforeResources = await DbProvider.get().resource.findMany({
-            where: { id: { in: resources.map(r => r.id) } },
-            select: { 
-                id: true, 
-                views: true,
-                _count: {
-                    select: { viewedBy: true },
-                },
-            },
-            orderBy: { id: "asc" },
-        });
-        
-        console.log("=== Before countViews ===");
-        beforeResources.forEach((r, i) => {
-            console.log(`Resource[${i}] id=${r.id}: views=${r.views}, actual viewedBy count=${r._count.viewedBy}`);
-        });
-
         // Run the count views function
         await countViews();
 
@@ -405,16 +376,8 @@ describe("countViews integration tests", () => {
             select: { 
                 id: true, 
                 views: true,
-                _count: {
-                    select: { viewedBy: true },
-                },
             },
             orderBy: { id: "asc" },
-        });
-        
-        console.log("\n=== After countViews ===");
-        updatedResources.forEach((r, i) => {
-            console.log(`Resource[${i}] id=${r.id}: views=${r.views}, actual viewedBy count=${r._count.viewedBy}`);
         });
 
         expect(updatedResources[0].views).toBe(2); // Has 2 views

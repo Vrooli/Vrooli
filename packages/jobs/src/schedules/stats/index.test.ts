@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
 import { PeriodType } from "@prisma/client";
 import { DAYS_1_HOURS, MONTHS_1_DAYS, WEEKS_1_DAYS, YEARS_1_DAYS } from "@vrooli/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";

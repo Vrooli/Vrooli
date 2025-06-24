@@ -17,6 +17,13 @@ import { SocketService } from "../../sockets/io.js";
 import type { ApiEndpoint, SessionData } from "../../types.js";
 import { hasProfanity } from "../../utils/censor.js";
 
+// Constants
+const OAUTH_STATE_LENGTH = 32;
+const OAUTH_STATE_EXPIRY_MINUTES = 15;
+const MS_IN_SECOND = 1000;
+const SECONDS_IN_MINUTE = 60;
+const MINUTES_TO_MS = SECONDS_IN_MINUTE * MS_IN_SECOND;
+
 export type OAuthInitiateInput = {
     resourceId: string;
     redirectUri: string;
@@ -643,7 +650,7 @@ export const auth: EndpointsAuth = {
         });
         // Create session token
         // const session = await SessionService.createSession(userData, sessionData, req);
-        const session = {} as any; //TODO 11/21
+        const session = {} as Session; //TODO 11/21
         // Add session token to return payload
         await AuthTokensService.generateSessionToken(res, session);
         return {
@@ -703,15 +710,15 @@ export const auth: EndpointsAuth = {
         }
 
         // Generate state for CSRF protection
-        const state = randomString(32);
+        const state = randomString(OAUTH_STATE_LENGTH);
 
         // Store state in Redis (in production) or in-memory for now
         // For production, use Redis with TTL
-        const stateKey = `oauth:state:${state}`;
+        const _stateKey = `oauth:state:${state}`;
         const stateData = {
             userId: userData.id,
             resourceId: input.resourceId,
-            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+            expires: Date.now() + OAUTH_STATE_EXPIRY_MINUTES * MINUTES_TO_MS, // 15 minutes
         };
 
         // TODO: Use Redis in production
@@ -819,7 +826,7 @@ export const auth: EndpointsAuth = {
         // Calculate token expiry
         let tokenExpiresAt: Date | null = null;
         if (tokenData.expires_in) {
-            tokenExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
+            tokenExpiresAt = new Date(Date.now() + tokenData.expires_in * MS_IN_SECOND);
         }
 
         // Store or update OAuth tokens

@@ -1,7 +1,9 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
 import { ReportStatus, ReportSuggestedAction, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { moderateReports } from "./moderateReports.js";
-import { DbProvider } from "@vrooli/server";
+
+const { DbProvider } = await import("@vrooli/server");
 
 // Mock the Trigger function only
 vi.mock("@vrooli/server", async () => {

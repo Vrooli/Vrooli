@@ -76,6 +76,37 @@ abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject>
             };
         }
     }
+
+    /**
+     * Validate execution fixture config using actual config class
+     */
+    async validateExecutionFixtureConfig(
+        fixture: ExecutionFixture<TConfig>,
+        ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ): Promise<ValidationResult> {
+        try {
+            const configInstance = new ConfigClass({ config: fixture.config });
+            const exported = configInstance.export();
+            const reimported = new ConfigClass({ config: exported });
+            const reexported = reimported.export();
+            
+            if (JSON.stringify(exported) !== JSON.stringify(reexported)) {
+                throw new Error("Config failed round-trip consistency test");
+            }
+
+            return { 
+                pass: true, 
+                message: "Config validation passed",
+                data: exported
+            };
+        } catch (error) {
+            return { 
+                pass: false, 
+                message: "Config validation failed",
+                errors: [error instanceof Error ? error.message : String(error)]
+            };
+        }
+    }
     
     /**
      * Validate complete fixture

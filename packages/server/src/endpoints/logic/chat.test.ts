@@ -12,6 +12,8 @@ import { chat_updateOne } from "../generated/chat_updateOne.js";
 import { chat } from "./chat.js";
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
+// Import validation fixtures for API input testing
+import { chatTestDataFactory } from "@vrooli/shared";
 
 describe("EndpointsChat", () => {
     beforeAll(async () => {
@@ -104,11 +106,10 @@ describe("EndpointsChat", () => {
                 id: testUser.id.toString(),
             });
 
-            // Use real minimal data for authentic testing
-            const input: ChatCreateInput = {
-                id: generatePK().toString(),
+            // Use validation fixtures for consistent test data
+            const input: ChatCreateInput = chatTestDataFactory.createMinimal({
                 openToAnyoneWithInvite: true,
-            };
+            });
 
             const result = await chat.createOne({ input }, { req, res }, chat_createOne);
             expect(result).not.toBeNull();
@@ -188,11 +189,10 @@ describe("EndpointsChat", () => {
         it("throws error for not logged in user", async () => {
             const { req, res } = await mockLoggedOutSession();
 
-            // Use real data for consistency
-            const input: ChatCreateInput = {
-                id: generatePK().toString(),
+            // Use validation fixtures for consistent test data
+            const input: ChatCreateInput = chatTestDataFactory.createMinimal({
                 openToAnyoneWithInvite: false,
-            };
+            });
 
             await expect(async () => {
                 await chat.createOne({ input }, { req, res }, chat_createOne);

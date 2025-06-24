@@ -70,7 +70,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                 versionNotes: "Major update with breaking changes",
                 link: "https://example.com/resource/v2",
                 complexity: 5,
-                simplicity: 3,
                 resourceIndex: 1,
                 translations: {
                     create: [
@@ -108,7 +107,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     isPrivate: 1, // Should be boolean
                     versionLabel: 123, // Should be string
                     complexity: "five", // Should be number
-                    simplicity: "three", // Should be number
                     link: 123, // Should be string
                 },
                 invalidComplexity: {
@@ -120,16 +118,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     versionLabel: "1.0.0",
                     complexity: 11, // Should be 1-10
                 },
-                invalidSimplicity: {
-                    id: generatePK().toString(),
-                    publicId: generatePublicId(),
-                    isComplete: true,
-                    isLatest: true,
-                    isPrivate: false,
-                    versionLabel: "1.0.0",
-                    complexity: 5,
-                    simplicity: 11, // Should be 1-10
-                },
             },
             edgeCases: {
                 minimalComplexity: {
@@ -140,7 +128,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     isPrivate: false,
                     versionLabel: "1.0.0",
                     complexity: 1, // Minimum complexity
-                    simplicity: 10, // Maximum simplicity
                 },
                 maximalComplexity: {
                     id: generatePK().toString(),
@@ -150,7 +137,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     isPrivate: false,
                     versionLabel: "1.0.0",
                     complexity: 10, // Maximum complexity
-                    simplicity: 1, // Minimum simplicity
                 },
                 preReleaseVersion: {
                     id: generatePK().toString(),
@@ -199,7 +185,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     versionNotes: "Major update with new features",
                     link: "https://example.com/resource/v2-updated",
                     complexity: 8,
-                    simplicity: 2,
                     translations: {
                         update: [{
                             where: { id: "translation_id" },
@@ -238,7 +223,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
             versionNotes: "Major update with breaking changes",
             link: "https://example.com/resource/v2",
             complexity: 5,
-            simplicity: 3,
             resourceIndex: 1,
             translations: {
                 create: [
@@ -313,7 +297,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                         isLatest: true,
                         link: "https://docs.example.com/api/v2",
                         complexity: 3,
-                        simplicity: 7,
                     },
                     translations: [{
                         language: "en",
@@ -333,7 +316,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                         isLatest: true,
                         link: "https://tutorials.example.com/getting-started",
                         complexity: 2,
-                        simplicity: 8,
                     },
                     translations: [{
                         language: "en",
@@ -352,7 +334,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                         isComplete: true,
                         isLatest: true,
                         complexity: 10,
-                        simplicity: 1,
                         versionLabel: "1.0.0",
                     },
                     translations: [{
@@ -540,10 +521,6 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
             violations.push("Complexity must be between 1 and 10");
         }
 
-        // Check simplicity range if provided
-        if (record.simplicity !== null && (record.simplicity < 1 || record.simplicity > 10)) {
-            violations.push("Simplicity must be between 1 and 10");
-        }
 
         // Check that version belongs to a resource
         if (!record.rootId) {

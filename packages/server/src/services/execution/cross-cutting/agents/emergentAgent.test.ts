@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AgentDeploymentService } from "./agentDeploymentService.js";
 import { EventBus } from "../events/eventBus.js";
-import { createMockLogger } from "../../../../__test/globalHelpers.js";
 import type { Logger } from "winston";
 import type { ExecutionEvent } from "@vrooli/shared";
 import {
@@ -31,7 +30,12 @@ describe("Emergent Agent Capabilities", () => {
     let logger: Logger;
 
     beforeEach(() => {
-        logger = createMockLogger();
+        logger = {
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+        } as unknown as Logger;
         eventBus = new EventBus(logger);
         deploymentService = new AgentDeploymentService(logger);
     });
@@ -189,7 +193,7 @@ describe("Emergent Agent Capabilities", () => {
             // Verify all agents in swarm are deployed
             const activeAgents = await deploymentService.getActiveAgents();
             const swarmAgents = activeAgents.filter(a => 
-                healthcareSwarm.agents.some(sa => sa.agentId === a.agentId)
+                healthcareSwarm.agents.some(sa => sa.agentId === a.agentId),
             );
             
             expect(swarmAgents).toHaveLength(healthcareSwarm.agents.length);
@@ -260,7 +264,7 @@ describe("Emergent Agent Capabilities", () => {
                     inputs: { type: "user_data", format: "json" },
                     outputs: { valid: true, errors: [] }, // Same output
                     strategy: "reasoning",
-                })
+                }),
             );
 
             for (const event of routineEvents) {

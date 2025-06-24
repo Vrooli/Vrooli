@@ -12,18 +12,18 @@
  * - Agent-driven strategy optimization through events
  */
 
-import { EventBus } from "../events/eventBus.js";
+import { type EventBus } from "../events/eventBus.js";
 import {
     FallbackType,
-    FallbackAction,
-    FallbackCondition,
+    type FallbackAction,
+    type FallbackCondition,
     ConditionOperator,
     FallbackStrategyConfig,
-    ErrorContext,
+    type ErrorContext,
     ResilienceEventType,
     ErrorSeverity,
     StrategyType,
-    ResourceUsage,
+    type ResourceUsage,
 } from "@vrooli/shared";
 
 /**
@@ -408,7 +408,7 @@ export class FallbackStrategyEngine {
         // Agents can optimize this selection through events
         const selected = viable.reduce((best, current) => 
             (current.viability * current.confidence) > (best.viability * best.confidence) 
-                ? current : best
+                ? current : best,
         );
         
         // Emit strategy selection event for agent analysis

@@ -1,8 +1,10 @@
+// AI_CHECK: TEST_QUALITY=1,TEST_COVERAGE=1 | LAST: 2025-06-24
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
-import { DbProvider, logger, CacheService } from "@vrooli/server";
-import { API_CREDITS_PREMIUM, CreditConfig, generatePK, generatePublicId } from "@vrooli/shared";
+import { CreditConfig, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { creditRollover } from "./creditRollover.js";
+
+const { DbProvider, logger, CacheService } = await import("@vrooli/server");
 
 // Mock BusService to prevent publish failures in tests
 vi.mock("@vrooli/server", async () => {
@@ -36,7 +38,7 @@ describe("creditRollover integration tests", () => {
         try {
             await CacheService.get().ensure();
         } catch (error) {
-            console.error("Failed to initialize CacheService:", error);
+            // CacheService not available in test, continue without it
         }
     });
 
@@ -402,5 +404,549 @@ describe("creditRollover integration tests", () => {
 
         // Should handle large numbers without throwing
         await expect(creditRollover()).resolves.not.toThrow();
+    });
+
+    describe("error handling and edge cases", () => {
+        it("should handle Redis errors when checking processed status", async () => {
+            // Mock Redis to throw error
+            const originalRaw = CacheService.get().raw;
+            CacheService.get().raw = vi.fn().mockRejectedValue(new Error("Redis connection failed"));
+            
+            // Should continue processing even if Redis is down
+            await expect(creditRollover()).resolves.not.toThrow();
+            
+            // Restore original
+            CacheService.get().raw = originalRaw;
+        });
+
+        it("should handle Redis errors when updating job status", async () => {
+            const redis = await CacheService.get().raw();
+            const originalSet = redis.set;
+            
+            // Create test user
+            const creditAccount = await DbProvider.get().credit_account.create({
+                data: {
+                    id: generatePK(),
+                    currentBalance: BigInt(5000000),
+                },
+            });
+            testCreditAccountIds.push(creditAccount.id);
+
+            const user = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Test User",
+                    handle: "testuser",
+                    isBot: false,
+                    creditAccount: {
+                        connect: { id: creditAccount.id },
+                    },
+                    creditSettings: {
+                        __version: "1.0.0",
+                        rollover: { enabled: true },
+                        donation: { enabled: true, percentage: 10 },
+                    },
+                },
+            });
+            testUserIds.push(user.id);
+
+            const plan = await DbProvider.get().plan.create({
+                data: {
+                    id: generatePK(),
+                    user: {
+                        connect: { id: user.id },
+                    },
+                    enabledAt: new Date(Date.now() - 86400000),
+                    expiresAt: new Date(Date.now() + 86400000 * 30),
+                },
+            });
+            testPlanIds.push(plan.id);
+
+            // Mock Redis set to fail on job status update
+            redis.set = vi.fn().mockImplementation((key, value) => {
+                if (key.includes("job:creditRollover:lastRun")) {
+                    throw new Error("Redis write failed");
+                }
+                return originalSet.call(redis, key, value);
+            });
+
+            // Should complete without throwing
+            await expect(creditRollover()).resolves.not.toThrow();
+
+            // Verify error was logged
+            expect(logger.error).toHaveBeenCalledWith(
+                "Failed to update Redis job status",
+                expect.objectContaining({
+                    trace: "creditRollover_redisError",
+                })
+            );
+
+            // Restore
+            redis.set = originalSet;
+        });
+
+        it("should handle batch processing errors for individual users", async () => {
+            // Create multiple users, one with invalid settings
+            const users = [];
+            
+            // Valid user
+            const creditAccount1 = await DbProvider.get().credit_account.create({
+                data: {
+                    id: generatePK(),
+                    currentBalance: BigInt(1000000),
+                },
+            });
+            testCreditAccountIds.push(creditAccount1.id);
+
+            const user1 = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Valid User",
+                    handle: "validuser",
+                    isBot: false,
+                    creditAccount: {
+                        connect: { id: creditAccount1.id },
+                    },
+                    creditSettings: {
+                        __version: "1.0.0",
+                        rollover: { enabled: true },
+                        donation: { enabled: true, percentage: 10 },
+                    },
+                },
+            });
+            testUserIds.push(user1.id);
+            users.push(user1);
+
+            const plan1 = await DbProvider.get().plan.create({
+                data: {
+                    id: generatePK(),
+                    user: {
+                        connect: { id: user1.id },
+                    },
+                    enabledAt: new Date(Date.now() - 86400000),
+                    expiresAt: new Date(Date.now() + 86400000 * 30),
+                },
+            });
+            testPlanIds.push(plan1.id);
+
+            // User with creditSettings as string (invalid)
+            const creditAccount2 = await DbProvider.get().credit_account.create({
+                data: {
+                    id: generatePK(),
+                    currentBalance: BigInt(1000000),
+                },
+            });
+            testCreditAccountIds.push(creditAccount2.id);
+
+            const user2 = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Invalid Settings User",
+                    handle: "invalidsettings",
+                    isBot: false,
+                    creditAccount: {
+                        connect: { id: creditAccount2.id },
+                    },
+                    creditSettings: "invalid string" as any,
+                },
+            });
+            testUserIds.push(user2.id);
+            users.push(user2);
+
+            const plan2 = await DbProvider.get().plan.create({
+                data: {
+                    id: generatePK(),
+                    user: {
+                        connect: { id: user2.id },
+                    },
+                    enabledAt: new Date(Date.now() - 86400000),
+                    expiresAt: new Date(Date.now() + 86400000 * 30),
+                },
+            });
+            testPlanIds.push(plan2.id);
+
+            await creditRollover();
+
+            // Should log warning for invalid settings
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining(`Invalid credit settings type for user ${user2.id}`),
+                expect.objectContaining({
+                    trace: "creditRollover_invalidSettingsType",
+                })
+            );
+
+            // Valid user should still be processed
+            const updatedUser1 = await DbProvider.get().user.findUnique({
+                where: { id: user1.id },
+                select: { creditSettings: true },
+            });
+            const creditConfig = new CreditConfig(updatedUser1!.creditSettings as any);
+            expect(creditConfig.donation.lastProcessedMonth).toBeDefined();
+        });
+
+        it("should process credit rollover expiration correctly", async () => {
+            const creditAccount = await DbProvider.get().credit_account.create({
+                data: {
+                    id: generatePK(),
+                    currentBalance: BigInt(10000000000), // 10,000 credits (way over limit)
+                },
+            });
+            testCreditAccountIds.push(creditAccount.id);
+
+            const user = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Excess Credits User",
+                    handle: "excessuser",
+                    isBot: false,
+                    creditAccount: {
+                        connect: { id: creditAccount.id },
+                    },
+                    creditSettings: {
+                        __version: "1.0.0",
+                        rollover: { 
+                            enabled: true,
+                            maxMonthsToKeep: 2, // Only keep 2 months worth
+                        },
+                        donation: { enabled: false },
+                    },
+                },
+            });
+            testUserIds.push(user.id);
+
+            const plan = await DbProvider.get().plan.create({
+                data: {
+                    id: generatePK(),
+                    user: {
+                        connect: { id: user.id },
+                    },
+                    enabledAt: new Date(Date.now() - 86400000),
+                    expiresAt: new Date(Date.now() + 86400000 * 30),
+                },
+            });
+            testPlanIds.push(plan.id);
+
+            const { BusService } = await import("@vrooli/server");
+            const publishSpy = vi.spyOn(BusService.get().getBus(), "publish");
+
+            await creditRollover();
+
+            // Should have published expiration event
+            expect(publishSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: "billing:event",
+                    entryType: CreditEntryType.Expire,
+                    source: CreditSourceSystem.Scheduler,
+                })
+            );
+        });
+
+        it("should handle publish errors gracefully", async () => {
+            const creditAccount = await DbProvider.get().credit_account.create({
+                data: {
+                    id: generatePK(),
+                    currentBalance: BigInt(5000000),
+                },
+            });
+            testCreditAccountIds.push(creditAccount.id);
+
+            const user = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Publish Error User",
+                    handle: "publisherror",
+                    isBot: false,
+                    creditAccount: {
+                        connect: { id: creditAccount.id },
+                    },
+                    creditSettings: {
+                        __version: "1.0.0",
+                        rollover: { enabled: true },
+                        donation: { enabled: true, percentage: 10 },
+                    },
+                },
+            });
+            testUserIds.push(user.id);
+
+            const plan = await DbProvider.get().plan.create({
+                data: {
+                    id: generatePK(),
+                    user: {
+                        connect: { id: user.id },
+                    },
+                    enabledAt: new Date(Date.now() - 86400000),
+                    expiresAt: new Date(Date.now() + 86400000 * 30),
+                },
+            });
+            testPlanIds.push(plan.id);
+
+            // Add free credits
+            const ledgerEntry = await DbProvider.get().credit_ledger_entry.create({
+                data: {
+                    id: generatePK(),
+                    idempotencyKey: generatePK().toString(),
+                    accountId: creditAccount.id,
+                    amount: BigInt(2000000),
+                    type: CreditEntryType.Bonus,
+                    source: CreditSourceSystem.Scheduler,
+                    meta: { description: "Free credits" },
+                },
+            });
+            testLedgerEntryIds.push(ledgerEntry.id);
+
+            // Mock BusService to throw error
+            const { BusService } = await import("@vrooli/server");
+            BusService.get().getBus().publish = vi.fn().mockRejectedValue(new Error("Publish failed"));
+
+            await creditRollover();
+
+            // Should log error
+            expect(logger.error).toHaveBeenCalledWith(
+                expect.stringContaining("Failed to publish donation BillingEvent"),
+                expect.objectContaining({
+                    trace: "creditRollover_donationPublishError",
+                })
+            );
+        });
+
+        it("should handle updateCreditSettingsProcessedMonth retry logic", async () => {
+            const creditAccount = await DbProvider.get().credit_account.create({
+                data: {
+                    id: generatePK(),
+                    currentBalance: BigInt(1000000),
+                },
+            });
+            testCreditAccountIds.push(creditAccount.id);
+
+            const user = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Retry Test User",
+                    handle: "retryuser",
+                    isBot: false,
+                    creditAccount: {
+                        connect: { id: creditAccount.id },
+                    },
+                    creditSettings: {
+                        __version: "1.0.0",
+                        rollover: { enabled: true },
+                        donation: { enabled: true, percentage: 10 },
+                    },
+                },
+            });
+            testUserIds.push(user.id);
+
+            const plan = await DbProvider.get().plan.create({
+                data: {
+                    id: generatePK(),
+                    user: {
+                        connect: { id: user.id },
+                    },
+                    enabledAt: new Date(Date.now() - 86400000),
+                    expiresAt: new Date(Date.now() + 86400000 * 30),
+                },
+            });
+            testPlanIds.push(plan.id);
+
+            // Mock transaction to fail twice then succeed
+            const originalTransaction = DbProvider.get().$transaction;
+            let attemptCount = 0;
+            DbProvider.get().$transaction = vi.fn().mockImplementation(async (fn) => {
+                attemptCount++;
+                if (attemptCount <= 2) {
+                    throw new Error("Transaction failed");
+                }
+                return originalTransaction.call(DbProvider.get(), fn);
+            });
+
+            await creditRollover();
+
+            // Should have retried and eventually succeeded
+            expect(attemptCount).toBeGreaterThan(2);
+
+            // Restore
+            DbProvider.get().$transaction = originalTransaction;
+        });
+
+        it("should handle users with expired premium plans", async () => {
+            const creditAccount = await DbProvider.get().credit_account.create({
+                data: {
+                    id: generatePK(),
+                    currentBalance: BigInt(5000000),
+                },
+            });
+            testCreditAccountIds.push(creditAccount.id);
+
+            const user = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Expired Premium User",
+                    handle: "expiredpremium",
+                    isBot: false,
+                    creditAccount: {
+                        connect: { id: creditAccount.id },
+                    },
+                    creditSettings: {
+                        __version: "1.0.0",
+                        rollover: { enabled: true },
+                        donation: { enabled: true, percentage: 10 },
+                    },
+                },
+            });
+            testUserIds.push(user.id);
+
+            // Create expired plan
+            const plan = await DbProvider.get().plan.create({
+                data: {
+                    id: generatePK(),
+                    user: {
+                        connect: { id: user.id },
+                    },
+                    enabledAt: new Date(Date.now() - 86400000 * 60), // 60 days ago
+                    expiresAt: new Date(Date.now() - 86400000), // Expired yesterday
+                },
+            });
+            testPlanIds.push(plan.id);
+
+            await creditRollover();
+
+            // User should not be processed
+            const updatedUser = await DbProvider.get().user.findUnique({
+                where: { id: user.id },
+                select: { creditSettings: true },
+            });
+            const creditConfig = new CreditConfig(updatedUser!.creditSettings as any);
+            expect(creditConfig.donation.lastProcessedMonth).toBeUndefined();
+        });
+
+        it("should process users with no rollover expiration needed", async () => {
+            const creditAccount = await DbProvider.get().credit_account.create({
+                data: {
+                    id: generatePK(),
+                    currentBalance: BigInt(1000000), // Small balance, under limit
+                },
+            });
+            testCreditAccountIds.push(creditAccount.id);
+
+            const user = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Small Balance User",
+                    handle: "smallbalance",
+                    isBot: false,
+                    creditAccount: {
+                        connect: { id: creditAccount.id },
+                    },
+                    creditSettings: {
+                        __version: "1.0.0",
+                        rollover: { 
+                            enabled: true,
+                            maxMonthsToKeep: 3,
+                        },
+                        donation: { enabled: false },
+                    },
+                },
+            });
+            testUserIds.push(user.id);
+
+            const plan = await DbProvider.get().plan.create({
+                data: {
+                    id: generatePK(),
+                    user: {
+                        connect: { id: user.id },
+                    },
+                    enabledAt: new Date(Date.now() - 86400000),
+                    expiresAt: new Date(Date.now() + 86400000 * 30),
+                },
+            });
+            testPlanIds.push(plan.id);
+
+            await creditRollover();
+
+            // Should still mark rollover as processed even without expiration
+            const updatedUser = await DbProvider.get().user.findUnique({
+                where: { id: user.id },
+                select: { creditSettings: true },
+            });
+            const creditConfig = new CreditConfig(updatedUser!.creditSettings as any);
+            const currentMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, "0")}`;
+            expect(creditConfig.rollover.lastProcessedMonth).toBe(currentMonth);
+        });
+
+        it("should handle very large donation amounts", async () => {
+            const creditAccount = await DbProvider.get().credit_account.create({
+                data: {
+                    id: generatePK(),
+                    currentBalance: BigInt("999999999999999999999"), // Very large balance
+                },
+            });
+            testCreditAccountIds.push(creditAccount.id);
+
+            const user = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Large Donation User",
+                    handle: "largedonation",
+                    isBot: false,
+                    creditAccount: {
+                        connect: { id: creditAccount.id },
+                    },
+                    creditSettings: {
+                        __version: "1.0.0",
+                        rollover: { enabled: false },
+                        donation: { 
+                            enabled: true, 
+                            percentage: 50, // 50% of huge balance
+                        },
+                    },
+                },
+            });
+            testUserIds.push(user.id);
+
+            const plan = await DbProvider.get().plan.create({
+                data: {
+                    id: generatePK(),
+                    user: {
+                        connect: { id: user.id },
+                    },
+                    enabledAt: new Date(Date.now() - 86400000),
+                    expiresAt: new Date(Date.now() + 86400000 * 30),
+                },
+            });
+            testPlanIds.push(plan.id);
+
+            // Add free credits ledger entry
+            const ledgerEntry = await DbProvider.get().credit_ledger_entry.create({
+                data: {
+                    id: generatePK(),
+                    idempotencyKey: generatePK().toString(),
+                    accountId: creditAccount.id,
+                    amount: BigInt("999999999999999999999"),
+                    type: CreditEntryType.Bonus,
+                    source: CreditSourceSystem.Scheduler,
+                    meta: { description: "Large free credits" },
+                },
+            });
+            testLedgerEntryIds.push(ledgerEntry.id);
+
+            await creditRollover();
+
+            // Should log warning about large donation
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining("Large donation amount"),
+                expect.objectContaining({
+                    trace: "creditRollover_largeDonation",
+                })
+            );
+        });
     });
 });

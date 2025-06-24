@@ -6,7 +6,7 @@ import type {
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { runConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+import { runConfigFixtures } from "@vrooli/shared/test-fixtures";
 
 interface RunRelationConfig extends RelationConfig {
     withUser?: { userId: string };

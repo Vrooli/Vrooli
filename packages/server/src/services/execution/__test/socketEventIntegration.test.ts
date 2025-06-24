@@ -83,7 +83,7 @@ describe("Socket Event Integration", () => {
             await socketEmitter.emitSwarmStateUpdate(
                 swarmId,
                 ExecutionStates.RUNNING,
-                "Test message"
+                "Test message",
             );
 
             expect(mockStateStore.getSwarm).toHaveBeenCalledWith(swarmId);
@@ -91,7 +91,7 @@ describe("Socket Event Integration", () => {
                 chatId,
                 swarmId,
                 ExecutionStates.RUNNING,
-                "Test message"
+                "Test message",
             );
         });
 
@@ -103,7 +103,7 @@ describe("Socket Event Integration", () => {
                 swarmId,
                 ExecutionStates.RUNNING,
                 "Test message",
-                chatIdOverride
+                chatIdOverride,
             );
 
             // Should not call state store when override is provided
@@ -112,7 +112,7 @@ describe("Socket Event Integration", () => {
                 chatIdOverride,
                 swarmId,
                 ExecutionStates.RUNNING,
-                "Test message"
+                "Test message",
             );
         });
 
@@ -183,7 +183,7 @@ describe("Socket Event Integration", () => {
             expect(mockSwarmEmitter.emitSwarmResourceUpdate).toHaveBeenCalledWith(
                 chatId,
                 swarmId,
-                { resources }
+                { resources },
             );
         });
 
@@ -204,7 +204,7 @@ describe("Socket Event Integration", () => {
 
             expect(mockSwarmEmitter.emitSwarmConfigUpdate).toHaveBeenCalledWith(
                 chatId,
-                configUpdate
+                configUpdate,
             );
         });
 
@@ -227,7 +227,7 @@ describe("Socket Event Integration", () => {
                 swarmId,
                 teamUpdate.teamId,
                 teamUpdate.swarmLeader,
-                teamUpdate.subtaskLeaders
+                teamUpdate.subtaskLeaders,
             );
         });
     });
@@ -240,7 +240,7 @@ describe("Socket Event Integration", () => {
 
             // Should not throw
             await expect(
-                socketEmitter.emitSwarmStateUpdate(swarmId, ExecutionStates.FAILED)
+                socketEmitter.emitSwarmStateUpdate(swarmId, ExecutionStates.FAILED),
             ).resolves.toBeUndefined();
 
             // Should not emit on error

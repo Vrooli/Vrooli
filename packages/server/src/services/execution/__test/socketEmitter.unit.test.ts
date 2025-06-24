@@ -63,7 +63,7 @@ describe("ExecutionSocketEventEmitter Unit Tests", () => {
         
         // Should not throw when state store is not set
         await expect(
-            emitterWithoutStore.getChatIdForSwarm("test-swarm")
+            emitterWithoutStore.getChatIdForSwarm("test-swarm"),
         ).resolves.toBeNull();
     });
 
@@ -91,7 +91,7 @@ describe("ExecutionSocketEventEmitter Unit Tests", () => {
             swarmId,
             "RUNNING" as any,
             "Test message",
-            chatIdOverride
+            chatIdOverride,
         );
         
         // Should not call state store when override is provided

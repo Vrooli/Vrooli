@@ -6,7 +6,7 @@ import type {
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { messageConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+import { messageConfigFixtures } from "@vrooli/shared/test-fixtures";
 
 interface ChatMessageRelationConfig extends RelationConfig {
     chat: { chatId: string };

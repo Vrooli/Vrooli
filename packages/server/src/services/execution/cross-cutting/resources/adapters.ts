@@ -5,7 +5,7 @@
  * Complex optimization emerges from resource agents analyzing events.
  */
 
-import { ResourceManager, ResourceAllocation, ResourceAmount } from "./resourceManager.js";
+import { type ResourceManager, type ResourceAllocation, type ResourceAmount } from "./resourceManager.js";
 import { logger } from "../../../../events/logger.js";
 import type { SwarmResources } from "@vrooli/shared";
 

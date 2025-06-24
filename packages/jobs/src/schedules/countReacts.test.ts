@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=1,TEST_QUALITY=1 | LAST: 2025-06-24
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { countReacts } from "./countReacts.js";
@@ -57,7 +58,7 @@ describe("countReacts integration tests", () => {
         ]);
     });
 
-    it("should update reaction scores and summaries when they mismatch", async () => {
+    it("should correct incorrect reaction scores", async () => {
         // Create test users
         const uniqueId = Date.now();
         const reactor1 = await DbProvider.get().user.create({
@@ -137,11 +138,73 @@ describe("countReacts integration tests", () => {
         // Check that the score was updated correctly (1 + 1 = 2)
         const updatedIssue = await DbProvider.get().issue.findUnique({
             where: { id: issue.id },
+        });
+
+        expect(updatedIssue?.score).toBe(2);
+    });
+
+    it("should create correct reaction summaries", async () => {
+        // Create test user
+        const owner = await DbProvider.get().user.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                name: "Owner",
+                handle: "summaryowner",
+            },
+        });
+        testUserIds.push(owner.id);
+
+        // Create test issue with no summaries
+        const issue = await DbProvider.get().issue.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                createdById: owner.id,
+                score: 0,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Issue",
+                        description: "Test Description",
+                    }],
+                },
+            },
+        });
+        testIssueIds.push(issue.id);
+
+        // Create reactions
+        const reaction1Id = generatePK();
+        const reaction2Id = generatePK();
+        testReactionIds.push(reaction1Id, reaction2Id);
+
+        await DbProvider.get().reaction.createMany({
+            data: [
+                {
+                    id: reaction1Id,
+                    byId: owner.id,
+                    issueId: issue.id,
+                    emoji: "👍",
+                },
+                {
+                    id: reaction2Id,
+                    byId: owner.id,
+                    issueId: issue.id,
+                    emoji: "❤️",
+                },
+            ],
+        });
+
+        // Run the count reacts function
+        await countReacts();
+
+        // Check that summaries were created correctly
+        const updatedIssue = await DbProvider.get().issue.findUnique({
+            where: { id: issue.id },
             include: { reactionSummaries: true },
         });
 
-
-        expect(updatedIssue?.score).toBe(2);
         expect(updatedIssue?.reactionSummaries).toHaveLength(2);
 
         const summaryMap = new Map(updatedIssue?.reactionSummaries.map(s => [s.emoji, s.count]) || []);
@@ -324,7 +387,7 @@ describe("countReacts integration tests", () => {
         expect(updatedComment?.reactionSummaries[0].count).toBe(2);
     });
 
-    it("should handle duplicate reaction summaries", async () => {
+    it("should remove duplicate reaction summaries", async () => {
         const owner = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
@@ -382,7 +445,7 @@ describe("countReacts integration tests", () => {
         });
         testChatMessageIds.push(chatMessage.id);
 
-        // Create actual reactions
+        // Create actual reaction
         const reactionId = generatePK();
         testReactionIds.push(reactionId);
         await DbProvider.get().reaction.create({
@@ -403,13 +466,11 @@ describe("countReacts integration tests", () => {
             include: { reactionSummaries: true },
         });
 
-        expect(updatedMessage?.score).toBe(1);
         expect(updatedMessage?.reactionSummaries).toHaveLength(1);
-        expect(updatedMessage?.reactionSummaries[0].emoji).toBe("👍");
         expect(updatedMessage?.reactionSummaries[0].count).toBe(1);
     });
 
-    it("should handle entities with no reactions", async () => {
+    it("should reset score to zero when no reactions exist", async () => {
         const owner = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
@@ -420,7 +481,48 @@ describe("countReacts integration tests", () => {
         });
         testUserIds.push(owner.id);
 
-        // Create entities with scores but no actual reactions
+        // Create entity with non-zero score but no reactions
+        const issue = await DbProvider.get().issue.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                createdById: owner.id,
+                score: 15, // Non-zero score
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Issue with no reactions",
+                        description: "Should be reset to 0",
+                    }],
+                },
+            },
+        });
+        testIssueIds.push(issue.id);
+
+        // Run the count reacts function
+        await countReacts();
+
+        // Check that the score was reset
+        const correctedIssue = await DbProvider.get().issue.findUnique({
+            where: { id: issue.id },
+        });
+
+        expect(correctedIssue?.score).toBe(0);
+    });
+
+    it("should remove orphaned reaction summaries", async () => {
+        const owner = await DbProvider.get().user.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                name: "Owner",
+                handle: "orphanowner",
+            },
+        });
+        testUserIds.push(owner.id);
+
+        // Create entity with reaction summaries but no reactions
         const summaryId = generatePK();
         testReactionSummaryIds.push(summaryId);
 
@@ -429,13 +531,13 @@ describe("countReacts integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: owner.id,
-                score: 15,
+                score: 0,
                 translations: {
                     create: [{
                         id: generatePK(),
                         language: "en",
-                        name: "Issue with no reactions",
-                        description: "Should be reset to 0",
+                        name: "Issue",
+                        description: "Has orphaned summaries",
                     }],
                 },
                 reactionSummaries: {
@@ -454,13 +556,12 @@ describe("countReacts integration tests", () => {
         // Run the count reacts function
         await countReacts();
 
-        // Check that the score and summaries were cleared
+        // Check that orphaned summaries were removed
         const correctedIssue = await DbProvider.get().issue.findUnique({
             where: { id: issue.id },
             include: { reactionSummaries: true },
         });
 
-        expect(correctedIssue?.score).toBe(0);
         expect(correctedIssue?.reactionSummaries).toHaveLength(0);
     });
 

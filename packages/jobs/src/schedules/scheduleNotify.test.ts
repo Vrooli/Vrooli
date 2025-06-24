@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scheduleNotify } from "./scheduleNotify.js";
@@ -5,16 +6,21 @@ import { scheduleNotify } from "./scheduleNotify.js";
 // Direct import to avoid problematic services
 const { DbProvider } = await import("@vrooli/server");
 
+// Create persistent mock instances outside the mock factory
+const mockCacheGet = vi.fn().mockResolvedValue(null);
+const mockCacheSet = vi.fn().mockResolvedValue(undefined);
+const mockCacheInstance = {
+    get: mockCacheGet,
+    set: mockCacheSet,
+};
+
 // Mock services
 vi.mock("@vrooli/server", async () => {
     const actual = await vi.importActual("@vrooli/server");
     return {
         ...actual,
         CacheService: {
-            get: () => ({
-                get: vi.fn().mockResolvedValue(null), // Not cached by default
-                set: vi.fn().mockResolvedValue(undefined),
-            }),
+            get: () => mockCacheInstance,
         },
         Notify: vi.fn(() => ({
             pushScheduleReminder: vi.fn().mockReturnValue({
@@ -73,6 +79,9 @@ describe("scheduleNotify integration tests", () => {
 
         // Reset mocks
         vi.clearAllMocks();
+        
+        // Reset cache mock to default behavior
+        mockCacheGet.mockResolvedValue(null);
     });
 
     afterEach(async () => {
@@ -231,9 +240,7 @@ describe("scheduleNotify integration tests", () => {
         ]);
 
         // Check that cache was set
-        const { CacheService } = await import("@vrooli/server");
-        const mockSet = CacheService.get().set as any;
-        expect(mockSet).toHaveBeenCalled();
+        expect(mockCacheSet).toHaveBeenCalled();
     });
 
     it("should process scheduled meetings with notification subscriptions", async () => {
@@ -711,9 +718,7 @@ describe("scheduleNotify integration tests", () => {
         const now = new Date();
         
         // Mock cache to return existing entry (already notified)
-        const { CacheService } = await import("@vrooli/server");
-        const mockGet = CacheService.get().get as any;
-        mockGet.mockResolvedValueOnce("true"); // Already cached
+        mockCacheGet.mockResolvedValueOnce("true"); // Already cached
         
         const user = await DbProvider.get().user.create({
             data: {
@@ -810,10 +815,13 @@ describe("scheduleNotify integration tests", () => {
         // Should not send notification because user was already notified (cached)
         const { Notify } = await import("@vrooli/server");
         const mockNotify = Notify as any;
-        if (mockNotify.mock.calls.length > 0) {
-            const mockToUsers = mockNotify.mock.results[0].value.pushScheduleReminder.mock.results[0].value.toUsers;
-            expect(mockToUsers).toHaveBeenCalledWith([]); // Empty array due to cache filter
-        }
+        expect(mockNotify).toHaveBeenCalledWith(["en"]);
+        
+        const mockPushScheduleReminder = mockNotify.mock.results[0].value.pushScheduleReminder;
+        expect(mockPushScheduleReminder).toHaveBeenCalled();
+        
+        const mockToUsers = mockPushScheduleReminder.mock.results[0].value.toUsers;
+        expect(mockToUsers).toHaveBeenCalledWith([]); // Empty array due to cache filter
     });
 
     it("should handle schedules without notification subscriptions", async () => {

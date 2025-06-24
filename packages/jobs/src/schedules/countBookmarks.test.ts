@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=1,TEST_QUALITY=1 | LAST: 2025-06-24
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { countBookmarks } from "./countBookmarks.js";

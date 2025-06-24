@@ -34,7 +34,7 @@ export class BarrierSynchronizer {
         const timeout = event.barrierTimeout || this.DEFAULT_TIMEOUT_MS;
         const quorum = event.barrierQuorum || this.DEFAULT_QUORUM;
 
-        this.logger.info(`[BarrierSynchronizer] Starting barrier synchronization`, {
+        this.logger.info("[BarrierSynchronizer] Starting barrier synchronization", {
             barrierId,
             eventId: event.id,
             eventType: event.type,
@@ -62,7 +62,7 @@ export class BarrierSynchronizer {
             const relevantAgents = this.findRelevantSafetyAgents(event);
             
             if (relevantAgents.length === 0) {
-                this.logger.warn(`[BarrierSynchronizer] No safety agents found for event`, {
+                this.logger.warn("[BarrierSynchronizer] No safety agents found for event", {
                     barrierId,
                     eventType: event.type,
                 });
@@ -85,7 +85,7 @@ export class BarrierSynchronizer {
             return result;
 
         } catch (error) {
-            this.logger.error(`[BarrierSynchronizer] Barrier synchronization failed`, {
+            this.logger.error("[BarrierSynchronizer] Barrier synchronization failed", {
                 barrierId,
                 eventId: event.id,
                 error: error instanceof Error ? error.message : String(error),
@@ -109,7 +109,7 @@ export class BarrierSynchronizer {
     registerSafetyAgent(agent: SafetyAgent): void {
         this.safetyAgents.set(agent.id, agent);
         
-        this.logger.info(`[BarrierSynchronizer] Registered safety agent`, {
+        this.logger.info("[BarrierSynchronizer] Registered safety agent", {
             agentId: agent.id,
             capabilities: agent.capabilities,
             domains: agent.domains,
@@ -126,7 +126,7 @@ export class BarrierSynchronizer {
     ): Promise<void> {
         const barrier = this.pendingBarriers.get(barrierId);
         if (!barrier) {
-            this.logger.warn(`[BarrierSynchronizer] Response for unknown barrier`, {
+            this.logger.warn("[BarrierSynchronizer] Response for unknown barrier", {
                 barrierId,
                 agentId,
             });
@@ -134,7 +134,7 @@ export class BarrierSynchronizer {
         }
 
         if (barrier.status !== "WAITING") {
-            this.logger.debug(`[BarrierSynchronizer] Response for resolved barrier`, {
+            this.logger.debug("[BarrierSynchronizer] Response for resolved barrier", {
                 barrierId,
                 agentId,
                 barrierStatus: barrier.status,
@@ -149,7 +149,7 @@ export class BarrierSynchronizer {
             timestamp: new Date(),
         });
 
-        this.logger.debug(`[BarrierSynchronizer] Received agent response`, {
+        this.logger.debug("[BarrierSynchronizer] Received agent response", {
             barrierId,
             agentId,
             status: response.status,
@@ -235,7 +235,7 @@ export class BarrierSynchronizer {
         agent: SafetyAgent,
     ): Promise<void> {
         try {
-            this.logger.debug(`[BarrierSynchronizer] Requesting approval from agent`, {
+            this.logger.debug("[BarrierSynchronizer] Requesting approval from agent", {
                 barrierId,
                 agentId: agent.id,
                 eventType: event.type,
@@ -256,7 +256,7 @@ export class BarrierSynchronizer {
             await this.processAgentResponse(barrierId, agent.id, response);
 
         } catch (error) {
-            this.logger.error(`[BarrierSynchronizer] Agent approval request failed`, {
+            this.logger.error("[BarrierSynchronizer] Agent approval request failed", {
                 barrierId,
                 agentId: agent.id,
                 error: error instanceof Error ? error.message : String(error),
@@ -373,7 +373,7 @@ export class BarrierSynchronizer {
             resolvedAt: new Date(),
         };
 
-        this.logger.info(`[BarrierSynchronizer] Barrier resolved`, {
+        this.logger.info("[BarrierSynchronizer] Barrier resolved", {
             barrierId,
             status,
             reason,

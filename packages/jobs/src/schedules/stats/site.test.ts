@@ -1,4 +1,5 @@
-import { PeriodType } from "@prisma/client";
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
+import { PeriodType, RunStatus } from "@prisma/client";
 import { ResourceType, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logSiteStats } from "./site.js";
@@ -127,12 +128,29 @@ describe("logSiteStats integration tests", () => {
         });
         testUserIds.push(botUser.id);
 
+        // Create auth records for users
+        const regularUserAuth = await DbProvider.get().user_auth.create({
+            data: {
+                id: generatePK(),
+                user_id: regularUser.id,
+                provider: "local",
+            },
+        });
+
+        const botUserAuth = await DbProvider.get().user_auth.create({
+            data: {
+                id: generatePK(),
+                user_id: botUser.id,
+                provider: "local",
+            },
+        });
+
         // Create sessions within the period
         const session1 = await DbProvider.get().session.create({
             data: {
-                id: "session1",
+                id: generatePK(),
                 user_id: regularUser.id,
-                auth_id: generatePK(),
+                auth_id: regularUserAuth.id,
                 last_refresh_at: sessionTime,
                 expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000),
             },
@@ -141,9 +159,9 @@ describe("logSiteStats integration tests", () => {
 
         const session2 = await DbProvider.get().session.create({
             data: {
-                id: "session2",
+                id: generatePK(),
                 user_id: botUser.id,
-                auth_id: generatePK(),
+                auth_id: botUserAuth.id,
                 last_refresh_at: sessionTime,
                 expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000),
             },
@@ -233,6 +251,7 @@ describe("logSiteStats integration tests", () => {
         const routine = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -245,6 +264,7 @@ describe("logSiteStats integration tests", () => {
         const api = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 resourceType: ResourceType.Api,
                 isDeleted: false,
@@ -256,6 +276,7 @@ describe("logSiteStats integration tests", () => {
         const project = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 resourceType: ResourceType.Project,
                 isDeleted: false,
@@ -300,6 +321,7 @@ describe("logSiteStats integration tests", () => {
         const routine = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -348,7 +370,7 @@ describe("logSiteStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Test Run 1",
-                status: "Running",
+                status: RunStatus.InProgress,
                 user: {
                     connect: { id: owner.id },
                 },
@@ -363,7 +385,7 @@ describe("logSiteStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Test Run 2",
-                status: "Completed",
+                status: RunStatus.Completed,
                 user: {
                     connect: { id: owner.id },
                 },
@@ -412,7 +434,6 @@ describe("logSiteStats integration tests", () => {
                 id: generatePK(),
                 userId: user.id,
                 emailAddress: "verified@example.com",
-                verified: true,
                 createdAt: verifiedTime,
                 verifiedAt: verifiedTime,
             },
@@ -424,8 +445,8 @@ describe("logSiteStats integration tests", () => {
             data: {
                 id: generatePK(),
                 userId: user.id,
-                walletAddress: "0x1234567890abcdef",
-                verified: true,
+                stakingAddress: "stake_" + Math.random().toString(36).substring(7),
+                publicAddress: "0x1234567890abcdef",
                 createdAt: verifiedTime,
                 verifiedAt: verifiedTime,
             },
@@ -466,6 +487,7 @@ describe("logSiteStats integration tests", () => {
         const routine = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -480,6 +502,7 @@ describe("logSiteStats integration tests", () => {
         const routineVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 rootId: routine.id,
                 versionLabel: "1.0.0",
                 complexity: 10,
@@ -537,6 +560,7 @@ describe("logSiteStats integration tests", () => {
         const deletedRoutine = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: true, // Deleted
@@ -550,6 +574,7 @@ describe("logSiteStats integration tests", () => {
         const internalRoutine = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
@@ -563,6 +588,7 @@ describe("logSiteStats integration tests", () => {
         const validRoutine = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 resourceType: ResourceType.Routine,
                 isDeleted: false,

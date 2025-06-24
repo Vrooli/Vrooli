@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:scenarios": "vitest run src/scenarios",
+    "test:form": "vitest run src/form",
     "test-watch": "vitest",
     "test-coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit",

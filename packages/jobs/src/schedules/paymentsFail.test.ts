@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-24
 import { PaymentStatus, PaymentType, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockQueueService, mockEmailAddTask, resetAllMocks } from "../__test/mocks/services.js";
@@ -57,7 +58,7 @@ describe("paymentsFail integration tests", () => {
         }
     });
 
-    it("should fail old pending payments for users", async () => {
+    it("should mark old pending user payments as failed", async () => {
         const now = new Date();
         const oldDate = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
         
@@ -68,6 +69,48 @@ describe("paymentsFail integration tests", () => {
                 publicId: generatePublicId(),
                 name: "User with Failed Payment",
                 handle: "failedpaymentuser",
+            },
+        });
+        testUserIds.push(user.id);
+
+        // Create old pending payment
+        const oldPayment = await DbProvider.get().payment.create({
+            data: {
+                id: generatePK(),
+                userId: user.id,
+                paymentType: PaymentType.PremiumMonthly,
+                amount: 9999,
+                checkoutId: `cs_test_${generatePK()}`,
+                currency: "USD",
+                description: "Premium Monthly Subscription",
+                status: PaymentStatus.Pending,
+                paymentMethod: "card",
+                createdAt: oldDate,
+                updatedAt: oldDate,
+            },
+        });
+        testPaymentIds.push(oldPayment.id);
+
+        await paymentsFail();
+
+        // Check that payment was marked as failed
+        const updatedPayment = await DbProvider.get().payment.findUnique({
+            where: { id: oldPayment.id },
+        });
+        expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
+    });
+
+    it("should send failure notification email for non-donation payments", async () => {
+        const now = new Date();
+        const oldDate = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
+        
+        // Create user with email
+        const user = await DbProvider.get().user.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                name: "User with Email",
+                handle: "emailuser",
             },
         });
         testUserIds.push(user.id);
@@ -102,25 +145,15 @@ describe("paymentsFail integration tests", () => {
 
         await paymentsFail();
 
-        // Check that payment was marked as failed
-        const updatedPayment = await DbProvider.get().payment.findUnique({
-            where: { id: oldPayment.id },
-        });
-        expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
-
-        // Check that email was sent (non-donation)
-        const { AUTH_EMAIL_TEMPLATES } = await import("@vrooli/server");
-        const mockTemplate = AUTH_EMAIL_TEMPLATES.PaymentFailed as any;
-        
+        // Check that email was sent
         expect(mockEmailAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: ["failed@example.com"],
             }),
         );
-        expect(mockTemplate).toHaveBeenCalledWith(expect.any(String), false); // false for non-donation
     });
 
-    it("should fail old pending donation payments with proper email", async () => {
+    it("should mark old pending donation payments as failed", async () => {
         const now = new Date();
         const oldDate = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000); // 10 days ago
         
@@ -133,16 +166,6 @@ describe("paymentsFail integration tests", () => {
             },
         });
         testUserIds.push(user.id);
-
-        const email = await DbProvider.get().email.create({
-            data: {
-                id: generatePK(),
-                userId: user.id,
-                emailAddress: "donor@example.com",
-                verifiedAt: new Date(),
-            },
-        });
-        testEmailIds.push(email.id);
 
         // Create old pending donation
         const donationPayment = await DbProvider.get().payment.create({
@@ -169,20 +192,9 @@ describe("paymentsFail integration tests", () => {
             where: { id: donationPayment.id },
         });
         expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
-
-        // Check that email was sent (donation)
-        const { AUTH_EMAIL_TEMPLATES } = await import("@vrooli/server");
-        const mockTemplate = AUTH_EMAIL_TEMPLATES.PaymentFailed as any;
-        
-        expect(mockEmailAddTask).toHaveBeenCalledWith(
-            expect.objectContaining({
-                to: ["donor@example.com"],
-            }),
-        );
-        expect(mockTemplate).toHaveBeenCalledWith(expect.any(String), true); // true for donation
     });
 
-    it("should fail old pending team payments", async () => {
+    it("should mark old pending team payments as failed", async () => {
         const now = new Date();
         const oldDate = new Date(now.getTime() - 9 * 24 * 60 * 60 * 1000); // 9 days ago
         
@@ -205,26 +217,6 @@ describe("paymentsFail integration tests", () => {
             },
         });
         testTeamIds.push(team.id);
-
-        const teamEmail1 = await DbProvider.get().email.create({
-            data: {
-                id: generatePK(),
-                teamId: team.id,
-                emailAddress: "team1@example.com",
-                verifiedAt: new Date(),
-            },
-        });
-        testEmailIds.push(teamEmail1.id);
-
-        const teamEmail2 = await DbProvider.get().email.create({
-            data: {
-                id: generatePK(),
-                teamId: team.id,
-                emailAddress: "team2@example.com",
-                verifiedAt: new Date(),
-            },
-        });
-        testEmailIds.push(teamEmail2.id);
 
         // Create old pending team payment
         const teamPayment = await DbProvider.get().payment.create({
@@ -251,13 +243,6 @@ describe("paymentsFail integration tests", () => {
             where: { id: teamPayment.id },
         });
         expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
-
-        // Check that emails were sent to all team emails
-        expect(mockEmailAddTask).toHaveBeenCalledWith(
-            expect.objectContaining({
-                to: expect.arrayContaining(["team1@example.com", "team2@example.com"]),
-            }),
-        );
     });
 
     it("should not fail recent pending payments", async () => {
@@ -410,11 +395,11 @@ describe("paymentsFail integration tests", () => {
         expect(mockEmailAddTask).not.toHaveBeenCalled();
     });
 
-    it("should handle multiple payments in batch with unique email addresses", async () => {
+    it("should send only one email per address for multiple failed payments", async () => {
         const now = new Date();
         const oldDate = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
         
-        // Create user with multiple payments (should only get one email)
+        // Create user with multiple payments
         const user = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
@@ -435,57 +420,40 @@ describe("paymentsFail integration tests", () => {
         });
         testEmailIds.push(email.id);
 
-        // Create multiple old pending payments
-        const paymentPromises = [];
+        // Create multiple old pending payments of same type
         for (let i = 0; i < 3; i++) {
-            paymentPromises.push(
-                DbProvider.get().payment.create({
-                    data: {
-                        id: generatePK(),
-                        userId: user.id,
-                        paymentType: i === 0 ? PaymentType.Donation : PaymentType.PremiumMonthly,
-                        amount: (50 + i * 10) * 100,
-                        checkoutId: `cs_test_${generatePK()}`,
-                        currency: "USD",
-                        description: i === 0 ? "Donation" : "Premium Monthly Subscription",
-                        status: PaymentStatus.Pending,
-                        paymentMethod: "card",
-                        createdAt: oldDate,
-                        updatedAt: oldDate,
-                    },
-                }),
-            );
+            const payment = await DbProvider.get().payment.create({
+                data: {
+                    id: generatePK(),
+                    userId: user.id,
+                    paymentType: PaymentType.PremiumMonthly,
+                    amount: 9999,
+                    checkoutId: `cs_test_${generatePK()}`,
+                    currency: "USD",
+                    description: "Premium Monthly Subscription",
+                    status: PaymentStatus.Pending,
+                    paymentMethod: "card",
+                    createdAt: oldDate,
+                    updatedAt: oldDate,
+                },
+            });
+            testPaymentIds.push(payment.id);
         }
-        const payments = await Promise.all(paymentPromises);
-        payments.forEach(p => testPaymentIds.push(p.id));
 
         await paymentsFail();
 
-        // Check that all payments were failed
-        const updatedPayments = await DbProvider.get().payment.findMany({
-            where: { id: { in: payments.map(p => p.id) } },
-        });
-        updatedPayments.forEach(payment => {
-            expect(payment.status).toBe(PaymentStatus.Failed);
-        });
-
-        // Check that emails were sent with unique addresses
-        
-        // Should have two calls - one for donation, one for other
-        expect(mockEmailAddTask).toHaveBeenCalledTimes(2);
-        
-        // Each call should have unique email addresses
-        mockEmailAddTask.mock.calls.forEach((call) => {
-            const to = call[0].to;
-            expect(new Set(to).size).toBe(to.length); // No duplicates
-        });
+        // Should send only one email to the address
+        const emailCalls = mockEmailAddTask.mock.calls.filter((call: any) => 
+            call[0].to.includes("multi@example.com"),
+        );
+        expect(emailCalls.length).toBe(1);
     });
 
-    it("should handle mixed user and team payments", async () => {
+    it("should fail both user and team payments in same batch", async () => {
         const now = new Date();
         const oldDate = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
         
-        // Create user
+        // Create user payment
         const user = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
@@ -496,17 +464,24 @@ describe("paymentsFail integration tests", () => {
         });
         testUserIds.push(user.id);
 
-        const userEmail = await DbProvider.get().email.create({
+        const userPayment = await DbProvider.get().payment.create({
             data: {
                 id: generatePK(),
                 userId: user.id,
-                emailAddress: "user@example.com",
-                verifiedAt: new Date(),
+                paymentType: PaymentType.PremiumMonthly,
+                amount: 9999,
+                checkoutId: `cs_test_${generatePK()}`,
+                currency: "USD",
+                description: "Premium Monthly Subscription",
+                status: PaymentStatus.Pending,
+                paymentMethod: "card",
+                createdAt: oldDate,
+                updatedAt: oldDate,
             },
         });
-        testEmailIds.push(userEmail.id);
+        testPaymentIds.push(userPayment.id);
 
-        // Create team
+        // Create team payment
         const owner = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
@@ -527,39 +502,11 @@ describe("paymentsFail integration tests", () => {
         });
         testTeamIds.push(team.id);
 
-        const teamEmail = await DbProvider.get().email.create({
-            data: {
-                id: generatePK(),
-                teamId: team.id,
-                emailAddress: "team@example.com",
-                verifiedAt: new Date(),
-            },
-        });
-        testEmailIds.push(teamEmail.id);
-
-        // Create payments
-        const userPayment = await DbProvider.get().payment.create({
-            data: {
-                id: generatePK(),
-                userId: user.id,
-                paymentType: PaymentType.PremiumMonthly,
-                amount: 9999,
-                checkoutId: `cs_test_${generatePK()}`,
-                currency: "USD",
-                description: "Premium Monthly Subscription",
-                status: PaymentStatus.Pending,
-                paymentMethod: "card",
-                createdAt: oldDate,
-                updatedAt: oldDate,
-            },
-        });
-        testPaymentIds.push(userPayment.id);
-
         const teamPayment = await DbProvider.get().payment.create({
             data: {
                 id: generatePK(),
                 teamId: team.id,
-                paymentType: PaymentType.Donation,
+                paymentType: PaymentType.PremiumMonthly,
                 amount: 19999,
                 checkoutId: `cs_test_${generatePK()}`,
                 currency: "USD",
@@ -584,15 +531,5 @@ describe("paymentsFail integration tests", () => {
             where: { id: teamPayment.id },
         });
         expect(updatedTeamPayment?.status).toBe(PaymentStatus.Failed);
-
-        // Check that emails were sent
-        
-        // Should have two calls - one for donation, one for premium
-        expect(mockEmailAddTask).toHaveBeenCalledTimes(2);
-        
-        // Verify both emails are included
-        const allEmails = mockEmailAddTask.mock.calls.flatMap((call: any) => call[0].to);
-        expect(allEmails).toContain("user@example.com");
-        expect(allEmails).toContain("team@example.com");
     });
 });

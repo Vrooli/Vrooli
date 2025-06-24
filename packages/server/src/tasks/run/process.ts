@@ -200,8 +200,8 @@ async function processNewRunExecution(payload: RunTask) {
                 routine: routineData,
                 inputs: payload.formValues || {},
                 config: {
-                    strategy: payload.config?.botConfig?.strategy || 'reasoning',
-                    model: payload.config?.botConfig?.model || 'gpt-4',
+                    strategy: payload.config?.botConfig?.strategy || "reasoning",
+                    model: payload.config?.botConfig?.model || "gpt-4",
                     maxSteps: payload.config?.limits?.maxSteps || 50,
                     timeout: payload.config?.limits?.maxTime || 300000,
                 },

@@ -39,7 +39,7 @@ export class AgentDeploymentService {
                 config.agentId,
                 config.goal,
                 config.initialRoutine,
-                this.logger
+                this.logger,
             );
             
             // Create subscription based on goal and subscriptions
@@ -66,7 +66,7 @@ export class AgentDeploymentService {
                 await this.addAgentToSwarm(config.agentId, config.swarmId);
             }
             
-            this.logger.info(`[AgentDeploymentService] Emergent agent deployed`, {
+            this.logger.info("[AgentDeploymentService] Emergent agent deployed", {
                 agentId: config.agentId,
                 goal: config.goal,
                 initialRoutine: config.initialRoutine,
@@ -76,7 +76,7 @@ export class AgentDeploymentService {
             return config.agentId;
             
         } catch (error) {
-            this.logger.error(`[AgentDeploymentService] Failed to deploy agent`, {
+            this.logger.error("[AgentDeploymentService] Failed to deploy agent", {
                 agentId: config.agentId,
                 goal: config.goal,
                 error: error instanceof Error ? error.message : String(error),
@@ -128,7 +128,7 @@ export class AgentDeploymentService {
             // Update swarm status
             swarm.status = "active";
             
-            this.logger.info(`[AgentDeploymentService] Emergent swarm deployed`, {
+            this.logger.info("[AgentDeploymentService] Emergent swarm deployed", {
                 swarmId,
                 agentCount: deployedAgentIds.length,
                 coordination: swarm.coordination,
@@ -137,7 +137,7 @@ export class AgentDeploymentService {
             return swarmId;
             
         } catch (error) {
-            this.logger.error(`[AgentDeploymentService] Failed to deploy swarm`, {
+            this.logger.error("[AgentDeploymentService] Failed to deploy swarm", {
                 swarmId: config.swarmId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -204,7 +204,7 @@ export class AgentDeploymentService {
         const success = await deployment.agent.acceptProposal(proposalId);
         
         if (success) {
-            this.logger.info(`[AgentDeploymentService] Proposal accepted`, {
+            this.logger.info("[AgentDeploymentService] Proposal accepted", {
                 agentId,
                 proposalId,
             });
@@ -255,10 +255,10 @@ export class AgentDeploymentService {
             // Clean up
             this.deployedAgents.delete(agentId);
             
-            this.logger.info(`[AgentDeploymentService] Agent undeployed`, { agentId });
+            this.logger.info("[AgentDeploymentService] Agent undeployed", { agentId });
             
         } catch (error) {
-            this.logger.error(`[AgentDeploymentService] Failed to undeploy agent`, {
+            this.logger.error("[AgentDeploymentService] Failed to undeploy agent", {
                 agentId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -287,10 +287,10 @@ export class AgentDeploymentService {
             // Clean up swarm
             this.agentSwarms.delete(swarmId);
             
-            this.logger.info(`[AgentDeploymentService] Swarm undeployed`, { swarmId });
+            this.logger.info("[AgentDeploymentService] Swarm undeployed", { swarmId });
             
         } catch (error) {
-            this.logger.error(`[AgentDeploymentService] Failed to undeploy swarm`, {
+            this.logger.error("[AgentDeploymentService] Failed to undeploy swarm", {
                 swarmId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -403,7 +403,7 @@ export class AgentDeploymentService {
         // 2. Collaborative optimization (if multiple agents have optimization proposals)
         const optimizationAgents = agentInsights.filter(a => 
             a.goal.toLowerCase().includes("optimize") || 
-            a.activeProposals.some(p => p.improvementType === "optimization")
+            a.activeProposals.some(p => p.improvementType === "optimization"),
         );
         
         if (optimizationAgents.length > 1) {

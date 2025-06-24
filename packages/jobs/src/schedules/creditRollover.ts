@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-24
 import { CreditEntryType, CreditSourceSystem, type Prisma } from "@prisma/client";
 import { batch, BusService, logger, type BillingEvent, CacheService } from "@vrooli/server";
 import { API_CREDITS_PREMIUM, CreditConfig, type CreditConfigObject, generatePK } from "@vrooli/shared";

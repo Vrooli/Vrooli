@@ -127,6 +127,8 @@ export async function logResourceStats(
                             periodStart,
                             periodEnd,
                             periodType,
+                            references: 0,
+                            referencedBy: 0,
                             ...runCounts,
                         };
                     }).filter((data): data is Exclude<typeof data, undefined> => !!data),
@@ -140,6 +142,6 @@ export async function logResourceStats(
             },
         });
     } catch (error) {
-        logger.error("logRoutineStats caught error", { error, trace: "0422", periodType, periodStart, periodEnd });
+        logger.error("logResourceStats caught error", { error, trace: "0422", periodType, periodStart, periodEnd });
     }
 }

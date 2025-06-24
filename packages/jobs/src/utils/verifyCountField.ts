@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=2 | LAST: 2025-06-24
 import type { Prisma } from "@prisma/client";
 import pkg from "@prisma/client";
 import { DbProvider, batch, logger } from "@vrooli/server";

@@ -14,13 +14,13 @@ import type {
     ResilienceOutcome,
     ResilienceLearningData,
     ErrorPattern,
-    UserImpactLevel,
     RecoveryStrategy,
 } from "@vrooli/shared";
 import {
     ResilienceEventType as EventType,
     UserImpactLevel,
-} from "@vrooli/shared";
+
+    UserImpactLevel} from "@vrooli/shared";
 import type { EventBus } from "../events/eventBus.js";
 import { uuid } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";

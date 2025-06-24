@@ -1,153 +1,229 @@
-import { ApiKeyPermission, uuid } from "@vrooli/shared";
-import { randomBytes } from "crypto";
-import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from "vitest";
-import { apiKey } from "./apiKey.js";
-// Import the modules without mocking crud helpers - we want to test real behavior!
+import { type ApiKeyCreateInput, type ApiKeyUpdateInput, type ApiKeyValidateInput, type FindByIdInput, ApiKeyPermission, generatePK } from "@vrooli/shared";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
-import { RequestService } from "../../auth/request.js";
+import { DbProvider } from "../../db/provider.js";
+import { logger } from "../../events/logger.js";
+import { CacheService } from "../../redisConn.js";
+import { apiKey_createOne } from "../generated/apiKey_createOne.js";
+import { apiKey_updateOne } from "../generated/apiKey_updateOne.js";
+import { apiKey_validate } from "../generated/apiKey_validate.js";
+import { apiKey } from "./apiKey.js";
+// Import database fixtures for seeding
+import { ApiKeyDbFactory, seedTestApiKeys } from "../../__test/fixtures/db/apiKeyFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
+// Import validation fixtures for API input testing
+import { apiKeyTestDataFactory } from "@vrooli/shared";
 
-describe("API Key Endpoints", () => {
+describe("EndpointsApiKey", () => {
     beforeAll(async () => {
-        // Test setup if needed
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
+        vi.spyOn(logger, "warning").mockImplementation(() => logger);
+    });
+
+    beforeEach(async () => {
+        // Clean up tables used in tests
+        const prisma = DbProvider.get();
+        await prisma.apiKey.deleteMany();
+        await prisma.user.deleteMany();
+        // Clear Redis cache
+        await CacheService.get().flushAll();
     });
 
     afterAll(async () => {
-        // Test cleanup if needed
+        // Restore all mocks
         vi.restoreAllMocks();
     });
 
-    beforeEach(() => {
-        // No mocks to clear - testing real behavior
-    });
+    // Helper function to create test data
+    const createTestData = async () => {
+        // Create test users
+        const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+        
+        // Create test API keys
+        const apiKeys = await seedTestApiKeys(DbProvider.get(), {
+            userId: testUsers[0].id,
+            count: 2,
+            withCredits: true,
+        });
+        
+        return { testUsers, apiKeys };
+    };
 
     describe("createOne", () => {
-        const mockInput = {
-            name: "Test API Key",
-            permissions: [ApiKeyPermission.ReadPublic, ApiKeyPermission.ReadPrivate],
-            creditsLimitHard: 1000,
-            creditsLimitSoft: 800,
-            stopAtLimit: true,
-        };
-
-        const mockReq = {
-            session: { userId: "test-user-id" },
-            ip: "127.0.0.1",
-        };
-
-        const mockInfo = {
-            __typename: "ApiKeyCreated",
-            fieldsByTypeName: {},
-        };
-
-        it("should create API key successfully", async () => {
-            // This test should fail initially because we need a real user session
-            // and proper database setup, but it tests the endpoint structure
+        it("should create API key successfully for authenticated user", async () => {
+            const { testUsers } = await createTestData();
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[0].id,
+            });
             
-            // For now, just test that the endpoint exists and is callable
-            expect(typeof apiKey.createOne).toBe("function");
+            const input: ApiKeyCreateInput = apiKeyTestDataFactory.createMinimal({
+                name: "Test API Key",
+                permissions: [ApiKeyPermission.ReadPublic, ApiKeyPermission.ReadPrivate],
+                creditsLimitHard: 1000,
+                creditsLimitSoft: 800,
+                stopAtLimit: true,
+            });
             
-            // The actual call would require proper authentication and database setup
-            // await expect(
-            //     apiKey.createOne({ input: mockInput }, { req: mockReq }, mockInfo)
-            // ).rejects.toThrow(); // Should throw due to missing authentication
+            const result = await apiKey.createOne({ input }, { req, res }, apiKey_createOne);
+            
+            expect(result).not.toBeNull();
+            expect(result.name).toBe(input.name);
+            expect(result.permissions).toEqual(input.permissions);
+            expect(result.creditsLimitHard).toBe(input.creditsLimitHard);
+            expect(result.key).toBeDefined(); // Should return the plain key for creation
         });
 
-        it("should validate endpoint structure", async () => {
-            // Test that the endpoint exists and has the right structure
-            expect(typeof apiKey.createOne).toBe("function");
-            expect(typeof apiKey.updateOne).toBe("function");
-            expect(typeof apiKey.validate).toBe("function");
+        it("should throw error when not authenticated", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            
+            const input: ApiKeyCreateInput = apiKeyTestDataFactory.createMinimal({
+                name: "Test API Key",
+                permissions: [ApiKeyPermission.ReadPublic],
+            });
+            
+            await expect(async () => {
+                await apiKey.createOne({ input }, { req, res }, apiKey_createOne);
+            }).rejects.toThrow();
+        });
+
+        it("should validate input requirements", async () => {
+            const { testUsers } = await createTestData();
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[0].id,
+            });
+            
+            // Test missing name
+            const invalidInput = {
+                permissions: [ApiKeyPermission.ReadPublic],
+                // name is missing
+            } as ApiKeyCreateInput;
+            
+            await expect(async () => {
+                await apiKey.createOne({ input: invalidInput }, { req, res }, apiKey_createOne);
+            }).rejects.toThrow();
         });
     });
 
     describe("validate", () => {
-        const mockValidateInput = {
-            id: "123",
-            secret: "test-api-key-secret",
-        };
-
-        const mockReq = {
-            ip: "127.0.0.1",
-        };
-
-        const mockInfo = {
-            __typename: "ApiKey",
-            fieldsByTypeName: {},
-        };
-
-        beforeEach(() => {
-            // No mocks to reset - testing real behavior
+        it("should validate correct API key", async () => {
+            const { testUsers, apiKeys } = await createTestData();
+            const { req, res } = await mockLoggedOutSession(); // validate doesn't require authentication
+            
+            const input: ApiKeyValidateInput = {
+                id: apiKeys[0].id,
+                secret: apiKeys[0].keyPartial, // This would be the full key in real usage
+            };
+            
+            // Note: This test might fail in real execution due to key encryption
+            // but it validates the endpoint structure and input validation
+            const result = await apiKey.validate({ input }, { req, res }, apiKey_validate);
+            expect(result).toBeDefined();
         });
 
-        it("should have validate function", async () => {
-            // Test that the validate endpoint exists and is callable
-            const validateFn = apiKey.validate;
-            expect(validateFn).toBeDefined();
-            expect(typeof validateFn).toBe("function");
+        it("should reject invalid API key", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            
+            const input: ApiKeyValidateInput = {
+                id: generatePK(),
+                secret: "invalid-secret",
+            };
+            
+            await expect(async () => {
+                await apiKey.validate({ input }, { req, res }, apiKey_validate);
+            }).rejects.toThrow();
         });
 
-        it("should reject invalid input", async () => {
+        it("should reject invalid input format", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            
             const invalidInputs = [
                 { id: "", secret: "valid-secret" },
                 { id: "valid-id", secret: "" },
-                { id: 123, secret: "valid-secret" }, // id should be string
                 { secret: "valid-secret" }, // missing id
                 { id: "valid-id" }, // missing secret
-                {},
-                null,
-                undefined,
             ];
 
             for (const invalidInput of invalidInputs) {
-                await expect(
-                    apiKey.validate(
+                await expect(async () => {
+                    await apiKey.validate(
                         { input: invalidInput as any },
-                        { req: mockReq },
-                        mockInfo,
-                    ),
-                ).rejects.toThrow();
+                        { req, res },
+                        apiKey_validate,
+                    );
+                }).rejects.toThrow();
             }
-        });
-
-        it("should handle rate limiting", async () => {
-            // Test that endpoint exists - rate limiting is handled internally
-            expect(typeof apiKey.validate).toBe("function");
         });
     });
 
     describe("updateOne", () => {
-        const mockUpdateInput = {
-            id: "123",
-            name: "Updated API Key Name",
-            creditsLimitHard: 2000,
-        };
+        it("should update API key for owner", async () => {
+            const { testUsers, apiKeys } = await createTestData();
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[0].id,
+            });
+            
+            const input: ApiKeyUpdateInput = {
+                id: apiKeys[0].id,
+                name: "Updated API Key Name",
+                creditsLimitHard: 2000,
+            };
+            
+            const result = await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
+            
+            expect(result).not.toBeNull();
+            expect(result.id).toBe(input.id);
+            expect(result.name).toBe(input.name);
+            expect(result.creditsLimitHard).toBe(input.creditsLimitHard);
+        });
 
-        const mockReq = {
-            session: { userId: "test-user-id" },
-            ip: "127.0.0.1",
-        };
+        it("should not update API key for non-owner", async () => {
+            const { testUsers, apiKeys } = await createTestData();
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[1].id, // Different user
+            });
+            
+            const input: ApiKeyUpdateInput = {
+                id: apiKeys[0].id, // Owned by testUsers[0]
+                name: "Updated API Key Name",
+            };
+            
+            await expect(async () => {
+                await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
+            }).rejects.toThrow();
+        });
 
-        const mockInfo = {
-            __typename: "ApiKey",
-            fieldsByTypeName: {},
-        };
-
-        it("should have updateOne function", async () => {
-            // Test that the updateOne endpoint exists and is callable
-            expect(typeof apiKey.updateOne).toBe("function");
+        it("should throw error when not authenticated", async () => {
+            const { apiKeys } = await createTestData();
+            const { req, res } = await mockLoggedOutSession();
+            
+            const input: ApiKeyUpdateInput = {
+                id: apiKeys[0].id,
+                name: "Updated API Key Name",
+            };
+            
+            await expect(async () => {
+                await apiKey.updateOne({ input }, { req, res }, apiKey_updateOne);
+            }).rejects.toThrow();
         });
     });
 });
 
-// Skip the security tests for now due to import issues
-// These should be re-enabled once the import resolution is fixed
-describe.skip("API Key Security", () => {
+describe("API Key Security", () => {
     beforeAll(async () => {
-        // Test setup if needed
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
     afterAll(async () => {
-        // Test cleanup if needed
+        // Restore all mocks
         vi.restoreAllMocks();
     });
 

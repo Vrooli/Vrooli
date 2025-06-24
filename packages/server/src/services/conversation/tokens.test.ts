@@ -14,7 +14,7 @@ describe("Token Estimation System", () => {
             it("should estimate tokens for basic English text", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "Hello world"
+                    text: "Hello world",
                 });
 
                 expect(result.tokens).toBe(6); // "Hello world" is 11 bytes, ceil(11/2) = 6
@@ -25,7 +25,7 @@ describe("Token Estimation System", () => {
             it("should handle empty string", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: ""
+                    text: "",
                 });
 
                 expect(result.tokens).toBe(0);
@@ -35,7 +35,7 @@ describe("Token Estimation System", () => {
             it("should handle single character", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4", 
-                    text: "a"
+                    text: "a",
                 });
 
                 expect(result.tokens).toBe(1); // 1 byte, ceil(1/2) = 1
@@ -44,7 +44,7 @@ describe("Token Estimation System", () => {
             it("should handle two characters", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "ab"
+                    text: "ab",
                 });
 
                 expect(result.tokens).toBe(1); // 2 bytes, ceil(2/2) = 1
@@ -53,7 +53,7 @@ describe("Token Estimation System", () => {
             it("should handle three characters", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "abc"
+                    text: "abc",
                 });
 
                 expect(result.tokens).toBe(2); // 3 bytes, ceil(3/2) = 2
@@ -64,7 +64,7 @@ describe("Token Estimation System", () => {
             it("should handle Unicode emoji correctly", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "👋"
+                    text: "👋",
                 });
 
                 // Emoji are typically 4 bytes in UTF-8
@@ -74,7 +74,7 @@ describe("Token Estimation System", () => {
             it("should handle mixed Unicode and ASCII", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "Hello 👋 world"
+                    text: "Hello 👋 world",
                 });
 
                 // "Hello " (6) + "👋" (4) + " world" (6) = 16 bytes
@@ -84,7 +84,7 @@ describe("Token Estimation System", () => {
             it("should handle Chinese characters", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "你好"
+                    text: "你好",
                 });
 
                 // Chinese characters are typically 3 bytes each in UTF-8
@@ -94,7 +94,7 @@ describe("Token Estimation System", () => {
             it("should handle combining characters", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "é" // e + combining acute accent
+                    text: "é", // e + combining acute accent
                 });
 
                 // This could be either a single é (2 bytes) or e + combining (3 bytes)
@@ -108,7 +108,7 @@ describe("Token Estimation System", () => {
                 const longText = "This is a test sentence. ".repeat(100);
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: longText
+                    text: longText,
                 });
 
                 expect(result.tokens).toBeGreaterThan(0);
@@ -120,12 +120,12 @@ describe("Token Estimation System", () => {
                 
                 const result1 = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text
+                    text,
                 });
 
                 const result2 = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4", 
-                    text
+                    text,
                 });
 
                 expect(result1.tokens).toBe(result2.tokens);
@@ -138,7 +138,7 @@ describe("Token Estimation System", () => {
             it("should handle whitespace correctly", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "   \n\t   "
+                    text: "   \n\t   ",
                 });
 
                 expect(result.tokens).toBeGreaterThan(0);
@@ -147,7 +147,7 @@ describe("Token Estimation System", () => {
             it("should handle special characters", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "!@#$%^&*()_+-=[]{}|;:,.<>?"
+                    text: "!@#$%^&*()_+-=[]{}|;:,.<>?",
                 });
 
                 expect(result.tokens).toBeGreaterThan(0);
@@ -156,7 +156,7 @@ describe("Token Estimation System", () => {
             it("should handle newlines and tabs", () => {
                 const result = registry.estimateTokens(TokenEstimatorType.Default, {
                     aiModel: "gpt-4",
-                    text: "Line 1\nLine 2\tTabbed"
+                    text: "Line 1\nLine 2\tTabbed",
                 });
 
                 expect(result.tokens).toBeGreaterThan(0);
@@ -178,7 +178,7 @@ describe("Token Estimation System", () => {
             // Request Tiktoken but it may not be initialized
             const result = registry.estimateTokens(TokenEstimatorType.Tiktoken, {
                 aiModel: "gpt-4",
-                text: "Hello world"
+                text: "Hello world",
             });
 
             // Should fall back to default if Tiktoken isn't initialized
@@ -201,12 +201,12 @@ describe("Token Estimation System", () => {
 
             const result1 = registry.estimateTokens(TokenEstimatorType.Default, {
                 aiModel: "gpt-4",
-                text
+                text,
             });
 
             const result2 = registry.estimateTokens(TokenEstimatorType.Default, {
                 aiModel: "claude-3",
-                text
+                text,
             });
 
             // Default estimator should give same results regardless of model
@@ -222,7 +222,7 @@ describe("Token Estimation System", () => {
             // This should fall back to default since Tiktoken may not be initialized
             const result = registry.estimateTokens(TokenEstimatorType.Tiktoken, {
                 aiModel: "gpt-4",
-                text: "Hello world"
+                text: "Hello world",
             });
 
             expect(result.tokens).toBeGreaterThan(0);
@@ -240,12 +240,12 @@ describe("Token Estimation System", () => {
 
             const shortResult = registry.estimateTokens(TokenEstimatorType.Default, {
                 aiModel: "gpt-4",
-                text: shortText
+                text: shortText,
             });
 
             const longResult = registry.estimateTokens(TokenEstimatorType.Default, {
                 aiModel: "gpt-4",
-                text: longText
+                text: longText,
             });
 
             // Longer text should have more tokens
@@ -258,7 +258,7 @@ describe("Token Estimation System", () => {
             const typicalSentence = "This is a typical English sentence with some common words.";
             const result = registry.estimateTokens(TokenEstimatorType.Default, {
                 aiModel: "gpt-4",
-                text: typicalSentence
+                text: typicalSentence,
             });
 
             // Should be reasonable - not too high or too low

@@ -1,7 +1,7 @@
 import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import { routineConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+import { routineConfigFixtures } from "@vrooli/shared/test-fixtures";
 import type { 
     DbTestFixtures, 
     RelationConfig,
@@ -81,7 +81,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 versionIndex: 2,
                 versionNotes: "Major update with new automation features",
                 complexity: 5,
-                simplicity: 7,
                 resourceIndex: 1,
                 routineConfig: routineConfigFixtures.complete,
                 translations: {
@@ -121,7 +120,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     versionLabel: 123, // Should be string
                     versionIndex: "one", // Should be number
                     complexity: "five", // Should be number
-                    simplicity: "three", // Should be number
                     routineConfig: "not an object", // Should be object
                 },
                 invalidVersionIndex: {
@@ -158,7 +156,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     versionLabel: "1.0.0",
                     versionIndex: 1,
                     complexity: 1,
-                    simplicity: 10,
                     routineConfig: routineConfigFixtures.action.simple,
                 },
                 textGenerationVersion: {
@@ -171,7 +168,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     versionLabel: "1.0.0",
                     versionIndex: 1,
                     complexity: 3,
-                    simplicity: 8,
                     routineConfig: routineConfigFixtures.generate.basic,
                 },
                 multiStepVersion: {
@@ -184,7 +180,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     versionLabel: "1.0.0",
                     versionIndex: 1,
                     complexity: 8,
-                    simplicity: 3,
                     routineConfig: routineConfigFixtures.multiStep.sequential,
                 },
                 manualVersion: {
@@ -197,7 +192,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     versionLabel: "1.0.0",
                     versionIndex: 1,
                     complexity: 4,
-                    simplicity: 6,
                     routineConfig: routineConfigFixtures.minimal,
                 },
                 betaVersion: {
@@ -211,7 +205,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     versionIndex: 3,
                     versionNotes: "Beta release - experimental features",
                     complexity: 6,
-                    simplicity: 4,
                     routineConfig: routineConfigFixtures.complete,
                 },
                 multiLanguageVersion: {
@@ -224,7 +217,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     versionLabel: "1.0.0",
                     versionIndex: 1,
                     complexity: 5,
-                    simplicity: 5,
                     routineConfig: routineConfigFixtures.complete,
                     translations: {
                         create: Array.from({ length: 5 }, (_, i) => ({
@@ -244,7 +236,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     isComplete: true,
                     versionNotes: "Major update with enhanced automation",
                     complexity: 7,
-                    simplicity: 4,
                     routineConfig: routineConfigFixtures.multiStep.complexWorkflow,
                     translations: {
                         update: [{
@@ -287,7 +278,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
             versionIndex: 2,
             versionNotes: "Major update with new automation features",
             complexity: 5,
-            simplicity: 7,
             resourceIndex: 1,
             routineConfig: routineConfigFixtures.complete,
             translations: {
@@ -325,7 +315,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                         isComplete: true,
                         isLatest: true,
                         complexity: 1,
-                        simplicity: 10,
                         routineConfig: routineConfigFixtures.action.simple,
                     },
                     translations: [{
@@ -344,7 +333,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                         isComplete: true,
                         isLatest: true,
                         complexity: 3,
-                        simplicity: 8,
                         routineConfig: routineConfigFixtures.generate.basic,
                     },
                     translations: [{
@@ -363,7 +351,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                         isComplete: true,
                         isLatest: true,
                         complexity: 9,
-                        simplicity: 2,
                         routineConfig: routineConfigFixtures.multiStep.complexWorkflow,
                     },
                     translations: [{
@@ -406,7 +393,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                         isComplete: true,
                         isLatest: true,
                         complexity: 6,
-                        simplicity: 5,
                         routineConfig: routineConfigFixtures.variants.dataTransformation,
                     },
                     translations: [{
@@ -449,7 +435,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                         versionIndex: 3,
                         versionNotes: "Beta release - experimental features",
                         complexity: 6,
-                        simplicity: 4,
                         routineConfig: routineConfigFixtures.complete,
                     },
                     translations: [{
@@ -577,7 +562,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 isComplete: true,
                 isLatest: true,
                 complexity: 1,
-                simplicity: 10,
                 routineConfig: routineConfigFixtures.action.simple,
             },
             translations: [{
@@ -599,7 +583,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 isComplete: true,
                 isLatest: true,
                 complexity: 3,
-                simplicity: 8,
                 routineConfig: routineConfigFixtures.generate.basic,
             },
             translations: [{
@@ -628,7 +611,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 isComplete: true,
                 isLatest: true,
                 complexity: 6,
-                simplicity: 5,
                 routineConfig: routineConfigFixtures.variants.dataTransformation,
             },
             translations: [{
@@ -661,7 +643,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 versionIndex: 3,
                 versionNotes: "Beta release - experimental features",
                 complexity: 6,
-                simplicity: 4,
                 routineConfig: routineConfigFixtures.complete,
             },
             translations: [{
@@ -864,7 +845,6 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     isComplete: true,
                     versionNotes: isLatest ? "Latest version" : `Version ${i + 1} release notes`,
                     complexity: Math.min(10, i + 3),
-                    simplicity: Math.max(1, 10 - i - 2),
                     routineConfig: configs[i % configs.length],
                 },
                 translations: [{

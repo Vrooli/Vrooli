@@ -1,7 +1,169 @@
 /**
- * Example test file showing how to use the enhanced validation utilities
- * for execution architecture fixtures
+ * Validation Example Test
+ * 
+ * This test demonstrates the complete execution fixture validation system in action.
+ * It serves as both a working example and a comprehensive test of the fixture architecture.
  */
+
+import { describe, it, expect } from "vitest";
+import { ChatConfig, RoutineConfig, RunConfig } from "@vrooli/shared";
+import { 
+    runComprehensiveExecutionTests,
+    validateConfigWithSharedFixtures,
+    validateComprehensiveRoundTrip,
+    FixtureCreationUtils,
+    combineValidationResults
+} from "./executionValidationUtils.js";
+import {
+    customerSupportSwarmFixture,
+    customerInquiryRoutineFixture, 
+    highPerformanceExecutionFixture,
+    completeCustomerSupportScenario,
+    customerSupportExampleFixtures
+} from "./examples/customerSupportExample.js";
+
+describe("Execution Fixture Validation System", () => {
+    
+    describe("Individual Fixture Validation", () => {
+        
+        describe("Customer Support Swarm (Tier 1)", () => {
+            // Run comprehensive test suite automatically
+            runComprehensiveExecutionTests(
+                customerSupportSwarmFixture,
+                "chat", 
+                "customer-support-swarm"
+            );
+            
+            // Additional custom validation
+            it("should have proper swarm metadata", () => {
+                expect(customerSupportSwarmFixture.swarmMetadata).toBeDefined();
+                expect(customerSupportSwarmFixture.swarmMetadata!.expectedAgentCount).toBeGreaterThan(0);
+                expect(customerSupportSwarmFixture.swarmMetadata!.minViableAgents).toBeGreaterThan(0);
+                expect(customerSupportSwarmFixture.swarmMetadata!.formation).toBe("dynamic");
+                expect(customerSupportSwarmFixture.swarmMetadata!.coordinationPattern).toBe("emergence");
+            });
+            
+            it("should have customer support specific capabilities", () => {
+                const capabilities = customerSupportSwarmFixture.emergence.capabilities;
+                expect(capabilities).toContain("intelligent_routing");
+                expect(capabilities).toContain("customer_satisfaction");
+                expect(capabilities).toContain("adaptive_escalation");
+            });
+        });
+        
+        describe("Customer Inquiry Routine (Tier 2)", () => {
+            // Run comprehensive test suite automatically
+            runComprehensiveExecutionTests(
+                customerInquiryRoutineFixture,
+                "routine",
+                "customer-inquiry-routine"
+            );
+            
+            // Additional custom validation
+            it("should have evolution stage configuration", () => {
+                expect(customerInquiryRoutineFixture.evolutionStage).toBeDefined();
+                expect(customerInquiryRoutineFixture.evolutionStage!.current).toBe("conversational");
+                expect(customerInquiryRoutineFixture.evolutionStage!.performanceMetrics).toBeDefined();
+            });
+            
+            it("should have realistic performance metrics", () => {
+                const metrics = customerInquiryRoutineFixture.evolutionStage!.performanceMetrics;
+                expect(metrics.averageExecutionTime).toBeGreaterThan(0);
+                expect(metrics.successRate).toBeGreaterThan(0);
+                expect(metrics.successRate).toBeLessThanOrEqual(1);
+                expect(metrics.costPerExecution).toBeGreaterThan(0);
+            });
+        });
+        
+        describe("High Performance Execution (Tier 3)", () => {
+            // Run comprehensive test suite automatically  
+            runComprehensiveExecutionTests(
+                highPerformanceExecutionFixture,
+                "run",
+                "high-performance-execution"
+            );
+            
+            // Additional custom validation
+            it("should have execution metadata", () => {
+                expect(highPerformanceExecutionFixture.executionMetadata).toBeDefined();
+                expect(highPerformanceExecutionFixture.executionMetadata!.supportedStrategies).toBeDefined();
+                expect(highPerformanceExecutionFixture.executionMetadata!.supportedStrategies.length).toBeGreaterThan(0);
+            });
+            
+            it("should have performance characteristics defined", () => {
+                const perf = highPerformanceExecutionFixture.executionMetadata!.performanceCharacteristics;
+                expect(perf.latency).toBeDefined();
+                expect(perf.throughput).toBeDefined(); 
+                expect(perf.resourceUsage).toBeDefined();
+            });
+        });
+    });
+    
+    describe("Enhanced Validation Capabilities", () => {
+        
+        it("should validate config compatibility with shared fixtures", async () => {
+            // Test swarm config compatibility
+            const swarmResult = await validateConfigWithSharedFixtures(
+                customerSupportSwarmFixture as any,
+                "chat"
+            );
+            expect(swarmResult.pass).toBe(true);
+            
+            // Test routine config compatibility  
+            const routineResult = await validateConfigWithSharedFixtures(
+                customerInquiryRoutineFixture as any,
+                "routine"
+            );
+            expect(routineResult.pass).toBe(true);
+            
+            // Test execution config compatibility
+            const executionResult = await validateConfigWithSharedFixtures(
+                highPerformanceExecutionFixture as any, 
+                "run"
+            );
+            expect(executionResult.pass).toBe(true);
+        });
+        
+        it("should maintain comprehensive round-trip consistency", async () => {
+            // Test comprehensive round-trip for all fixtures
+            const swarmRoundTrip = await validateComprehensiveRoundTrip(
+                customerSupportSwarmFixture,
+                "chat"
+            );
+            expect(swarmRoundTrip.pass).toBe(true);
+            expect(swarmRoundTrip.data?.totalTests).toBe(6);
+            
+            const routineRoundTrip = await validateComprehensiveRoundTrip(
+                customerInquiryRoutineFixture,
+                "routine" 
+            );
+            expect(routineRoundTrip.pass).toBe(true);
+            expect(routineRoundTrip.data?.totalTests).toBe(6);
+            
+            const executionRoundTrip = await validateComprehensiveRoundTrip(
+                highPerformanceExecutionFixture,
+                "run"
+            );
+            expect(executionRoundTrip.pass).toBe(true);
+            expect(executionRoundTrip.data?.totalTests).toBe(6);
+        });
+        
+        it("should validate config instances against actual config classes", async () => {
+            // Test that configs can be instantiated with actual config classes
+            const swarmConfig = new ChatConfig({ config: customerSupportSwarmFixture.config });
+            expect(swarmConfig).toBeDefined();
+            expect(swarmConfig.export()).toBeDefined();
+            
+            const routineConfig = new RoutineConfig({ config: customerInquiryRoutineFixture.config });
+            expect(routineConfig).toBeDefined();
+            expect(routineConfig.export()).toBeDefined();
+            
+            const executionConfig = new RunConfig({ config: highPerformanceExecutionFixture.config });
+            expect(executionConfig).toBeDefined();
+            expect(executionConfig.export()).toBeDefined();
+        });
+    });
+});
 
 import { describe, it, expect } from "vitest";
 import {

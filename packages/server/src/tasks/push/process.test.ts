@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { Job } from "bullmq";
+import { type Job } from "bullmq";
 import { pushProcess } from "./process.js";
-import { PushNotificationTask, QueueTaskType } from "../taskTypes.js";
+import { type PushNotificationTask, QueueTaskType } from "../taskTypes.js";
 import { logger } from "../../events/logger.js";
 
 describe("pushProcess", () => {
