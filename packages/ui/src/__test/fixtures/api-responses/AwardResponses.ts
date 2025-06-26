@@ -8,7 +8,7 @@
  * based on user achievements and cannot be created/updated/deleted via API.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     Award,
     AwardSearchInput,
@@ -465,7 +465,7 @@ export class AwardMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get award by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const award = this.responseFactory.createMockAward({ id: id as string });
@@ -478,7 +478,7 @@ export class AwardMSWHandlers {
             }),
             
             // Search awards
-            rest.post(`${this.responseFactory["baseUrl"]}/api/awards`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/awards`, async (req, res, ctx) => {
                 const searchInput = await req.json() as AwardSearchInput;
                 
                 // Generate base awards set
@@ -496,7 +496,7 @@ export class AwardMSWHandlers {
             }),
             
             // List user awards (simplified endpoint)
-            rest.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -539,7 +539,7 @@ export class AwardMSWHandlers {
             }),
             
             // Get achievement journey for a specific category
-            rest.get(`${this.responseFactory["baseUrl"]}/api/awards/journey/:category`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards/journey/:category`, (req, res, ctx) => {
                 const { category } = req.params;
                 const url = new URL(req.url);
                 const progress = parseInt(url.searchParams.get("progress") || "100");
@@ -565,7 +565,7 @@ export class AwardMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -574,21 +574,21 @@ export class AwardMSWHandlers {
             }),
             
             // Permission error for write operations
-            rest.post(`${this.responseFactory["baseUrl"]}/api/award`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/award`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
                 );
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
                 );
             }),
             
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("delete")),
@@ -596,7 +596,7 @@ export class AwardMSWHandlers {
             }),
             
             // Server error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -604,7 +604,7 @@ export class AwardMSWHandlers {
             }),
             
             // Rate limit error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
                 return res(
                     ctx.status(429),
                     ctx.json(this.responseFactory.createRateLimitErrorResponse()),
@@ -618,7 +618,7 @@ export class AwardMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/awards`, async (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, async (req, res, ctx) => {
                 const awards = this.responseFactory.createAwardsForAllCategories();
                 const response = this.responseFactory.createAwardListResponse(awards);
                 
@@ -629,7 +629,7 @@ export class AwardMSWHandlers {
                 );
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, async (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const award = this.responseFactory.createMockAward({ id: id as string });
                 const response = this.responseFactory.createSuccessResponse(award);
@@ -648,15 +648,15 @@ export class AwardMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/award/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/awards`, (req, res, ctx) => {
                 return res.networkError("Connection timeout while searching");
             }),
         ];

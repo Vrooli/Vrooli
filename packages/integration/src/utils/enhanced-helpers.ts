@@ -62,7 +62,7 @@ export interface WorkflowTestConfig {
     steps: Array<{
         name: string;
         objectType: string;
-        operation: 'create' | 'update' | 'delete' | 'find';
+        operation: "create" | "update" | "delete" | "find";
         fixture: string;
         dependencies?: string[];
         validation?: (result: any) => boolean;
@@ -91,7 +91,7 @@ export class EnhancedSessionManager {
     /**
      * Get or create a session for a specific user role
      */
-    static async getSession(role: keyof typeof userPersonas = 'standard'): Promise<SessionUser> {
+    static async getSession(role: keyof typeof userPersonas = "standard"): Promise<SessionUser> {
         const sessionKey = `${role}_session`;
         
         if (this.sessions.has(sessionKey)) {
@@ -162,13 +162,13 @@ export class EnhancedDataFactory {
      */
     static async createTestData<T = any>(
         objectType: string, 
-        scenario: string = 'minimal',
+        scenario: string = "minimal",
         options: {
             withRelations?: boolean;
             relations?: Record<string, any>;
             userRole?: keyof typeof userPersonas;
             customData?: Partial<T>;
-        } = {}
+        } = {},
     ): Promise<T> {
         const { withRelations = false, customData = {} } = options;
 
@@ -221,7 +221,7 @@ export class EnhancedDataFactory {
         const root = await this.createTestData(
             config.root.objectType,
             config.root.scenario,
-            { customData: config.root.data }
+            { customData: config.root.data },
         );
 
         // Create related objects
@@ -236,7 +236,7 @@ export class EnhancedDataFactory {
                 const relatedObject = await this.createTestData(
                     rel.objectType,
                     rel.scenario,
-                    { customData: rel.data }
+                    { customData: rel.data },
                 );
                 relatedObjects.push(relatedObject);
                 totalObjects++;
@@ -275,7 +275,7 @@ export class EnhancedWorkflowTester {
             sessions?: Record<string, SessionUser>;
             rollbackOnFailure?: boolean;
             captureMetrics?: boolean;
-        } = {}
+        } = {},
     ): Promise<EnhancedTestResult> {
         const startTime = Date.now();
         const { rollbackOnFailure = true, captureMetrics = true } = options;
@@ -414,7 +414,7 @@ export class EnhancedWorkflowTester {
                     // Execute step
                     const stepData = await EnhancedDataFactory.createTestData(
                         step.objectType,
-                        step.fixture
+                        step.fixture,
                     );
 
                     // Validate if validation function provided
@@ -495,12 +495,12 @@ export class EnhancedWorkflowTester {
     private static async rollbackWorkflow(results: Record<string, any>): Promise<void> {
         // Implement rollback logic based on the results
         // This would typically involve deleting created records in reverse order
-        console.log('Rolling back workflow:', Object.keys(results));
+        console.log("Rolling back workflow:", Object.keys(results));
     }
 
     private static async cleanupWorkflowData(results: Record<string, any>): Promise<void> {
         // Cleanup workflow data
-        console.log('Cleaning up workflow data:', Object.keys(results));
+        console.log("Cleaning up workflow data:", Object.keys(results));
     }
 }
 
@@ -522,7 +522,7 @@ export class EnhancedPerformanceTester {
             iterations?: number;
             concurrency?: number;
             warmupRuns?: number;
-        } = {}
+        } = {},
     ): Promise<{
         passed: boolean;
         metrics: {
@@ -629,7 +629,7 @@ export class EnhancedErrorTester {
     static async testErrorScenario(
         errorType: keyof typeof integrationErrorFixtures,
         scenario: string,
-        testFunction: (errorConfig: any) => Promise<any>
+        testFunction: (errorConfig: any) => Promise<any>,
     ): Promise<{
         errorType: string;
         scenario: string;
@@ -690,7 +690,7 @@ export class EnhancedErrorTester {
             maxRetries?: number;
             retryDelay?: number;
             enableFallback?: boolean;
-        } = {}
+        } = {},
     ): Promise<{
         primarySucceeded: boolean;
         fallbackUsed: boolean;
@@ -760,13 +760,13 @@ export const enhancedTestUtils = {
     /**
      * Get a session for testing
      */
-    getSession: (role: keyof typeof userPersonas = 'standard') => 
+    getSession: (role: keyof typeof userPersonas = "standard") => 
         EnhancedSessionManager.getSession(role),
 
     /**
      * Create test data using shared fixtures
      */
-    createData: <T>(objectType: string, scenario: string = 'minimal', options: any = {}) =>
+    createData: <T>(objectType: string, scenario: string = "minimal", options: any = {}) =>
         EnhancedDataFactory.createTestData<T>(objectType, scenario, options),
 
     /**

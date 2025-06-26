@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import { 
     PaymentStatus,
     PaymentType} from "@vrooli/shared";
@@ -619,7 +619,7 @@ export class PaymentMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create payment
-            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, async (req, res, ctx) => {
                 const body = await req.json() as PaymentCreateInput;
                 
                 // Validate input
@@ -642,7 +642,7 @@ export class PaymentMSWHandlers {
             }),
             
             // Get payment by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const payment = this.responseFactory.createMockPayment({ id: id as string });
@@ -655,7 +655,7 @@ export class PaymentMSWHandlers {
             }),
             
             // Update payment
-            rest.put(`${this.responseFactory["baseUrl"]}/api/payment/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/payment/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as PaymentUpdateInput;
                 
@@ -675,7 +675,7 @@ export class PaymentMSWHandlers {
             }),
             
             // List payments
-            rest.get(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -714,7 +714,7 @@ export class PaymentMSWHandlers {
             }),
 
             // Get payment receipt
-            rest.get(`${this.responseFactory["baseUrl"]}/api/payment/:id/receipt`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id/receipt`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const receipt = {
@@ -738,7 +738,7 @@ export class PaymentMSWHandlers {
             }),
 
             // Process refund
-            rest.post(`${this.responseFactory["baseUrl"]}/api/payment/:id/refund`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment/:id/refund`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const refundPayment = this.responseFactory.createMockPayment({
@@ -764,7 +764,7 @@ export class PaymentMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -776,7 +776,7 @@ export class PaymentMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -785,7 +785,7 @@ export class PaymentMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -793,7 +793,7 @@ export class PaymentMSWHandlers {
             }),
 
             // Payment failed error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 return res(
                     ctx.status(402),
                     ctx.json(this.responseFactory.createPaymentFailedErrorResponse("Card declined")),
@@ -801,7 +801,7 @@ export class PaymentMSWHandlers {
             }),
 
             // Subscription error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/payment/subscription`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment/subscription`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
                     ctx.json(this.responseFactory.createSubscriptionErrorResponse("User already has an active subscription")),
@@ -809,7 +809,7 @@ export class PaymentMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -823,7 +823,7 @@ export class PaymentMSWHandlers {
      */
     createLoadingHandlers(delay = 3000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, async (req, res, ctx) => {
                 const body = await req.json() as PaymentCreateInput;
                 const payment = this.responseFactory.createPaymentFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(payment);
@@ -842,11 +842,11 @@ export class PaymentMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/payment`, (req, res, ctx) => {
                 return res.networkError("Payment service unavailable");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/payment/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

@@ -74,6 +74,11 @@ export function useSocketSwarm({
     useEffect(() => {
         if (!chatId) return;
 
+        // Skip socket setup in test/storybook environments
+        if (typeof window !== "undefined" && window.location?.pathname?.includes("iframe.html")) {
+            return;
+        }
+
         socketRef.current = SocketService.get();
         const socket = socketRef.current;
 
@@ -82,25 +87,25 @@ export function useSocketSwarm({
 
         if (handlersRef.current.swarmConfigUpdate) {
             unsubscribers.push(
-                socket.onSocketEvent("swarmConfigUpdate", handlersRef.current.swarmConfigUpdate)
+                socket.onEvent("swarmConfigUpdate", handlersRef.current.swarmConfigUpdate),
             );
         }
 
         if (handlersRef.current.swarmStateUpdate) {
             unsubscribers.push(
-                socket.onSocketEvent("swarmStateUpdate", handlersRef.current.swarmStateUpdate)
+                socket.onEvent("swarmStateUpdate", handlersRef.current.swarmStateUpdate),
             );
         }
 
         if (handlersRef.current.swarmResourceUpdate) {
             unsubscribers.push(
-                socket.onSocketEvent("swarmResourceUpdate", handlersRef.current.swarmResourceUpdate)
+                socket.onEvent("swarmResourceUpdate", handlersRef.current.swarmResourceUpdate),
             );
         }
 
         if (handlersRef.current.swarmTeamUpdate) {
             unsubscribers.push(
-                socket.onSocketEvent("swarmTeamUpdate", handlersRef.current.swarmTeamUpdate)
+                socket.onEvent("swarmTeamUpdate", handlersRef.current.swarmTeamUpdate),
             );
         }
 

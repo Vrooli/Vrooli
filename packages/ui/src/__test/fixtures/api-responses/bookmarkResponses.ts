@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     Bookmark, 
     BookmarkCreateInput, 
@@ -409,7 +409,7 @@ export class BookmarkMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create bookmark
-            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async (req, res, ctx) => {
                 const body = await req.json() as BookmarkCreateInput;
                 
                 // Validate input
@@ -432,7 +432,7 @@ export class BookmarkMSWHandlers {
             }),
             
             // Get bookmark by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const bookmark = this.responseFactory.createMockBookmark({ id: id as string });
@@ -445,7 +445,7 @@ export class BookmarkMSWHandlers {
             }),
             
             // Update bookmark
-            rest.put(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as BookmarkUpdateInput;
                 
@@ -463,12 +463,12 @@ export class BookmarkMSWHandlers {
             }),
             
             // Delete bookmark
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List bookmarks
-            rest.get(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -508,7 +508,7 @@ export class BookmarkMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -519,7 +519,7 @@ export class BookmarkMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -528,7 +528,7 @@ export class BookmarkMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -536,7 +536,7 @@ export class BookmarkMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -550,7 +550,7 @@ export class BookmarkMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, async (req, res, ctx) => {
                 const body = await req.json() as BookmarkCreateInput;
                 const bookmark = this.responseFactory.createBookmarkFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(bookmark);
@@ -569,11 +569,11 @@ export class BookmarkMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/bookmark`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/bookmark/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

@@ -4,7 +4,12 @@ import { type Chat, type ChatSearchResult, ChatSortBy } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useChats, useChatsStore } from "./chatsStore.js";
 
-// Mock dependencies
+// Mock session context if not already mocked
+vi.mock("../contexts/session.js", () => ({
+    SessionContext: {},
+}));
+
+// Mock the API functions
 vi.mock("../api/fetchData.js", () => ({
     fetchData: vi.fn(),
 }));
@@ -15,10 +20,6 @@ vi.mock("../api/responseParser.js", () => ({
     },
 }));
 
-vi.mock("../contexts/session.js", () => ({
-    SessionContext: {},
-}));
-
 vi.mock("../utils/authentication/session.js", () => ({
     checkIfLoggedIn: vi.fn(),
 }));
@@ -27,9 +28,10 @@ import { fetchData } from "../api/fetchData.js";
 import { ServerResponseParser } from "../api/responseParser.js";
 import { checkIfLoggedIn } from "../utils/authentication/session.js";
 
-const mockFetchData = vi.mocked(fetchData);
-const mockDisplayErrors = vi.mocked(ServerResponseParser.displayErrors);
-const mockCheckIfLoggedIn = vi.mocked(checkIfLoggedIn);
+// Get the mocked functions
+const mockFetchData = fetchData as ReturnType<typeof vi.fn>;
+const mockDisplayErrors = ServerResponseParser.displayErrors as ReturnType<typeof vi.fn>;
+const mockCheckIfLoggedIn = checkIfLoggedIn as ReturnType<typeof vi.fn>;
 
 // Helper to create mock Chat objects
 const createMockChat = (id: string, overrides: Partial<Chat> = {}): Chat => ({
@@ -792,7 +794,7 @@ describe("useChatsStore", () => {
                     // Simulate session context change
                     return useChats();
                 },
-                { initialProps: { sessionProp: { isLoggedIn: true } } }
+                { initialProps: { sessionProp: { isLoggedIn: true } } },
             );
 
             // Change session (user logs out)

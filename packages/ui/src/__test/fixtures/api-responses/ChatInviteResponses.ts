@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     ChatInvite, 
     ChatInviteCreateInput, 
@@ -543,7 +543,7 @@ export class ChatInviteMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create chat invite
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, async (req, res, ctx) => {
                 const body = await req.json() as ChatInviteCreateInput;
                 
                 // Validate input
@@ -566,7 +566,7 @@ export class ChatInviteMSWHandlers {
             }),
             
             // Get chat invite by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const chatInvite = this.responseFactory.createMockChatInvite({ id: id as string });
@@ -579,7 +579,7 @@ export class ChatInviteMSWHandlers {
             }),
             
             // Update chat invite
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ChatInviteUpdateInput;
                 
@@ -607,7 +607,7 @@ export class ChatInviteMSWHandlers {
             }),
             
             // Accept chat invite
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const chatInvite = this.responseFactory.createMockChatInvite({ 
@@ -625,7 +625,7 @@ export class ChatInviteMSWHandlers {
             }),
             
             // Decline chat invite
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/decline`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/decline`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const chatInvite = this.responseFactory.createMockChatInvite({ 
@@ -643,12 +643,12 @@ export class ChatInviteMSWHandlers {
             }),
             
             // Delete chat invite
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List chat invites
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -700,7 +700,7 @@ export class ChatInviteMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -711,7 +711,7 @@ export class ChatInviteMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -720,7 +720,7 @@ export class ChatInviteMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -728,7 +728,7 @@ export class ChatInviteMSWHandlers {
             }),
             
             // Already processed error
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
                     ctx.json(this.responseFactory.createAlreadyProcessedErrorResponse(ChatInviteStatusEnum.Accepted)),
@@ -736,7 +736,7 @@ export class ChatInviteMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -750,7 +750,7 @@ export class ChatInviteMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, async (req, res, ctx) => {
                 const body = await req.json() as ChatInviteCreateInput;
                 const chatInvite = this.responseFactory.createChatInviteFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(chatInvite);
@@ -762,7 +762,7 @@ export class ChatInviteMSWHandlers {
                 );
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 const chatInvite = this.responseFactory.createMockChatInvite({ 
                     id: id as string,
@@ -785,19 +785,19 @@ export class ChatInviteMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatInvite`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/accept`, (req, res, ctx) => {
                 return res.networkError("Network error during accept operation");
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/decline`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatInvite/:id/decline`, (req, res, ctx) => {
                 return res.networkError("Network error during decline operation");
             }),
         ];

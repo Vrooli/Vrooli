@@ -2,25 +2,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useActiveChatStore } from "./activeChatStore.js";
 
-// Mock all the complex dependencies
-vi.mock("../api/fetchData.js", () => ({
-    fetchData: vi.fn(),
-}));
-
-vi.mock("../api/responseParser.js", () => ({
-    ServerResponseParser: {
-        displayErrors: vi.fn(),
-        hasErrorCode: vi.fn(),
-    },
-}));
-
+// Mock dependencies that aren't in centralized mocks yet
 vi.mock("../utils/localStorage.js", () => ({
     getCookieMatchingChat: vi.fn(),
     setCookieMatchingChat: vi.fn(),
-}));
-
-vi.mock("../utils/authentication/session.js", () => ({
-    getCurrentUser: vi.fn(() => ({ id: "user1", publicId: "pub1", languages: ["en"] })),
 }));
 
 vi.mock("../views/objects/chat/ChatCrud.js", () => ({

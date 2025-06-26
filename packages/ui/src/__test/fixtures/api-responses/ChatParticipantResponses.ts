@@ -8,7 +8,7 @@
  * including roles, permissions, and participation metadata.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     ChatParticipant, 
     ChatParticipantUpdateInput,
@@ -496,7 +496,7 @@ export class ChatParticipantMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get ChatParticipant by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const participant = this.responseFactory.createMockChatParticipant({ id: id as string });
@@ -509,7 +509,7 @@ export class ChatParticipantMSWHandlers {
             }),
             
             // Update ChatParticipant
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ChatParticipantUpdateInput;
                 
@@ -533,7 +533,7 @@ export class ChatParticipantMSWHandlers {
             }),
             
             // List ChatParticipants
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -612,7 +612,7 @@ export class ChatParticipantMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -622,7 +622,7 @@ export class ChatParticipantMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -631,7 +631,7 @@ export class ChatParticipantMSWHandlers {
             }),
             
             // Permission error
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
@@ -639,7 +639,7 @@ export class ChatParticipantMSWHandlers {
             }),
             
             // Chat not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const chatId = url.searchParams.get("chatId");
                 
@@ -657,7 +657,7 @@ export class ChatParticipantMSWHandlers {
             }),
             
             // Already participant error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatParticipant`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatParticipant`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
                     ctx.json(this.responseFactory.createAlreadyParticipantErrorResponse("user_123", "chat_456")),
@@ -665,7 +665,7 @@ export class ChatParticipantMSWHandlers {
             }),
             
             // Server error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -679,7 +679,7 @@ export class ChatParticipantMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const chatId = url.searchParams.get("chatId") || "default_chat";
                 
@@ -693,7 +693,7 @@ export class ChatParticipantMSWHandlers {
                 );
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ChatParticipantUpdateInput;
                 
@@ -714,15 +714,15 @@ export class ChatParticipantMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatParticipants`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatParticipant/:id`, (req, res, ctx) => {
                 return res.networkError("Network error during update");
             }),
         ];

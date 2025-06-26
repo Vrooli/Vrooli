@@ -26,14 +26,14 @@ describe("User Onboarding Scenario", () => {
 
         // Step 1: Create new user (simulating signup)
         await EnhancedDataFactory.initialize();
-        const newUser = await enhancedTestUtils.createData('user', 'minimal', {
+        const newUser = await enhancedTestUtils.createData("user", "minimal", {
             customData: {
                 handle: "newbie", 
                 name: null, // Profile not complete yet
                 bio: null,
-            }
+            },
         });
-        const sessionData = await enhancedTestUtils.getSession('standard');
+        const sessionData = await enhancedTestUtils.getSession("standard");
 
         expect(newUser).toBeDefined();
         expect(newUser.handle).toBe("newbie");

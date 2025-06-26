@@ -15,6 +15,25 @@ Unlike unit tests that test individual components in isolation, integration test
 - **Performance testing**: Built-in metrics for complete data flow
 - **Type-safe**: Full TypeScript support with comprehensive validation
 
+#### New Unified IntegrationEngine (Recommended)
+- **Comprehensive JSDoc documentation** with detailed data flow explanations
+- **Standardized configuration interface** (`StandardIntegrationConfig`)
+- **UI Form Fixture integration** via `UIFormTestConfig.formToShape`
+- **API Input transformation** for bidirectional testing
+- **Batch test execution** with parallel processing support
+- **Enhanced error handling** and consistency validation
+
+```typescript
+// New approach using IntegrationEngine
+import { createIntegrationEngine } from './src/engine/IntegrationEngine.js';
+
+const engine = createIntegrationEngine(commentIntegrationConfig);
+const result = await engine.executeTest('minimal', {
+    isCreate: true,
+    validateConsistency: true
+});
+```
+
 ### Form Integration Tests (`/src/form/`)
 - Test **single form workflows** through all layers
 - Complete data flow from form submission to database persistence
@@ -24,6 +43,12 @@ Unlike unit tests that test individual components in isolation, integration test
 - **Reference implementations** showing how to configure form tests
 - Examples for Comment, Bookmark, Project, and User forms
 - Demonstrates best practices for testing setup
+
+### Integration Configurations (`/src/integration/`)
+- **Standardized configuration framework** for integration testing
+- **Type-safe interfaces** for API transformers, endpoint callers, and database verifiers
+- **Complete example implementations** showing best practices
+- **Reusable components** for building new integration tests
 
 ### Scenario Tests (`/src/scenarios/`)
 - Test **multi-step workflows** that span multiple operations
@@ -216,6 +241,25 @@ All integration tests have been reorganized into the new clear structure:
 | User | `form/user.test.ts` | `examples/UserFormIntegration.ts` | ✅ Complete |
 | Bookmark | `form/bookmark.test.ts` | `examples/BookmarkFormIntegration.ts` | ✅ Complete |
 | Alternative patterns | `form/*-alternative.test.ts` | (Use primary examples) | ✅ Complete |
+
+### 📋 Integration Test Roadmap
+
+For a comprehensive view of planned integration tests and implementation priorities, see **[INTEGRATION_BACKLOG.md](./INTEGRATION_BACKLOG.md)**. This document outlines:
+
+- **300+ planned integration tests** organized by priority
+- **Complete directory structure** for all test categories
+- **Detailed test scenarios** for critical workflows
+- **Implementation guidelines** and success metrics
+- **Priority breakdown** from immediate to long-term goals
+
+**Quick Overview of Next Priorities:**
+- 🔄 **HIGH PRIORITY**: Phone/Email verification with credit allocation
+- 🔄 **HIGH PRIORITY**: Routine execution control (schedule/pause/resume/cancel)
+- 🔄 **HIGH PRIORITY**: API integration workflows (admin setup, user consumption)
+- 🔄 **HIGH PRIORITY**: Team, Routine, Resource, Phone, Email, API Key form tests
+- 🔄 **HIGH PRIORITY**: Notification system and data import workflows
+- 📝 **MEDIUM PRIORITY**: Chat workflows, premium features, and analytics
+- ⭐ **LOW PRIORITY**: AI system integration and migration tests
 
 ### 🧹 Structure Reorganization
 

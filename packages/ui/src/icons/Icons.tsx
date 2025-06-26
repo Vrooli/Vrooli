@@ -71,6 +71,7 @@ const IconBase = forwardRef<SVGSVGElement, IconBaseProps>(({
             height={size ?? DEFAULT_SIZE_PX}
             fill={fillColor}
             style={style}
+            data-icon-type="base"
             {...props}
             aria-hidden={shouldBeHidden ? "true" : undefined}
             // Only add aria-label if icon is not decorative
@@ -90,7 +91,7 @@ export const IconCommon = forwardRef<SVGSVGElement, IconCommonProps>(({
     ...props
 }, ref) => {
     const href = `${commonSpriteHref}#${name}`;
-    return <IconBase ref={ref} href={href} {...props} />;
+    return <IconBase ref={ref} href={href} data-icon-type="common" data-icon-name={name} {...props} />;
 });
 IconCommon.displayName = "IconCommon";
 
@@ -102,7 +103,7 @@ export const IconRoutine = forwardRef<SVGSVGElement, IconRoutineProps>(({
     ...props
 }, ref) => {
     const href = `${routineSpriteHref}#${name}`;
-    return <IconBase ref={ref} href={href} {...props} />;
+    return <IconBase ref={ref} href={href} data-icon-type="routine" data-icon-name={name} {...props} />;
 });
 IconRoutine.displayName = "IconRoutine";
 
@@ -114,7 +115,7 @@ export const IconService = forwardRef<SVGSVGElement, IconServiceProps>(({
     ...props
 }, ref) => {
     const href = `${serviceSpriteHref}#${name}`;
-    return <IconBase ref={ref} href={href} {...props} />;
+    return <IconBase ref={ref} href={href} data-icon-type="service" data-icon-name={name} {...props} />;
 });
 IconService.displayName = "IconService";
 
@@ -126,7 +127,7 @@ export const IconText = forwardRef<SVGSVGElement, IconTextProps>(({
     ...props
 }, ref) => {
     const href = `${textSpriteHref}#${name}`;
-    return <IconBase ref={ref} href={href} {...props} />;
+    return <IconBase ref={ref} href={href} data-icon-type="text" data-icon-name={name} {...props} />;
 });
 IconText.displayName = "IconText";
 
@@ -149,7 +150,7 @@ export const Icon = forwardRef<SVGSVGElement, IconProps>(({
         return null;
     }
     const href = `${typeToHrefMap[info.type]}#${info.name}`;
-    return <IconBase ref={ref} href={href} {...props} />;
+    return <IconBase ref={ref} href={href} data-icon-type={info.type.toLowerCase()} data-icon-name={info.name} {...props} />;
 });
 Icon.displayName = "Icon";
 
@@ -247,6 +248,8 @@ export const IconFavicon = forwardRef<HTMLElement, IconFaviconProps>(({
                 alt={!decorative ? ariaLabel : ""}
                 onError={handleIconError}
                 data-testid={testId}
+                data-icon-type="favicon"
+                data-favicon-domain={domain}
                 {...props}
             />
         );
@@ -269,6 +272,7 @@ export const IconFavicon = forwardRef<HTMLElement, IconFaviconProps>(({
             decorative={decorative}
             fill={fill}
             data-testid={testId}
+            data-icon-type="favicon-fallback"
             {...props}
         />
     );

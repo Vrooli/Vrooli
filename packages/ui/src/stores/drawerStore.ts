@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ChatConfigObject } from "@vrooli/shared";
+import { type ChatConfigObject } from "@vrooli/shared";
 
 export type DrawerView = "chat" | "swarmDetail";
 

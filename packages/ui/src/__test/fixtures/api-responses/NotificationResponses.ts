@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import {
     NotificationSortBy, 
 } from "@vrooli/shared";
@@ -690,7 +690,7 @@ export class NotificationMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get notification by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const notification = this.responseFactory.createMockNotification({ id: id as string });
@@ -703,7 +703,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Update notification (mark as read/unread)
-            rest.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const notification = this.responseFactory.createMockNotification({ 
@@ -720,7 +720,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Mark notification as read
-            rest.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/read`, (req, res, ctx) => {
+            http.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/read`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const notification = this.responseFactory.createMockNotification({ 
@@ -737,7 +737,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Mark notification as unread
-            rest.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/unread`, (req, res, ctx) => {
+            http.patch(`${this.responseFactory["baseUrl"]}/api/notification/:id/unread`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const notification = this.responseFactory.createMockNotification({ 
@@ -754,12 +754,12 @@ export class NotificationMSWHandlers {
             }),
             
             // Delete notification
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List notifications
-            rest.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -809,7 +809,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Bulk update notifications
-            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async (req, res, ctx) => {
                 const body = await req.json() as NotificationBulkUpdateInput;
                 
                 // Validate input
@@ -838,7 +838,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Mark all as read
-            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, (req, res, ctx) => {
                 const notifications = this.responseFactory.createNotificationsForAllCategories()
                     .map(n => ({ ...n, isRead: true }));
                 
@@ -851,7 +851,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Get notification count
-            rest.get(`${this.responseFactory["baseUrl"]}/api/notification/count`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification/count`, (req, res, ctx) => {
                 const totalCount = 25;
                 const unreadCount = 8;
                 
@@ -871,7 +871,7 @@ export class NotificationMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error for bulk update
-            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -882,7 +882,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -891,7 +891,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Permission error
-            rest.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
@@ -899,7 +899,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Rate limit error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
                 return res(
                     ctx.status(429),
                     ctx.json(this.responseFactory.createRateLimitErrorResponse()),
@@ -907,7 +907,7 @@ export class NotificationMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/mark-all-read`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -921,7 +921,7 @@ export class NotificationMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
                 const notifications = this.responseFactory.createNotificationsForAllCategories();
                 const response = this.responseFactory.createNotificationListResponse(notifications);
                 
@@ -932,7 +932,7 @@ export class NotificationMSWHandlers {
                 );
             }),
             
-            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, async (req, res, ctx) => {
                 const body = await req.json() as NotificationBulkUpdateInput;
                 const updatedNotifications = body.operations.map(op => 
                     this.responseFactory.createMockNotification({
@@ -957,15 +957,15 @@ export class NotificationMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/notification/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/notification/bulk-update`, (req, res, ctx) => {
                 return res.networkError("Request timeout");
             }),
         ];

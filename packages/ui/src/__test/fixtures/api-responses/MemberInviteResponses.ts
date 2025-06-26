@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     MemberInvite, 
     MemberInviteCreateInput, 
@@ -610,7 +610,7 @@ export class MemberInviteMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create member invite
-            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, async (req, res, ctx) => {
                 const body = await req.json() as MemberInviteCreateInput;
                 
                 // Validate input
@@ -633,7 +633,7 @@ export class MemberInviteMSWHandlers {
             }),
             
             // Get member invite by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const memberInvite = this.responseFactory.createMockMemberInvite({ id: id as string });
@@ -646,7 +646,7 @@ export class MemberInviteMSWHandlers {
             }),
             
             // Update member invite
-            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as MemberInviteUpdateInput;
                 
@@ -676,12 +676,12 @@ export class MemberInviteMSWHandlers {
             }),
             
             // Delete member invite
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // Accept member invite
-            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const memberInvite = this.responseFactory.createMockMemberInvite({ 
@@ -699,7 +699,7 @@ export class MemberInviteMSWHandlers {
             }),
             
             // Decline member invite
-            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/decline`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/decline`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const memberInvite = this.responseFactory.createMockMemberInvite({ 
@@ -717,7 +717,7 @@ export class MemberInviteMSWHandlers {
             }),
             
             // List member invites
-            rest.get(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -769,7 +769,7 @@ export class MemberInviteMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -780,7 +780,7 @@ export class MemberInviteMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -789,7 +789,7 @@ export class MemberInviteMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -797,7 +797,7 @@ export class MemberInviteMSWHandlers {
             }),
             
             // Already processed error
-            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
                     ctx.json(this.responseFactory.createInviteAlreadyProcessedErrorResponse(MemberInviteStatusEnum.Accepted)),
@@ -805,7 +805,7 @@ export class MemberInviteMSWHandlers {
             }),
             
             // Team full error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(422),
                     ctx.json(this.responseFactory.createTeamFullErrorResponse()),
@@ -813,7 +813,7 @@ export class MemberInviteMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -827,7 +827,7 @@ export class MemberInviteMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, async (req, res, ctx) => {
                 const body = await req.json() as MemberInviteCreateInput;
                 const memberInvite = this.responseFactory.createMemberInviteFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(memberInvite);
@@ -839,7 +839,7 @@ export class MemberInviteMSWHandlers {
                 );
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 const memberInvite = this.responseFactory.createMockMemberInvite({ 
                     id: id as string,
@@ -861,15 +861,15 @@ export class MemberInviteMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/member-invite`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/member-invite/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/member-invite/:id/accept`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
         ];

@@ -1,5 +1,4 @@
-import { ResourceVersionSortBy, endpointsResource, type ResourceVersion, type ResourceVersionSearchInput, type ResourceVersionSearchResult } from "@vrooli/shared";
-import { ResourceType } from "@vrooli/shared/api/types";
+import { ResourceVersionSortBy, endpointsResource, ResourceType, type ResourceVersion, type ResourceVersionSearchInput, type ResourceVersionSearchResult } from "@vrooli/shared";
 import { useContext, useEffect } from "react";
 import { create } from "zustand";
 import { fetchData } from "../api/fetchData.js";

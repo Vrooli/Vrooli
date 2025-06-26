@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 import { generatePK, type Session, type SessionUser } from "@vrooli/shared";
 import { describe, it, expect, afterAll, beforeEach, vi } from "vitest";
 import { checkIfLoggedIn, getCurrentUser } from "./session.js";

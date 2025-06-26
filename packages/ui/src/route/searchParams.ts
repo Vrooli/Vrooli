@@ -5,54 +5,116 @@ import { type SetLocation } from "./types.js";
 /**
  * Adds values to the current search params, without removing any existing values. 
  * If a key already exists, it will be overwritten.
- * @param setLocation Function to set the location
+ * @param currentSearch Current search string
  * @param params Object with key/value pairs, representing search params
+ * @returns New search string
  */
-export function addSearchParams(setLocation: SetLocation, params: { [key: string]: any }) {
-    const currentParams = parseSearchParams();
+export function addSearchParamsString(currentSearch: string, params: { [key: string]: any }): string {
+    const currentParams = parseSearchParams(currentSearch);
     const newParams = { ...currentParams, ...params };
-    setLocation(window.location.pathname, { replace: true, searchParams: newParams });
+    return Object.entries(newParams)
+        .map(([key, value]) => `${key}=${encodeURIComponent(JSON.stringify(value))}`)
+        .join("&");
 }
 
 /**
  * Sets the search params, removing any existing values
- * @param setLocation Function to set the location
  * @param params Object with key/value pairs, representing search params
+ * @returns New search string
  */
-export function setSearchParams(setLocation: SetLocation, params: { [key: string]: any }) {
-    setLocation(window.location.pathname, { replace: true, searchParams: params });
+export function setSearchParamsString(params: { [key: string]: any }): string {
+    return Object.entries(params)
+        .map(([key, value]) => `${key}=${encodeURIComponent(JSON.stringify(value))}`)
+        .join("&");
 }
 
 /**
  * Keeps only the search params specified in the keys array, removing any others
- * @param setLocation Function to set the location
+ * @param currentSearch Current search string
  * @param keep Array of keys to keep
+ * @returns New search string
  */
-export function keepSearchParams(setLocation: SetLocation, keep: string[]) {
+export function keepSearchParamsString(currentSearch: string, keep: string[]): string {
     const keepResult: ParseSearchParamsResult = {};
-    const searchParams = parseSearchParams();
+    const searchParams = parseSearchParams(currentSearch);
     keep.forEach(key => {
         if (searchParams[key] !== undefined) keepResult[key] = searchParams[key];
     });
-    setLocation(window.location.pathname, { replace: true, searchParams: keepResult });
+    return Object.entries(keepResult)
+        .map(([key, value]) => `${key}=${encodeURIComponent(JSON.stringify(value))}`)
+        .join("&");
 }
 
 /**
  * Removes the search params specified in the keys array, keeping any others
- * @param setLocation Function to set the location
+ * @param currentSearch Current search string
  * @param remove Array of keys to remove
+ * @returns New search string
  */
-export function removeSearchParams(setLocation: SetLocation, remove: string[]) {
+export function removeSearchParamsString(currentSearch: string, remove: string[]): string {
     const removeResult: ParseSearchParamsResult = {};
-    const searchParams = parseSearchParams();
-    let hasRemoved = false;
+    const searchParams = parseSearchParams(currentSearch);
     Object.keys(searchParams).forEach(key => {
         if (!remove.includes(key)) {
             removeResult[key] = searchParams[key];
-        } else {
-            hasRemoved = true;
         }
     });
-    if (!hasRemoved) return;
-    setLocation(window.location.pathname, { replace: true, searchParams: removeResult });
+    return Object.entries(removeResult)
+        .map(([key, value]) => `${key}=${encodeURIComponent(JSON.stringify(value))}`)
+        .join("&");
+}
+
+// Navigation functions that work with setLocation
+/**
+ * Adds search params and updates the location using setLocation
+ */
+export function addSearchParams(setLocation: SetLocation, params: { [key: string]: any }): void {
+    const currentParams = parseSearchParams(window.location.search);
+    const newParams = { ...currentParams, ...params };
+    setLocation(window.location.pathname, {
+        replace: true,
+        searchParams: newParams,
+    });
+}
+
+/**
+ * Sets search params and updates the location using setLocation
+ */
+export function setSearchParams(setLocation: SetLocation, params: { [key: string]: any }): void {
+    setLocation(window.location.pathname, {
+        replace: true,
+        searchParams: params,
+    });
+}
+
+/**
+ * Keeps only specified search params and updates the location using setLocation
+ */
+export function keepSearchParams(setLocation: SetLocation, keep: string[]): void {
+    const keepResult: ParseSearchParamsResult = {};
+    const searchParams = parseSearchParams(window.location.search);
+    keep.forEach(key => {
+        if (searchParams[key] !== undefined) keepResult[key] = searchParams[key];
+    });
+    setLocation(window.location.pathname, {
+        replace: true,
+        searchParams: keepResult,
+    });
+}
+
+/**
+ * Removes specified search params and updates the location using setLocation
+ */
+export function removeSearchParams(setLocation: SetLocation, remove: string[]): void {
+    const removeResult: ParseSearchParamsResult = {};
+    const searchParams = parseSearchParams(window.location.search);
+    Object.keys(searchParams).forEach(key => {
+        if (!remove.includes(key)) {
+            removeResult[key] = searchParams[key];
+        }
+    });
+    setLocation(window.location.pathname, {
+        replace: true,
+        searchParams: removeResult,
+    });
 }

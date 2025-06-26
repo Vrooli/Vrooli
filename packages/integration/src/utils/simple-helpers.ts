@@ -6,12 +6,11 @@
  */
 
 import { generatePK } from "@vrooli/shared";
-import { getPrisma } from "../setup/test-setup.js";
-import { 
-    userFixtures, 
-    teamFixtures, 
+import {
     projectFixtures,
     sessionHelpers,
+    teamFixtures,
+    userFixtures,
     type SessionUser,
 } from "../fixtures/index.js";
 
@@ -44,17 +43,17 @@ export async function createSimpleTestUser(overrides: Partial<SimpleTestUser> = 
     sessionData: SessionUser;
 }> {
     const prisma = getPrisma();
-    
+
     // Use fixtures if available, otherwise create basic data
     const baseUser = userFixtures?.minimal?.create || {
         name: "Test User",
         email: "test@example.com",
     };
-    
+
     const userId = overrides.id || generatePK();
     const userName = overrides.name || baseUser.name || "Test User";
     const userEmail = overrides.email || baseUser.email || `test-${userId}@example.com`;
-    
+
     // Create basic user data
     const user: SimpleTestUser = {
         id: userId,
@@ -62,13 +61,13 @@ export async function createSimpleTestUser(overrides: Partial<SimpleTestUser> = 
         email: userEmail,
         ...overrides,
     };
-    
+
     // Create session data
-    const sessionData = await sessionHelpers.quickSession('standard');
+    const sessionData = await sessionHelpers.quickSession("standard");
     sessionData.id = userId;
     sessionData.name = userName;
     sessionData.email = userEmail;
-    
+
     // If we have a database connection, create the actual user record
     if (prisma) {
         try {
@@ -90,7 +89,7 @@ export async function createSimpleTestUser(overrides: Partial<SimpleTestUser> = 
             // Continue without database record - tests can still use the mock data
         }
     }
-    
+
     return { user, sessionData };
 }
 
@@ -99,24 +98,24 @@ export async function createSimpleTestUser(overrides: Partial<SimpleTestUser> = 
  */
 export async function createSimpleTestTeam(
     owner: SimpleTestUser,
-    overrides: Partial<SimpleTestTeam> = {}
+    overrides: Partial<SimpleTestTeam> = {},
 ): Promise<SimpleTestTeam> {
     const prisma = getPrisma();
-    
+
     const baseTeam = teamFixtures?.minimal?.create || {
         name: "Test Team",
     };
-    
+
     const teamId = overrides.id || generatePK();
     const teamName = overrides.name || baseTeam.name || "Test Team";
-    
+
     const team: SimpleTestTeam = {
         id: teamId,
         name: teamName,
         ownerId: owner.id,
         ...overrides,
     };
-    
+
     // If we have a database connection, create the actual team record
     if (prisma) {
         try {
@@ -144,7 +143,7 @@ export async function createSimpleTestTeam(
             console.warn("Could not create team in database:", error);
         }
     }
-    
+
     return team;
 }
 
@@ -154,17 +153,17 @@ export async function createSimpleTestTeam(
 export async function createSimpleTestProject(
     owner: SimpleTestUser,
     team?: SimpleTestTeam,
-    overrides: Partial<SimpleTestProject> = {}
+    overrides: Partial<SimpleTestProject> = {},
 ): Promise<SimpleTestProject> {
     const prisma = getPrisma();
-    
+
     const baseProject = projectFixtures?.minimal?.create || {
         name: "Test Project",
     };
-    
+
     const projectId = overrides.id || generatePK();
     const projectName = overrides.name || baseProject.name || "Test Project";
-    
+
     const project: SimpleTestProject = {
         id: projectId,
         name: projectName,
@@ -172,7 +171,7 @@ export async function createSimpleTestProject(
         teamId: team?.id,
         ...overrides,
     };
-    
+
     // If we have a database connection, create the actual project record
     if (prisma) {
         try {
@@ -181,8 +180,8 @@ export async function createSimpleTestProject(
                     id: projectId,
                     isPrivate: false,
                     creator: { connect: { id: owner.id } },
-                    ...(team ? { team: { connect: { id: team.id } } } : { 
-                        owner: { connect: { id: owner.id } } 
+                    ...(team ? { team: { connect: { id: team.id } } } : {
+                        owner: { connect: { id: owner.id } },
                     }),
                     versions: {
                         create: {
@@ -208,7 +207,7 @@ export async function createSimpleTestProject(
             console.warn("Could not create project in database:", error);
         }
     }
-    
+
     return project;
 }
 
@@ -218,21 +217,21 @@ export async function createSimpleTestProject(
 export async function cleanupSimpleTestData(ids: string[]) {
     const prisma = getPrisma();
     if (!prisma || ids.length === 0) return;
-    
+
     try {
         // Delete in order to respect foreign key constraints
         await prisma.comment.deleteMany({
             where: { id: { in: ids } },
         });
-        
+
         await prisma.project.deleteMany({
             where: { id: { in: ids } },
         });
-        
+
         await prisma.team.deleteMany({
             where: { id: { in: ids } },
         });
-        
+
         await prisma.user.deleteMany({
             where: { id: { in: ids } },
         });

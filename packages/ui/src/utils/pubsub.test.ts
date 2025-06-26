@@ -1,7 +1,8 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Import the actual implementation by bypassing the mock
-vi.unmock('./pubsub.js');
+vi.unmock("./pubsub.js");
 import { PubSub } from "./pubsub.js";
 
 describe("PubSub", () => {

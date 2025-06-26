@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     MeetingInvite, 
     MeetingInviteCreateInput, 
@@ -647,7 +647,7 @@ export class MeetingInviteMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create meeting invite
-            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, async (req, res, ctx) => {
                 const body = await req.json() as MeetingInviteCreateInput;
                 
                 // Validate input
@@ -670,7 +670,7 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // Get meeting invite by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const meetingInvite = this.responseFactory.createMockMeetingInvite({ id: id as string });
@@ -683,7 +683,7 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // Update meeting invite
-            rest.put(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as MeetingInviteUpdateInput;
                 
@@ -711,7 +711,7 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // RSVP to meeting invite (accept/decline)
-            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
+            http.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as { status: MeetingInviteStatus };
                 
@@ -730,12 +730,12 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // Delete meeting invite
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List meeting invites
-            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -780,7 +780,7 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // Get meeting invites for specific meeting
-            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting/:meetingId/invites`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/meeting/:meetingId/invites`, (req, res, ctx) => {
                 const { meetingId } = req.params;
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
@@ -819,7 +819,7 @@ export class MeetingInviteMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -830,7 +830,7 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -839,7 +839,7 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -847,7 +847,7 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // RSVP conflict error
-            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
+            http.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
                 const body = await req.json() as { status: MeetingInviteStatus };
                 return res(
                     ctx.status(409),
@@ -859,7 +859,7 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // Meeting capacity error
-            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, (req, res, ctx) => {
+            http.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
                     ctx.json(this.responseFactory.createMeetingCapacityErrorResponse(100, 100)),
@@ -867,7 +867,7 @@ export class MeetingInviteMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -881,7 +881,7 @@ export class MeetingInviteMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, async (req, res, ctx) => {
                 const body = await req.json() as MeetingInviteCreateInput;
                 const meetingInvite = this.responseFactory.createMeetingInviteFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(meetingInvite);
@@ -893,7 +893,7 @@ export class MeetingInviteMSWHandlers {
                 );
             }),
             
-            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
+            http.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as { status: MeetingInviteStatus };
                 
@@ -919,15 +919,15 @@ export class MeetingInviteMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/meeting-invite`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, (req, res, ctx) => {
+            http.patch(`${this.responseFactory["baseUrl"]}/api/meeting-invite/:id/rsvp`, (req, res, ctx) => {
                 return res.networkError("RSVP update failed - network error");
             }),
         ];

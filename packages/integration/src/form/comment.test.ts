@@ -5,11 +5,11 @@
  * API validation to database persistence using the integration testing engine.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { 
-    commentFormIntegrationFactory, 
-    createTestCommentTarget 
-} from "../examples/CommentFormIntegration.js";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+    commentFormIntegrationFactory,
+    createTestCommentTarget,
+} from "../integration/CommentIntegrationConfig.js";
 import { createSimpleTestUser } from "../utils/simple-helpers.js";
 
 describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
@@ -21,7 +21,7 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
         // Create test user
         const result = await createSimpleTestUser();
         testUser = result.user;
-        
+
         // Create test targets for comments
         testProjectId = await createTestCommentTarget("Project");
         testRoutineId = await createTestCommentTarget("Routine");
@@ -41,22 +41,22 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
         // Verify complete success
         expect(result.success).toBe(true);
         expect(result.errors).toHaveLength(0);
-        
+
         // Verify API response structure
         expect(result.apiResult).toBeDefined();
         expect(result.apiResult?.translations).toBeDefined();
         expect(result.apiResult?.translations[0]?.text).toContain("test comment");
-        
+
         // Verify database persistence
         expect(result.databaseData).toBeDefined();
         expect(result.databaseData?.id).toBe(result.apiResult?.id);
         expect(result.databaseData?.translations).toBeDefined();
-        
+
         // Verify data consistency across layers
         expect(result.consistency.overallValid).toBe(true);
         expect(result.consistency.formToApi).toBe(true);
         expect(result.consistency.apiToDatabase).toBe(true);
-        
+
         // Verify performance is reasonable
         expect(result.timing.total).toBeLessThan(5000); // Less than 5 seconds
         expect(result.timing.apiCall).toBeLessThan(2000); // Less than 2 seconds for API call
@@ -148,7 +148,7 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
             validateConsistency: true,
             contextData: {
                 userId: testUser.id,
-                commentId: commentId,
+                commentId,
             },
         });
 
@@ -161,9 +161,9 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
     it("should generate and run all test cases dynamically", async () => {
         // Use the dynamic test case generation
         const testCases = commentFormIntegrationFactory.generateIntegrationTestCases();
-        
+
         expect(testCases.length).toBeGreaterThan(0);
-        
+
         // Run a subset of generated test cases
         for (const testCase of testCases.slice(0, 2)) {
             const result = await commentFormIntegrationFactory.testRoundTripSubmission(testCase.scenario, {
@@ -174,9 +174,9 @@ describe("Comment Round-Trip Tests - Form-Testing Infrastructure", () => {
                     projectId: testProjectId,
                 },
             });
-            
+
             expect(result.success).toBe(testCase.shouldSucceed);
-            
+
             if (testCase.shouldSucceed) {
                 expect(result.consistency.overallValid).toBe(true);
             }
@@ -199,18 +199,18 @@ describe("Comment Testing Migration Comparison", () => {
         //     userData: context.userData,
         //     prisma: context.prisma,
         // });
-        
+
         // ✅ NEW APPROACH (form-testing infrastructure):
         // - True round-trip through complete stack
         // - Real API endpoint calls
         // - Built-in performance metrics
         // - Comprehensive data consistency validation
-        
+
         const result = await commentFormIntegrationFactory.testRoundTripSubmission("minimal", {
             isCreate: true,
             validateConsistency: true,
         });
-        
+
         // The new approach automatically tests:
         // 1. Form data transformation (UI → API format)
         // 2. API input validation (Yup schemas)
@@ -220,7 +220,7 @@ describe("Comment Testing Migration Comparison", () => {
         // 6. Response formatting (database → API response)
         // 7. Data consistency validation (end-to-end integrity)
         // 8. Performance metrics (timing for each layer)
-        
+
         expect(result.success).toBe(true);
         expect(result.timing).toBeDefined();
         expect(result.consistency).toBeDefined();

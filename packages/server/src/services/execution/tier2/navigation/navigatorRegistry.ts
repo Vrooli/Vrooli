@@ -6,6 +6,18 @@ import { NativeNavigator } from "./navigators/nativeNavigator.js";
 // import { TemporalNavigator } from "./navigators/temporalNavigator.js";
 
 /**
+ * Navigator metrics tracking
+ */
+interface NavigatorUsageStats {
+    routinesProcessed: number;
+    totalStepTime: number;
+    successfulRoutines: number;
+    failedRoutines: number;
+    lastUsed: Date;
+    firstUsed?: Date;
+}
+
+/**
  * NavigatorRegistry - Universal navigator management
  * 
  * This registry manages different navigator implementations that enable
@@ -25,6 +37,7 @@ import { NativeNavigator } from "./navigators/nativeNavigator.js";
  */
 export class NavigatorRegistry {
     private readonly navigators: Map<string, Navigator> = new Map();
+    private readonly navigatorStats: Map<string, NavigatorUsageStats> = new Map();
     private readonly logger: Logger;
 
     constructor(logger: Logger) {
@@ -61,6 +74,17 @@ export class NavigatorRegistry {
 
         this.navigators.set(type, navigator);
         
+        // Initialize stats for new navigator
+        if (!this.navigatorStats.has(type)) {
+            this.navigatorStats.set(type, {
+                routinesProcessed: 0,
+                totalStepTime: 0,
+                successfulRoutines: 0,
+                failedRoutines: 0,
+                lastUsed: new Date(),
+            });
+        }
+        
         this.logger.info("[NavigatorRegistry] Registered navigator", {
             type,
             version: navigator.version,
@@ -76,6 +100,9 @@ export class NavigatorRegistry {
         if (!navigator) {
             throw new Error(`Navigator not found for type: ${type}`);
         }
+
+        // Track navigator usage
+        this.updateNavigatorUsage(type);
 
         return navigator;
     }
@@ -132,6 +159,10 @@ export class NavigatorRegistry {
             try {
                 if (navigator.canNavigate(routineDefinition)) {
                     this.logger.debug(`[NavigatorRegistry] Auto-detected navigator type: ${type}`);
+                    
+                    // Track navigator usage for detection
+                    this.updateNavigatorUsage(type);
+                    
                     return type;
                 }
             } catch (error) {
@@ -184,23 +215,87 @@ export class NavigatorRegistry {
     }
 
     /**
+     * Records successful routine execution
+     */
+    recordRoutineSuccess(type: string, stepTime: number): void {
+        const stats = this.navigatorStats.get(type);
+        if (stats) {
+            stats.routinesProcessed++;
+            stats.successfulRoutines++;
+            stats.totalStepTime += stepTime;
+            stats.lastUsed = new Date();
+            if (!stats.firstUsed) {
+                stats.firstUsed = new Date();
+            }
+        }
+    }
+
+    /**
+     * Records failed routine execution
+     */
+    recordRoutineFailure(type: string): void {
+        const stats = this.navigatorStats.get(type);
+        if (stats) {
+            stats.routinesProcessed++;
+            stats.failedRoutines++;
+            stats.lastUsed = new Date();
+            if (!stats.firstUsed) {
+                stats.firstUsed = new Date();
+            }
+        }
+    }
+
+    /**
      * Gets metrics for all navigators
      */
     getNavigatorMetrics(): Record<string, NavigatorMetrics> {
         const metrics: Record<string, NavigatorMetrics> = {};
 
         for (const [type, navigator] of this.navigators) {
-            // TODO: Implement actual metrics collection
-            metrics[type] = {
-                type,
-                version: navigator.version,
-                routinesProcessed: 0,
-                averageStepTime: 0,
-                successRate: 1.0,
-            };
+            const stats = this.navigatorStats.get(type);
+            
+            if (stats) {
+                const averageStepTime = stats.routinesProcessed > 0 
+                    ? stats.totalStepTime / stats.routinesProcessed 
+                    : 0;
+                
+                const successRate = stats.routinesProcessed > 0 
+                    ? stats.successfulRoutines / stats.routinesProcessed 
+                    : 1.0;
+
+                metrics[type] = {
+                    type,
+                    version: navigator.version,
+                    routinesProcessed: stats.routinesProcessed,
+                    averageStepTime: Math.round(averageStepTime),
+                    successRate: Math.round(successRate * 1000) / 1000, // Round to 3 decimals
+                };
+            } else {
+                // Fallback for navigators without stats
+                metrics[type] = {
+                    type,
+                    version: navigator.version,
+                    routinesProcessed: 0,
+                    averageStepTime: 0,
+                    successRate: 1.0,
+                };
+            }
         }
 
         return metrics;
+    }
+
+    /**
+     * Updates navigator usage tracking
+     */
+    private updateNavigatorUsage(type: string): void {
+        const stats = this.navigatorStats.get(type);
+        if (stats) {
+            stats.lastUsed = new Date();
+            if (!stats.firstUsed) {
+                stats.firstUsed = new Date();
+            }
+        }
     }
 }
 

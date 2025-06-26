@@ -1,5 +1,6 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 import { stringifySearchParams } from "@vrooli/shared";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openLink } from "./openLink.js";
 
 describe("openLink", () => {

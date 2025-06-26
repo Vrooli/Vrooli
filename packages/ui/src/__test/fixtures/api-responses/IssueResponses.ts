@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     Issue, 
     IssueCreateInput, 
@@ -623,7 +623,7 @@ export class IssueMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create issue
-            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
                 const body = await req.json() as IssueCreateInput;
                 
                 // Validate input
@@ -646,7 +646,7 @@ export class IssueMSWHandlers {
             }),
             
             // Get issue by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const issue = this.responseFactory.createMockIssue({ id: id as string });
@@ -659,7 +659,7 @@ export class IssueMSWHandlers {
             }),
             
             // Update issue
-            rest.put(`${this.responseFactory["baseUrl"]}/api/issue/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/issue/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as IssueUpdateInput;
                 
@@ -686,7 +686,7 @@ export class IssueMSWHandlers {
             }),
             
             // Close issue
-            rest.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, async (req, res, ctx) => {
+            http.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as { status: IssueStatus };
                 
@@ -706,12 +706,12 @@ export class IssueMSWHandlers {
             }),
             
             // Delete issue
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List issues
-            rest.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -763,7 +763,7 @@ export class IssueMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -775,7 +775,7 @@ export class IssueMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -784,7 +784,7 @@ export class IssueMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -792,7 +792,7 @@ export class IssueMSWHandlers {
             }),
             
             // Status conflict error
-            rest.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, (req, res, ctx) => {
+            http.patch(`${this.responseFactory["baseUrl"]}/api/issue/:id/close`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
                     ctx.json(this.responseFactory.createStatusConflictErrorResponse(
@@ -803,7 +803,7 @@ export class IssueMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -817,7 +817,7 @@ export class IssueMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
                 const body = await req.json() as IssueCreateInput;
                 const issue = this.responseFactory.createIssueFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(issue);
@@ -829,7 +829,7 @@ export class IssueMSWHandlers {
                 );
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, async (req, res, ctx) => {
                 const issues = this.responseFactory.createIssuesWithAllStatuses();
                 const response = this.responseFactory.createIssueListResponse(issues);
                 
@@ -847,15 +847,15 @@ export class IssueMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/issue`, (req, res, ctx) => {
                 return res.networkError("Service unavailable");
             }),
         ];

@@ -1,9 +1,10 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 import { generatePK, type ChatMessage, type ChatParticipant, type ChatShape, type LlmTaskInfo, type Session } from "@vrooli/shared";
 import { describe, it, expect, afterAll, beforeEach, vi } from "vitest";
 import { fullPreferences, getCookieTasksForChat, setCookie, upsertCookieTaskForChat } from "../utils/localStorage.js";
 import { processLlmTasks, processMessages, processParticipantsUpdates, processResponseStream, processTypingUpdates } from "./useSocketChat.js";
 
-describe("processMessages", () => {
+describe("processMessages - Real-time chat message synchronization", () => {
     const addMessages = vi.fn();
     const removeMessages = vi.fn();
     const editMessage = vi.fn();
@@ -12,12 +13,17 @@ describe("processMessages", () => {
         vi.clearAllMocks();
     });
 
-    it("should handle added messages", () => {
+    it("displays new messages in the chat when other users send them", () => {
+        // GIVEN: Other users send new messages
         const messages = [
             { taskId: "msg1", content: "Hello" },
             { taskId: "msg2", content: "World" },
         ] as unknown as ChatMessage[];
+        
+        // WHEN: The socket receives new messages
         processMessages({ added: messages, updated: [], removed: [] }, addMessages, editMessage, removeMessages);
+        
+        // THEN: Messages should be added to the chat UI with sent status
         expect(addMessages).toHaveBeenCalledWith([
             { taskId: "msg1", content: "Hello", status: "sent" },
             { taskId: "msg2", content: "World", status: "sent" },
@@ -26,12 +32,17 @@ describe("processMessages", () => {
         expect(editMessage).not.toHaveBeenCalled();
     });
 
-    it("should handle updated messages", () => {
+    it("updates existing messages when they are edited by the sender", () => {
+        // GIVEN: Messages that have been edited
         const messages = [
             { taskId: "msg1", content: "Updated Hello" },
             { taskId: "msg2", content: "Updated World" },
         ] as unknown as ChatMessage[];
+        
+        // WHEN: Socket receives message updates
         processMessages({ added: [], updated: messages, removed: [] }, addMessages, editMessage, removeMessages);
+        
+        // THEN: Messages should be updated in the UI
         messages.forEach(message => {
             expect(editMessage).toHaveBeenCalledWith({ ...message, status: "sent" });
         });
@@ -39,20 +50,29 @@ describe("processMessages", () => {
         expect(removeMessages).not.toHaveBeenCalled();
     });
 
-    it("should handle removed messages", () => {
+    it("removes messages from chat when they are deleted", () => {
+        // GIVEN: Messages that have been deleted
         const messages = ["msg1", "msg2"];
+        
+        // WHEN: Socket receives message deletions
         processMessages({ added: [], updated: [], removed: messages }, addMessages, editMessage, removeMessages);
+        
+        // THEN: Messages should be removed from the UI
         expect(removeMessages).toHaveBeenCalledWith(messages);
         expect(addMessages).not.toHaveBeenCalled();
         expect(editMessage).not.toHaveBeenCalled();
     });
 
-    it("should handle combinations of added, updated, and removed messages", () => {
+    it("handles simultaneous message operations in a single update", () => {
+        // GIVEN: Multiple simultaneous chat operations
         const added = [{ taskId: "msg3", content: "New" }] as unknown as ChatMessage[];
         const updated = [{ taskId: "msg2", content: "Updated World" }] as unknown as ChatMessage[];
         const removed = ["msg1"];
 
+        // WHEN: Socket receives a complex update
         processMessages({ added, updated, removed }, addMessages, editMessage, removeMessages);
+        
+        // THEN: All operations should be applied correctly
         expect(addMessages).toHaveBeenCalledWith([{ taskId: "msg3", content: "New", status: "sent" }]);
         expect(removeMessages).toHaveBeenCalledWith(removed);
         updated.forEach(message => {
@@ -60,15 +80,19 @@ describe("processMessages", () => {
         });
     });
 
-    it("should do nothing if no messages are added, updated, or removed", () => {
+    it("efficiently handles empty updates without unnecessary operations", () => {
+        // GIVEN: An update with no actual changes
+        // WHEN: Socket receives an empty update
         processMessages({ added: [], updated: [], removed: [] }, addMessages, editMessage, removeMessages);
+        
+        // THEN: No UI operations should be performed
         expect(addMessages).not.toHaveBeenCalled();
         expect(removeMessages).not.toHaveBeenCalled();
         expect(editMessage).not.toHaveBeenCalled();
     });
 });
 
-describe("processTypingUpdates", () => {
+describe("processTypingUpdates - Real-time typing indicators", () => {
     const currentUserId = generatePK().toString();
     const session = {
         isLoggedIn: true,
@@ -86,19 +110,24 @@ describe("processTypingUpdates", () => {
         vi.clearAllMocks();
     });
 
-    it("should add participants who start typing, excluding the current user", () => {
+    it("shows typing indicators when other users start typing", () => {
+        // GIVEN: Multiple users start typing (including current user)
         const starting = ["user1", "user2", currentUserId];
         const stopping = [];
         const usersTyping = [];
 
+        // WHEN: Typing update is received
         processTypingUpdates({ starting, stopping }, usersTyping, participants, session, setUsersTyping);
+        
+        // THEN: Only other users' typing indicators should be shown (not current user's)
         expect(setUsersTyping).toHaveBeenCalledWith([
             { user: { id: "user1" } },
             { user: { id: "user2" } },
         ]);
     });
 
-    it("should remove participants who stop typing", () => {
+    it("hides typing indicators when users stop typing", () => {
+        // GIVEN: Users who were typing
         const starting = [];
         const stopping = ["user1"];
         const usersTyping = [
@@ -106,13 +135,17 @@ describe("processTypingUpdates", () => {
             { user: { id: "user2" } },
         ] as Omit<ChatParticipant, "chat">[];
 
+        // WHEN: User1 stops typing
         processTypingUpdates({ starting, stopping }, usersTyping, participants, session, setUsersTyping);
+        
+        // THEN: User1's typing indicator should be removed
         expect(setUsersTyping).toHaveBeenCalledWith([
             { user: { id: "user2" } },
         ]);
     });
 
-    it("should handle participants starting and stopping typing simultaneously", () => {
+    it("updates typing indicators correctly when users simultaneously start and stop typing", () => {
+        // GIVEN: User1 is typing, user3 is not
         const starting = ["user3"];
         const stopping = ["user1"];
         const usersTyping = [
@@ -120,38 +153,52 @@ describe("processTypingUpdates", () => {
             { user: { id: "user2" } },
         ] as Omit<ChatParticipant, "chat">[];
 
+        // WHEN: User3 starts typing while user1 stops
         processTypingUpdates({ starting, stopping }, usersTyping, participants, session, setUsersTyping);
+        
+        // THEN: Typing list should be updated correctly
         expect(setUsersTyping).toHaveBeenCalledWith([
             { user: { id: "user2" } },
             { user: { id: "user3" } },
         ]);
     });
 
-    it("should ignore ids not found in participants", () => {
+    it("ignores typing updates from users not in the chat", () => {
+        // GIVEN: A user not in the participants list
         const starting = ["user4"]; // user4 is not in participants
         const stopping = [];
         const usersTyping = [];
 
+        // WHEN: Non-participant tries to show typing
         processTypingUpdates({ starting, stopping }, usersTyping, participants, session, setUsersTyping);
+        
+        // THEN: No typing indicator should be shown
         expect(setUsersTyping).not.toHaveBeenCalled();
     });
 
-    it("should handle empty starting and stopping arrays", () => {
+    it("avoids unnecessary updates when typing state hasn't changed", () => {
+        // GIVEN: No changes in typing state
         const starting = [];
         const stopping = [];
         const usersTyping = [{ user: { id: "user1" } }] as Omit<ChatParticipant, "chat">[];
 
+        // WHEN: Empty update is received
         processTypingUpdates({ starting, stopping }, usersTyping, participants, session, setUsersTyping);
-        expect(setUsersTyping).not.toHaveBeenCalled(); // No changes
+        
+        // THEN: No UI update should occur
+        expect(setUsersTyping).not.toHaveBeenCalled();
     });
 
-    it("should still work when session is undefined", () => {
-        const starting = ["user1", currentUserId]; // Not actually current user, since no session
+    it("handles anonymous users gracefully when no session exists", () => {
+        // GIVEN: No authenticated session
+        const starting = ["user1", currentUserId];
         const stopping = [];
         const usersTyping = [];
 
-        // Passing undefined session
+        // WHEN: Typing updates are received without session
         processTypingUpdates({ starting, stopping }, usersTyping, participants, undefined, setUsersTyping);
+        
+        // THEN: All users' typing indicators should be shown (no current user to exclude)
         expect(setUsersTyping).toHaveBeenCalledWith([
             { user: { id: "user1" } },
             { user: { id: currentUserId } },
@@ -159,7 +206,7 @@ describe("processTypingUpdates", () => {
     });
 });
 
-describe("processParticipantsUpdates", () => {
+describe("processParticipantsUpdates - Chat participant management", () => {
     const setParticipants = vi.fn();
     const chat = { id: "chat1" } as ChatShape;
 
@@ -173,20 +220,23 @@ describe("processParticipantsUpdates", () => {
         vi.restoreAllMocks();
     });
 
-    it("should add joining participants to the chat", () => {
+    it("adds new users to chat when they join the conversation", () => {
+        // GIVEN: An existing chat with one participant
         const participants = [
             { user: { id: "user1" }, id: "participant1" },
         ] as Omit<ChatParticipant, "chat">[];
         const joining = [{ user: { id: "user2" }, id: "participant2" }] as Omit<ChatParticipant, "chat">[];
         const leaving = [];
 
+        // WHEN: A new user joins the chat
         processParticipantsUpdates({ joining, leaving }, participants, chat, setParticipants);
 
+        // THEN: The new user should be added to participants list
         expect(setParticipants).toHaveBeenCalledWith([...participants, ...joining]);
-        // expect(getCookieMatchingChat(participants.map(p => p.user.id))).toEqual(chat.id); //TODO localstorage in these test suites not working properly for some reason
     });
 
-    it("should remove leaving participants from the chat", () => {
+    it("removes users from chat when they leave the conversation", () => {
+        // GIVEN: A chat with multiple participants
         const participants = [
             { user: { id: "user1" }, id: "participant1" },
             { user: { id: "user2" }, id: "participant2" },
@@ -194,10 +244,11 @@ describe("processParticipantsUpdates", () => {
         const joining = [];
         const leaving = ["user1"];
 
+        // WHEN: User1 leaves the chat
         processParticipantsUpdates({ joining, leaving }, participants, chat, setParticipants);
 
+        // THEN: User1 should be removed from participants list
         expect(setParticipants).toHaveBeenCalledWith(participants.filter(p => p.user.id !== "user1"));
-        // expect(getCookieMatchingChat(participants.map(p => p.user.id))).toEqual(['user2']);
     });
 
     it("should handle empty joining and leaving arrays", () => {

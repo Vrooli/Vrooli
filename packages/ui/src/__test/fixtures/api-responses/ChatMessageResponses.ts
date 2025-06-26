@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     ChatMessage, 
     ChatMessageCreateInput, 
@@ -634,7 +634,7 @@ export class ChatMessageMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create chat message
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async (req, res, ctx) => {
                 const body = await req.json() as ChatMessageCreateInput;
                 
                 // Validate input
@@ -657,7 +657,7 @@ export class ChatMessageMSWHandlers {
             }),
             
             // Get message by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const message = this.responseFactory.createMockChatMessage({ id: id as string });
@@ -670,7 +670,7 @@ export class ChatMessageMSWHandlers {
             }),
             
             // Update message
-            rest.put(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ChatMessageUpdateInput;
                 
@@ -690,12 +690,12 @@ export class ChatMessageMSWHandlers {
             }),
             
             // Delete message
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // Search messages
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const chatId = url.searchParams.get("chatId");
                 const take = parseInt(url.searchParams.get("take") || "10");
@@ -727,7 +727,7 @@ export class ChatMessageMSWHandlers {
             }),
             
             // Get message tree
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const chatId = url.searchParams.get("chatId");
                 const startId = url.searchParams.get("startId");
@@ -756,7 +756,7 @@ export class ChatMessageMSWHandlers {
             }),
             
             // Regenerate response
-            rest.post(`${this.responseFactory["baseUrl"]}/api/regenerateResponse`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/regenerateResponse`, async (req, res, ctx) => {
                 const body = await req.json();
                 
                 // Create a new assistant response
@@ -782,7 +782,7 @@ export class ChatMessageMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -794,7 +794,7 @@ export class ChatMessageMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -803,7 +803,7 @@ export class ChatMessageMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -811,7 +811,7 @@ export class ChatMessageMSWHandlers {
             }),
             
             // Rate limit error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 return res(
                     ctx.status(429),
                     ctx.json(this.responseFactory.createRateLimitErrorResponse()),
@@ -819,7 +819,7 @@ export class ChatMessageMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -833,7 +833,7 @@ export class ChatMessageMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, async (req, res, ctx) => {
                 const body = await req.json() as ChatMessageCreateInput;
                 const message = this.responseFactory.createChatMessageFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(message);
@@ -845,7 +845,7 @@ export class ChatMessageMSWHandlers {
                 );
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
                 const messages = this.responseFactory.createThreadMessages();
                 const response = this.responseFactory.createTreeResponse(messages);
                 
@@ -863,15 +863,15 @@ export class ChatMessageMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/chatMessage`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessage/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/chatMessageTree`, (req, res, ctx) => {
                 return res.networkError("Failed to load message tree");
             }),
         ];

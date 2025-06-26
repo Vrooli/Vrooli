@@ -256,8 +256,8 @@ export class LocalStorageLruCache<ValueType> {
             if (error instanceof DOMException && 
                 (error.code === 22 || // Legacy browsers
                  error.code === 1014 || // Firefox
-                 error.name === 'QuotaExceededError' || // Modern browsers
-                 error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) { // Firefox
+                 error.name === "QuotaExceededError" || // Modern browsers
+                 error.name === "NS_ERROR_DOM_QUOTA_REACHED")) { // Firefox
                 
                 console.error("localStorage quota exceeded when saving cache keys. Cache state may be inconsistent.");
             } else {
@@ -302,8 +302,8 @@ export class LocalStorageLruCache<ValueType> {
             if (error instanceof DOMException && 
                 (error.code === 22 || // Legacy browsers
                  error.code === 1014 || // Firefox
-                 error.name === 'QuotaExceededError' || // Modern browsers
-                 error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) { // Firefox
+                 error.name === "QuotaExceededError" || // Modern browsers
+                 error.name === "NS_ERROR_DOM_QUOTA_REACHED")) { // Firefox
                 
                 console.warn(`localStorage quota exceeded when setting key ${key}. Attempting to free space...`);
                 

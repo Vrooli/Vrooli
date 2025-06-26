@@ -2,6 +2,8 @@ import { renderHook } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { useStableObject } from "./useStableObject.js";
 
+// AI_CHECK: TEST_QUALITY=1,TEST_COVERAGE=1 | LAST: 2025-06-18
+
 describe("useStableObject", () => {
     beforeEach(() => {
         vi.clearAllMocks();
