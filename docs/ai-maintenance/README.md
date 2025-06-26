@@ -47,6 +47,7 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 | `RESPONSIVE` | Mobile responsiveness and cross-device compatibility | User asks to improve responsive design |
 | `INTERNATIONALIZATION` | i18n completeness and consistency | User asks to improve internationalization |
 | `MONITORING` | Missing metrics, health checks, alerting | User asks to improve monitoring/observability |
+| `STARTUP_ERRORS` | [STARTUP_ERRORS.md](./tasks/STARTUP_ERRORS.md) | User asks to identify and fix development environment startup issues |
 
 ## Query Commands
 

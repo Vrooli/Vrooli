@@ -1,0 +1,50 @@
+{
+    "name": "@vrooli/cli",
+    "author": "Vrooli",
+    "license": "AGPL-3.0-only",
+    "version": "1.0.0",
+    "description": "Command-line interface for managing Vrooli instances",
+    "type": "module",
+    "main": "dist/index.js",
+    "bin": {
+        "vrooli": "./dist/index.js"
+    },
+    "files": [
+        "dist/**/*",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "rimraf dist && swc src -d dist --source-maps --ignore \"**/*.test.ts\" --strip-leading-paths",
+        "dev": "node --experimental-modules --experimental-specifier-resolution=node src/index.ts",
+        "lint": "eslint src",
+        "test": "vitest",
+        "type-check": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@vrooli/shared": "workspace:*",
+        "axios": "^1.7.7",
+        "chalk": "^5.3.0",
+        "cli-progress": "^3.12.0",
+        "commander": "^12.0.0",
+        "form-data": "^4.0.1",
+        "glob": "^11.0.0",
+        "inquirer": "^10.2.2",
+        "ora": "^8.1.0",
+        "socket.io-client": "^4.8.1"
+    },
+    "devDependencies": {
+        "@swc/cli": "^0.4.1-nightly.20240914",
+        "@swc/core": "^1.7.35",
+        "@types/inquirer": "^9.0.7",
+        "@types/node": "^22.10.2",
+        "@typescript-eslint/eslint-plugin": "^8.17.0",
+        "@typescript-eslint/parser": "^8.17.0",
+        "eslint": "^9.16.0",
+        "rimraf": "^6.0.1",
+        "typescript": "^5.7.2",
+        "vitest": "^2.1.8"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
