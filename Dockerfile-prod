@@ -50,16 +50,16 @@ RUN pnpm --filter @vrooli/server run build
 ### Production server image
 FROM base AS server
 WORKDIR ${PROJECT_DIR}
-EXPOSE ${PORT_SERVER}
+EXPOSE 5329
 CMD ["node", "packages/server/dist/index.js"]
 
 ### Production jobs image
 FROM base AS jobs
 WORKDIR ${PROJECT_DIR}
-EXPOSE ${PORT_JOBS}
+EXPOSE 4001
 CMD ["node", "packages/jobs/dist/index.js"]
 
 ### Production UI image: serve static build with nginx
 FROM nginx:alpine AS ui
 COPY --from=base ${PROJECT_DIR}/packages/ui/dist /usr/share/nginx/html
-EXPOSE ${PORT_UI} 
+EXPOSE 3000 

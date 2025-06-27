@@ -105,24 +105,53 @@ build::parse_arguments() {
 
     args::parse "$@" >/dev/null
     
-    export SUDO_MODE=$(args::get "sudo-mode")
-    export YES=$(args::get "yes")
-    export LOCATION=$(args::get "location")
-    export ENVIRONMENT=$(args::get "environment")
-    # Read comma-separated strings into temp variables
-    local bundles_str=$(args::get "bundles")
-    local artifacts_str=$(args::get "artifacts")
-    local binaries_str=$(args::get "binaries")
-    export DEST=$(args::get "dest")
-    export TEST=$(args::get "test")
-    export LINT=$(args::get "lint")
+    local SUDO_MODE_VAL
+    SUDO_MODE_VAL=$(args::get "sudo-mode")
+    export SUDO_MODE="$SUDO_MODE_VAL"
     
-    local user_supplied_version_value=$(args::get "version")
+    local YES_VAL
+    YES_VAL=$(args::get "yes")
+    export YES="$YES_VAL"
+    
+    local LOCATION_VAL
+    LOCATION_VAL=$(args::get "location")
+    export LOCATION="$LOCATION_VAL"
+    
+    local ENVIRONMENT_VAL
+    ENVIRONMENT_VAL=$(args::get "environment")
+    export ENVIRONMENT="$ENVIRONMENT_VAL"
+    
+    # Read comma-separated strings into temp variables
+    local bundles_str
+    bundles_str=$(args::get "bundles")
+    
+    local artifacts_str
+    artifacts_str=$(args::get "artifacts")
+    
+    local binaries_str
+    binaries_str=$(args::get "binaries")
+    
+    local DEST_VAL
+    DEST_VAL=$(args::get "dest")
+    export DEST="$DEST_VAL"
+    
+    local TEST_VAL
+    TEST_VAL=$(args::get "test")
+    export TEST="$TEST_VAL"
+    
+    local LINT_VAL
+    LINT_VAL=$(args::get "lint")
+    export LINT="$LINT_VAL"
+    
+    local user_supplied_version_value
+    user_supplied_version_value=$(args::get "version")
     if [ -n "$user_supplied_version_value" ]; then
         export VERSION="$user_supplied_version_value"
         export VERSION_SPECIFIED_BY_USER="yes"
     else
-        export VERSION=$(version::get_project_version) # Sets default if no -v flag
+        local project_version
+        project_version=$(version::get_project_version) # Sets default if no -v flag
+        export VERSION="$project_version"
         export VERSION_SPECIFIED_BY_USER="no"
     fi
 
@@ -415,7 +444,7 @@ build::main() {
         if [ -n "$target_platform" ]; then
             log::info "Running electron-builder for $c (this may take several minutes)..."
             # Pass platform and arch flags separately
-            npx electron-builder $target_platform || {
+            npx electron-builder "$target_platform" || {
               log::error "Electron build failed for $c."; exit "$ERROR_BUILD_FAILED";
             }
             log::success "Electron build completed for $c. Output in dist/desktop/"

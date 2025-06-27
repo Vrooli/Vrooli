@@ -22,6 +22,10 @@ source "${MAIN_DIR}/../helpers/utils/version.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/utils/zip.sh"
 # shellcheck disable=SC1091
+source "${MAIN_DIR}/../helpers/utils/env.sh"
+# shellcheck disable=SC1091
+source "${MAIN_DIR}/../helpers/utils/proxy.sh"
+# shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/deploy/docker.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/deploy/k8s.sh"
@@ -78,17 +82,37 @@ deploy::parse_arguments() {
 
     args::parse "$@"
 
-    export SUDO_MODE=$(args::get "sudo-mode")
-    export YES=$(args::get "yes")
-    export SOURCE_TYPE=$(args::get "source")
+    local SUDO_MODE_VAL
+    SUDO_MODE_VAL=$(args::get "sudo-mode")
+    export SUDO_MODE="$SUDO_MODE_VAL"
+    
+    local YES_VAL
+    YES_VAL=$(args::get "yes")
+    export YES="$YES_VAL"
+    
+    local SOURCE_TYPE_VAL
+    SOURCE_TYPE_VAL=$(args::get "source")
+    export SOURCE_TYPE="$SOURCE_TYPE_VAL"
+    
     export LOCATION="remote"
-    export DETACHED=$(args::get "detached")
-    export VERSION=$(args::get "version")
-    export ENVIRONMENT=$(args::get "environment")
+    
+    local DETACHED_VAL
+    DETACHED_VAL=$(args::get "detached")
+    export DETACHED="$DETACHED_VAL"
+    
+    local VERSION_VAL
+    VERSION_VAL=$(args::get "version")
+    export VERSION="$VERSION_VAL"
+    
+    local ENVIRONMENT_VAL
+    ENVIRONMENT_VAL=$(args::get "environment")
+    export ENVIRONMENT="$ENVIRONMENT_VAL"
 
     # Set default version if not provided
     if [ -z "$VERSION" ]; then
-        VERSION=$(version::get_project_version)
+        local project_version
+        project_version=$(version::get_project_version)
+        VERSION="$project_version"
         if [ -z "$VERSION" ]; then
           log::error "Could not determine project version from ../../package.json. Please specify with -v."
           exit "$ERROR_CONFIGURATION"

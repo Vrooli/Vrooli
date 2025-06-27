@@ -15,6 +15,8 @@ source "${SETUP_TARGET_DIR}/../../utils/log.sh"
 source "${SETUP_TARGET_DIR}/../../utils/system.sh"
 # shellcheck disable=SC1091
 source "${SETUP_TARGET_DIR}/../../utils/var.sh"
+# shellcheck disable=SC1091
+source "${SETUP_TARGET_DIR}/../helm.sh"
 
 # Define installation directory and commands based on sudo availability
 INSTALL_DIR="/usr/local/bin"
@@ -76,34 +78,6 @@ k8s_cluster::install_kubectl() {
     fi
 }
 
-# Install Helm, which is used to manage Kubernetes charts
-k8s_cluster::install_helm() {
-    if ! system::is_command "helm"; then
-        log::info "📦 Installing Helm..."
-        # Use official Helm installation script to fetch and install the latest version
-        # Adding retries for network reliability
-        local attempt_num=1
-        local max_attempts=3
-        until curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash; do
-            if (( attempt_num == max_attempts )); then
-                log::error "Failed to install Helm after $max_attempts attempts."
-                return 1
-            fi
-            log::info "Helm installation attempt $attempt_num failed. Retrying in 5 seconds..."
-            sleep 5
-            attempt_num=$((attempt_num+1))
-        done
-        log::success "Helm installed successfully"
-    else
-        log::info "helm is already installed"
-    fi
-    # Ensure HashiCorp repo is added and updated
-    if system::is_command "helm"; then
-        log::info "Adding/Updating HashiCorp Helm repository..."
-        helm repo add hashicorp https://helm.releases.hashicorp.com > /dev/null 2>&1 || log::warning "Failed to add HashiCorp repo (maybe already added)."
-        helm repo update hashicorp || log::error "Failed to update HashiCorp Helm repository."
-    fi
-}
 
 # Install Minikube, which is used to run a local Kubernetes cluster
 k8s_cluster::install_minikube() {
@@ -428,7 +402,7 @@ k8s_cluster::configure_dev_vault() {
 k8s_cluster::install_kubernetes() {
     k8s_cluster::adjust_paths
     k8s_cluster::install_kubectl
-    k8s_cluster::install_helm # Helm installation now also adds HashiCorp repo
+    helm::check_and_install # Use the shared Helm installation function
 
     if env::in_development; then
         k8s_cluster::install_minikube
@@ -441,11 +415,17 @@ k8s_cluster::install_kubernetes() {
             log::info "Minikube is already running."
         fi
 
-        # Install Vault and VSO only if SECRETS_SOURCE is vault and in development
+        # Install core operators regardless of secrets source since they're required dependencies
+        log::info "Installing core Kubernetes operators for development..."
+        k8s_cluster::install_pgo_operator || log::error "CrunchyData PGO installation failed. PostgreSQL cluster creation will fail."
+        k8s_cluster::install_spotahome_redis_operator || log::error "Spotahome Redis Operator installation failed. Redis cluster creation will fail."
+        
+        # Install Vault and VSO only if SECRETS_SOURCE is vault
         # Convert SECRETS_SOURCE to lowercase for comparison
         local secrets_source_lower
         secrets_source_lower=$(echo "${SECRETS_SOURCE:-file}" | tr '[:upper:]' '[:lower:]')
         if [[ "$secrets_source_lower" == "v" || "$secrets_source_lower" == "vault" || "$secrets_source_lower" == "hashicorp" || "$secrets_source_lower" == "hashicorp-vault" ]]; then
+            log::info "SECRETS_SOURCE is 'vault'. Installing Vault and VSO..."
             if k8s_cluster::install_vault_helm_chart; then
                 # Only configure Vault if install was successful (or already installed and we assume it's usable)
                  k8s_cluster::configure_dev_vault || log::warning "Dev Vault configuration partly failed. Manual steps might be needed."
@@ -453,17 +433,9 @@ k8s_cluster::install_kubernetes() {
                 log::error "Skipping Vault configuration due to installation failure."
             fi
             k8s_cluster::install_vso_helm_chart || log::error "Vault Secrets Operator installation failed. VSO-based secrets won't work."
-            # Add PGO installation here for development environments
-            k8s_cluster::install_pgo_operator || log::error "CrunchyData PGO installation failed."
-            k8s_cluster::install_spotahome_redis_operator || log::error "Spotahome Redis Operator installation failed."
         else
             log::info "SECRETS_SOURCE is not 'vault'. Skipping in-cluster Vault and VSO installation."
-            # Consider if PGO should be installed even if Vault is not the secrets source,
-            # if local in-cluster Postgres is desired for development regardless of Vault.
-            # For now, linking it to the Vault/VSO block for simplicity, implying a more "full-featured" dev setup.
-            # If PGO is always desired in dev, move this call outside the 'if secrets_source_lower == vault' block
-            # but still within 'if env::in_development'.
-            # Current placement: PGO is installed if Vault is also being installed for dev.
+            log::warning "Note: You'll need to provide database and Redis credentials via environment variables or ConfigMaps."
         fi
     else
         # This block handles non-development environments (e.g., staging, production)
@@ -556,6 +528,32 @@ k8s_cluster::install_kubernetes() {
         else
             log::warning "kubectl configuration for remote cluster skipped: KUBECONFIG_CONTENT_BASE64 not set, and KUBE_API_SERVER not set."
             log::warning "Ensure kubectl is manually configured to point to the target remote cluster, or provide necessary env vars."
+        fi
+        
+        # For production environments, check and install required operators
+        log::info "Checking for required Kubernetes operators in production environment..."
+        
+        # Check if operators are already installed
+        if ! kubectl get crd postgresclusters.postgres-operator.crunchydata.com > /dev/null 2>&1; then
+            log::warning "CrunchyData PostgreSQL Operator not found. Installing..."
+            k8s_cluster::install_pgo_operator || log::error "Failed to install PGO operator. PostgreSQL cluster creation will fail."
+        else
+            log::info "CrunchyData PostgreSQL Operator already installed ✓"
+        fi
+        
+        if ! kubectl get crd redisfailovers.databases.spotahome.com > /dev/null 2>&1; then
+            log::warning "Spotahome Redis Operator not found. Installing..."
+            k8s_cluster::install_spotahome_redis_operator || log::error "Failed to install Redis operator. Redis cluster creation will fail."
+        else
+            log::info "Spotahome Redis Operator already installed ✓"
+        fi
+        
+        # Always install VSO for production since we use Vault for secrets
+        if ! kubectl get crd vaultsecrets.secrets.hashicorp.com > /dev/null 2>&1; then
+            log::warning "Vault Secrets Operator not found. Installing..."
+            k8s_cluster::install_vso_helm_chart || log::error "Failed to install VSO. Secret synchronization will fail."
+        else
+            log::info "Vault Secrets Operator already installed ✓"
         fi
     fi
 }

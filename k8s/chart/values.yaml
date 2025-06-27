@@ -31,7 +31,7 @@ image:
   # `registry` specifies the Docker registry host and path (e.g., "docker.io/matthalloran8").
   # This is prepended to service-specific image names defined in `services.<name>.repository`
   # UNLESS the `services.<name>.repository` value is a full image path (e.g., contains a '/').
-  registry: "docker.io/{{ .Values.dockerhubUsername }}"
+  registry: "docker.io/matthalloran8"
   # `pullPolicy` defines when Kubernetes should attempt to pull the image.
   # - IfNotPresent: Pull only if the image is not already on the node.
   # - Always: Always pull the image, even if present. Useful for 'latest' tags or frequent updates.

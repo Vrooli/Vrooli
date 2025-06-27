@@ -7,6 +7,8 @@ SETUP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SETUP_DIR}/../utils/log.sh"
 # shellcheck disable=SC1091
 source "${SETUP_DIR}/../utils/system.sh"
+# shellcheck disable=SC1091
+source "${SETUP_DIR}/helm.sh"
 
 common_deps::check_and_install() {
     log::header "⚙️ Checking common dependencies (curl, jq)..."
@@ -35,6 +37,9 @@ common_deps::check_and_install() {
     system::check_and_install "mkdir"
     system::check_and_install "script"
     system::check_and_install "yq"
+    
+    # Install Helm CLI for Kubernetes package management
+    helm::check_and_install
 
     log::success "✅ Common dependencies checked/installed."
     return 0

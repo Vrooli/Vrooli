@@ -28,7 +28,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ include "vrooli.componentName" $name }}
-          image: {{ tpl $.Values.image.registry $ }}/{{ $svc.repository }}:{{ $svc.tag | default $.Chart.AppVersion }}
+          image: {{ $.Values.image.registry }}/{{ $svc.repository }}:{{ $svc.tag | default $.Chart.AppVersion }}
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           ports:
             - name: http
@@ -126,7 +126,7 @@ spec:
           readinessProbe:
             httpGet:
               path: {{ $svc.probes.readinessPath }}
-              port: {{ if and (eq $name "jobs") $svc.probes.readinessPath }}5330{{ else }}{{ $svc.probes.port | default $svc.port }}{{ end }}
+              port: {{ $svc.probes.port | default $svc.port }}
             initialDelaySeconds: {{ $svc.probes.readinessInitialDelaySeconds | default 10 }}
             periodSeconds: {{ $svc.probes.periodSeconds | default 10 }}
             timeoutSeconds: {{ $svc.probes.timeoutSeconds | default 5 }}
@@ -151,5 +151,93 @@ spec:
           {{- if $svc.resources }}
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
+          {{- end }}
+{{- end }}
+
+{{- if .Values.adminer.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vrooli.fullname" . }}-adminer
+  labels:
+    {{- include "vrooli.labels" . | nindent 4 }}
+    app.kubernetes.io/component: adminer
+spec:
+  replicas: {{ .Values.adminer.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "vrooli.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: adminer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "vrooli.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: adminer
+    spec:
+      serviceAccountName: {{ include "vrooli.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: adminer
+          image: {{ if contains "/" .Values.adminer.image.repository }}{{ .Values.adminer.image.repository }}{{ else }}{{ tpl .Values.image.registry . }}/{{ .Values.adminer.image.repository }}{{ end }}:{{ .Values.adminer.image.tag | default "latest" }}
+          imagePullPolicy: {{ .Values.adminer.image.pullPolicy | default .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.adminer.port | default 8080 }}
+              protocol: TCP
+          {{- if .Values.adminer.env }}
+          env:
+            {{- range $key, $value := .Values.adminer.env }}
+            - name: {{ $key }}
+              value: {{ tpl (toString $value) $ | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if .Values.adminer.probes.enabled }}
+          {{- if or .Values.adminer.probes.livenessPath .Values.adminer.probes.readinessPath }}
+          {{- if .Values.adminer.probes.livenessPath }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.adminer.probes.livenessPath }}
+              port: {{ .Values.adminer.port | default 8080 }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- end }}
+          {{- if .Values.adminer.probes.readinessPath }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.adminer.probes.readinessPath }}
+              port: {{ .Values.adminer.port | default 8080 }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- end }}
+          {{- else }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.adminer.port | default 8080 }}
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.adminer.port | default 8080 }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          {{- end }}
+          {{- end }}
+          {{- if .Values.adminer.resources }}
+          resources:
+            {{- toYaml .Values.adminer.resources | nindent 12 }}
           {{- end }}
 {{- end }}

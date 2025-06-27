@@ -32,7 +32,7 @@ nativeWin::start_development_native_win() {
 
     nativeWin::cleanup() {
         log::info "Cleaning up development environment..."
-        kill $TYPE_CHECK_PID $LINT_PID
+        kill "$TYPE_CHECK_PID" "$LINT_PID"
         exit "$EXIT_USER_INTERRUPT"
     }
     if ! flow::is_yes "$DETACHED"; then

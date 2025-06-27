@@ -50,7 +50,7 @@ FROM base AS server
 ENV NODE_ENV=development
 WORKDIR ${PROJECT_DIR}
 # Inherit all built code and dependencies from base
-EXPOSE ${PORT_SERVER}
+EXPOSE 5329
 CMD ["node", "packages/server/dist/index.js"]
 
 
@@ -59,7 +59,7 @@ FROM base AS jobs
 ENV NODE_ENV=development
 WORKDIR ${PROJECT_DIR}
 # Inherit all built code and dependencies from base
-EXPOSE ${PORT_JOBS}
+EXPOSE 4001
 CMD ["node", "packages/jobs/dist/index.js"]
 
 
@@ -68,6 +68,6 @@ FROM base AS ui-dev
 WORKDIR ${PROJECT_DIR}
 COPY --from=base ${PROJECT_DIR}/node_modules ./node_modules
 COPY --from=base ${PROJECT_DIR} .
-EXPOSE ${PORT_UI}
+EXPOSE 3000
 RUN corepack enable && corepack prepare pnpm@latest --activate
 CMD pnpm --filter @vrooli/ui run dev -- --host 0.0.0.0 --port ${PORT_UI:-3000} 

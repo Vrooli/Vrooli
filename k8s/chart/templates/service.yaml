@@ -27,4 +27,25 @@ spec:
     {{- include "vrooli.selectorLabels" $ | nindent 4 }}
     {{- include "vrooli.componentLabels" (dict "componentName" (include "vrooli.componentName" $name) "root" $) | nindent 4 }}
 {{- end }}{{/* if $serviceEnabled */}}
+{{- end }}
+
+{{- if .Values.adminer.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vrooli.fullname" . }}-adminer
+  labels:
+    {{- include "vrooli.labels" . | nindent 4 }}
+    app.kubernetes.io/component: adminer
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.adminer.port | default 8080 }}
+      targetPort: {{ .Values.adminer.port | default 8080 }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "vrooli.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: adminer
 {{- end }} 

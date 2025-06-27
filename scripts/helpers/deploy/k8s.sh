@@ -25,6 +25,22 @@ deploy::deploy_k8s() {
     exit 1
   fi
 
+  # Check for required Kubernetes operators
+  log::info "Checking Kubernetes operator prerequisites..."
+  local prereq_script="${DEPLOY_DIR}/k8s-prerequisites.sh"
+  if [[ -f "$prereq_script" ]]; then
+    if ! bash "$prereq_script" --check-only; then
+      log::error "Required Kubernetes operators are missing."
+      log::info "Run the following command to install them:"
+      log::info "  bash $prereq_script --yes"
+      log::info "Or run without --check-only to interactively install missing operators."
+      exit 1
+    fi
+  else
+    log::warning "Prerequisites check script not found at: $prereq_script"
+    log::warning "Proceeding without operator verification. Deployment may fail if operators are missing."
+  fi
+
   # Dynamically find the packaged chart .tgz file
   # Assumes only one Vrooli application chart .tgz will be in this directory for this version.
   local chart_package_dir="${var_DEST_DIR}/${VERSION}/artifacts/k8s-chart-packages"

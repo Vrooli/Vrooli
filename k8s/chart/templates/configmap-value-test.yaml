@@ -7,12 +7,12 @@ apiVersion: v1
 kind: Pod
 metadata:
   # The name of the test Pod. It includes the full release name to ensure uniqueness.
-  name: "{{ include \"vrooli.fullname\" . }}-configmap-value-test"
+  name: {{ include "vrooli.fullname" . }}-configmap-value-test
   labels:
     # Standard labels for identifying the application and release.
-    app.kubernetes.io/name: "{{ include \"vrooli.name\" . }}-test"
+    app.kubernetes.io/name: {{ include "vrooli.name" . }}-test
     app.kubernetes.io/instance: "{{ .Release.Name }}"
-    helm.sh/chart: "{{ include \"vrooli.chart\" . }}"
+    helm.sh/chart: {{ include "vrooli.chart" . }}
     app.kubernetes.io/managed-by: "{{ .Release.Service }}"
     # Custom label to identify this as a configmap test component.
     app.kubernetes.io/component: configmap-test
