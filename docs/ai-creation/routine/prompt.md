@@ -212,29 +212,30 @@ To create a valid routine that can be stored and executed, you must generate a s
 
 3. **Subroutine References (CRITICAL)**:
    - All `subroutineId` values MUST reference routines that exist in the database
-   - **BEFORE generating the routine JSON, you MUST search for existing routines to use as subroutines**
+   - **BEFORE generating the routine JSON, you MUST use available-subroutines.txt to find existing routines**
    
    **Subroutine Discovery Process:**
-   1. For each step in your routine that needs a subroutine, first search for existing routines
-   2. Use descriptive search terms to find relevant routines via embeddings search
-   3. Select the most appropriate routine ID from the search results
-   4. Only use the `publicId` field from the search results as the `subroutineId`
+   1. Check if `available-subroutines.txt` exists in the routine directory
+   2. If it exists, use ONLY the publicIds listed in that file
+   3. Match subroutines based on their name and type to your routine's needs
+   4. Use the exact `publicId` from the file (the quoted string before the # comment)
    
-   **Example Search Process:**
+   **If Subroutine Discovery is Unavailable:**
+   - Add a TODO comment in the JSON where the subroutineId is needed
+   - Format: `"subroutineId": "TODO: Need [type] subroutine for [purpose]"`
+   - Example: `"subroutineId": "TODO: Need text analysis subroutine for sentiment detection"`
+   
+   **Example from available-subroutines.txt:**
    ```
-   Step needs text analysis? → Search: "analyze text sentiment keywords themes"
-   Step needs content generation? → Search: "generate text content writing"  
-   Step needs web research? → Search: "web search internet research"
-   Step needs data processing? → Search: "transform data format convert"
-   Step needs API calls? → Search: "api call external service integration"
+   "abc123def456" # AnalyzeTextSentiment (RoutineGenerate)
+   "ghi789jkl012" # WebSearchAndSummarize (RoutineMultiStep)
+   "mno345pqr678" # TransformDataFormat (RoutineCode)
    ```
    
-   **Known Available Routines (as of last update):**
-   - General Purpose: "avxsmcc6hzjk" (MintNativeToken), "24d3wryjnsr1" (MintNFT) 
-   - AI Generation: "rg7eg7t2lulh" (WorkoutPlanGenerator)
-   - Project Management: "16in71m4f7y2" (ProjectKickoffChecklist)
-   
-   **IMPORTANT**: Always search first - the routine library may have grown since this list was created
+   **IMPORTANT**: 
+   - NEVER make up or guess subroutine IDs
+   - ONLY use IDs from available-subroutines.txt if it exists
+   - Always include TODO comments if the file is unavailable
 
 4. **Config Structure Rules**:
    - Config MUST have `__version: "1.0"` at root level

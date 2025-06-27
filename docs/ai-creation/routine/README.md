@@ -155,10 +155,16 @@ vrooli routine run <routine-id> --watch
 
 1. **AI Workflow**: `routine-generate.sh` calls `maintenance-agent.sh` with a structured prompt
 2. **Automatic Processing**: AI reads `backlog.md`, selects first unprocessed item
-3. **Subroutine Discovery**: AI searches for existing routines using semantic similarity to find appropriate subroutines
-4. **Generation**: AI follows `prompt.md` instructions to create complete routine JSON with real subroutine IDs
+3. **Dynamic Subroutine Discovery**: 
+   - If CLI is authenticated: Automatically discovers all available subroutines and saves to `available-subroutines.txt`
+   - AI reads this file to find real subroutine IDs based on functionality needed
+   - If unavailable: AI adds TODO comments where manual subroutine selection is needed
+4. **Generation**: AI follows `prompt.md` instructions to create complete routine JSON with actual subroutine IDs
 5. **Staging**: Generated routine is saved to `staged/` with descriptive filename
-6. **Post-Generation Validation**: If Vrooli CLI is authenticated, automatically validates generated JSON
+6. **Enhanced Validation**: 
+   - Structure validation: Checks JSON schema, required fields, ID formats
+   - Subroutine validation: Verifies all referenced subroutines exist in the database
+   - TODO detection: Flags any placeholder subroutine references
 7. **Backlog Management**: AI updates `backlog.md` to mark item as processed
 
 ### Import and Validation Process
