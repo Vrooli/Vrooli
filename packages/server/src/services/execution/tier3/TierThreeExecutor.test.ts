@@ -1,12 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TierThreeExecutor } from "./TierThreeExecutor.js";
 import { type Logger } from "winston";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
-import { createMockLogger } from "../../../../__test/globalHelpers.js";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
-import { RedisClientType } from "redis";
-import { createRedisClient } from "../../../redisConn.js";
-import { EventBusImplementation } from "../cross-cutting/events/eventBus.js";
+import { EventBus } from "../cross-cutting/events/eventBus.js";
 import {
     type ExecutionContext,
     type TierExecutionRequest,
@@ -35,27 +30,21 @@ describe("TierThreeExecutor - Adaptive Execution Intelligence", () => {
     let logger: Logger;
     let eventBus: EventBus;
     let executor: TierThreeExecutor;
-    let redisContainer: StartedTestContainer;
-    let redisClient: RedisClientType;
 
-    beforeEach(async () => {
-        // Use real Redis for event-driven execution
-        redisContainer = await new GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .start();
-
-        const redisUrl = `redis://localhost:${redisContainer.getMappedPort(6379)}`;
-        redisClient = await createRedisClient({ url: redisUrl });
-
-        logger = createMockLogger();
-        eventBus = new EventBusImplementation(logger, redisClient as any);
+    beforeEach(() => {
+        logger = {
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+        } as unknown as Logger;
+        eventBus = new EventBus(logger);
         
         executor = new TierThreeExecutor(logger, eventBus);
     });
 
-    afterEach(async () => {
-        await redisClient?.quit();
-        await redisContainer?.stop();
+    afterEach(() => {
+        vi.clearAllMocks();
     });
 
     describe("Adaptive Strategy Selection", () => {
@@ -112,7 +101,7 @@ describe("TierThreeExecutor - Adaptive Execution Intelligence", () => {
             // Later executions may evolve to reasoning or deterministic
             const evolvedStrategies = strategies.slice(2);
             const hasEvolved = evolvedStrategies.some(s => 
-                s === StrategyType.REASONING || s === StrategyType.DETERMINISTIC
+                s === StrategyType.REASONING || s === StrategyType.DETERMINISTIC,
             );
             
             // Infrastructure enables evolution, but doesn't force it
@@ -227,7 +216,7 @@ describe("TierThreeExecutor - Adaptive Execution Intelligence", () => {
             ];
 
             const results = await Promise.all(
-                contexts.map(ctx => executor.executeStep(ctx))
+                contexts.map(ctx => executor.executeStep(ctx)),
             );
 
             // Both should complete but with different approaches
@@ -269,7 +258,7 @@ describe("TierThreeExecutor - Adaptive Execution Intelligence", () => {
                     data: expect.objectContaining({
                         executionId: context.executionId,
                     }),
-                })
+                }),
             );
 
             // Result includes resource metadata

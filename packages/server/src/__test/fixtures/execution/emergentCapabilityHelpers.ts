@@ -227,7 +227,7 @@ export function createMeasurableEmergence(
                 setup: `Configure system with ${pattern.name} requirements`,
                 trigger: `Generate ${pattern.requires.minEvents} events of required types`,
                 expectedOutcome: `Observe emergence of ${pattern.produces.capabilities.join(", ")}`,
-                measurementMethod: `Validate metrics show improvement from baseline to target`,
+                measurementMethod: "Validate metrics show improvement from baseline to target",
             },
         ],
     };
@@ -249,7 +249,7 @@ export function createCollaborativeCapability(
         target: 1.5 + (requiredAgents * 0.3), // Performance multiplier based on collaboration
         unit: "performance_ratio",
         description: `Performance improvement through ${requiredAgents}-agent collaboration`,
-        evolutionFormula: `baseline * (1 + collaboration_coefficient * agent_count * experience_factor)`,
+        evolutionFormula: "baseline * (1 + collaboration_coefficient * agent_count * experience_factor)",
         minEventsForMeasurement: requiredAgents * 5, // Need multiple interactions per agent
     };
 }
@@ -444,7 +444,7 @@ export function createEmergencePerformanceBenchmark(
         target: targetMetric.value,
         unit: baselineMetric.unit,
         description: `${capability} performance improvement: ${improvementRatio.toFixed(1)}x better`,
-        evolutionFormula: `exponential_improvement(baseline, learning_rate, experience_cycles)`,
+        evolutionFormula: "exponential_improvement(baseline, learning_rate, experience_cycles)",
         minEventsForMeasurement: Math.max(10, Math.ceil(improvementRatio)),
     };
 }

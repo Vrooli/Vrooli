@@ -1,7 +1,8 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { BaseComponent } from "../shared/BaseComponent.js";
-import { ExecutionSocketEventEmitter } from "../shared/SocketEventEmitter.js";
+// Socket events now handled through unified event system
+import { EventTypes } from "../../events/index.js";
 import { SEEDED_PUBLIC_IDS } from "@vrooli/shared";
 import { 
     type TierCommunicationInterface,
@@ -11,6 +12,9 @@ import {
     type ExecutionStatus,
     type TierCapabilities,
     type RoutineExecutionInput,
+    type SwarmCoordinationInput,
+    isSwarmCoordinationInput,
+    isRoutineExecutionInput,
 } from "@vrooli/shared";
 import { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
 import { TeamManager } from "./organization/teamManager.js";
@@ -50,7 +54,6 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     private readonly chatStore: PrismaChatStore;
     private readonly conversationBridge: ConversationBridge;
     private readonly creationLocks: Map<string, Promise<void>> = new Map(); // Simple in-memory lock
-    private readonly socketEmitter = ExecutionSocketEventEmitter.get();
 
     constructor(logger: Logger, eventBus: EventBus, tier2Orchestrator: TierCommunicationInterface) {
         super(logger, eventBus, "TierOneCoordinator");
@@ -58,9 +61,6 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         
         // Initialize state store
         this.stateStore = SwarmStateStoreFactory.getInstance(logger);
-        
-        // Set state store for socket emitter
-        this.socketEmitter.setStateStore(this.stateStore);
         
         // Initialize minimal components
         this.teamManager = new TeamManager(logger);
@@ -367,29 +367,35 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             // Store swarm state
             await this.stateStore.createSwarm(config.swarmId, swarm);
 
-            // Emit initial swarm state
-            await this.socketEmitter.emitSwarmStateUpdate(
-                config.swarmId,
-                ExecutionStates.UNINITIALIZED,
-                "Swarm initialization in progress",
-                conversationId, // Pass chatId directly since we have it
-            );
-
-            // Emit initial resource allocation
-            await this.socketEmitter.emitSwarmResourceUpdate(
-                config.swarmId,
-                {
-                    allocated: config.resources.maxCredits,
-                    consumed: 0,
-                    remaining: config.resources.maxCredits,
-                },
+            // Emit initial swarm state through unified event system
+            await this.publishUnifiedEvent(EventTypes.STATE_SWARM_UPDATED, {
+                entityType: "swarm",
+                entityId: config.swarmId,
+                newState: ExecutionStates.UNINITIALIZED,
+                message: "Swarm initialization in progress",
+            }, {
+                deliveryGuarantee: "fire-and-forget",
+                priority: "medium",
                 conversationId,
-            );
+            });
+
+            // Emit initial resource allocation through unified event system
+            await this.publishUnifiedEvent(EventTypes.RESOURCE_SWARM_UPDATED, {
+                entityType: "swarm",
+                entityId: config.swarmId,
+                resourceType: "credits",
+                allocated: config.resources.maxCredits.toString(),
+                consumed: "0",
+                remaining: config.resources.maxCredits.toString(),
+            }, {
+                deliveryGuarantee: "fire-and-forget",
+                priority: "medium",
+                conversationId,
+            });
 
             // Create state machine
             const stateMachine = new SwarmStateMachine(
                 this.logger,
-                this.eventBus,
                 this.stateStore,
                 this.conversationBridge,
             );
@@ -404,11 +410,19 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             } as SessionUser;
             await stateMachine.start(conversationId, config.goal, initiatingUser);
 
-            // Emit swarm started event
-            await this.eventPublisher.publish("swarm.started", {
+            // Emit swarm started event using unified event system
+            await this.publishUnifiedEvent(EventTypes.TEAM_FORMED, {
                 swarmId: config.swarmId,
                 name: config.name,
                 userId: config.userId,
+                goal: config.goal,
+                resources: config.resources,
+            }, {
+                deliveryGuarantee: "reliable",
+                priority: "high",
+                tags: ["swarm", "coordination"],
+                userId: config.userId,
+                conversationId: config.swarmId,
             });
 
         } catch (error) {
@@ -671,11 +685,19 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         this.swarmMachines.delete(swarmId);
         
         // Emit cancellation event
-        await this.eventPublisher.publish("swarm.cancelled", {
-            swarmId,
-            userId,
-            reason,
-        });
+        await this.publishUnifiedEvent(
+            "swarm.cancelled",
+            {
+                swarmId,
+                userId,
+                reason,
+            },
+            {
+                userId,
+                priority: "high",
+                deliveryGuarantee: "reliable",
+            },
+        );
     }
 
     /**
@@ -726,11 +748,19 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             await this.stateStore.updateSwarm(parentSwarmId, swarm);
 
             // Emit reservation event
-            await this.eventPublisher.publish("swarm.resource.reserved", {
-                parentSwarmId,
-                childSwarmId,
-                reservation,
-            });
+            await this.publishUnifiedEvent(
+                "swarm.resource.reserved",
+                {
+                    parentSwarmId,
+                    childSwarmId,
+                    reservation,
+                },
+                {
+                    conversationId: parentSwarmId,
+                    priority: "medium",
+                    deliveryGuarantee: "reliable",
+                },
+            );
 
             this.logger.info("[TierOneCoordinator] Reserved resources for child swarm", {
                 parentSwarmId,
@@ -794,11 +824,19 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             await this.stateStore.updateSwarm(parentSwarmId, swarm);
 
             // Emit release event
-            await this.eventPublisher.publish("swarm.resource.released", {
-                parentSwarmId,
-                childSwarmId,
-                released: reservation.reserved,
-            });
+            await this.publishUnifiedEvent(
+                "swarm.resource.released",
+                {
+                    parentSwarmId,
+                    childSwarmId,
+                    released: reservation.reserved,
+                },
+                {
+                    conversationId: parentSwarmId,
+                    priority: "medium",
+                    deliveryGuarantee: "reliable",
+                },
+            );
 
             this.logger.info("[TierOneCoordinator] Released resources from child swarm", {
                 parentSwarmId,
@@ -821,75 +859,120 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     // TierCommunicationInterface implementation
 
     /**
-     * Execute a tier execution request
+     * Execute a tier execution request with type-safe input validation
      */
     async execute<TInput, TOutput>(
         request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
         this.logger.info("[TierOneCoordinator] Executing tier request", {
-            contextType: typeof request.input,
+            executionId: request.context.executionId,
+            inputType: request.input?.constructor?.name || typeof request.input,
         });
 
+        const startTime = Date.now();
+
         try {
-            // Route based on input type/context
-            if (this.isSwarmStartRequest(request.input)) {
-                const swarmInput = request.input as any;
+            // Type-safe routing with proper discrimination
+            if (isSwarmCoordinationInput(request.input)) {
+                const swarmInput = request.input as SwarmCoordinationInput;
+                
+                // Extract resource allocation with type safety
+                const maxCredits = this.parseCreditsFromString(request.allocation.maxCredits);
+                const maxTokens = Math.floor(request.allocation.maxDurationMs / 1000); // Estimate tokens from duration
+                const maxTime = request.allocation.maxDurationMs;
+
                 await this.startSwarm({
                     swarmId: request.context.executionId,
-                    name: swarmInput.goal || "Swarm Execution",
-                    description: swarmInput.goal || "AI Swarm Task",
+                    name: `Swarm: ${swarmInput.goal.substring(0, 50)}...`,
+                    description: swarmInput.goal,
                     goal: swarmInput.goal,
                     resources: {
-                        maxCredits: request.allocation.maxCredits,
-                        maxTokens: request.allocation.maxTokens,
-                        maxTime: request.allocation.maxTime,
-                        tools: swarmInput.availableAgents?.map((agent: any) => ({
+                        maxCredits,
+                        maxTokens,
+                        maxTime,
+                        tools: swarmInput.availableAgents.map(agent => ({
                             name: agent.name,
-                            description: agent.capabilities?.join(", ") || "",
-                        })) || [],
+                            description: agent.capabilities.join(", "),
+                        })),
                     },
                     config: {
                         model: "gpt-4",
                         temperature: 0.7,
                         autoApproveTools: false,
-                        parallelExecutionLimit: 3,
+                        parallelExecutionLimit: Math.min(swarmInput.availableAgents.length, 5),
                     },
-                    userId: request.context.userId || "system",
+                    userId: request.context.userId,
                     organizationId: request.context.organizationId,
                 });
 
                 return {
                     executionId: request.context.executionId,
                     status: "completed",
-                    result: { swarmId: request.context.executionId } as TOutput,
+                    result: { 
+                        swarmId: request.context.executionId,
+                        swarmName: `Swarm: ${swarmInput.goal.substring(0, 50)}...`,
+                        agentCount: swarmInput.availableAgents.length,
+                    } as TOutput,
                     resourceUsage: {
-                        credits: 0,
+                        credits: 0, // Swarm creation is free, execution will consume credits
                         tokens: 0,
-                        duration: 0,
+                        duration: Date.now() - startTime,
                     },
-                    duration: 0,
+                    duration: Date.now() - startTime,
                 };
+                
+            } else if (isRoutineExecutionInput(request.input)) {
+                // Delegate routine execution to Tier 2
+                const routineInput = request.input as RoutineExecutionInput;
+                
+                const tier2Request: TierExecutionRequest<RoutineExecutionInput> = {
+                    context: {
+                        ...request.context,
+                        parentExecutionId: request.context.executionId,
+                        routineId: routineInput.routineId,
+                    },
+                    input: routineInput,
+                    allocation: request.allocation,
+                    options: request.options,
+                };
+
+                return await this.tier2Orchestrator.execute(tier2Request) as ExecutionResult<TOutput>;
+                
             } else {
-                throw new Error(`Unsupported input type for Tier 1: ${typeof request.input}`);
+                // Input type not supported by Tier 1
+                const inputTypeName = request.input?.constructor?.name || typeof request.input;
+                throw new Error(
+                    `Unsupported input type for Tier 1: ${inputTypeName}. ` +
+                    "Tier 1 supports SwarmCoordinationInput and RoutineExecutionInput only.",
+                );
             }
         } catch (error) {
             this.logger.error("[TierOneCoordinator] Execution failed", {
+                executionId: request.context.executionId,
                 error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
             });
             
             return {
                 executionId: request.context.executionId,
                 status: "failed",
                 error: {
-                    code: "EXECUTION_FAILED",
+                    code: "TIER1_EXECUTION_FAILED",
                     message: error instanceof Error ? error.message : "Unknown error",
+                    tier: "tier1",
+                    type: error instanceof Error ? error.constructor.name : "Error",
+                    context: {
+                        inputType: request.input?.constructor?.name || typeof request.input,
+                        userId: request.context.userId,
+                        swarmId: request.context.swarmId,
+                    },
                 },
                 resourceUsage: {
                     credits: 0,
                     tokens: 0,
-                    duration: 0,
+                    duration: Date.now() - startTime,
                 },
-                duration: 0,
+                duration: Date.now() - startTime,
             };
         }
     }
@@ -977,12 +1060,19 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     }
 
     /**
-     * Helper to determine if input is a swarm start request
+     * Helper to safely parse credits from string format
      */
-    private isSwarmStartRequest(input: unknown): boolean {
-        return typeof input === "object" && 
-               input !== null && 
-               "goal" in input;
+    private parseCreditsFromString(creditsStr: string): number {
+        if (creditsStr === "unlimited") {
+            return Number.MAX_SAFE_INTEGER;
+        }
+        
+        const parsed = parseInt(creditsStr, 10);
+        if (isNaN(parsed) || parsed < 0) {
+            throw new Error(`Invalid credits allocation: ${creditsStr}`);
+        }
+        
+        return parsed;
     }
 
     /**

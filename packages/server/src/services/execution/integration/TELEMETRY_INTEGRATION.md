@@ -23,28 +23,6 @@ await this.telemetryShim.emitStepStarted(stepId, {
 });
 ```
 
-### 2. Rolling History Buffer
-
-The `RollingHistory` component maintains a circular buffer of recent events:
-
-- Fixed-size buffer (default: 10,000 events)
-- Time-based eviction (default: 1 hour)
-- Zero-overhead event capture
-- Pattern detection capabilities
-
-```typescript
-// Automatic event capture from all telemetry channels
-this.eventBus.subscribe('telemetry.*', (event) => {
-    rollingHistory.addEvent({
-        timestamp: event.timestamp,
-        type: event.type,
-        tier: extractTier(event),
-        component: event.metadata.component,
-        data: event,
-    });
-});
-```
-
 ### 3. Emergent Monitoring Patterns
 
 The combination of telemetry and rolling history enables detection of:
@@ -75,26 +53,6 @@ The combination of telemetry and rolling history enables detection of:
    - Adaptation frequency
 
 ## Integration Points
-
-### ExecutionArchitecture Initialization
-
-```typescript
-// Initialize rolling history as a shared service
-this.rollingHistory = new RollingHistory(this.eventBus, {
-    maxSize: 10000,
-    maxAge: 3600000, // 1 hour
-    persistInterval: 300000, // 5 minutes
-});
-
-// Pass to all tiers during construction
-this.tier3 = new UnifiedExecutor(
-    config,
-    eventBus,
-    logger,
-    toolRegistry,
-    rollingHistory, // <-- Shared rolling history
-);
-```
 
 ### Tier-Specific Telemetry
 

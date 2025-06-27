@@ -5,26 +5,7 @@
  * that learn from events and propose routine improvements. Unlike hard-coded
  * agent types, these agents develop specialized capabilities through experience.
  */
-
 export { EmergentAgent } from "./emergentAgent.js";
-export { AgentDeploymentService } from "./agentDeploymentService.js";
-
-export type {
-    AgentInsights,
-} from "./emergentAgent.js";
-
-export type {
-    EmergentAgentConfig,
-    EmergentSwarmConfig,
-} from "./agentDeploymentService.js";
-
-export type {
-    IntelligentEvent,
-    AgentResponse,
-    AgentSubscription,
-    DeliveryGuarantee,
-    EventPriority,
-} from "../events/eventBus.js";
 
 /**
  * Common event patterns for emergent agents to subscribe to
@@ -32,29 +13,29 @@ export type {
 export const EMERGENT_EVENT_PATTERNS = {
     // Performance monitoring patterns
     ROUTINE_COMPLETED: "routine/completed",
-    STEP_COMPLETED: "step/completed", 
+    STEP_COMPLETED: "step/completed",
     EXECUTION_METRICS: "execution/metrics",
-    
+
     // Quality monitoring patterns
     OUTPUT_GENERATED: "output/generated",
     CONTENT_CREATED: "content/created",
     VALIDATION_REQUIRED: "validation/required",
-    
+
     // Security monitoring patterns
     SECURITY_EVENT: "security/*",
     THREAT_DETECTED: "security/threat/*",
     COMPLIANCE_CHECK: "security/compliance/*",
-    
+
     // Error and warning patterns
     ERROR_OCCURRED: "error/*",
     WARNING_ISSUED: "warning/*",
     ALERT_RAISED: "alert/*",
-    
+
     // Tool execution patterns
     TOOL_CALLED: "tool/called/*",
     TOOL_COMPLETED: "tool/completed/*",
     TOOL_FAILED: "tool/failed/*",
-    
+
     // Tier-specific patterns
     TIER1_EVENTS: "tier1/*",
     TIER2_EVENTS: "tier2/*",
@@ -62,7 +43,11 @@ export const EMERGENT_EVENT_PATTERNS = {
 } as const;
 
 /**
- * Example agent deployment configurations for common emergent capabilities
+ * Example agent deployment configurations for common emergent capabilities.
+ * 
+ * These could be used in the future to "seed" swarm agents with pre-defined capabilities, 
+ * instead of the leader having to define them manually. Agents could update their configuration over time,
+ * as they adapt to the needs of the swarm.
  */
 export const EMERGENT_AGENT_EXAMPLES = {
     /**
@@ -78,7 +63,7 @@ export const EMERGENT_AGENT_EXAMPLES = {
         ],
         priority: 7,
     },
-    
+
     /**
      * Quality assurance agent that learns to detect output quality issues
      */
@@ -92,7 +77,7 @@ export const EMERGENT_AGENT_EXAMPLES = {
         ],
         priority: 8,
     },
-    
+
     /**
      * Security monitoring agent that learns threat patterns
      */
@@ -106,7 +91,7 @@ export const EMERGENT_AGENT_EXAMPLES = {
         ],
         priority: 9,
     },
-    
+
     /**
      * Cost optimization agent that learns to reduce operational costs
      */
@@ -120,7 +105,7 @@ export const EMERGENT_AGENT_EXAMPLES = {
         ],
         priority: 6,
     },
-    
+
     /**
      * Error pattern recognition agent
      */
@@ -166,7 +151,7 @@ export const EMERGENT_SWARM_TEMPLATES = {
             crossAgentInsights: true,
         },
     },
-    
+
     /**
      * Optimization-focused swarm
      */
@@ -193,7 +178,7 @@ export const EMERGENT_SWARM_TEMPLATES = {
             crossAgentInsights: true,
         },
     },
-    
+
     /**
      * Security and compliance swarm
      */
@@ -238,7 +223,7 @@ export class EmergentAgentUtils {
             ...overrides,
         };
     }
-    
+
     /**
      * Create swarm configuration from template
      */
@@ -257,14 +242,14 @@ export class EmergentAgentUtils {
             ...overrides,
         };
     }
-    
+
     /**
      * Get recommended event patterns for a goal
      */
     static getRecommendedPatterns(goal: string): string[] {
         const patterns: string[] = [];
         const goalLower = goal.toLowerCase();
-        
+
         // Performance-related goals
         if (goalLower.includes("performance") || goalLower.includes("optimize") || goalLower.includes("speed")) {
             patterns.push(
@@ -273,7 +258,7 @@ export class EmergentAgentUtils {
                 EMERGENT_EVENT_PATTERNS.STEP_COMPLETED,
             );
         }
-        
+
         // Quality-related goals
         if (goalLower.includes("quality") || goalLower.includes("accuracy") || goalLower.includes("validation")) {
             patterns.push(
@@ -282,7 +267,7 @@ export class EmergentAgentUtils {
                 EMERGENT_EVENT_PATTERNS.VALIDATION_REQUIRED,
             );
         }
-        
+
         // Security-related goals
         if (goalLower.includes("security") || goalLower.includes("threat") || goalLower.includes("compliance")) {
             patterns.push(
@@ -291,7 +276,7 @@ export class EmergentAgentUtils {
                 EMERGENT_EVENT_PATTERNS.ERROR_OCCURRED,
             );
         }
-        
+
         // Cost-related goals
         if (goalLower.includes("cost") || goalLower.includes("expense") || goalLower.includes("budget")) {
             patterns.push(
@@ -300,7 +285,7 @@ export class EmergentAgentUtils {
                 EMERGENT_EVENT_PATTERNS.EXECUTION_METRICS,
             );
         }
-        
+
         // Error-related goals
         if (goalLower.includes("error") || goalLower.includes("failure") || goalLower.includes("reliability")) {
             patterns.push(
@@ -309,7 +294,7 @@ export class EmergentAgentUtils {
                 EMERGENT_EVENT_PATTERNS.WARNING_ISSUED,
             );
         }
-        
+
         // General monitoring
         if (goalLower.includes("monitor") || goalLower.includes("observe") || goalLower.includes("track")) {
             patterns.push(
@@ -318,33 +303,33 @@ export class EmergentAgentUtils {
                 EMERGENT_EVENT_PATTERNS.ERROR_OCCURRED,
             );
         }
-        
+
         return [...new Set(patterns)]; // Remove duplicates
     }
-    
+
     /**
      * Calculate priority based on goal and event type
      */
     static calculatePriority(goal: string, eventType?: string): number {
         let priority = 5; // Base priority
-        
+
         const goalLower = goal.toLowerCase();
-        
+
         // Security goals get higher priority
         if (goalLower.includes("security") || goalLower.includes("threat")) {
             priority += 3;
         }
-        
+
         // Quality goals get medium-high priority
         if (goalLower.includes("quality") || goalLower.includes("compliance")) {
             priority += 2;
         }
-        
+
         // Performance goals get medium priority
         if (goalLower.includes("performance") || goalLower.includes("optimize")) {
             priority += 1;
         }
-        
+
         // Event-specific adjustments
         if (eventType) {
             if (eventType.includes("security") && goalLower.includes("security")) {
@@ -354,41 +339,36 @@ export class EmergentAgentUtils {
                 priority += 1;
             }
         }
-        
+
         return Math.min(10, priority);
     }
-    
+
     /**
      * Validate agent configuration
      */
     static validateAgentConfig(config: EmergentAgentConfig): string[] {
         const errors: string[] = [];
-        
+
         if (!config.agentId) {
             errors.push("Agent ID is required");
         }
-        
+
         if (!config.goal) {
             errors.push("Agent goal is required");
         }
-        
+
         if (!config.initialRoutine) {
             errors.push("Initial routine is required");
         }
-        
+
         if (!config.subscriptions || config.subscriptions.length === 0) {
             errors.push("At least one event subscription is required");
         }
-        
+
         if (config.priority !== undefined && (config.priority < 1 || config.priority > 10)) {
             errors.push("Priority must be between 1 and 10");
         }
-        
+
         return errors;
     }
 }
-
-/**
- * Re-export types for convenience
- */
-import type { EmergentAgentConfig, EmergentSwarmConfig } from "./agentDeploymentService.js";

@@ -23,11 +23,12 @@ import {
     type StrategyFeedback,
     type StrategyPerformance,
     type ResourceUsage,
-    StrategyType,
+    type StrategyType,
 } from "@vrooli/shared";
 import { type EventBus } from "../../../cross-cutting/events/eventBus.js";
-import { ExecutionEventEmitter, ComponentEventEmitter } from "../../../cross-cutting/monitoring/ExecutionEventEmitter.js";
-import { ErrorHandler, ComponentErrorHandler } from "../../../shared/ErrorHandler.js";
+import { EventTypes, EventUtils, type IEventBus } from "../../../events/index.js";
+import { getUnifiedEventSystem } from "../../../events/initialization/eventSystemService.js";
+import { ErrorHandler, type ComponentErrorHandler } from "../../../shared/ErrorHandler.js";
 
 /**
  * Minimal strategy configuration
@@ -59,24 +60,25 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
     abstract readonly name: string;
     abstract readonly version: string;
 
-    protected readonly eventEmitter: ComponentEventEmitter;
+    protected readonly unifiedEventBus: IEventBus | null;
     protected readonly errorHandler: ComponentErrorHandler;
     protected readonly config: MinimalStrategyConfig;
 
     constructor(
         protected readonly logger: Logger,
         eventBus: EventBus,
-        config: MinimalStrategyConfig = {}
+        config: MinimalStrategyConfig = {},
     ) {
         this.config = {
             maxRetries: config.maxRetries || 3,
             timeoutMs: config.timeoutMs || 300000, // 5 minutes
         };
         
-        const executionEmitter = new ExecutionEventEmitter(logger, eventBus);
-        this.eventEmitter = executionEmitter.createComponentEmitter(3, `strategy:${this.name}`);
+        // Get unified event system for modern event publishing
+        this.unifiedEventBus = getUnifiedEventSystem();
         
-        const errorHandler = new ErrorHandler(logger, executionEmitter.eventPublisher);
+        // Initialize error handler with unified event system
+        const errorHandler = new ErrorHandler(logger);
         this.errorHandler = errorHandler.createComponentHandler(`Strategy:${this.name}`);
     }
 
@@ -135,19 +137,32 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
      * Process feedback - just emit for agents to analyze
      */
     async processFeedback(feedback: StrategyFeedback): Promise<void> {
-        await this.eventEmitter.emitMetric(
-            "quality",
-            "strategy.feedback",
-            feedback.rating,
-            "rating",
-            {
-                strategyType: this.type,
-                strategyName: this.name,
-                executionId: feedback.executionId,
-                issues: JSON.stringify(feedback.issues || []),
-                suggestions: JSON.stringify(feedback.suggestions || []),
-            }
-        );
+        if (this.unifiedEventBus) {
+            const event = EventUtils.createBaseEvent(
+                EventTypes.STRATEGY_PERFORMANCE_MEASURED,
+                {
+                    tier: 3,
+                    component: `strategy:${this.name}`,
+                    metricType: "quality",
+                    name: "strategy.feedback",
+                    value: feedback.rating,
+                    unit: "rating",
+                    tags: {
+                        strategyType: this.type,
+                        strategyName: this.name,
+                        executionId: feedback.executionId,
+                        issues: JSON.stringify(feedback.issues || []),
+                        suggestions: JSON.stringify(feedback.suggestions || []),
+                    },
+                },
+                EventUtils.createEventSource(3, `strategy:${this.name}`),
+                EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                    tags: ["strategy", "feedback", "quality"],
+                }),
+            );
+            
+            await this.unifiedEventBus.publish(event);
+        }
         
         // Agents will analyze feedback and evolve strategies
     }
@@ -187,7 +202,7 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
     protected calculateResourceUsage(
         startTime: Date,
         endTime: Date,
-        baseCredits: number
+        baseCredits: number,
     ): ResourceUsage {
         const duration = endTime.getTime() - startTime.getTime();
         return {
@@ -213,31 +228,52 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
         context: StrategyExecutionContext,
         metadata: MinimalExecutionMetadata,
         result?: StrategyExecutionResult,
-        error?: Error
+        error?: Error,
     ): Promise<void> {
         const duration = metadata.endTime 
             ? metadata.endTime.getTime() - metadata.startTime.getTime()
             : Date.now() - metadata.startTime.getTime();
 
-        await this.eventEmitter.emitExecutionEvent(executionId, event as any, {
-            strategyType: this.type,
-            strategyName: this.name,
-            strategyVersion: this.version,
-            stepId: context.stepId,
-            routineId: context.routine?.id,
-            duration,
-            retryCount: metadata.retryCount,
-            errors: metadata.errors,
-            result: result ? {
-                success: result.success,
-                outputCount: result.outputs ? Object.keys(result.outputs).length : 0,
-                resourcesUsed: result.resourcesUsed,
-            } : undefined,
-            error: error ? {
-                message: error.message,
-                type: error.constructor.name,
-            } : undefined,
-        });
+        if (this.unifiedEventBus) {
+            const eventType = event === "started" ? EventTypes.STRATEGY_STARTED :
+                            event === "completed" ? EventTypes.STRATEGY_COMPLETED :
+                            event === "failed" ? EventTypes.STRATEGY_FAILED :
+                            EventTypes.STRATEGY_RETRYING;
+            
+            const strategyEvent = EventUtils.createBaseEvent(
+                eventType,
+                {
+                    executionId,
+                    strategyType: this.type,
+                    strategyName: this.name,
+                    strategyVersion: this.version,
+                    stepId: context.stepId,
+                    routineId: context.routine?.id,
+                    duration,
+                    retryCount: metadata.retryCount,
+                    errors: metadata.errors,
+                    result: result ? {
+                        success: result.success,
+                        outputCount: result.outputs ? Object.keys(result.outputs).length : 0,
+                        resourcesUsed: result.resourcesUsed,
+                    } : undefined,
+                    error: error ? {
+                        message: error.message,
+                        type: error.constructor.name,
+                    } : undefined,
+                },
+                EventUtils.createEventSource(3, `strategy:${this.name}`),
+                EventUtils.createEventMetadata(
+                    event === "failed" ? "reliable" : "fire-and-forget",
+                    event === "failed" ? "high" : "medium",
+                    {
+                        tags: ["strategy", "execution", event],
+                    },
+                ),
+            );
+            
+            await this.unifiedEventBus.publish(strategyEvent);
+        }
     }
 }
 

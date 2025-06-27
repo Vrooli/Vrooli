@@ -8,9 +8,8 @@ import {
     type SwarmAgent,
     type SwarmTeam,
     type SwarmResource,
-    SwarmStatus,
 } from "@vrooli/shared";
-import { redis } from "../../../../redisConn.js";
+import { CacheService } from "../../../../redisConn.js";
 import { RedisStore } from "../../shared/BaseStore.js";
 import { RedisIndexManager } from "../../shared/RedisIndexManager.js";
 import { type ISwarmStateStore } from "./swarmStateStore.js";
@@ -25,9 +24,14 @@ export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmSta
     private readonly indexPrefix = "swarm_index:";
     private readonly indexManager: RedisIndexManager;
 
-    constructor(logger: Logger) {
+    private constructor(logger: Logger, redis: any) {
         super(logger, redis, "swarm", 86400 * 7); // 7 days TTL
         this.indexManager = new RedisIndexManager(redis, logger, 86400 * 7);
+    }
+
+    static async create(logger: Logger): Promise<RedisSwarmStateStore> {
+        const redis = await CacheService.get().raw();
+        return new RedisSwarmStateStore(logger, redis);
     }
 
     /**

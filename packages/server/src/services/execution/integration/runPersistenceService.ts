@@ -3,7 +3,7 @@ import {
     type ResourceUsage,
     type RunState,
     type StepStatus,
-    generatePK
+    generatePK,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
 
@@ -274,6 +274,7 @@ export class RunPersistenceService {
         userId: string;
         status: string;
         inputs: Record<string, unknown>;
+        outputs: Record<string, unknown>;
         metadata: Record<string, unknown>;
         createdAt: Date;
         startedAt?: Date;
@@ -328,6 +329,7 @@ export class RunPersistenceService {
                 userId: run.userId?.toString() || "unknown",
                 status: run.status,
                 inputs: { ...inputs, ...parsedData.inputs },
+                outputs: parsedData.outputs || {},
                 metadata: parsedData.metadata || {},
                 createdAt: run.createdAt,
                 startedAt: run.startedAt || undefined,
@@ -424,6 +426,56 @@ export class RunPersistenceService {
         } catch (error) {
             this.logger.error("[RunPersistenceService] Failed to get user run history", {
                 userId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Updates run outputs in the database
+     */
+    async updateRunOutputs(runId: string, outputs: Record<string, unknown>): Promise<void> {
+        this.logger.debug("[RunPersistenceService] Updating run outputs", {
+            runId,
+            outputKeys: Object.keys(outputs),
+        });
+
+        try {
+            // Get current run data
+            const run = await this.prisma.run.findUnique({
+                where: { id: BigInt(runId) },
+                select: { data: true },
+            });
+
+            if (!run) {
+                throw new Error(`Run not found: ${runId}`);
+            }
+
+            // Parse existing data
+            const parsedData = JSON.parse(run.data || "{}");
+            
+            // Add outputs to the data
+            parsedData.outputs = outputs;
+
+            // Update run with new data
+            await this.prisma.run.update({
+                where: { id: BigInt(runId) },
+                data: {
+                    data: JSON.stringify(parsedData),
+                    completedAt: new Date(),
+                    updatedAt: new Date(),
+                },
+            });
+
+            this.logger.info("[RunPersistenceService] Run outputs updated", {
+                runId,
+                outputCount: Object.keys(outputs).length,
+            });
+
+        } catch (error) {
+            this.logger.error("[RunPersistenceService] Failed to update run outputs", {
+                runId,
                 error: error instanceof Error ? error.message : String(error),
             });
             throw error;

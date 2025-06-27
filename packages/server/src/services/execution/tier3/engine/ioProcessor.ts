@@ -327,7 +327,7 @@ export class IOProcessor {
             if (outputPath.length > 0) {
                 const value = this.getValueByPath(
                     stepOutput as Record<string, unknown>, 
-                    outputPath.join(".")
+                    outputPath.join("."),
                 );
                 
                 if (value === undefined) {
@@ -365,7 +365,7 @@ export class IOProcessor {
         if (!stepId) {
             return { 
                 valid: false, 
-                error: "Step reference must include stepId" 
+                error: "Step reference must include stepId", 
             };
         }
 
@@ -376,7 +376,7 @@ export class IOProcessor {
         if (!(stepId in subroutineContext.allOutputsMap)) {
             return { 
                 valid: false, 
-                error: `Referenced step '${stepId}' not found or not completed` 
+                error: `Referenced step '${stepId}' not found or not completed`, 
             };
         }
         
@@ -388,7 +388,7 @@ export class IOProcessor {
                 if (!(outputKey in outputRecord)) {
                     return { 
                         valid: false, 
-                        error: `Output key '${outputKey}' not found in step '${stepId}'` 
+                        error: `Output key '${outputKey}' not found in step '${stepId}'`, 
                     };
                 }
             }

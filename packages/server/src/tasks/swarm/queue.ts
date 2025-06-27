@@ -1,6 +1,7 @@
 // This is a comment to trigger a re-lint
 /* eslint-disable no-magic-numbers */
 import { type Success, type TaskStatus, type TaskStatusInfo } from "@vrooli/shared";
+
 // Import QueueService type only to avoid circular dependency
 type QueueServiceType = import("../queues.js").QueueService;
 import { type SwarmTask, type SwarmExecutionTask } from "../taskTypes.js";
@@ -32,11 +33,11 @@ function determinePriority(payload: Omit<SwarmTask, "type" | "status">): number 
  * @param queueService The QueueService instance to use
  */
 export function processSwarm(
-    data: Omit<SwarmTask, "status">,
+    data: Omit<SwarmExecutionTask, "status">,
     queueService: QueueServiceType,
 ): Promise<Success> {
     return queueService.swarm.addTask(
-        { ...data, status: "Scheduled" },
+        { ...data, status: "Scheduled" as const },
         { priority: determinePriority(data) },
     );
 }

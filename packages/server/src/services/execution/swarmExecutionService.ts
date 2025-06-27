@@ -7,7 +7,7 @@ import {
 import { TierOneCoordinator } from "./tier1/index.js";
 import { TierTwoOrchestrator } from "./tier2/index.js";
 import { TierThreeExecutor } from "./tier3/index.js";
-import { EventBus } from "./cross-cutting/events/eventBus.js";
+import { getEventBus } from "./cross-cutting/events/eventBus.js";
 import { RunPersistenceService } from "./integration/runPersistenceService.js";
 import { RoutineStorageService } from "./integration/routineStorageService.js";
 import { AuthIntegrationService } from "./integration/authIntegrationService.js";
@@ -21,7 +21,7 @@ import { DbProvider } from "../../db/provider.js";
  */
 export class SwarmExecutionService {
     private readonly logger: Logger;
-    private readonly eventBus: EventBus;
+    private readonly eventBus: ReturnType<typeof getEventBus>;
     private readonly tierOne: TierOneCoordinator;
     private readonly tierTwo: TierTwoOrchestrator;
     private readonly tierThree: TierThreeExecutor;
@@ -32,8 +32,8 @@ export class SwarmExecutionService {
     constructor(logger: Logger) {
         this.logger = logger;
         
-        // Initialize event bus for cross-tier communication
-        this.eventBus = new EventBus(logger);
+        // Get unified event bus for cross-tier communication
+        this.eventBus = getEventBus();
         
         // Get PrismaClient from DbProvider
         const prisma = DbProvider.get();
@@ -41,7 +41,7 @@ export class SwarmExecutionService {
         // Initialize integration services with proper dependencies
         this.persistenceService = new RunPersistenceService(prisma, logger);
         this.routineService = new RoutineStorageService(prisma, logger);
-        this.authService = new AuthIntegrationService(prisma, logger);
+        this.authService = new AuthIntegrationService(prisma, logger, this.eventBus);
         
         // Initialize tiers in dependency order (tier 3 -> tier 2 -> tier 1)
         this.tierThree = new TierThreeExecutor(logger, this.eventBus);
@@ -269,7 +269,7 @@ export class SwarmExecutionService {
                 status: statusMap[run.status] || RunStatus.InProgress,
                 progress: detailedStatus?.progress,
                 currentStep: detailedStatus?.currentStep,
-                outputs: run.metadata, // Using metadata for outputs since loadRun doesn't return outputs
+                outputs: run.outputs,
                 errors: detailedStatus?.errors,
             };
 
@@ -341,8 +341,10 @@ export class SwarmExecutionService {
         // Handle run completion events
         this.eventBus.on("run.completed", async (event) => {
             const { runId, outputs } = event.data;
+            
+            // Update run status AND outputs
             await this.persistenceService.updateRunState(runId, "COMPLETED");
-            // TODO: Store outputs in run data - would need to extend persistence service
+            await this.persistenceService.updateRunOutputs(runId, outputs);
         });
 
         // Handle run failure events

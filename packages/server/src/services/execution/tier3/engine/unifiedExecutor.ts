@@ -18,12 +18,12 @@ import {
     type ResourceAllocation,
     StrategyType as StrategyTypeEnum,
 } from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { StrategySelector } from "./strategySelector.js";
-import { ResourceManager } from "./resourceManager.js";
-import { IOProcessor } from "./ioProcessor.js";
-import { ToolOrchestrator } from "./toolOrchestrator.js";
-import { ValidationEngine } from "./validationEngine.js";
+import { getUnifiedEventSystem, EventTypes, EventUtils, type IEventBus } from "../../../events/index.js";
+import { type SimpleStrategyProvider } from "./simpleStrategyProvider.js";
+import { type ResourceManager } from "./resourceManager.js";
+import { type IOProcessor } from "./ioProcessor.js";
+import { type ToolOrchestrator } from "./toolOrchestrator.js";
+import { type ValidationEngine } from "./validationEngine.js";
 import { type RunContext } from "../context/runContext.js";
 import { ContextExporter } from "../context/contextExporter.js";
 import { type IntegratedToolRegistry } from "../../integration/mcp/toolRegistry.js";
@@ -45,25 +45,25 @@ import { type IntegratedToolRegistry } from "../../integration/mcp/toolRegistry.
  * Implements TierCommunicationInterface for standardized inter-tier communication.
  */
 export class UnifiedExecutor implements TierCommunicationInterface {
-    private readonly strategySelector: StrategySelector;
+    private readonly strategySelector: SimpleStrategyProvider;
     private readonly resourceManager: ResourceManager;
     private readonly ioProcessor: IOProcessor;
     private readonly toolOrchestrator: ToolOrchestrator;
     private readonly validationEngine: ValidationEngine;
     private readonly contextExporter: ContextExporter;
-    private readonly eventBus: EventBus;
+    private readonly eventBus: IEventBus;
     private readonly logger: Logger;
 
     constructor(
-        eventBus: EventBus,
+        eventBus: IEventBus,
         logger: Logger,
-        strategySelector: StrategySelector,
+        strategySelector: SimpleStrategyProvider,
         toolOrchestrator: ToolOrchestrator,
         resourceManager: ResourceManager,
         validationEngine: ValidationEngine,
         ioProcessor: IOProcessor,
     ) {
-        this.eventBus = eventBus;
+        this.eventBus = eventBus || getUnifiedEventSystem();
         this.logger = logger;
         this.strategySelector = strategySelector;
         this.toolOrchestrator = toolOrchestrator;
@@ -97,26 +97,37 @@ export class UnifiedExecutor implements TierCommunicationInterface {
         });
 
         // Emit event for step start
-        await this.eventBus.publish("step.started", {
-            stepId,
-            stepType: stepContext.stepType,
-            strategy: stepContext.config?.strategy || StrategyTypeEnum.CONVERSATIONAL,
-            estimatedResources: stepContext.resources,
-            timestamp: new Date().toISOString(),
+        await this.eventBus.publish({
+            ...EventUtils.createBaseEvent(
+                EventTypes.STEP_STARTED,
+                {
+                    stepId,
+                    stepType: stepContext.stepType,
+                    strategy: stepContext.config?.strategy || StrategyTypeEnum.CONVERSATIONAL,
+                    estimatedResources: stepContext.resources,
+                    runId: runContext.runId,
+                    routineId: runContext.routineId,
+                },
+                EventUtils.createEventSource(3, "unified-executor"),
+            ),
+            metadata: EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                conversationId: runContext.conversationId,
+                userId: stepContext.userId,
+            }),
         });
 
         try {
             // 1. Choose execution strategy based on context
-            const strategy = await this.strategySelector.selectStrategy(
+            const strategy = await this.strategySelector.getStrategy(
                 stepContext,
                 runContext.usageHints,
             );
 
             // Inject shared services into the strategy if it supports them
-            if ('setToolOrchestrator' in strategy && typeof strategy.setToolOrchestrator === 'function') {
+            if ("setToolOrchestrator" in strategy && typeof strategy.setToolOrchestrator === "function") {
                 strategy.setToolOrchestrator(this.toolOrchestrator);
             }
-            if ('setValidationEngine' in strategy && typeof strategy.setValidationEngine === 'function') {
+            if ("setValidationEngine" in strategy && typeof strategy.setValidationEngine === "function") {
                 strategy.setValidationEngine(this.validationEngine);
             }
 
@@ -126,12 +137,24 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             });
 
             // Emit strategy selection event
-            await this.eventBus.publish("strategy.selected", {
-                stepId,
-                declared: stepContext.config?.strategy || StrategyTypeEnum.CONVERSATIONAL,
-                selected: strategy.type,
-                reason: "Based on context and usage hints",
-                timestamp: new Date().toISOString(),
+            await this.eventBus.publish({
+                ...EventUtils.createBaseEvent(
+                    EventTypes.STRATEGY_PERFORMANCE_MEASURED,
+                    {
+                        stepId,
+                        declared: stepContext.config?.strategy || StrategyTypeEnum.CONVERSATIONAL,
+                        selected: strategy.type,
+                        reason: "Based on context and usage hints",
+                        strategyType: strategy.type,
+                        duration: 0, // Strategy selection is instantaneous
+                        success: true,
+                    },
+                    EventUtils.createEventSource(3, "strategy-selector"),
+                ),
+                metadata: EventUtils.createEventMetadata("fire-and-forget", "low", {
+                    conversationId: runContext.conversationId,
+                    userId: stepContext.userId,
+                }),
             });
 
             // 2. Reserve budget for this step
@@ -144,23 +167,44 @@ export class UnifiedExecutor implements TierCommunicationInterface {
 
             // Emit resource allocation event
             if (budgetReservation.approved) {
-                await this.eventBus.publish("resources.allocated", {
-                    stepId,
-                    credits: parseInt(budgetReservation.allocation.credits || "0"),
-                    timeLimit: stepContext.constraints?.maxTime,
-                    tools: budgetReservation.allocation.tools?.length || 0,
-                    models: budgetReservation.allocation.models || [],
-                    timestamp: new Date().toISOString(),
+                await this.eventBus.publish({
+                    ...EventUtils.createBaseEvent(
+                        EventTypes.RESOURCE_ALLOCATED,
+                        {
+                            stepId,
+                            credits: parseInt(budgetReservation.allocation.credits || "0"),
+                            timeLimit: stepContext.constraints?.maxTime,
+                            tools: budgetReservation.allocation.tools?.length || 0,
+                            models: budgetReservation.allocation.models || [],
+                            reservationId: budgetReservation.reservationId,
+                        },
+                        EventUtils.createEventSource(3, "resource-manager"),
+                    ),
+                    metadata: EventUtils.createEventMetadata("reliable", "medium", {
+                        conversationId: runContext.conversationId,
+                        userId: stepContext.userId,
+                    }),
                 });
             }
 
             if (!budgetReservation.approved) {
                 const error = budgetReservation.reason || "Resource limit exceeded";
-                await this.eventBus.publish("resources.limit_exceeded", {
-                    stepId,
-                    constraints: stepContext.constraints,
-                    reason: error,
-                    timestamp: new Date().toISOString(),
+                await this.eventBus.publish({
+                    ...EventUtils.createBaseEvent(
+                        EventTypes.RESOURCE_EXHAUSTED,
+                        {
+                            stepId,
+                            constraints: stepContext.constraints,
+                            reason: error,
+                            resourceType: "credits",
+                            attempted: stepContext.resources,
+                        },
+                        EventUtils.createEventSource(3, "resource-manager"),
+                    ),
+                    metadata: EventUtils.createEventMetadata("reliable", "high", {
+                        conversationId: runContext.conversationId,
+                        userId: stepContext.userId,
+                    }),
                 });
                 return this.createErrorResult(error, strategy.type, startTime);
             }
@@ -188,21 +232,44 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 stepContext.config.outputSchema,
             );
 
-            // Emit output generation event
-            await this.eventBus.publish("output.generated", {
-                stepId,
-                outputKeys: Object.keys(validatedOutput.data || {}),
-                size: JSON.stringify(validatedOutput.data || {}).length,
-                validationPassed: validatedOutput.valid,
-                timestamp: new Date().toISOString(),
+            // Emit output generation event  
+            await this.eventBus.publish({
+                ...EventUtils.createBaseEvent(
+                    EventTypes.STEP_COMPLETED,
+                    {
+                        stepId,
+                        outputKeys: Object.keys(validatedOutput.data || {}),
+                        outputSize: JSON.stringify(validatedOutput.data || {}).length,
+                        validationPassed: validatedOutput.valid,
+                        strategy: strategy.type,
+                        duration: Date.now() - startTime,
+                    },
+                    EventUtils.createEventSource(3, "io-processor"),
+                ),
+                metadata: EventUtils.createEventMetadata("fire-and-forget", "low", {
+                    conversationId: runContext.conversationId,
+                    userId: stepContext.userId,
+                }),
             });
 
             if (!validatedOutput.valid) {
                 const error = `Output validation failed: ${validatedOutput.errors.join(", ")}`;
-                await this.eventBus.publish("validation.failed", {
-                    stepId,
-                    errors: validatedOutput.errors,
-                    timestamp: new Date().toISOString(),
+                await this.eventBus.publish({
+                    ...EventUtils.createBaseEvent(
+                        EventTypes.STEP_FAILED,
+                        {
+                            stepId,
+                            errors: validatedOutput.errors,
+                            failureReason: "validation_failed",
+                            strategy: strategy.type,
+                            duration: Date.now() - startTime,
+                        },
+                        EventUtils.createEventSource(3, "validation-engine"),
+                    ),
+                    metadata: EventUtils.createEventMetadata("reliable", "high", {
+                        conversationId: runContext.conversationId,
+                        userId: stepContext.userId,
+                    }),
                 });
                 return this.createErrorResult(error, strategy.type, startTime);
             }
@@ -221,12 +288,24 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             });
 
             // 8. Emit completion event
-            await this.eventBus.publish("step.completed", {
-                stepId,
-                strategy: strategy.type,
-                duration: Date.now() - startTime,
-                resourceUsage: usageReport,
-                timestamp: new Date().toISOString(),
+            await this.eventBus.publish({
+                ...EventUtils.createBaseEvent(
+                    EventTypes.STEP_COMPLETED,
+                    {
+                        stepId,
+                        strategy: strategy.type,
+                        duration: Date.now() - startTime,
+                        resourceUsage: usageReport,
+                        success: true,
+                        runId: runContext.runId,
+                        routineId: runContext.routineId,
+                    },
+                    EventUtils.createEventSource(3, "unified-executor"),
+                ),
+                metadata: EventUtils.createEventMetadata("reliable", "medium", {
+                    conversationId: runContext.conversationId,
+                    userId: stepContext.userId,
+                }),
             });
 
             // 9. Return successful result
@@ -255,11 +334,25 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 error: error instanceof Error ? error.message : String(error),
             });
 
-            await this.eventBus.publish("execution.error", {
-                stepId,
-                error: error instanceof Error ? error.message : String(error),
-                errorType: error instanceof Error ? error.constructor.name : "Error",
-                timestamp: new Date().toISOString(),
+            await this.eventBus.publish({
+                ...EventUtils.createBaseEvent(
+                    EventTypes.EXECUTION_ERROR_OCCURRED,
+                    {
+                        stepId,
+                        error: error instanceof Error ? error.message : String(error),
+                        errorType: error instanceof Error ? error.constructor.name : "Error",
+                        stack: error instanceof Error ? error.stack : undefined,
+                        context: {
+                            executionTime: Date.now() - startTime,
+                            stepType: stepContext.stepType,
+                        },
+                    },
+                    EventUtils.createEventSource(3, "unified-executor"),
+                ),
+                metadata: EventUtils.createEventMetadata("reliable", "critical", {
+                    conversationId: runContext.conversationId,
+                    userId: stepContext.userId,
+                }),
             });
 
             return this.createErrorResult(
@@ -424,7 +517,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
      * This is the primary method for Tier 2 to delegate step execution to Tier 3
      */
     async execute<TInput extends StepExecutionInput, TOutput>(
-        request: TierExecutionRequest<TInput>
+        request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
         const { context, input, allocation, options } = request;
         const executionId = context.executionId;
@@ -473,7 +566,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
 
             // Create a simplified run context for this execution
             const runContext: RunContext = {
-                routineId: context.routineId || 'unknown',
+                routineId: context.routineId || "unknown",
                 executionId,
                 usageHints: {},
                 variables: new Map(),
@@ -563,13 +656,13 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             const errorResult: ExecutionResult<TOutput> = {
                 success: false,
                 error: {
-                    code: 'TIER3_EXECUTION_FAILED',
-                    message: error instanceof Error ? error.message : 'Unknown error',
-                    tier: 'tier3',
-                    type: error instanceof Error ? error.constructor.name : 'Error',
+                    code: "TIER3_EXECUTION_FAILED",
+                    message: error instanceof Error ? error.message : "Unknown error",
+                    tier: "tier3",
+                    type: error instanceof Error ? error.constructor.name : "Error",
                 },
                 resourcesUsed: {
-                    creditsUsed: '0',
+                    creditsUsed: "0",
                     durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
                     memoryUsedMB: 0,
                     stepsExecuted: 0,
@@ -617,9 +710,9 @@ export class UnifiedExecutor implements TierCommunicationInterface {
      */
     async getCapabilities(): Promise<TierCapabilities> {
         return {
-            tier: 'tier3',
-            supportedInputTypes: ['StepExecutionInput'],
-            supportedStrategies: ['conversational', 'reasoning', 'deterministic'],
+            tier: "tier3",
+            supportedInputTypes: ["StepExecutionInput"],
+            supportedStrategies: ["conversational", "reasoning", "deterministic"],
             maxConcurrency: 100,
             estimatedLatency: {
                 p50: 1000,
@@ -627,7 +720,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 p99: 10000,
             },
             resourceLimits: {
-                maxCredits: '10000',
+                maxCredits: "10000",
                 maxDurationMs: 300000,
                 maxMemoryMB: 1024,
             },

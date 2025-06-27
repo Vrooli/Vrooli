@@ -235,7 +235,7 @@ describe("Emergent Capabilities", () => {
                 // Simple formula evaluator for testing
                 let result = formula;
                 for (const [key, value] of Object.entries(variables)) {
-                    result = result.replace(new RegExp(key, 'g'), value.toString());
+                    result = result.replace(new RegExp(key, "g"), value.toString());
                 }
                 // Basic evaluation (real implementation would use proper parser)
                 return result.includes("log") || result.includes("exp") || result.includes("^");

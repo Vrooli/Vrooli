@@ -10,40 +10,11 @@ export {
     getExecutionArchitecture,
     resetExecutionArchitecture,
     type ExecutionArchitectureOptions,
-} from './executionArchitecture.js';
-
-// ResourceMonitor functionality now provided by emergent agents - see monitoring/README.md
+} from "./executionArchitecture.js";
 
 // Re-export resource types from shared (no longer from deprecated resources folder)
 export type {
-    ResourceType,
+    AllocationResult, Resource, ResourceAccounting, ResourceLimitConfig, ResourceType,
     ResourceUnit,
-    Resource,
-    ResourceAllocation,
-    ResourceUsage,
-    ResourceLimitConfig,
-    AllocationResult,
-    OptimizationSuggestion,
-    ResourceAccounting,
-} from '@vrooli/shared';
+} from "@vrooli/shared";
 
-// Export monitoring tools
-export {
-    MonitoringTools,
-    MonitoringUtils,
-    MONITORING_TOOL_DEFINITIONS,
-    createMonitoringToolInstances,
-    registerMonitoringTools,
-} from './tools/index.js';
-export type {
-    QueryMetricsParams,
-    AnalyzeHistoryParams,
-    AggregateDataParams,
-    PublishReportParams,
-    DetectAnomaliesParams,
-    CalculateSLOParams,
-    TimeSeriesPoint,
-    StatisticalSummary,
-    AnomalyResult,
-    PatternResult,
-} from './tools/index.js';

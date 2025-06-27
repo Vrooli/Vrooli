@@ -3,386 +3,281 @@ import {
     type Navigator,
     type Location,
     type StepInfo,
+    type NavigationTrigger,
+    type NavigationTimeout,
+    type NavigationEvent,
 } from "@vrooli/shared";
-import { GenericStore } from "../../../shared/GenericStore.js";
-import { CacheService } from "../../../../../redisConn.js";
+import { type RoutineVersionConfigObject } from "@vrooli/shared";
+import { type BaseNavigator } from "./baseNavigator.js";
+import { BpmnNavigator } from "./bpmnNavigator.js";
+import { SingleStepNavigator } from "./singleStepNavigator.js";
+import { SequentialNavigator } from "./sequentialNavigator.js";
 
 /**
- * Native Vrooli routine definition format
- */
-export interface NativeRoutineDefinition {
-    version: string;
-    steps: NativeStep[];
-    edges: NativeEdge[];
-    metadata?: {
-        startNodeId?: string;
-        endNodeIds?: string[];
-    };
-}
-
-interface NativeStep {
-    id: string;
-    name: string;
-    type: "action" | "decision" | "loop" | "parallel" | "subroutine";
-    description?: string;
-    config?: Record<string, unknown>;
-    inputs?: Record<string, unknown>;
-    outputs?: Record<string, unknown>;
-}
-
-interface NativeEdge {
-    id: string;
-    from: string;
-    to: string;
-    condition?: string; // JavaScript expression
-    label?: string;
-}
-
-/**
- * NativeNavigator - Navigator for Vrooli's native workflow format
+ * NativeNavigator - Factory/Adapter Navigator for Unified Routine Execution
  * 
- * This navigator handles Vrooli's native routine definition format,
- * which is designed to be simple, flexible, and powerful. It supports:
+ * ## IMPORTANT: This is NOT a separate navigation format!
  * 
- * - Sequential and parallel execution
- * - Conditional branching
- * - Loops and iterations
- * - Subroutine calls
- * - Dynamic path selection
+ * The NativeNavigator is a **factory pattern implementation** that serves as the single entry point
+ * for all routine navigation in Vrooli's execution architecture. It automatically detects the routine
+ * type and delegates to the appropriate specialized navigator.
  * 
- * The native format is optimized for AI-assisted creation and modification,
- * making it easy for both humans and AI agents to author workflows.
+ * ## Architecture Role:
+ * ```
+ * Tier 2 Execution Engine
+ *      ↓
+ * NativeNavigator (Factory/Adapter) ← Registered as "native" in NavigatorRegistry
+ *      ├── BpmnNavigator (BPMN-2.0 workflows)
+ *      ├── SequentialNavigator (Vrooli's native sequential format)  
+ *      └── SingleStepNavigator (direct API/AI calls)
+ * ```
+ * 
+ * ## Why This Design?
+ * 1. **Unified Interface**: Execution layers only interact with one navigator type
+ * 2. **Emergent Capabilities**: All navigation types are data-driven, not code-driven
+ * 3. **Future-Proof**: New formats (Langchain, Temporal) can be added without changing execution architecture
+ * 4. **Separation of Concerns**: Each navigator specializes in one format
+ * 
+ * ## Supported Routine Types:
+ * - **BPMN-2.0**: Complex business process workflows (`graph.__type === "BPMN-2.0"`)
+ * - **Sequential**: Vrooli's native linear workflow format (`graph.__type === "Sequential"`)
+ * - **Single-Step**: Direct action routines (no graph, just callData* configs)
+ * 
+ * ## Navigation Flow:
+ * 1. Execution engine calls NativeNavigator methods
+ * 2. NativeNavigator inspects routine config to determine type  
+ * 3. Delegates to appropriate specialized navigator
+ * 4. Returns unified result to execution engine
+ * 
+ * This design maintains Vrooli's core principle that all capabilities emerge from data configuration
+ * rather than requiring code changes for new workflow types.
  */
 export class NativeNavigator implements Navigator {
     readonly type = "native";
     readonly version = "1.0.0";
     
     private readonly logger: Logger;
-    private definitionCache: GenericStore<NativeRoutineDefinition> | null = null;
+    private readonly bpmnNavigator: BpmnNavigator;
+    private readonly singleStepNavigator: SingleStepNavigator;
+    private readonly sequentialNavigator: SequentialNavigator;
 
     constructor(logger: Logger) {
         this.logger = logger;
-        // definitionCache will be initialized asynchronously
-    }
-    
-    private async ensureCache(): Promise<GenericStore<NativeRoutineDefinition>> {
-        if (!this.definitionCache) {
-            const redis = await CacheService.get().raw();
-            this.definitionCache = new GenericStore<NativeRoutineDefinition>(
-                this.logger,
-                redis as any,
-                {
-                    keyPrefix: "navigator.native.definitions",
-                    defaultTTL: 7200, // 2 hours
-                    publishEvents: false, // Internal cache, no events needed
-                },
-            );
-        }
-        return this.definitionCache;
+        this.bpmnNavigator = new BpmnNavigator(logger);
+        this.singleStepNavigator = new SingleStepNavigator(logger);
+        this.sequentialNavigator = new SequentialNavigator(logger);
     }
 
     /**
      * Checks if this navigator can handle the given routine
+     * 
+     * Since this is a factory navigator, it can handle any routine that
+     * one of its specialized navigators can handle.
      */
     canNavigate(routine: unknown): boolean {
         try {
-            const def = routine as NativeRoutineDefinition;
+            const config = routine as RoutineVersionConfigObject;
             
-            // Check required fields
-            if (!def.version || !Array.isArray(def.steps) || !Array.isArray(def.edges)) {
+            // Must have a version
+            if (!config.__version) {
                 return false;
             }
 
-            // Check version compatibility
-            const majorVersion = parseInt(def.version.split(".")[0]);
-            if (majorVersion !== 1) {
-                return false;
+            // Try each sub-navigator
+            if (this.bpmnNavigator.canNavigate(routine)) {
+                return true;
             }
 
-            // Basic structural validation
-            if (def.steps.length === 0) {
-                return false;
+            if (this.sequentialNavigator.canNavigate(routine)) {
+                return true;
             }
 
-            return true;
+            if (this.singleStepNavigator.canNavigate(routine)) {
+                return true;
+            }
 
-        } catch {
             return false;
-        }
-    }
 
-    /**
-     * Gets the starting location in the routine
-     */
-    getStartLocation(routine: unknown): Location {
-        const def = this.validateAndCache(routine);
-        
-        // Use explicit start node if defined
-        if (def.metadata?.startNodeId) {
-            const startStep = def.steps.find(s => s.id === def.metadata!.startNodeId);
-            if (!startStep) {
-                throw new Error(`Start node ${def.metadata.startNodeId} not found`);
-            }
-            
-            return this.createLocation(startStep.id, def);
-        }
-
-        // Find nodes with no incoming edges
-        const nodesWithIncoming = new Set(def.edges.map(e => e.to));
-        const startNodes = def.steps.filter(s => !nodesWithIncoming.has(s.id));
-
-        if (startNodes.length === 0) {
-            throw new Error("No start node found (circular graph)");
-        }
-
-        if (startNodes.length > 1) {
-            this.logger.warn("[NativeNavigator] Multiple start nodes found, using first", {
-                nodeIds: startNodes.map(n => n.id),
-            });
-        }
-
-        return this.createLocation(startNodes[0].id, def);
-    }
-
-    /**
-     * Gets the next possible locations from current location
-     */
-    async getNextLocations(current: Location, context: Record<string, unknown>): Promise<Location[]> {
-        const cache = await this.ensureCache();
-        const defResult = await cache.get(current.routineId);
-        if (!defResult.success || !defResult.data) {
-            throw new Error(`Routine ${current.routineId} not in cache`);
-        }
-        const def = defResult.data;
-
-        // Find outgoing edges from current node
-        const outgoingEdges = def.edges.filter(e => e.from === current.nodeId);
-
-        if (outgoingEdges.length === 0) {
-            return []; // End of path
-        }
-
-        // Evaluate conditions and filter valid edges
-        const validEdges = outgoingEdges.filter(edge => {
-            if (!edge.condition) {
-                return true; // No condition = always valid
-            }
-
-            try {
-                // Safely evaluate condition
-                const result = this.evaluateCondition(edge.condition, context);
-                return !!result;
-            } catch (error) {
-                this.logger.error("[NativeNavigator] Failed to evaluate edge condition", {
-                    edgeId: edge.id,
-                    condition: edge.condition,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-                return false;
-            }
-        });
-
-        // Convert to locations
-        return validEdges.map(edge => this.createLocation(edge.to, def));
-    }
-
-    /**
-     * Checks if location is an end location
-     */
-    async isEndLocation(location: Location): Promise<boolean> {
-        const cache = await this.ensureCache();
-        const defResult = await cache.get(location.routineId);
-        if (!defResult.success || !defResult.data) {
-            throw new Error(`Routine ${location.routineId} not in cache`);
-        }
-        const def = defResult.data;
-
-        // Use explicit end nodes if defined
-        if (def.metadata?.endNodeIds) {
-            return def.metadata.endNodeIds.includes(location.nodeId);
-        }
-
-        // Check if node has no outgoing edges
-        const hasOutgoing = def.edges.some(e => e.from === location.nodeId);
-        return !hasOutgoing;
-    }
-
-    /**
-     * Gets information about a step at a location
-     */
-    async getStepInfo(location: Location): Promise<StepInfo> {
-        const defResult = await this.definitionCache.get(location.routineId);
-        if (!defResult.success || !defResult.data) {
-            throw new Error(`Routine ${location.routineId} not in cache`);
-        }
-        const def = defResult.data;
-
-        const step = def.steps.find(s => s.id === location.nodeId);
-        if (!step) {
-            throw new Error(`Step ${location.nodeId} not found in routine`);
-        }
-
-        return {
-            id: step.id,
-            name: step.name,
-            type: step.type,
-            description: step.description,
-            inputs: step.inputs,
-            outputs: step.outputs,
-            config: step.config,
-        };
-    }
-
-    /**
-     * Gets dependencies for a step
-     */
-    async getDependencies(location: Location): Promise<string[]> {
-        const defResult = await this.definitionCache.get(location.routineId);
-        if (!defResult.success || !defResult.data) {
-            throw new Error(`Routine ${location.routineId} not in cache`);
-        }
-        const def = defResult.data;
-
-        // Find incoming edges
-        const incomingEdges = def.edges.filter(e => e.to === location.nodeId);
-        
-        // Return source node IDs
-        return incomingEdges.map(e => e.from);
-    }
-
-    /**
-     * Gets parallel branches from a location
-     */
-    async getParallelBranches(location: Location): Promise<Location[][]> {
-        const defResult = await this.definitionCache.get(location.routineId);
-        if (!defResult.success || !defResult.data) {
-            throw new Error(`Routine ${location.routineId} not in cache`);
-        }
-        const def = defResult.data;
-
-        const step = def.steps.find(s => s.id === location.nodeId);
-        if (!step || step.type !== "parallel") {
-            return [];
-        }
-
-        // Find all outgoing edges (these define the parallel branches)
-        const outgoingEdges = def.edges.filter(e => e.from === location.nodeId);
-        
-        // Each edge starts a branch - trace to convergence
-        const branches: Location[][] = [];
-        
-        for (const edge of outgoingEdges) {
-            const branch = this.traceBranch(edge.to, def);
-            branches.push(branch);
-        }
-
-        return branches;
-    }
-
-    /**
-     * Private helper methods
-     */
-    private validateAndCache(routine: unknown): NativeRoutineDefinition {
-        if (!this.canNavigate(routine)) {
-            throw new Error("Invalid native routine definition");
-        }
-
-        const def = routine as NativeRoutineDefinition;
-        
-        // Validate graph structure
-        this.validateGraphStructure(def);
-
-        // Cache for future use (using first step ID as routine ID for now)
-        const routineId = def.steps[0].id; // TODO: Use proper routine ID
-        // Fire and forget cache operation
-        this.ensureCache().then(cache => cache.set(routineId, def)).catch(err => 
-            this.logger.warn("Failed to cache routine definition", { routineId, error: err }),
-        );
-
-        return def;
-    }
-
-    private validateGraphStructure(def: NativeRoutineDefinition): void {
-        const stepIds = new Set(def.steps.map(s => s.id));
-
-        // Validate edges reference valid steps
-        for (const edge of def.edges) {
-            if (!stepIds.has(edge.from)) {
-                throw new Error(`Edge ${edge.id} references unknown source step: ${edge.from}`);
-            }
-            if (!stepIds.has(edge.to)) {
-                throw new Error(`Edge ${edge.id} references unknown target step: ${edge.to}`);
-            }
-        }
-
-        // Check for duplicate step IDs
-        if (stepIds.size !== def.steps.length) {
-            throw new Error("Duplicate step IDs found");
-        }
-    }
-
-    private createLocation(nodeId: string, def: NativeRoutineDefinition): Location {
-        const routineId = def.steps[0].id; // TODO: Use proper routine ID
-        
-        return {
-            id: `${routineId}-${nodeId}`,
-            routineId,
-            nodeId,
-        };
-    }
-
-    private evaluateCondition(condition: string, context: Record<string, unknown>): boolean {
-        // Create a safe evaluation context
-        const safeContext = {
-            ...context,
-            // Add safe utility functions
-            isEmpty: (val: unknown) => !val || (Array.isArray(val) && val.length === 0),
-            isNumber: (val: unknown) => typeof val === "number",
-            isString: (val: unknown) => typeof val === "string",
-            isBoolean: (val: unknown) => typeof val === "boolean",
-            isArray: Array.isArray,
-        };
-
-        try {
-            // Use Function constructor for safer evaluation
-            const keys = Object.keys(safeContext);
-            const values = Object.values(safeContext);
-            
-            const func = new Function(...keys, `return ${condition}`);
-            return func(...values);
         } catch (error) {
-            this.logger.warn("[NativeNavigator] Condition evaluation failed", {
-                condition,
+            this.logger.debug("[NativeNavigator] Cannot navigate routine", {
                 error: error instanceof Error ? error.message : String(error),
             });
             return false;
         }
     }
 
-    private traceBranch(startNodeId: string, def: NativeRoutineDefinition): Location[] {
-        const branch: Location[] = [];
-        const visited = new Set<string>();
-        let currentNodeId = startNodeId;
+    /**
+     * Gets the starting location in the routine
+     * 
+     * Delegates to the appropriate specialized navigator based on routine type.
+     */
+    getStartLocation(routine: unknown): Location {
+        const navigator = this.getAppropriateNavigator(routine);
+        return navigator.getStartLocation(routine);
+    }
 
-        while (currentNodeId && !visited.has(currentNodeId)) {
-            visited.add(currentNodeId);
-            branch.push(this.createLocation(currentNodeId, def));
+    /**
+     * Gets all possible starting locations in the routine
+     */
+    getAllStartLocations(routine: unknown): Location[] {
+        const navigator = this.getAppropriateNavigator(routine);
+        return navigator.getAllStartLocations(routine);
+    }
 
-            // Find next node
-            const outgoingEdges = def.edges.filter(e => e.from === currentNodeId);
-            
-            if (outgoingEdges.length === 0) {
-                break; // End of branch
-            }
+    /**
+     * Gets the next possible locations from current location
+     */
+    async getNextLocations(current: Location, context: Record<string, unknown>): Promise<Location[]> {
+        const navigator = await this.getNavigatorForLocation(current);
+        return navigator.getNextLocations(current, context);
+    }
 
-            if (outgoingEdges.length > 1) {
-                // Branch diverges - stop here
-                break;
-            }
+    /**
+     * Checks if location is an end location
+     */
+    async isEndLocation(location: Location): Promise<boolean> {
+        const navigator = await this.getNavigatorForLocation(location);
+        return navigator.isEndLocation(location);
+    }
 
-            currentNodeId = outgoingEdges[0].to;
+    /**
+     * Gets information about a step at a location
+     */
+    async getStepInfo(location: Location): Promise<StepInfo> {
+        const navigator = await this.getNavigatorForLocation(location);
+        return navigator.getStepInfo(location);
+    }
+
+    /**
+     * Gets dependencies for a step
+     */
+    async getDependencies(location: Location): Promise<string[]> {
+        const navigator = await this.getNavigatorForLocation(location);
+        return navigator.getDependencies(location);
+    }
+
+    /**
+     * Gets parallel branches from a location
+     */
+    async getParallelBranches(location: Location): Promise<Location[][]> {
+        const navigator = await this.getNavigatorForLocation(location);
+        return navigator.getParallelBranches(location);
+    }
+
+    /**
+     * Gets triggers for a location
+     */
+    async getLocationTriggers(location: Location): Promise<NavigationTrigger[]> {
+        const navigator = await this.getNavigatorForLocation(location);
+        return navigator.getLocationTriggers(location);
+    }
+
+    /**
+     * Gets timeouts for a location
+     */
+    async getLocationTimeouts(location: Location): Promise<NavigationTimeout[]> {
+        const navigator = await this.getNavigatorForLocation(location);
+        return navigator.getLocationTimeouts(location);
+    }
+
+    /**
+     * Checks if an event can trigger at a location
+     */
+    async canTriggerEvent(location: Location, event: NavigationEvent): Promise<boolean> {
+        const navigator = await this.getNavigatorForLocation(location);
+        return navigator.canTriggerEvent(location, event);
+    }
+
+    /**
+     * Determines which specialized navigator to use for a given routine
+     * 
+     * This method implements the core factory logic by testing each navigator's
+     * canNavigate() method until it finds one that can handle the routine.
+     * 
+     * @param routine - The routine configuration object
+     * @returns The appropriate specialized navigator
+     * @throws Error if no navigator can handle the routine
+     */
+    private getAppropriateNavigator(routine: unknown): BaseNavigator {
+        // Try BPMN first (most complex workflows)
+        if (this.bpmnNavigator.canNavigate(routine)) {
+            this.logger.debug("[NativeNavigator] Routing to BpmnNavigator");
+            return this.bpmnNavigator;
         }
 
-        return branch;
+        // Try sequential (Vrooli's native linear workflows)
+        if (this.sequentialNavigator.canNavigate(routine)) {
+            this.logger.debug("[NativeNavigator] Routing to SequentialNavigator");
+            return this.sequentialNavigator;
+        }
+
+        // Try single-step (direct actions without graphs)
+        if (this.singleStepNavigator.canNavigate(routine)) {
+            this.logger.debug("[NativeNavigator] Routing to SingleStepNavigator");
+            return this.singleStepNavigator;
+        }
+
+        throw new Error("No appropriate navigator found for routine configuration");
+    }
+
+    /**
+     * Determines which specialized navigator to use for a specific execution location
+     * 
+     * This method is used during execution when we have a Location object rather than
+     * the full routine configuration. It uses multiple strategies to determine the 
+     * correct navigator:
+     * 1. Fast path: Check routineId prefix (set during navigation)
+     * 2. Cache lookup: Try to find cached config in each navigator
+     * 
+     * @param location - The execution location to find a navigator for
+     * @returns The appropriate specialized navigator
+     * @throws Error if no navigator can handle the location
+     */
+    private async getNavigatorForLocation(location: Location): Promise<BaseNavigator> {
+        // Fast path: Extract the navigator type from the routineId prefix
+        if (location.routineId.startsWith("bpmn_config_")) {
+            return this.bpmnNavigator;
+        }
+        
+        if (location.routineId.startsWith("sequential_config_")) {
+            return this.sequentialNavigator;
+        }
+        
+        if (location.routineId.startsWith("single-step_config_")) {
+            return this.singleStepNavigator;
+        }
+
+        // Fallback: Try to get the config from each navigator's cache
+        try {
+            // Try BPMN navigator first
+            const bpmnConfig = await this.bpmnNavigator.getCachedConfig(location.routineId);
+            if (bpmnConfig) {
+                return this.bpmnNavigator;
+            }
+        } catch {
+            // Ignore error, try next navigator
+        }
+
+        try {
+            // Try sequential navigator
+            const sequentialConfig = await this.sequentialNavigator.getCachedConfig(location.routineId);
+            if (sequentialConfig) {
+                return this.sequentialNavigator;
+            }
+        } catch {
+            // Ignore error, try next navigator
+        }
+
+        try {
+            // Try single-step navigator
+            const singleStepConfig = await this.singleStepNavigator.getCachedConfig(location.routineId);
+            if (singleStepConfig) {
+                return this.singleStepNavigator;
+            }
+        } catch {
+            // Ignore error
+        }
+
+        throw new Error(`Could not determine navigator for location: ${location.routineId}`);
     }
 }

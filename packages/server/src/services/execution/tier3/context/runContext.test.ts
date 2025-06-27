@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ExecutionRunContext, type UserData, type StepConfig, type UsageHints } from "./runContext.js";
 import { generatePK } from "@vrooli/shared";
-import { createMockLogger } from "../../../../../__test/globalHelpers.js";
 import { type Logger } from "winston";
 
 /**
@@ -26,7 +25,12 @@ describe("ExecutionRunContext - Context-Aware Execution Infrastructure", () => {
     let baseConfig: any;
 
     beforeEach(() => {
-        logger = createMockLogger();
+        logger = {
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn(),
+        } as unknown as Logger;
         
         baseUserData = {
             id: generatePK(),

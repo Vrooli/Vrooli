@@ -12,8 +12,8 @@ import {
 } from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
-import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
-import { ValidationEngine } from "../engine/validationEngine.js";
+import { type ToolOrchestrator } from "../engine/toolOrchestrator.js";
+import { type ValidationEngine } from "../engine/validationEngine.js";
 import { MinimalStrategyBase, type StrategyConfig, type ExecutionMetadata } from "./shared/index.js";
 
 /**
@@ -95,7 +95,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
      */
     protected async executeStrategy(
         context: StrategyExecutionContext,
-        metadata: ExecutionMetadata
+        metadata: ExecutionMetadata,
     ): Promise<StrategyExecutionResult> {
         this.validateContext(context);
         
@@ -558,7 +558,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
      * LEGACY PATTERN: Format step as message for conversation history
      */
     private formatStepAsMessage(step: any): string {
-        return `Previous step ${step.stepId}: ${step.result || 'completed'}`;
+        return `Previous step ${step.stepId}: ${step.result || "completed"}`;
     }
     
     /**
@@ -592,7 +592,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         
         const toolKeywords = ["search", "calculate", "analyze", "fetch", "api", "data", "query"];
         return toolKeywords.some(keyword => 
-            stepType.includes(keyword) || description.includes(keyword)
+            stepType.includes(keyword) || description.includes(keyword),
         );
     }
 
@@ -633,7 +633,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
     private calculateConversationalResourceUsage(
         response: LLMResponse,
         executionTime: number,
-        totalTokensUsed: number
+        totalTokensUsed: number,
     ): ResourceUsage {
         // Conversational strategies typically use more tokens and credits
         const baseCredits = Math.ceil(totalTokensUsed * 0.001); // Token-based pricing

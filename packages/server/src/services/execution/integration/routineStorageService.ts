@@ -1,6 +1,11 @@
 import { type PrismaClient } from "@prisma/client";
 import { type Logger } from "winston";
-import { type Routine, type RoutineMetadata, generatePK } from "@vrooli/shared";
+import { type Routine, type RoutineMetadata } from "@vrooli/shared";
+
+// Constants for complexity estimation
+const SIMPLE_THRESHOLD = 5;
+const MODERATE_THRESHOLD = 15;
+const DEFAULT_SEARCH_LIMIT = 20;
 
 /**
  * Routine storage service that integrates with Vrooli's database
@@ -28,7 +33,8 @@ export class RoutineStorageService {
             const resourceVersion = await this.prisma.resource_version.findFirst({
                 where: {
                     OR: [
-                        { id: BigInt(routineId) },
+                        // Only try to convert to BigInt if it's a valid numeric string
+                        ...(routineId.match(/^\d+$/) ? [{ id: BigInt(routineId) }] : []),
                         { publicId: routineId },
                         { root: { publicId: routineId } },
                     ],
@@ -96,7 +102,7 @@ export class RoutineStorageService {
         this.logger.debug("[RoutineStorageService] Searching routines", criteria);
 
         try {
-            const { query, userId, teamId, tags, limit = 20, offset = 0 } = criteria;
+            const { query, userId, teamId, tags, limit = DEFAULT_SEARCH_LIMIT, offset = 0 } = criteria;
 
             const resourceVersions = await this.prisma.resource_version.findMany({
                 where: {
@@ -271,32 +277,34 @@ export class RoutineStorageService {
      * Private helper methods
      */
     private inferRoutineType(resourceVersion: any): string {
-        // Look at the resource definition to determine type
-        const definition = this.parseDefinition(resourceVersion);
+        // Look at the config structure to determine type
+        const config = this.parseDefinition(resourceVersion);
         
-        if (definition.nodes && definition.edges) {
-            return "native"; // Vrooli native format
+        // Check for single-action routines
+        if (config.callDataAction) return "action";
+        if (config.callDataApi) return "api";
+        if (config.callDataCode) return "code";
+        if (config.callDataGenerate) return "generate";
+        if (config.callDataSmartContract) return "smartContract";
+        if (config.callDataWeb) return "web";
+        
+        // Check for multi-step routines
+        if (config.graph) {
+            // Could be BPMN or Sequential based on graph structure
+            const graphType = (config.graph as any)?.type;
+            if (graphType === "bpmn") return "bpmn";
+            if (graphType === "sequential") return "sequential";
+            return "graph";
         }
         
-        if (definition.process && definition.startEvent) {
-            return "bpmn";
-        }
-        
-        if (definition.chain || definition.tools) {
-            return "langchain";
-        }
-        
-        if (definition.workflows) {
-            return "temporal";
-        }
-        
-        return "native"; // Default
+        // Default to native if no specific type detected
+        return "native";
     }
 
     private extractName(resourceVersion: any): string {
         // Get name from translations (prefer English)
         const englishTranslation = resourceVersion.translations?.find(
-            (t: any) => t.language.code === "en"
+            (t: any) => t.language.code === "en",
         );
         
         if (englishTranslation?.name) {
@@ -314,14 +322,23 @@ export class RoutineStorageService {
 
     private parseDefinition(resourceVersion: any): Record<string, unknown> {
         try {
-            // The definition should be in the JSON data field
-            if (typeof resourceVersion.data === "string") {
-                return JSON.parse(resourceVersion.data);
+            // The config is stored in the config field, not data
+            if (resourceVersion.config) {
+                // If it's already an object, return it
+                if (typeof resourceVersion.config === "object") {
+                    return resourceVersion.config as Record<string, unknown>;
+                }
+                // If it's a string, parse it
+                if (typeof resourceVersion.config === "string") {
+                    return JSON.parse(resourceVersion.config);
+                }
             }
             
-            if (typeof resourceVersion.data === "object") {
-                return resourceVersion.data as Record<string, unknown>;
-            }
+            // Log warning about missing config for agent analysis
+            this.logger.warn("[RoutineStorageService] Resource version missing config", {
+                resourceVersionId: resourceVersion.id,
+                publicId: resourceVersion.publicId,
+            });
             
             return {};
         } catch (error) {
@@ -349,7 +366,7 @@ export class RoutineStorageService {
 
     private extractDescription(resourceVersion: any): string {
         const englishTranslation = resourceVersion.translations?.find(
-            (t: any) => t.language.code === "en"
+            (t: any) => t.language.code === "en",
         );
         
         return englishTranslation?.description || "";
@@ -361,8 +378,8 @@ export class RoutineStorageService {
         
         const totalElements = nodeCount + edgeCount;
         
-        if (totalElements <= 5) return "simple";
-        if (totalElements <= 15) return "moderate";
+        if (totalElements <= SIMPLE_THRESHOLD) return "simple";
+        if (totalElements <= MODERATE_THRESHOLD) return "moderate";
         return "complex";
     }
 }

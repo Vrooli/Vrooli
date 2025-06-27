@@ -17,7 +17,8 @@
 
 import { type Logger } from "winston";
 import { type EventBus } from "../events/eventBus.js";
-import { ExecutionEventEmitter, type ComponentEventEmitter } from "../monitoring/ExecutionEventEmitter.js";
+import { EventTypes, EventUtils, type IEventBus } from "../../events/index.js";
+import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
 import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 import { CircuitState, DegradationMode } from "@vrooli/shared";
 
@@ -41,7 +42,7 @@ export interface MinimalCircuitBreakerConfig {
 export class MinimalCircuitBreaker {
     private state: CircuitState = CircuitState.CLOSED;
     private resetTimer?: NodeJS.Timeout;
-    private readonly eventEmitter: ComponentEventEmitter;
+    private readonly unifiedEventBus: IEventBus | null;
     private readonly errorHandler: ComponentErrorHandler;
     
     constructor(
@@ -49,13 +50,11 @@ export class MinimalCircuitBreaker {
         private readonly logger: Logger,
         eventBus: EventBus,
     ) {
-        const executionEmitter = new ExecutionEventEmitter(logger, eventBus);
-        this.eventEmitter = executionEmitter.createComponentEmitter(
-            "cross-cutting", 
-            `circuit-breaker:${config.service}:${config.operation}`,
-        );
+        // Get unified event system for modern event publishing
+        this.unifiedEventBus = getUnifiedEventSystem();
         
-        const errorHandler = new ErrorHandler(logger, executionEmitter.eventPublisher);
+        // Initialize error handler with unified event system
+        const errorHandler = new ErrorHandler(logger);
         this.errorHandler = errorHandler.createComponentHandler(
             `CircuitBreaker:${config.service}:${config.operation}`,
         );
@@ -208,18 +207,35 @@ export class MinimalCircuitBreaker {
         event: "success" | "failure" | "rejected",
         metadata: Record<string, unknown>,
     ): Promise<void> {
-        await this.eventEmitter.emitMetric(
-            "safety",
-            `circuit_breaker.${event}`,
-            1,
-            "count",
-            {
-                service: this.config.service,
-                operation: this.config.operation,
-                executionId,
-                ...metadata,
-            },
-        );
+        if (this.unifiedEventBus) {
+            const eventType = event === "success" ? EventTypes.SAFETY_PROTECTION_PASSED :
+                            event === "failure" ? EventTypes.SAFETY_PROTECTION_FAILED :
+                            EventTypes.SAFETY_PROTECTION_REJECTED;
+            
+            const circuitEvent = EventUtils.createBaseEvent(
+                eventType,
+                {
+                    tier: "cross-cutting",
+                    component: `circuit-breaker:${this.config.service}:${this.config.operation}`,
+                    metricType: "safety",
+                    name: `circuit_breaker.${event}`,
+                    value: 1,
+                    unit: "count",
+                    tags: {
+                        service: this.config.service,
+                        operation: this.config.operation,
+                        executionId,
+                        ...metadata,
+                    },
+                },
+                EventUtils.createEventSource("cross-cutting", `circuit-breaker:${this.config.service}:${this.config.operation}`),
+                EventUtils.createEventMetadata("reliable", "high", {
+                    tags: ["safety", "circuit-breaker", event],
+                }),
+            );
+            
+            await this.unifiedEventBus.publish(circuitEvent);
+        }
     }
     
     /**

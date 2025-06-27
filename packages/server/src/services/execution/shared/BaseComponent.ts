@@ -5,16 +5,17 @@
  * Reduces constructor boilerplate by providing common infrastructure.
  * 
  * This follows the emergent architecture principle of providing tools, not decisions:
- * - EventPublisher for event infrastructure 
  * - ErrorHandler for error infrastructure
  * - Logger for consistent logging
  * 
  * Components decide how to use these tools based on their specific needs.
  */
 
+import { nanoid } from "@vrooli/shared";
 import { type Logger } from "winston";
+import { EventUtils, type IEventBus } from "../../events/index.js";
+import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
-import { EventPublisher } from "./EventPublisher.js";
 import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
@@ -33,18 +34,21 @@ export interface IBaseComponent {
  * Abstract base class for components
  */
 export abstract class BaseComponent implements IBaseComponent {
-    protected readonly eventPublisher: EventPublisher;
     protected readonly errorHandler: ComponentErrorHandler;
+    protected readonly unifiedEventBus: IEventBus | null;
+    protected readonly componentName: string;
     protected disposed = false;
-    
+
     constructor(
         protected readonly logger: Logger,
         protected readonly eventBus: EventBus,
         componentName?: string,
     ) {
-        const name = componentName || this.constructor.name;
-        this.eventPublisher = new EventPublisher(eventBus, logger, name);
-        this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler(name);
+        this.componentName = componentName || this.constructor.name;
+        this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler(this.componentName);
+
+        // Get unified event system for modern event publishing
+        this.unifiedEventBus = getUnifiedEventSystem();
     }
 
     /**
@@ -68,7 +72,7 @@ export abstract class BaseComponent implements IBaseComponent {
         if (this.disposed) {
             return;
         }
-        
+
         this.disposed = true;
         this.logger.debug(`[${this.getComponentName()}] Component disposed`);
     }
@@ -96,14 +100,54 @@ export abstract class BaseComponent implements IBaseComponent {
     }
 
     /**
-     * Helper method for publishing events
+     * Helper method for publishing events using unified event system
      */
-    protected async publishEvent(
+    protected async publishUnifiedEvent(
         eventType: string,
-        payload: any,
-        metadata?: Record<string, any>,
+        data: any,
+        options?: {
+            deliveryGuarantee?: "fire-and-forget" | "reliable" | "barrier-sync";
+            priority?: "low" | "medium" | "high" | "critical";
+            tags?: string[];
+            userId?: string;
+            conversationId?: string;
+        },
     ): Promise<void> {
-        await this.eventPublisher.publish(eventType, payload, { metadata });
+        if (!this.unifiedEventBus) {
+            this.logger.debug(`[${this.componentName}] Unified event bus not available, skipping event publication`);
+            return;
+        }
+
+        try {
+            const event = EventUtils.createBaseEvent(
+                eventType,
+                data,
+                EventUtils.createEventSource("cross-cutting", this.componentName, nanoid()),
+                EventUtils.createEventMetadata(
+                    options?.deliveryGuarantee || "fire-and-forget",
+                    options?.priority || "medium",
+                    {
+                        tags: options?.tags,
+                        userId: options?.userId,
+                        conversationId: options?.conversationId,
+                    },
+                ),
+            );
+
+            await this.unifiedEventBus.publish(event);
+
+            this.logger.debug(`[${this.componentName}] Published unified event`, {
+                eventType,
+                deliveryGuarantee: options?.deliveryGuarantee,
+                priority: options?.priority,
+            });
+
+        } catch (eventError) {
+            this.logger.error(`[${this.componentName}] Failed to publish unified event`, {
+                eventType,
+                error: eventError instanceof Error ? eventError.message : String(eventError),
+            });
+        }
     }
 
     /**
@@ -116,12 +160,19 @@ export abstract class BaseComponent implements IBaseComponent {
         toState: T,
         context?: Record<string, any>,
     ): Promise<void> {
-        await this.eventPublisher.publishStateChange(
-            entityType,
-            entityId,
-            fromState,
-            toState,
-            context,
+        await this.publishUnifiedEvent(
+            `${entityType}.state.changed`,
+            {
+                entityId,
+                entityType,
+                previousState: fromState,
+                newState: toState,
+                ...context,
+            },
+            {
+                priority: "medium",
+                deliveryGuarantee: "reliable",
+            },
         );
     }
 
@@ -133,7 +184,23 @@ export abstract class BaseComponent implements IBaseComponent {
         error: Error,
         context?: Record<string, any>,
     ): Promise<void> {
-        await this.eventPublisher.publishError(operation, error, context);
+        await this.publishUnifiedEvent(
+            "component.error",
+            {
+                component: this.componentName,
+                operation,
+                error: {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack,
+                },
+                ...context,
+            },
+            {
+                priority: "high",
+                deliveryGuarantee: "reliable",
+            },
+        );
     }
 
     /**
@@ -144,7 +211,20 @@ export abstract class BaseComponent implements IBaseComponent {
         value: number,
         tags?: Record<string, string>,
     ): Promise<void> {
-        await this.eventPublisher.publishMetric(metricName, value, tags);
+        await this.publishUnifiedEvent(
+            "component.metric",
+            {
+                component: this.componentName,
+                metricName,
+                value,
+                timestamp: Date.now(),
+                tags,
+            },
+            {
+                priority: "low",
+                deliveryGuarantee: "fire-and-forget",
+            },
+        );
     }
 }
 
@@ -155,7 +235,7 @@ export class ComponentFactory {
     constructor(
         private readonly logger: Logger,
         private readonly eventBus: EventBus,
-    ) {}
+    ) { }
 
     /**
      * Create a component instance with automatic initialization
@@ -165,11 +245,11 @@ export class ComponentFactory {
         ...additionalArgs: any[]
     ): Promise<T> {
         const component = new ComponentClass(this.logger, this.eventBus, ...additionalArgs);
-        
+
         if (component.initialize) {
             await component.initialize();
         }
-        
+
         return component;
     }
 
@@ -185,7 +265,7 @@ export class ComponentFactory {
         const creationPromises = componentSpecs.map(spec =>
             this.create(spec.ComponentClass, ...(spec.args || [])),
         );
-        
+
         return Promise.all(creationPromises);
     }
 

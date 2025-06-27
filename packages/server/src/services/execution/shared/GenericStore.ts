@@ -1,7 +1,8 @@
-import { Redis } from "ioredis";
+import { type Redis } from "ioredis";
 import { type Logger } from "winston";
-import { ErrorHandler, Result } from "./ErrorHandler.js";
-import { EventPublisher } from "./EventPublisher.js";
+import { EventUtils, type IEventBus } from "../../events/index.js";
+import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { ErrorHandler, type Result } from "./ErrorHandler.js";
 
 export interface StoreConfig<T> {
     /** Redis key prefix for this store */
@@ -47,13 +48,12 @@ export interface QueryOptions {
 export class GenericStore<T> {
     private readonly config: Required<StoreConfig<T>>;
     private readonly errorHandler: ErrorHandler;
-    private readonly eventPublisher?: EventPublisher;
+    private readonly unifiedEventBus: IEventBus | null;
 
     constructor(
         protected readonly logger: Logger,
         protected readonly redis: Redis,
         config: StoreConfig<T>,
-        eventPublisher?: EventPublisher,
     ) {
         this.config = {
             keyPrefix: config.keyPrefix,
@@ -65,11 +65,8 @@ export class GenericStore<T> {
             eventChannelPrefix: config.eventChannelPrefix ?? config.keyPrefix,
         };
 
-        this.errorHandler = new ErrorHandler(logger, eventPublisher);
-        
-        if (this.config.publishEvents && eventPublisher) {
-            this.eventPublisher = eventPublisher.createChild(`store.${this.config.keyPrefix}`);
-        }
+        this.errorHandler = new ErrorHandler(logger);
+        this.unifiedEventBus = getUnifiedEventSystem();
     }
 
     /**
@@ -87,7 +84,7 @@ export class GenericStore<T> {
             const value = this.config.deserialize(data);
 
             if (!this.config.validate(value)) {
-                this.logger.warn(`[GenericStore] Invalid data format in key`, {
+                this.logger.warn("[GenericStore] Invalid data format in key", {
                     store: this.config.keyPrefix,
                     key: fullKey,
                 });
@@ -108,7 +105,7 @@ export class GenericStore<T> {
      */
     async getRequired(key: string): Promise<Result<T>> {
         const result = await this.get(key);
-        
+
         if (!result.success) {
             return result;
         }
@@ -205,7 +202,7 @@ export class GenericStore<T> {
                             result.set(keys[i], value);
                         }
                     } catch (error) {
-                        this.logger.warn(`[GenericStore] Failed to deserialize value`, {
+                        this.logger.warn("[GenericStore] Failed to deserialize value", {
                             store: this.config.keyPrefix,
                             key: keys[i],
                             error: error instanceof Error ? error.message : String(error),
@@ -286,7 +283,7 @@ export class GenericStore<T> {
      */
     async queryKeys(options: QueryOptions = {}): Promise<Result<string[]>> {
         return this.errorHandler.wrap(async () => {
-            const pattern = options.pattern 
+            const pattern = options.pattern
                 ? this.makeKey(options.pattern)
                 : this.makeKey("*");
 
@@ -299,8 +296,8 @@ export class GenericStore<T> {
             return new Promise((resolve, reject) => {
                 stream.on("data", (chunk: string[]) => {
                     // Remove key prefix from results
-                    const cleanKeys = chunk.map(key => 
-                        key.replace(`${this.config.keyPrefix}:`, "")
+                    const cleanKeys = chunk.map(key =>
+                        key.replace(`${this.config.keyPrefix}:`, ""),
                     );
                     keys.push(...cleanKeys);
 
@@ -326,13 +323,13 @@ export class GenericStore<T> {
      */
     async queryValues(options: QueryOptions = {}): Promise<Result<T[]>> {
         const keysResult = await this.queryKeys(options);
-        
+
         if (!keysResult.success) {
             return keysResult;
         }
 
         const valuesResult = await this.getMany(keysResult.data);
-        
+
         if (!valuesResult.success) {
             return valuesResult;
         }
@@ -349,7 +346,7 @@ export class GenericStore<T> {
     async clear(): Promise<Result<number>> {
         return this.errorHandler.wrap(async () => {
             const keysResult = await this.queryKeys();
-            
+
             if (!keysResult.success || keysResult.data.length === 0) {
                 return 0;
             }
@@ -368,7 +365,7 @@ export class GenericStore<T> {
     async updateTTL(key: string, ttl: number): Promise<Result<boolean>> {
         return this.errorHandler.wrap(async () => {
             const fullKey = this.makeKey(key);
-            
+
             if (ttl > 0) {
                 const success = await this.redis.expire(fullKey, ttl);
                 return success === 1;
@@ -413,20 +410,34 @@ export class GenericStore<T> {
         key: string,
         value: T | T[] | string[] | null,
     ): Promise<void> {
-        if (!this.config.publishEvents || !this.eventPublisher) {
+        if (!this.config.publishEvents || !this.unifiedEventBus) {
             return;
         }
 
-        await this.eventPublisher.publish(
-            `${this.config.eventChannelPrefix}.${operation}`,
-            `store.${operation}`,
-            {
+        try {
+            const event = EventUtils.createBaseEvent(
+                `store.${operation}`,
+                {
+                    key,
+                    value: value !== null && operation !== "delete" ? "***" : null, // Don't publish actual values
+                    timestamp: new Date(),
+                    storePrefix: this.config.keyPrefix,
+                },
+                EventUtils.createEventSource("cross-cutting", "GenericStore"),
+                EventUtils.createEventMetadata("fire-and-forget", "low", {
+                    tags: ["store", operation, this.config.keyPrefix],
+                }),
+            );
+
+            await this.unifiedEventBus.publish(event);
+        } catch (error) {
+            // Silent failure for store events - they're not critical
+            this.logger.debug("Failed to publish store event", {
+                operation,
                 key,
-                value: value !== null && operation !== "delete" ? "***" : null, // Don't publish actual values
-                timestamp: new Date(),
-            },
-            { throwOnError: false },
-        );
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 
     /**

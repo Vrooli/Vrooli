@@ -63,18 +63,19 @@ beforeAll(async function setup() {
             // Don't throw - continue without it
         }
         
-        // Step 2: Initialize DbProvider
+        // Step 2: Initialize DbProvider (idempotent - safe to call multiple times)
         console.log("Step 2: Initializing DbProvider...");
         try {
             if (!DbProvider) {
                 ({ DbProvider } = await import("../db/provider.js"));
             }
+            // DbProvider.init() is idempotent - it checks if already initialized
             await DbProvider.init();
             componentsInitialized.dbProvider = true;
             console.log("✓ DbProvider ready");
         } catch (error) {
             console.error("DbProvider initialization failed:", error);
-            // Don't throw - continue without it
+            throw error; // This is critical - tests cannot proceed without DB
         }
         
         // Step 3: Setup LLM service mocks
@@ -220,20 +221,7 @@ async function cleanup() {
         console.error("BusService reset error:", e);
     }
     
-    // Clean up based on what was initialized
-    if (componentsInitialized.dbProvider) {
-        try {
-            if (DbProvider && DbProvider.reset) {
-                await DbProvider.reset();
-                console.log("✓ DbProvider reset");
-            } else {
-                console.log("⚠ DbProvider not available");
-            }
-        } catch (e) {
-            console.error("DbProvider reset error:", e);
-        }
-    }
-    
+    // Note: DbProvider is managed by global setup/teardown - DO NOT reset here
     // Note: Containers are managed by global teardown
     console.log("=== Per-File Cleanup Complete ===");
 }

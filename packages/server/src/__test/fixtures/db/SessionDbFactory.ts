@@ -28,7 +28,7 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
     Prisma.sessionUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('session', prisma);
+        super("session", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -55,7 +55,7 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
             device_info: JSON.stringify({
                 userAgent: "Mozilla/5.0 (Test Browser)",
                 platform: "desktop",
-                theme: "light"
+                theme: "light",
             }),
             ip_address: "192.168.1.100",
             ...overrides,
@@ -99,14 +99,14 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
                         version: "17.0",
                         os: "iOS",
                         platform: "mobile",
-                        language: "en-US"
+                        language: "en-US",
                     }),
                     ip_address: "10.0.0.5",
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                     auth: {
-                        connect: { id: authId }
+                        connect: { id: authId },
                     },
                 },
                 revokedSession: {
@@ -119,14 +119,14 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
                         version: "114.0.0.0",
                         os: "Android",
                         platform: "mobile",
-                        reason: "Suspicious activity detected"
+                        reason: "Suspicious activity detected",
                     }),
                     ip_address: "203.0.113.0",
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                     auth: {
-                        connect: { id: authId }
+                        connect: { id: authId },
                     },
                 },
                 expiredSession: {
@@ -138,14 +138,14 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
                         browser: "Safari",
                         version: "16.5",
                         os: "macOS",
-                        platform: "desktop"
+                        platform: "desktop",
                     }),
                     ip_address: "172.16.0.10",
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                     auth: {
-                        connect: { id: authId }
+                        connect: { id: authId },
                     },
                 },
                 longExpiry: {
@@ -158,14 +158,14 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
                         version: "1.0",
                         os: "Enterprise",
                         platform: "api",
-                        session_type: "long_lived"
+                        session_type: "long_lived",
                     }),
                     ip_address: "10.10.10.100",
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                     auth: {
-                        connect: { id: authId }
+                        connect: { id: authId },
                     },
                 },
                 neverRefreshed: {
@@ -177,14 +177,14 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
                         browser: "CLI",
                         version: "7.68.0",
                         os: "Linux",
-                        platform: "api"
+                        platform: "api",
                     }),
                     ip_address: "127.0.0.1",
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                     auth: {
-                        connect: { id: authId }
+                        connect: { id: authId },
                     },
                 },
             },
@@ -199,7 +199,7 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
                         userAgent: "Mozilla/5.0 (Updated Browser)",
                         browser: "Updated",
                         version: "Latest",
-                        last_updated: new Date().toISOString()
+                        last_updated: new Date().toISOString(),
                     }),
                     ip_address: "192.168.1.101",
                 },

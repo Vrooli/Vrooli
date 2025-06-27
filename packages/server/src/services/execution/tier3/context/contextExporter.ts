@@ -60,11 +60,11 @@ export class ContextExporter {
         runContext: ExecutionRunContext,
         additionalData?: Partial<ExportedContext>,
     ): Promise<ExportedContext> {
-        const stepId = runContext.currentStepId || 'unknown';
+        const stepId = runContext.currentStepId || "unknown";
         const exportedContext: ExportedContext = {
             stepId,
             timestamp: new Date(),
-            strategy: additionalData?.strategy || 'conversational' as StrategyType,
+            strategy: additionalData?.strategy || "conversational" as StrategyType,
             resourceUsage: additionalData?.resourceUsage || {
                 creditsUsed: 0,
                 timeElapsedMs: runContext.getElapsedTime(),

@@ -1,19 +1,18 @@
-import { McpToolName, McpSwarmToolName, type SessionUser } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { ToolRegistry as MCPToolRegistry } from "../../../mcp/registry.js";
-import { BuiltInTools, SwarmTools } from "../../../mcp/tools.js";
-import { type Tool, type ToolResponse } from "../../../mcp/types.js";
-import { CompositeToolRunner, McpToolRunner, OpenAIToolRunner } from "../../../conversation/toolRunner.js";
-import { type ConversationStateStore } from "../../../conversation/chatStore.js";
-import { type ToolMeta } from "../../../conversation/types.js";
-import type { 
-    ToolResource, 
-    ToolExecutionRequest, 
+import type {
+    ToolExecutionRequest,
     ToolExecutionResult,
+    ToolResource,
 } from "@vrooli/shared";
-import { MONITORING_TOOL_DEFINITIONS, createMonitoringToolInstances } from "../tools/index.js";
+import { McpSwarmToolName, McpToolName, type SessionUser } from "@vrooli/shared";
+import { type Logger } from "winston";
+import { type ConversationStateStore } from "../../../conversation/chatStore.js";
+import { CompositeToolRunner, McpToolRunner, OpenAIToolRunner } from "../../../conversation/toolRunner.js";
+import { type ToolMeta } from "../../../conversation/types.js";
+import { ToolRegistry as MCPToolRegistry } from "../../../mcp/registry.js";
+import { SwarmTools } from "../../../mcp/tools.js";
+import { type Tool, type ToolResponse } from "../../../mcp/types.js";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-// RollingHistory removed - monitoring now handled by emergent agents
+import { MONITORING_TOOL_DEFINITIONS, createMonitoringToolInstances } from "../tools/index.js";
 
 /**
  * Tool approval status
@@ -59,17 +58,17 @@ export interface IntegratedToolContext {
  */
 export class IntegratedToolRegistry {
     private static instance: IntegratedToolRegistry;
-    
+
     private readonly mcpRegistry: MCPToolRegistry;
     private readonly compositeRunner: CompositeToolRunner;
     private readonly logger: Logger;
-    
+
     // Dynamic tool registry for runtime additions
     private readonly dynamicTools: Map<string, Tool> = new Map();
-    
+
     // Approval tracking
     private readonly pendingApprovals: Map<string, ToolApprovalStatus> = new Map();
-    
+
     // Tool usage metrics
     private readonly usageMetrics: Map<string, {
         calls: number;
@@ -77,19 +76,19 @@ export class IntegratedToolRegistry {
         errors: number;
         lastUsed: Date;
     }> = new Map();
-    
+
     // Monitoring tool instances
     private monitoringToolInstances?: Map<string, (params: any) => Promise<ToolResponse>>;
 
     private constructor(logger: Logger, conversationStore?: ConversationStateStore) {
         this.logger = logger;
         this.mcpRegistry = new MCPToolRegistry(logger);
-        
+
         // Initialize tool runners
         const swarmTools = conversationStore ? new SwarmTools(logger, conversationStore) : undefined;
         const mcpRunner = new McpToolRunner(logger, swarmTools);
         const openaiRunner = new OpenAIToolRunner(null); // Can be initialized with OpenAI client later
-        
+
         this.compositeRunner = new CompositeToolRunner(mcpRunner, openaiRunner);
     }
 
@@ -134,13 +133,13 @@ export class IntegratedToolRegistry {
      */
     async listAvailableTools(context: IntegratedToolContext): Promise<Tool[]> {
         const tools: Tool[] = [];
-        
+
         // Add MCP built-in tools
         const builtInDefs = this.mcpRegistry.getBuiltInDefinitions();
         for (const def of builtInDefs) {
             tools.push(this.convertToTool(def));
         }
-        
+
         // Add swarm tools if in swarm context
         if (context.swarmId || context.conversationId) {
             const swarmDefs = this.mcpRegistry.getSwarmToolDefinitions();
@@ -148,14 +147,14 @@ export class IntegratedToolRegistry {
                 tools.push(this.convertToTool(def));
             }
         }
-        
+
         // Add dynamic tools
         for (const [name, tool] of this.dynamicTools) {
             if (this.isToolAvailableInContext(name, context)) {
                 tools.push(tool);
             }
         }
-        
+
         // Add OpenAI tools if configured
         const openAITools: Tool[] = [
             {
@@ -175,7 +174,7 @@ export class IntegratedToolRegistry {
                 },
             },
             {
-                name: "file_search", 
+                name: "file_search",
                 description: "Search through uploaded files",
                 inputSchema: {
                     type: "object",
@@ -191,9 +190,9 @@ export class IntegratedToolRegistry {
                 },
             },
         ];
-        
+
         tools.push(...openAITools);
-        
+
         return tools;
     }
 
@@ -206,24 +205,24 @@ export class IntegratedToolRegistry {
     ): Promise<ToolExecutionResult> {
         const startTime = Date.now();
         const { toolName, parameters } = request;
-        
+
         this.logger.info(`[IntegratedToolRegistry] Executing tool: ${toolName}`, {
             stepId: context.stepId,
             runId: context.runId,
             swarmId: context.swarmId,
         });
-        
+
         try {
             // Check if this is a monitoring tool
             if (this.monitoringToolInstances?.has(toolName)) {
                 const toolExecutor = this.monitoringToolInstances.get(toolName)!;
-                
+
                 try {
                     const toolResponse = await toolExecutor(parameters);
-                    
+
                     // Track metrics
                     this.updateUsageMetrics(toolName, Date.now() - startTime, !!toolResponse.isError);
-                    
+
                     return {
                         success: !toolResponse.isError,
                         output: toolResponse.content?.[0]?.text || JSON.stringify(toolResponse),
@@ -243,7 +242,7 @@ export class IntegratedToolRegistry {
                     };
                 }
             }
-            
+
             // Check if tool requires approval
             const approvalStatus = await this.checkApprovalRequirements(toolName, parameters, context);
             if (!approvalStatus.approved) {
@@ -254,20 +253,20 @@ export class IntegratedToolRegistry {
                     retries: 0,
                 };
             }
-            
+
             // Build tool metadata for execution
             const toolMeta: ToolMeta = {
                 conversationId: context.conversationId,
                 sessionUser: context.user,
                 callerBotId: context.metadata?.botId as string | undefined,
             };
-            
+
             // Execute through composite runner
             const result = await this.compositeRunner.run(toolName, parameters, toolMeta);
-            
+
             // Track metrics
             this.updateUsageMetrics(toolName, Date.now() - startTime, !result.ok);
-            
+
             if (result.ok) {
                 return {
                     success: true,
@@ -290,15 +289,15 @@ export class IntegratedToolRegistry {
                     },
                 };
             }
-            
+
         } catch (error) {
             this.logger.error(`[IntegratedToolRegistry] Tool execution failed: ${toolName}`, {
                 error: error instanceof Error ? error.message : String(error),
                 context,
             });
-            
+
             this.updateUsageMetrics(toolName, Date.now() - startTime, true);
-            
+
             return {
                 success: false,
                 error: error instanceof Error ? error.message : "Unknown error",
@@ -317,19 +316,19 @@ export class IntegratedToolRegistry {
         if (mcpDef) {
             return this.convertToTool(mcpDef);
         }
-        
+
         // Check dynamic tools
         const dynamicTool = this.dynamicTools.get(toolName);
         if (dynamicTool && this.isToolAvailableInContext(toolName, context)) {
             return dynamicTool;
         }
-        
+
         // Check OpenAI tools
         if (toolName === "web_search" || toolName === "file_search") {
             const tools = await this.listAvailableTools(context);
             return tools.find(t => t.name === toolName);
         }
-        
+
         return undefined;
     }
 
@@ -341,10 +340,10 @@ export class IntegratedToolRegistry {
         swarmId?: string;
         scope?: "global" | "run" | "swarm";
     }): void {
-        const toolKey = context?.scope === "global" 
-            ? tool.name 
+        const toolKey = context?.scope === "global"
+            ? tool.name
             : `${tool.name}_${context?.runId || context?.swarmId || "temp"}`;
-            
+
         this.dynamicTools.set(toolKey, {
             ...tool,
             annotations: {
@@ -354,7 +353,7 @@ export class IntegratedToolRegistry {
                 swarmId: context?.swarmId,
             },
         });
-        
+
         this.logger.info(`[IntegratedToolRegistry] Registered dynamic tool: ${tool.name}`, {
             scope: context?.scope || "global",
             runId: context?.runId,
@@ -369,10 +368,10 @@ export class IntegratedToolRegistry {
         runId?: string;
         swarmId?: string;
     }): void {
-        const toolKey = context?.runId || context?.swarmId 
+        const toolKey = context?.runId || context?.swarmId
             ? `${toolName}_${context.runId || context.swarmId}`
             : toolName;
-            
+
         if (this.dynamicTools.delete(toolKey)) {
             this.logger.info(`[IntegratedToolRegistry] Unregistered dynamic tool: ${toolName}`);
         }
@@ -388,22 +387,22 @@ export class IntegratedToolRegistry {
         timeout = 600000, // 10 minutes default
     ): Promise<string> {
         const approvalId = `approval_${Date.now()}_${toolName}_${context.stepId}`;
-        
+
         const approval: ToolApprovalStatus = {
             toolName,
             approved: false,
             reason: "Awaiting user approval",
             expiresAt: new Date(Date.now() + timeout),
         };
-        
+
         this.pendingApprovals.set(approvalId, approval);
-        
+
         this.logger.info("[IntegratedToolRegistry] Registered pending approval", {
             approvalId,
             toolName,
             stepId: context.stepId,
         });
-        
+
         return approvalId;
     }
 
@@ -419,12 +418,12 @@ export class IntegratedToolRegistry {
         if (!approval) {
             throw new Error(`Approval ${approvalId} not found`);
         }
-        
+
         approval.approved = approved;
         approval.approvedBy = approvedBy;
         approval.approvedAt = new Date();
         approval.reason = approved ? "User approved" : "User rejected";
-        
+
         this.logger.info("[IntegratedToolRegistry] Processed approval", {
             approvalId,
             approved,
@@ -445,14 +444,14 @@ export class IntegratedToolRegistry {
     cleanupExpiredApprovals(): void {
         const now = new Date();
         let cleaned = 0;
-        
+
         for (const [id, approval] of this.pendingApprovals) {
             if (approval.expiresAt && approval.expiresAt < now) {
                 this.pendingApprovals.delete(id);
                 cleaned++;
             }
         }
-        
+
         if (cleaned > 0) {
             this.logger.debug(`[IntegratedToolRegistry] Cleaned up ${cleaned} expired approvals`);
         }
@@ -473,18 +472,18 @@ export class IntegratedToolRegistry {
     private isToolAvailableInContext(toolName: string, context: IntegratedToolContext): boolean {
         const tool = this.dynamicTools.get(toolName);
         if (!tool) return false;
-        
+
         const annotations = tool.annotations || {};
-        
+
         // Global tools are always available
         if (annotations.scope === "global") return true;
-        
+
         // Run-scoped tools
         if (annotations.scope === "run" && annotations.runId === context.runId) return true;
-        
+
         // Swarm-scoped tools
         if (annotations.scope === "swarm" && annotations.swarmId === context.swarmId) return true;
-        
+
         return false;
     }
 
@@ -500,11 +499,11 @@ export class IntegratedToolRegistry {
             McpToolName.ResourceManage,
             McpSwarmToolName.EndSwarm,
         ];
-        
+
         // Check if tool is high-risk
         const requiresApproval = highRiskTools.includes(toolName as any) ||
             this.isDestructiveOperation(toolName, parameters);
-            
+
         if (!requiresApproval) {
             return {
                 toolName,
@@ -512,7 +511,7 @@ export class IntegratedToolRegistry {
                 reason: "No approval required",
             };
         }
-        
+
         // Check for existing approval
         for (const approval of this.pendingApprovals.values()) {
             if (approval.toolName === toolName && approval.approved) {
@@ -522,7 +521,7 @@ export class IntegratedToolRegistry {
                 }
             }
         }
-        
+
         return {
             toolName,
             approved: false,
@@ -536,7 +535,7 @@ export class IntegratedToolRegistry {
             const op = parameters.op || parameters.operation;
             return op === "delete";
         }
-        
+
         return false;
     }
 
@@ -547,7 +546,7 @@ export class IntegratedToolRegistry {
             errors: 0,
             lastUsed: new Date(),
         };
-        
+
         this.usageMetrics.set(toolName, {
             calls: existing.calls + 1,
             totalDuration: existing.totalDuration + duration,

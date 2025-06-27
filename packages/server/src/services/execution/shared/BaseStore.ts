@@ -219,7 +219,7 @@ export class RedisStore<T> implements IStore<T> {
 
             return map;
         } catch (error) {
-            this.logger.error(`[RedisStore] Error getting all items`, {
+            this.logger.error("[RedisStore] Error getting all items", {
                 error: error instanceof Error ? error.message : String(error),
             });
             throw error;
@@ -232,7 +232,7 @@ export class RedisStore<T> implements IStore<T> {
             const keys = await this.redis.keys(pattern);
             
             if (keys.length === 0) {
-                this.logger.info(`[RedisStore] No items to clear`);
+                this.logger.info("[RedisStore] No items to clear");
                 return;
             }
 
@@ -245,7 +245,7 @@ export class RedisStore<T> implements IStore<T> {
             await pipeline.exec();
             this.logger.info(`[RedisStore] Cleared ${keys.length} items`);
         } catch (error) {
-            this.logger.error(`[RedisStore] Error clearing items`, {
+            this.logger.error("[RedisStore] Error clearing items", {
                 error: error instanceof Error ? error.message : String(error),
             });
             throw error;
@@ -364,7 +364,7 @@ export class CachedStore<T> implements IStore<T> {
         } catch (error) {
             // Re-add failed keys to dirty set
             keysToFlush.forEach(key => this.dirtyKeys.add(key));
-            this.logger.error(`[CachedStore] Error flushing items`, {
+            this.logger.error("[CachedStore] Error flushing items", {
                 error: error instanceof Error ? error.message : String(error),
             });
             throw error;
@@ -382,9 +382,9 @@ export class CachedStore<T> implements IStore<T> {
     private startFlushTimer(): void {
         this.flushTimer = setInterval(() => {
             this.flush().catch(error => 
-                this.logger.error(`[CachedStore] Error in periodic flush`, {
+                this.logger.error("[CachedStore] Error in periodic flush", {
                     error: error instanceof Error ? error.message : String(error),
-                })
+                }),
             );
         }, this.flushIntervalMs);
     }

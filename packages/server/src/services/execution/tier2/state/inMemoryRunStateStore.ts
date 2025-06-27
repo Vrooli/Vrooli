@@ -10,17 +10,22 @@ import {
     type StepExecution,
 } from "@vrooli/shared";
 import { type IRunStateStore, type RunConfig } from "./runStateStore.js";
-import { type ProcessRunContext } from "../context/contextManager.js";
 import { logger } from "../../../../events/logger.js";
 import { InMemoryStore } from "../../shared/BaseStore.js";
+// Import the modern context type
+import { type RunExecutionContext } from "../orchestration/unifiedRunStateMachine.js";
 
 /**
- * In-memory implementation of run state store
- * Useful for development and testing without Redis dependency
+ * In-memory implementation of run state store - implements both legacy and modern interfaces
+ * 
+ * This implementation provides both IRunStateStore and IModernRunStateStore interfaces
+ * with modern RunExecutionContext support for comprehensive context management.
+ * 
+ * Useful for development and testing without Redis dependency.
  */
-export class InMemoryRunStateStore extends InMemoryStore<RunConfig> implements IRunStateStore {
+export class InMemoryRunStateStore extends InMemoryStore<RunConfig> implements IRunStateStore, IModernRunStateStore {
     private states = new Map<string, RunState>();
-    private contexts = new Map<string, ProcessRunContext>();
+    private runExecutionContexts = new Map<string, RunExecutionContext>(); // Modern context storage
     private locations = new Map<string, Location>();
     private locationHistory = new Map<string, Location[]>();
     private branches = new Map<string, Map<string, BranchExecution>>();
@@ -46,16 +51,45 @@ export class InMemoryRunStateStore extends InMemoryStore<RunConfig> implements I
         // Initialize state
         await this.updateRunState(runId, RunState.PENDING);
         
-        // Initialize empty context
-        await this.updateContext(runId, {
+        // Initialize empty modern context
+        const initialContext: RunExecutionContext = {
+            runId,
+            routineId: config.routineId,
+            navigator: null as any, // Will be set by UnifiedRunStateMachine
+            currentLocation: { id: "start", nodeId: "start", stepId: "start" },
+            visitedLocations: [],
             variables: config.inputs,
+            outputs: {},
+            completedSteps: [],
+            parallelBranches: [],
             blackboard: {},
             scopes: [{
                 id: "global",
                 name: "Global Scope",
                 variables: config.inputs,
             }],
-        });
+            resourceLimits: {
+                maxCredits: "1000",
+                maxDurationMs: 300000,
+                maxMemoryMB: 512,
+                maxSteps: 50,
+            },
+            resourceUsage: {
+                creditsUsed: "0",
+                durationMs: 0,
+                memoryUsedMB: 0,
+                stepsExecuted: 0,
+                startTime: new Date(),
+            },
+            progress: {
+                currentStepId: null,
+                completedSteps: [],
+                totalSteps: 0,
+                percentComplete: 0,
+            },
+            retryCount: 0,
+        };
+        await this.updateRunContext(runId, initialContext);
         
         // Add to active runs
         this.activeRuns.add(runId);
@@ -95,7 +129,7 @@ export class InMemoryRunStateStore extends InMemoryStore<RunConfig> implements I
         // Delete all run-related data
         await this.delete(runId);
         this.states.delete(runId);
-        this.contexts.delete(runId);
+        this.runExecutionContexts.delete(runId); // Clean up modern context
         this.locations.delete(runId);
         this.locationHistory.delete(runId);
         this.branches.delete(runId);
@@ -147,31 +181,184 @@ export class InMemoryRunStateStore extends InMemoryStore<RunConfig> implements I
         }
     }
     
-    async getContext(runId: string): Promise<ProcessRunContext> {
-        return this.contexts.get(runId) || {
+    // Modern context methods using RunExecutionContext - see getRunContext/updateRunContext below
+    
+    /**
+     * Modern context management methods - Phase 2A implementation
+     * 
+     * These methods implement the IModernRunStateStore interface for in-memory storage,
+     * providing RunExecutionContext-based context management that replaces the deprecated
+     * ProcessRunContext methods.
+     */
+    
+    /**
+     * Retrieves the complete RunExecutionContext for a run (in-memory implementation)
+     * 
+     * This method implements the modern context retrieval pattern for in-memory storage,
+     * with the same fallback and migration logic as the Redis implementation.
+     */
+    async getRunContext(runId: string): Promise<RunExecutionContext> {
+        // First check for modern context
+        const modernContext = this.runExecutionContexts.get(runId);
+        if (modernContext) {
+            return modernContext;
+        }
+        
+        // No legacy context to migrate in Phase 2B
+        const legacyContext = null;
+        const runConfig = await this.get(runId);
+        
+        if (legacyContext && runConfig) {
+            logger.info("[InMemoryRunStateStore] Migrating legacy context to RunExecutionContext", { runId });
+            
+            // Create a basic RunExecutionContext from legacy data
+            const migratedContext: RunExecutionContext = {
+                runId,
+                routineId: runConfig.routineId,
+                
+                // Navigation state - will need to be set by UnifiedRunStateMachine
+                navigator: null as any, // This will be set when the context is first used
+                currentLocation: { id: "start", nodeId: "start", stepId: "start" }, // Default location
+                visitedLocations: [],
+                
+                // Execution state from legacy context
+                variables: legacyContext.variables || {},
+                outputs: {},
+                completedSteps: [],
+                parallelBranches: [],
+                
+                // Context management (ProcessRunContext compatibility)
+                blackboard: legacyContext.blackboard || {},
+                scopes: legacyContext.scopes || [{
+                    id: "global",
+                    name: "Global Scope",
+                    variables: legacyContext.variables || {},
+                }],
+                
+                // Resource tracking - initialize with defaults
+                resourceLimits: {
+                    maxCredits: "1000",
+                    maxDurationMs: 300000,
+                    maxMemoryMB: 512,
+                    maxSteps: 50,
+                },
+                resourceUsage: {
+                    creditsUsed: "0",
+                    durationMs: 0,
+                    memoryUsedMB: 0,
+                    stepsExecuted: 0,
+                    startTime: new Date(),
+                },
+                
+                // Progress tracking - initialize
+                progress: {
+                    currentStepId: null,
+                    completedSteps: [],
+                    totalSteps: 0,
+                    percentComplete: 0,
+                },
+                
+                // Error handling
+                retryCount: 0,
+            };
+            
+            // Store the migrated context for future use
+            await this.updateRunContext(runId, migratedContext);
+            
+            return migratedContext;
+        }
+        
+        // Final fallback: Create minimal default context
+        logger.warn("[InMemoryRunStateStore] Creating default RunExecutionContext", { runId });
+        
+        const defaultContext: RunExecutionContext = {
+            runId,
+            routineId: runConfig?.routineId || runId, // Fallback to runId if no routine info available
+            
+            // Navigation state - minimal defaults
+            navigator: null as any, // Will be set by UnifiedRunStateMachine
+            currentLocation: { id: "start", nodeId: "start", stepId: "start" },
+            visitedLocations: [],
+            
+            // Execution state - empty defaults
             variables: {},
+            outputs: {},
+            completedSteps: [],
+            parallelBranches: [],
+            
+            // Context management - empty defaults
             blackboard: {},
             scopes: [{
                 id: "global",
                 name: "Global Scope",
                 variables: {},
             }],
+            
+            // Resource tracking - defaults
+            resourceLimits: {
+                maxCredits: "1000",
+                maxDurationMs: 300000,
+                maxMemoryMB: 512,
+                maxSteps: 50,
+            },
+            resourceUsage: {
+                creditsUsed: "0",
+                durationMs: 0,
+                memoryUsedMB: 0,
+                stepsExecuted: 0,
+                startTime: new Date(),
+            },
+            
+            // Progress tracking - defaults
+            progress: {
+                currentStepId: null,
+                completedSteps: [],
+                totalSteps: 0,
+                percentComplete: 0,
+            },
+            
+            // Error handling
+            retryCount: 0,
         };
+        
+        return defaultContext;
     }
     
-    async updateContext(runId: string, context: ProcessRunContext): Promise<void> {
-        this.contexts.set(runId, context);
-    }
-    
-    async setVariable(runId: string, name: string, value: unknown): Promise<void> {
-        const context = await this.getContext(runId);
-        context.variables[name] = value;
-        await this.updateContext(runId, context);
-    }
-    
-    async getVariable(runId: string, name: string): Promise<unknown> {
-        const context = await this.getContext(runId);
-        return context.variables[name];
+    /**
+     * Updates the complete RunExecutionContext for a run (in-memory implementation)
+     * 
+     * This method implements the modern context storage pattern for in-memory storage,
+     * storing the comprehensive execution state directly in the Map.
+     */
+    async updateRunContext(runId: string, context: RunExecutionContext): Promise<void> {
+        // Deep clone the context to prevent external mutations
+        const clonedContext: RunExecutionContext = {
+            ...context,
+            variables: { ...context.variables },
+            outputs: { ...context.outputs },
+            blackboard: { ...context.blackboard },
+            scopes: context.scopes.map(scope => ({ ...scope, variables: { ...scope.variables } })),
+            completedSteps: [...context.completedSteps],
+            visitedLocations: [...context.visitedLocations],
+            parallelBranches: [...context.parallelBranches],
+            resourceLimits: { ...context.resourceLimits },
+            resourceUsage: { 
+                ...context.resourceUsage,
+                startTime: new Date(context.resourceUsage.startTime), // Ensure proper Date object
+            },
+            progress: { 
+                ...context.progress,
+                completedSteps: [...context.progress.completedSteps],
+            },
+        };
+        
+        this.runExecutionContexts.set(runId, clonedContext);
+        
+        logger.debug("[InMemoryRunStateStore] Updated RunExecutionContext", {
+            runId,
+            currentStepId: context.progress.currentStepId,
+            percentComplete: context.progress.percentComplete,
+        });
     }
     
     async getCurrentLocation(runId: string): Promise<Location | null> {
@@ -286,8 +473,22 @@ export class InMemoryRunStateStore extends InMemoryStore<RunConfig> implements I
             throw new Error(`Checkpoint ${checkpointId} not found`);
         }
         
-        // Restore context
-        await this.updateContext(runId, checkpoint.context);
+        // Restore context - checkpoint may have legacy ProcessRunContext format
+        const currentContext = await this.getRunContext(runId);
+        
+        // The checkpoint.context is of type RunContext from shared, which might be ProcessRunContext format
+        if (checkpoint.context && typeof checkpoint.context === "object" && "variables" in checkpoint.context) {
+            // Merge checkpoint data into the modern context
+            currentContext.variables = checkpoint.context.variables || {};
+            if ("blackboard" in checkpoint.context) {
+                currentContext.blackboard = checkpoint.context.blackboard || {};
+            }
+            if ("scopes" in checkpoint.context && Array.isArray(checkpoint.context.scopes)) {
+                currentContext.scopes = checkpoint.context.scopes;
+            }
+        }
+        
+        await this.updateRunContext(runId, currentContext);
         
         // Restore location
         await this.updateLocation(runId, checkpoint.location);

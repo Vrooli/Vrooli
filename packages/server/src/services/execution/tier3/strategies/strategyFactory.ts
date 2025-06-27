@@ -2,6 +2,7 @@ import { type Logger } from "winston";
 import {
     type ExecutionStrategy,
     type ExecutionContext,
+    type StrategyExecutionContext,
     StrategyType,
 } from "@vrooli/shared";
 import { ConversationalStrategy } from "./conversationalStrategy.js";

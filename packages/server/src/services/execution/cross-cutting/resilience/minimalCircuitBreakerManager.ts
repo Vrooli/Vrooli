@@ -18,7 +18,8 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../events/eventBus.js";
 import { MinimalCircuitBreaker, type MinimalCircuitBreakerConfig } from "./minimalCircuitBreaker.js";
-import { ExecutionEventEmitter, type ComponentEventEmitter } from "../monitoring/ExecutionEventEmitter.js";
+import { EventTypes, EventUtils, type IEventBus } from "../../events/index.js";
+import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
 import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 
 /**
@@ -30,20 +31,18 @@ import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHand
  */
 export class MinimalCircuitBreakerManager {
     private readonly circuitBreakers = new Map<string, MinimalCircuitBreaker>();
-    private readonly eventEmitter: ComponentEventEmitter;
+    private readonly unifiedEventBus: IEventBus | null;
     private readonly errorHandler: ComponentErrorHandler;
     
     constructor(
         private readonly logger: Logger,
         private readonly eventBus: EventBus,
     ) {
-        const executionEmitter = new ExecutionEventEmitter(logger, eventBus);
-        this.eventEmitter = executionEmitter.createComponentEmitter(
-            "cross-cutting", 
-            "circuit-breaker-manager",
-        );
+        // Get unified event system for modern event publishing
+        this.unifiedEventBus = getUnifiedEventSystem();
         
-        const errorHandler = new ErrorHandler(logger, executionEmitter.eventPublisher);
+        // Initialize error handler with unified event system
+        const errorHandler = new ErrorHandler(logger);
         this.errorHandler = errorHandler.createComponentHandler("CircuitBreakerManager");
     }
     
@@ -141,6 +140,37 @@ export class MinimalCircuitBreakerManager {
     }
     
     /**
+     * Helper method for emitting metrics via unified event system
+     */
+    private async emitMetric(
+        name: string,
+        value: number,
+        unit: string,
+        tags: Record<string, unknown>,
+    ): Promise<void> {
+        if (this.unifiedEventBus) {
+            const event = EventUtils.createBaseEvent(
+                EventTypes.SAFETY_PROTECTION_MEASURED,
+                {
+                    tier: "cross-cutting",
+                    component: "circuit-breaker-manager",
+                    metricType: "safety",
+                    name,
+                    value,
+                    unit,
+                    tags,
+                },
+                EventUtils.createEventSource("cross-cutting", "circuit-breaker-manager"),
+                EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                    tags: ["safety", "circuit-breaker", "manager"],
+                }),
+            );
+            
+            await this.unifiedEventBus.publish(event);
+        }
+    }
+
+    /**
      * Emit creation event
      */
     private async emitCreationEvent(
@@ -148,8 +178,7 @@ export class MinimalCircuitBreakerManager {
         operation: string,
         config: MinimalCircuitBreakerConfig,
     ): Promise<void> {
-        await this.eventEmitter.emitMetric(
-            "safety",
+        await this.emitMetric(
             "circuit_breaker_manager.created",
             1,
             "event",
@@ -169,8 +198,7 @@ export class MinimalCircuitBreakerManager {
         operation: string,
         type: "existing" | "new",
     ): Promise<void> {
-        await this.eventEmitter.emitMetric(
-            "safety",
+        await this.emitMetric(
             "circuit_breaker_manager.accessed",
             1,
             "event",
@@ -189,8 +217,7 @@ export class MinimalCircuitBreakerManager {
         service: string,
         operation: string,
     ): Promise<void> {
-        await this.eventEmitter.emitMetric(
-            "safety",
+        await this.emitMetric(
             "circuit_breaker_manager.removed",
             1,
             "event",
@@ -205,8 +232,7 @@ export class MinimalCircuitBreakerManager {
      * Emit shutdown event
      */
     private async emitShutdownEvent(): Promise<void> {
-        await this.eventEmitter.emitMetric(
-            "safety",
+        await this.emitMetric(
             "circuit_breaker_manager.shutdown",
             1,
             "event",

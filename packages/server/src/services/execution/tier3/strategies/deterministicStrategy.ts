@@ -9,7 +9,7 @@ import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/strategyBase.js";
 import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { ValidationEngine } from "../engine/validationEngine.js";
-import { BaseStore } from "../../shared/BaseStore.js";
+import { InMemoryStore } from "../../shared/BaseStore.js";
 
 /**
  * Deterministic execution plan
@@ -89,7 +89,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         super(logger, eventBus);
         this.toolOrchestrator = new ToolOrchestrator(logger);
         this.validationEngine = new ValidationEngine(logger);
-        this.cache = new BaseStore<CacheEntry>(logger);
+        this.cache = new InMemoryStore<CacheEntry>(logger);
     }
 
     /**
@@ -667,26 +667,303 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         params: Record<string, unknown>,
         timeout: number,
     ): Promise<unknown> {
-        // TODO: Implement actual API call
-        this.logger.debug("[DeterministicStrategy] Executing API call", { params });
-        
-        // Simulate API response
-        return {
-            status: "success",
-            data: params.body,
-            timestamp: new Date().toISOString(),
-        };
+        const { url, method = "GET", headers = {}, body, responseType = "json" } = params;
+
+        if (!url || typeof url !== "string") {
+            throw new Error("API call requires a valid URL parameter");
+        }
+
+        this.logger.debug("[DeterministicStrategy] Executing API call", { 
+            url, 
+            method,
+            timeout, 
+        });
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        try {
+            const fetchOptions: RequestInit = {
+                method: method as string,
+                headers: headers as HeadersInit,
+                signal: controller.signal,
+            };
+
+            // Add body for methods that support it
+            if (body && ["POST", "PUT", "PATCH"].includes(method as string)) {
+                if (headers && (headers as any)["content-type"]?.includes("application/json")) {
+                    fetchOptions.body = JSON.stringify(body);
+                } else {
+                    fetchOptions.body = body as BodyInit;
+                }
+            }
+
+            const response = await fetch(url, fetchOptions);
+
+            // Handle different response types
+            let data: unknown;
+            switch (responseType) {
+                case "json":
+                    data = await response.json();
+                    break;
+                case "text":
+                    data = await response.text();
+                    break;
+                case "blob":
+                    data = await response.blob();
+                    break;
+                case "arraybuffer":
+                    data = await response.arrayBuffer();
+                    break;
+                default:
+                    data = await response.json();
+            }
+
+            return {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries()),
+                data,
+                ok: response.ok,
+                timestamp: new Date().toISOString(),
+            };
+        } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") {
+                throw new Error(`API call timed out after ${timeout}ms`);
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeoutId);
+        }
     }
 
     private async executeDataTransform(params: Record<string, unknown>): Promise<unknown> {
         const { input, transformRules, outputFormat } = params;
+
+        let result = input;
+
+        // Apply transformation rules if provided
+        if (transformRules && typeof transformRules === "object") {
+            this.logger.debug("[DeterministicStrategy] Executing data transformation", {
+                inputType: typeof input,
+                rulesCount: Array.isArray(transformRules) ? transformRules.length : Object.keys(transformRules).length,
+                outputFormat,
+            });
+
+            // Handle array of transformation rules
+            if (Array.isArray(transformRules)) {
+                for (const rule of transformRules) {
+                    result = await this.applyTransformRule(result, rule);
+                }
+            } else {
+                // Handle object-based transformation rules
+                result = await this.applyObjectTransform(result, transformRules as Record<string, unknown>);
+            }
+        }
+
+        // Apply output format if specified
+        if (outputFormat) {
+            result = this.formatOutput(result, outputFormat as string);
+        }
+
+        return result;
+    }
+
+    private async applyTransformRule(data: unknown, rule: unknown): Promise<unknown> {
+        if (!rule || typeof rule !== "object") return data;
+
+        const { type, operation, field, value, from, to, pattern, replacement } = rule as any;
+
+        switch (type) {
+            case "map":
+                if (Array.isArray(data)) {
+                    return data.map(item => this.transformField(item, field, value));
+                }
+                return this.transformField(data, field, value);
+
+            case "filter":
+                if (Array.isArray(data) && operation && field) {
+                    return data.filter(item => this.evaluateCondition(item, field, operation, value));
+                }
+                return data;
+
+            case "rename":
+                return this.renameField(data, from, to);
+
+            case "replace":
+                return this.replaceInData(data, pattern, replacement);
+
+            case "extract":
+                return this.extractField(data, field);
+
+            case "merge":
+                return typeof data === "object" && data !== null ? { ...data, ...value } : data;
+
+            default:
+                return data;
+        }
+    }
+
+    private async applyObjectTransform(data: unknown, rules: Record<string, unknown>): Promise<unknown> {
+        if (typeof data !== "object" || data === null) return data;
+
+        const result: Record<string, unknown> = {};
+
+        for (const [targetField, rule] of Object.entries(rules)) {
+            if (typeof rule === "string") {
+                // Simple field mapping: { "newField": "oldField" }
+                result[targetField] = this.getNestedValue(data, rule);
+            } else if (rule && typeof rule === "object") {
+                // Complex transformation rule
+                const { source, transform, defaultValue } = rule as any;
+                let value = source ? this.getNestedValue(data, source) : undefined;
+                
+                if (value !== undefined && transform) {
+                    value = await this.applyTransformRule(value, transform);
+                }
+                
+                result[targetField] = value !== undefined ? value : defaultValue;
+            } else {
+                // Direct value assignment
+                result[targetField] = rule;
+            }
+        }
+
+        return result;
+    }
+
+    private transformField(data: unknown, field: string, value: unknown): unknown {
+        if (typeof data !== "object" || data === null) return data;
         
-        // Apply transformation rules
-        const transformed = input && typeof input === "object" ? { ...input } : input;
+        const result = { ...data } as any;
+        this.setNestedValue(result, field, value);
+        return result;
+    }
+
+    private evaluateCondition(data: unknown, field: string, operation: string, value: unknown): boolean {
+        const fieldValue = this.getNestedValue(data, field);
+
+        switch (operation) {
+            case "equals":
+            case "eq":
+                return fieldValue === value;
+            case "notEquals":
+            case "ne":
+                return fieldValue !== value;
+            case "greaterThan":
+            case "gt":
+                return Number(fieldValue) > Number(value);
+            case "lessThan":
+            case "lt":
+                return Number(fieldValue) < Number(value);
+            case "contains":
+                return String(fieldValue).includes(String(value));
+            case "startsWith":
+                return String(fieldValue).startsWith(String(value));
+            case "endsWith":
+                return String(fieldValue).endsWith(String(value));
+            case "exists":
+                return fieldValue !== undefined && fieldValue !== null;
+            default:
+                return false;
+        }
+    }
+
+    private renameField(data: unknown, from: string, to: string): unknown {
+        if (typeof data !== "object" || data === null) return data;
         
-        // TODO: Implement actual transformation logic
+        const result = { ...data } as any;
+        const value = this.getNestedValue(result, from);
         
-        return transformed;
+        if (value !== undefined) {
+            this.setNestedValue(result, to, value);
+            this.deleteNestedValue(result, from);
+        }
+        
+        return result;
+    }
+
+    private replaceInData(data: unknown, pattern: string, replacement: string): unknown {
+        if (typeof data === "string") {
+            return data.replace(new RegExp(pattern, "g"), replacement);
+        }
+        
+        if (typeof data === "object" && data !== null) {
+            const result: any = Array.isArray(data) ? [] : {};
+            
+            for (const [key, value] of Object.entries(data)) {
+                result[key] = this.replaceInData(value, pattern, replacement);
+            }
+            
+            return result;
+        }
+        
+        return data;
+    }
+
+    private extractField(data: unknown, field: string): unknown {
+        return this.getNestedValue(data, field);
+    }
+
+    private getNestedValue(obj: unknown, path: string): unknown {
+        if (!path || typeof obj !== "object" || obj === null) return undefined;
+        
+        const keys = path.split(".");
+        let result: any = obj;
+        
+        for (const key of keys) {
+            if (result === null || result === undefined) return undefined;
+            result = result[key];
+        }
+        
+        return result;
+    }
+
+    private setNestedValue(obj: any, path: string, value: unknown): void {
+        if (!path || typeof obj !== "object" || obj === null) return;
+        
+        const keys = path.split(".");
+        const lastKey = keys.pop()!;
+        let current = obj;
+        
+        for (const key of keys) {
+            if (!current[key] || typeof current[key] !== "object") {
+                current[key] = {};
+            }
+            current = current[key];
+        }
+        
+        current[lastKey] = value;
+    }
+
+    private deleteNestedValue(obj: any, path: string): void {
+        if (!path || typeof obj !== "object" || obj === null) return;
+        
+        const keys = path.split(".");
+        const lastKey = keys.pop()!;
+        let current = obj;
+        
+        for (const key of keys) {
+            if (!current[key] || typeof current[key] !== "object") return;
+            current = current[key];
+        }
+        
+        delete current[lastKey];
+    }
+
+    private formatOutput(data: unknown, format: string): unknown {
+        switch (format) {
+            case "json":
+                return JSON.parse(JSON.stringify(data));
+            case "string":
+                return JSON.stringify(data);
+            case "array":
+                return Array.isArray(data) ? data : [data];
+            case "object":
+                return typeof data === "object" && data !== null ? data : { value: data };
+            default:
+                return data;
+        }
     }
 
     private async executeComputation(params: Record<string, unknown>): Promise<unknown> {

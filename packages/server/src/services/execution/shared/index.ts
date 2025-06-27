@@ -14,6 +14,13 @@ export {
     type ManagedTaskStateMachine,
 } from "./BaseStateMachine.js";
 
+export {
+    BaseTierExecutor,
+    TierResourceUtils,
+    type TierErrorContext,
+    type ExecutionMetrics,
+} from "./BaseTierExecutor.js";
+
 export { 
     type IStore,
     InMemoryStore,
@@ -30,13 +37,6 @@ export {
     type AllocationResult,
 } from "./BaseResourceManager.js";
 
-// Context transformation utilities
-export {
-    ContextTransformer,
-    ContextTransformerFactory,
-    type ContextTransformationOptions,
-} from "./contextTransformation.js";
-
 // Context validation utilities
 export {
     ContextValidator,
@@ -47,10 +47,8 @@ export {
     type ValidationWarning,
 } from "./contextValidator.js";
 
-// Socket event emission
-export {
-    ExecutionSocketEventEmitter,
-} from "./SocketEventEmitter.js";
+// Socket events now handled through unified event system
+// See: /packages/server/src/services/events/adapters/socketEventAdapter.ts
 
 // Note: Tier-specific context types should be imported directly from their respective tiers
 // to avoid circular dependencies. Do not re-export them here.

@@ -19,7 +19,7 @@ export interface IRedisIndexManager {
     setExists(indexKey: string, itemId: string): Promise<boolean>;
     
     // List-based indexes (ordered collections)
-    addToList(indexKey: string, itemId: string, position?: 'head' | 'tail', ttl?: number): Promise<void>;
+    addToList(indexKey: string, itemId: string, position?: "head" | "tail", ttl?: number): Promise<void>;
     removeFromList(indexKey: string, itemId: string): Promise<void>;
     getListMembers(indexKey: string, start?: number, end?: number): Promise<string[]>;
     
@@ -50,7 +50,7 @@ export class RedisIndexManager implements IRedisIndexManager {
     constructor(
         private readonly redis: RedisClient,
         private readonly logger: Logger,
-        private readonly defaultTtl?: number
+        private readonly defaultTtl?: number,
     ) {}
 
     /**
@@ -165,11 +165,11 @@ export class RedisIndexManager implements IRedisIndexManager {
     /**
      * Add item to a list-based index
      */
-    async addToList(indexKey: string, itemId: string, position: 'head' | 'tail' = 'tail', ttl?: number): Promise<void> {
+    async addToList(indexKey: string, itemId: string, position: "head" | "tail" = "tail", ttl?: number): Promise<void> {
         try {
             const operations: Array<(pipeline: ChainableCommander) => void> = [
                 (pipeline) => {
-                    if (position === 'head') {
+                    if (position === "head") {
                         pipeline.lpush(indexKey, itemId);
                     } else {
                         pipeline.rpush(indexKey, itemId);
@@ -225,7 +225,7 @@ export class RedisIndexManager implements IRedisIndexManager {
     /**
      * Get members of a list-based index
      */
-    async getListMembers(indexKey: string, start: number = 0, end: number = -1): Promise<string[]> {
+    async getListMembers(indexKey: string, start = 0, end = -1): Promise<string[]> {
         try {
             const members = await this.redis.lrange(indexKey, start, end);
             
@@ -256,7 +256,7 @@ export class RedisIndexManager implements IRedisIndexManager {
         oldState: T | null, 
         newState: T, 
         stateKeyGenerator: (state: T) => string,
-        allStates: T[]
+        allStates: T[],
     ): Promise<void> {
         try {
             const operations: Array<(pipeline: ChainableCommander) => void> = [];
@@ -313,7 +313,7 @@ export class RedisIndexManager implements IRedisIndexManager {
             }
 
             const operations: Array<(pipeline: ChainableCommander) => void> = keys.map(key => 
-                (pipeline) => pipeline.del(key)
+                (pipeline) => pipeline.del(key),
             );
 
             await this.executePipeline(operations);

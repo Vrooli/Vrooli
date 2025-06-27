@@ -1,5 +1,5 @@
 import { type Logger } from "winston";
-import { type RunContext } from "@vrooli/shared";
+import { type RunContext, type StepInfo } from "@vrooli/shared";
 
 /**
  * MOISE+ permission check result
@@ -9,6 +9,25 @@ export interface PermissionCheckResult {
     reason?: string;
     requiredRole?: string;
     requiredPermissions?: string[];
+}
+
+/**
+ * Deontic validation result for UnifiedRunStateMachine integration
+ */
+export interface DeonticValidationResult {
+    allowed: boolean;
+    reason: string;
+    details?: Record<string, unknown>;
+}
+
+/**
+ * Execution validation request for MOISE+ integration
+ */
+export interface ExecutionValidationRequest {
+    agent?: string;
+    step: StepInfo;
+    context: any; // RunExecutionContext from UnifiedRunStateMachine
+    teamId?: string;
 }
 
 /**
@@ -80,6 +99,68 @@ export class MOISEGate {
     constructor(logger: Logger) {
         this.logger = logger;
         this.initializeDefaultOrgSpec();
+    }
+
+    /**
+     * Validates execution for UnifiedRunStateMachine integration
+     * This is the main interface used by the tier 2 state machine
+     */
+    async validateExecution(request: ExecutionValidationRequest): Promise<DeonticValidationResult> {
+        const { agent, step, context, teamId } = request;
+        
+        this.logger.debug("[MOISEGate] Validating execution", {
+            agent,
+            stepId: step.id,
+            stepType: step.type,
+            teamId,
+        });
+
+        try {
+            // Build context for permission check
+            const runContext: RunContext = {
+                variables: {
+                    userRole: this.determineUserRole(agent, teamId, context),
+                    userMission: this.determineUserMission(agent, teamId, context),
+                    [`step_${step.id}_type`]: step.type,
+                    [`step_${step.id}_resource`]: step.name || step.id,
+                    [`step_${step.id}_goal`]: this.extractStepGoal(step),
+                    ...context.variables,
+                },
+                blackboard: context.blackboard || {},
+            };
+
+            // Perform permission check
+            const permissionResult = await this.performPermissionCheck(
+                context.runId || "unknown",
+                step.id,
+                runContext,
+            );
+
+            return {
+                allowed: permissionResult.permitted,
+                reason: permissionResult.reason || (permissionResult.permitted ? "Permission granted" : "Permission denied"),
+                details: {
+                    agent,
+                    stepType: step.type,
+                    requiredRole: permissionResult.requiredRole,
+                    requiredPermissions: permissionResult.requiredPermissions,
+                    teamId,
+                },
+            };
+
+        } catch (error) {
+            this.logger.error("[MOISEGate] Execution validation failed", {
+                agent,
+                stepId: step.id,
+                error: error instanceof Error ? error.message : String(error),
+            });
+
+            return {
+                allowed: false,
+                reason: `Validation error: ${error instanceof Error ? error.message : String(error)}`,
+                details: { error: true },
+            };
+        }
     }
 
     /**
@@ -478,5 +559,85 @@ export class MOISEGate {
      */
     getOrgSpec(): MOISEOrgSpec {
         return this.orgSpec;
+    }
+
+    /**
+     * Helper methods for UnifiedRunStateMachine integration
+     */
+
+    /**
+     * Determines user role from agent and context
+     */
+    private determineUserRole(agent: string | undefined, teamId: string | undefined, context: any): string {
+        // Check if explicitly set in context
+        if (context.variables?.userRole) {
+            return context.variables.userRole as string;
+        }
+
+        // Check if it's a swarm agent
+        if (agent && context.parentContext?.executingAgent === agent) {
+            return "agent";
+        }
+
+        // Check team membership for role assignment
+        if (teamId && context.teamId === teamId) {
+            // Could query team database for user's role in team
+            // For now, default to user role
+            return "user";
+        }
+
+        // Default to user role
+        return "user";
+    }
+
+    /**
+     * Determines user mission from context
+     */
+    private determineUserMission(agent: string | undefined, teamId: string | undefined, context: any): string | undefined {
+        // Check if explicitly set in context
+        if (context.variables?.userMission) {
+            return context.variables.userMission as string;
+        }
+
+        // Extract mission from swarm goal if available
+        if (context.parentContext?.goal) {
+            const goal = context.parentContext.goal as string;
+            
+            // Simple heuristic to map goals to missions
+            if (goal.toLowerCase().includes("automat")) {
+                return "automation";
+            } else if (goal.toLowerCase().includes("explor") || goal.toLowerCase().includes("analyz")) {
+                return "exploration";
+            }
+        }
+
+        return undefined;
+    }
+
+    /**
+     * Extracts goal from step info
+     */
+    private extractStepGoal(step: StepInfo): string | undefined {
+        // Check if step has explicit goal
+        if (step.description) {
+            const desc = step.description.toLowerCase();
+            
+            // Map step descriptions to goals
+            if (desc.includes("discover") || desc.includes("find") || desc.includes("search")) {
+                return "discover";
+            } else if (desc.includes("analyz") || desc.includes("evaluat") || desc.includes("assess")) {
+                return "analyze";
+            } else if (desc.includes("report") || desc.includes("summar") || desc.includes("document")) {
+                return "report";
+            } else if (desc.includes("optimi") || desc.includes("improv") || desc.includes("enhance")) {
+                return "optimize";
+            } else if (desc.includes("execut") || desc.includes("run") || desc.includes("perform")) {
+                return "execute";
+            } else if (desc.includes("monitor") || desc.includes("watch") || desc.includes("track")) {
+                return "monitor";
+            }
+        }
+
+        return undefined;
     }
 }

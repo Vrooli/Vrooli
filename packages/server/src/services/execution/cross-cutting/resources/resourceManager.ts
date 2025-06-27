@@ -84,10 +84,10 @@
  */
 
 import { logger } from "../../../../events/logger.js";
-import { 
-    type IEventBus,
+import {
     EventTypes,
     EventUtils,
+    type IEventBus,
 } from "../../../events/index.js";
 import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 import { type RateLimiter } from "./rateLimiter.js";
@@ -158,7 +158,6 @@ export class ResourceManager {
     ) {
         this.eventBus = eventBus;
         this.config = config;
-        // Create ErrorHandler without EventPublisher (will use unified event system directly)
         this.errorHandler = new ErrorHandler(logger).createComponentHandler(`ResourceManager-Tier${config.tier}`);
         this.rateLimiter = components?.rateLimiter;
         this.poolManager = components?.poolManager;
@@ -236,7 +235,7 @@ export class ResourceManager {
         used: ResourceAmount,
     ): Promise<void> {
         const currentUsage = this.usage.get(entityId) || {};
-        
+
         // Update usage
         const updatedUsage: ResourceAmount = {
             credits: (currentUsage.credits || 0) + (used.credits || 0),
@@ -333,7 +332,7 @@ export class ResourceManager {
         // Check each resource type
         for (const allocation of allocations) {
             const allocated = allocation.resources;
-            
+
             if (requested.credits && allocated.credits) {
                 if ((usage.credits || 0) + requested.credits > allocated.credits) {
                     // Emit resource exhausted event
@@ -357,7 +356,7 @@ export class ResourceManager {
                     return false;
                 }
             }
-            
+
             if (requested.tokens && allocated.tokens) {
                 if ((usage.tokens || 0) + requested.tokens > allocated.tokens) {
                     // Emit resource exhausted event
@@ -405,7 +404,7 @@ export class ResourceManager {
      */
     private applyLimits(requested: ResourceAmount): ResourceAmount {
         const limits = this.config.defaultLimits;
-        
+
         return {
             credits: Math.min(requested.credits || 0, limits.credits || Infinity),
             time: Math.min(requested.time || 0, limits.time || Infinity),

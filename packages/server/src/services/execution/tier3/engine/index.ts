@@ -1,4 +1,4 @@
-export * from "./strategySelector.js";
+export * from "./simpleStrategyProvider.js";
 export * from "./ioProcessor.js";
 export * from "./toolOrchestrator.js";
 export * from "./validationEngine.js";

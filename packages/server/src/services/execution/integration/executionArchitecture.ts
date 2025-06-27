@@ -9,22 +9,19 @@ import { type Logger } from "winston";
 import { logger } from "../../../events/logger.js";
 import { CachedConversationStateStore, PrismaChatStore } from "../../conversation/chatStore.js";
 import { getEventBus, type RedisEventBus } from "../cross-cutting/events/eventBus.js";
-// RollingHistory removed - monitoring now handled by emergent agents
 import { SwarmStateMachine } from "../tier1/coordination/swarmStateMachine.js";
 import { ResourceManager as Tier1ResourceManager } from "../tier1/organization/resourceManager.js";
 import { RedisSwarmStateStore } from "../tier1/state/redisSwarmStateStore.js";
 import { InMemorySwarmStateStore, type ISwarmStateStore } from "../tier1/state/swarmStateStore.js";
-import { TierTwoRunStateMachine } from "../tier2/orchestration/runStateMachine.js";
 import { InMemoryRunStateStore } from "../tier2/state/inMemoryRunStateStore.js";
 import { RedisRunStateStore, type IRunStateStore } from "../tier2/state/runStateStore.js";
+import { TierTwoOrchestrator } from "../tier2/tierTwoOrchestrator.js";
 import { ResourceManager as Tier3ResourceManager } from "../tier3/engine/resourceManager.js";
 import { UnifiedExecutor } from "../tier3/engine/unifiedExecutor.js";
 import { ConversationalStrategy } from "../tier3/strategies/conversationalStrategy.js";
 import { DeterministicStrategy } from "../tier3/strategies/deterministicStrategy.js";
 import { ReasoningStrategy } from "../tier3/strategies/reasoningStrategy.js";
 import { IntegratedToolRegistry } from "./mcp/toolRegistry.js";
-// ResourceMonitor functionality now provided by emergent agents - see monitoring/README.md
-// import { AgentDeploymentService } from "../cross-cutting/agents/agentDeploymentService.js";
 
 /**
  * Strategy factory interface for creating execution strategies
@@ -81,7 +78,6 @@ export class ExecutionArchitecture {
     private runStateStore: IRunStateStore | null = null;
     private toolRegistry: IntegratedToolRegistry | null = null;
     private conversationStore: CachedConversationStateStore | null = null;
-    // rollingHistory removed - monitoring now handled by emergent agents
 
     // Resource management
     private tier1ResourceManager: Tier1ResourceManager | null = null;
@@ -95,9 +91,6 @@ export class ExecutionArchitecture {
     constructor(options: ExecutionArchitectureOptions = {}) {
         this.options = {
             useRedis: process.env.NODE_ENV === "production",
-            telemetryEnabled: true,
-            historyEnabled: true,
-            historyBufferSize: 10000,
             ...options,
         };
 
@@ -124,7 +117,6 @@ export class ExecutionArchitecture {
 
         this.logger.info("[ExecutionArchitecture] Initializing execution architecture", {
             useRedis: this.options.useRedis,
-            telemetryEnabled: this.options.telemetryEnabled,
         });
 
         try {
@@ -208,12 +200,6 @@ export class ExecutionArchitecture {
         this.tier1ResourceManager = new Tier1ResourceManager(this.logger, this.eventBus!);
         this.tier3ResourceManager = new Tier3ResourceManager(this.logger, this.eventBus!);
 
-        // Initialize resource monitor for cross-tier monitoring
-        this.resourceMonitor = new ResourceMonitor(
-            this.logger,
-            this.eventBus!,
-        );
-
         this.logger.debug("[ExecutionArchitecture] Shared services initialized");
     }
 
@@ -255,7 +241,7 @@ export class ExecutionArchitecture {
                 cost: 100,
             },
             sandboxEnabled: false,
-            telemetryEnabled: this.options.telemetryEnabled || true,
+            telemetryEnabled: true,
             ...this.options.config?.tier3,
         };
 
@@ -281,7 +267,7 @@ export class ExecutionArchitecture {
         }
 
         // Create Tier 2 with dependency on Tier 3
-        this.tier2 = new TierTwoRunStateMachine(
+        this.tier2 = new TierTwoOrchestrator(
             this.logger,
             this.eventBus!,
             this.runStateStore!,
@@ -325,33 +311,22 @@ export class ExecutionArchitecture {
         // Subscribe to cross-tier events
         await this.eventBus.subscribe({
             id: generatePK() as string,
-            handler: "crossTierEventHandler",
-            filters: [
-                { field: "source", operator: "in", value: ["tier1", "tier2", "tier3"] },
-            ],
-            config: {
-                maxRetries: 3,
-                timeout: 30000,
+            pattern: "tier.*",
+            handler: async (event) => {
+                this.logger.debug("[ExecutionArchitecture] Cross-tier event received", {
+                    type: event.type,
+                    source: event.source,
+                });
             },
+            filters: [
+                { field: "source.tier", operator: "in", value: ["tier1", "tier2", "tier3"] },
+            ],
         });
 
         // Subscribe to telemetry events for monitoring
         // Telemetry subscription removed - monitoring now handled by emergent agents
 
-        // Subscribe to history pattern detection events if enabled
-        if (this.options.historyEnabled) {
-            await this.eventBus.subscribe({
-                id: generatePK() as string,
-                handler: "historyPatternHandler",
-                filters: [
-                    { field: "type", operator: "equals", value: "history.snapshot" },
-                ],
-                config: {
-                    maxRetries: 1,
-                    timeout: 5000,
-                },
-            });
-        }
+        // History pattern detection subscription removed - monitoring now handled by emergent agents
 
         this.logger.debug("[ExecutionArchitecture] Event listeners wired");
     }
@@ -379,10 +354,10 @@ export class ExecutionArchitecture {
         this.logger.info("[ExecutionArchitecture] Stopping execution architecture");
 
         try {
-            // Stop resource monitor
-            if (this.resourceMonitor) {
-                this.resourceMonitor.shutdown();
-            }
+            // Resource monitor functionality now provided by emergent agents
+            // if (this.resourceMonitor) {
+            //     this.resourceMonitor.shutdown();
+            // }
 
             // Stop event bus
             if (this.eventBus) {
@@ -443,18 +418,6 @@ export class ExecutionArchitecture {
     }
 
     /**
-     * Get Resource Monitor
-     */
-    getResourceMonitor(): ResourceMonitor {
-        if (!this.resourceMonitor) {
-            throw new Error("Resource monitor not initialized");
-        }
-        return this.resourceMonitor;
-    }
-
-    // getRollingHistory removed - monitoring now handled by emergent agents
-
-    /**
      * Get combined capabilities of all tiers
      */
     async getCapabilities(): Promise<Record<string, TierCapabilities>> {
@@ -486,8 +449,7 @@ export class ExecutionArchitecture {
         eventBusReady: boolean;
         stateStoresReady: boolean;
         toolRegistryReady: boolean;
-        resourceManagerReady: boolean;
-        // rollingHistoryReady removed - monitoring now emergent
+        // resourceManagerReady removed - monitoring now emergent
         monitoringToolsReady: boolean;
     } {
         return {
@@ -498,8 +460,7 @@ export class ExecutionArchitecture {
             eventBusReady: !!this.eventBus,
             stateStoresReady: !!this.swarmStateStore && !!this.runStateStore,
             toolRegistryReady: !!this.toolRegistry,
-            resourceManagerReady: !!this.unifiedResourceManager,
-            // rollingHistoryReady removed - monitoring now emergent
+            // resourceManagerReady removed - monitoring now emergent
             monitoringToolsReady: !!this.toolRegistry && !!(this.toolRegistry as any)._monitoringToolInstances,
         };
     }
@@ -540,7 +501,6 @@ export class ExecutionArchitecture {
         // Clear resource managers
         this.tier1ResourceManager = null;
         this.tier3ResourceManager = null;
-        this.unifiedResourceManager = null;
 
         this.initialized = false;
     }

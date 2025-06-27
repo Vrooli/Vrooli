@@ -1,5 +1,5 @@
+import { generatePK } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { generatePk } from "@vrooli/shared";
 
 /**
  * User data available during execution
@@ -37,19 +37,67 @@ export interface UsageHints {
 }
 
 /**
- * ExecutionRunContext - Runtime environment for step execution
+ * ExecutionRunContext - Runtime environment for Tier 3 step execution
  * 
  * This class maintains the execution context passed from Tier 2 (Process Intelligence)
- * to Tier 3 (Execution Intelligence). It provides:
+ * to Tier 3 (Execution Intelligence). It provides the minimal, focused context needed
+ * for executing individual routine steps.
  * 
- * - Run identification and metadata
- * - User context and preferences
- * - Environment configuration
+ * ## Purpose
+ * ExecutionRunContext is designed for:
+ * - Individual step execution with user context
+ * - Environment and configuration management
+ * - Metadata storage for step-specific data
+ * - Immutable context during execution for consistency
+ * 
+ * ## Key Differences from Other Context Types
+ * 
+ * ### Different from RunExecutionContext (Tier 2)
+ * RunExecutionContext tracks the entire routine execution:
+ * - Navigation state (current location, visited locations)
+ * - Resource tracking and limits
+ * - Parallel branch management
+ * - Variables, blackboard, and scopes
+ * 
+ * ExecutionRunContext focuses only on step execution:
+ * - User data and preferences
+ * - Environment variables
  * - Step-specific configuration
- * - Cross-tier communication data
- * - Usage hints for optimization
+ * - Metadata storage (replaces variables)
  * 
- * The ExecutionRunContext is immutable during step execution to ensure consistency.
+ * ### Different from Tier 2 RunExecutionContext
+ * RunExecutionContext (Tier 2) provides comprehensive tracking:
+ * - variables: Record<string, unknown>
+ * - blackboard: Record<string, unknown>
+ * - scopes: ContextScope[]
+ * 
+ * ExecutionRunContext uses a class-based approach with:
+ * - Immutable fields for consistency
+ * - Metadata Map for flexible storage
+ * - User and environment focus
+ * 
+ * ## Context Transformation
+ * When Tier 2 delegates to Tier 3:
+ * ```
+ * RunExecutionContext → ExecutionRunContext
+ * - runId, routineId preserved
+ * - variables → metadata
+ * - swarmId carried forward
+ * - User data extracted from swarm context
+ * - Step config added based on current location
+ * ```
+ * 
+ * ## Design Principles
+ * 1. **Immutability**: All fields are readonly to prevent side effects
+ * 2. **Focused Scope**: Only data needed for step execution
+ * 3. **Type Safety**: Class-based with strong typing
+ * 4. **Extensibility**: Metadata allows flexible data storage
+ * 
+ * The ExecutionRunContext is intentionally minimal, containing only what's needed
+ * for Tier 3 to execute individual steps, while Tier 2 maintains the comprehensive
+ * execution state.
+ * 
+ * @see RunExecutionContext in tier2/orchestration/unifiedRunStateMachine.ts - The Tier 2 context
  */
 export class ExecutionRunContext {
     readonly runId: string;
@@ -58,29 +106,29 @@ export class ExecutionRunContext {
     readonly currentStepId?: string;
     readonly parentRunId?: string;
     readonly swarmId?: string;
-    
+
     readonly userData: UserData;
     readonly environment: Record<string, string>;
     readonly stepConfig?: StepConfig;
     readonly usageHints?: UsageHints;
-    
+
     private readonly metadata: Map<string, unknown>;
     private readonly startTime: number;
     private readonly logger?: Logger;
 
     constructor(config: ExecutionRunContextConfig) {
-        this.runId = config.runId || generatePk();
+        this.runId = config.runId || generatePK();
         this.routineId = config.routineId;
         this.routineName = config.routineName;
         this.currentStepId = config.currentStepId;
         this.parentRunId = config.parentRunId;
         this.swarmId = config.swarmId;
-        
+
         this.userData = config.userData;
         this.environment = config.environment || {};
         this.stepConfig = config.stepConfig;
         this.usageHints = config.usageHints;
-        
+
         this.metadata = new Map(Object.entries(config.metadata || {}));
         this.startTime = Date.now();
         this.logger = config.logger;
@@ -226,13 +274,13 @@ export interface ExecutionRunContextConfig {
     currentStepId?: string;
     parentRunId?: string;
     swarmId?: string;
-    
+
     userData: UserData;
     environment?: Record<string, string>;
     stepConfig?: StepConfig;
     usageHints?: UsageHints;
     metadata?: Record<string, unknown>;
-    
+
     logger?: Logger;
 }
 

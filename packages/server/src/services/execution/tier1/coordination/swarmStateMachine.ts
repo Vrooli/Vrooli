@@ -31,12 +31,10 @@ import {
     ExecutionStates,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { type ISwarmStateStore } from "../state/swarmStateStore.js";
 import { type ConversationBridge } from "../intelligence/conversationBridge.js";
-import { SocketService } from "../../../../sockets/io.js";
 import { BaseStateMachine, BaseStates, type BaseEvent } from "../../shared/BaseStateMachine.js";
-import { ExecutionSocketEventEmitter } from "../../shared/SocketEventEmitter.js";
+import { EventTypes } from "../../../events/index.js";
 
 /**
  * Swarm event types
@@ -74,6 +72,18 @@ export const SwarmState = BaseStates;
 export type State = keyof typeof SwarmState;
 
 /**
+ * Conversation state interface (temporary until ConversationBridge exports it)
+ */
+interface ConversationState {
+    id: string;
+    config: ChatConfigObject;
+    participants: BotParticipant[];
+    availableTools: any[];
+    initialLeaderSystemMessage: string;
+    teamConfig?: any;
+}
+
+/**
  * SwarmStateMachine
  * 
  * Manages the lifecycle of an autonomous agent swarm. Instead of prescriptive states
@@ -99,15 +109,13 @@ export type State = keyof typeof SwarmState;
 export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     private conversationId: string | null = null;
     private initiatingUser: SessionUser | null = null;
-    private readonly socketEmitter = ExecutionSocketEventEmitter.get();
 
     constructor(
         logger: Logger,
-        eventBus: EventBus,
         private readonly stateStore: ISwarmStateStore,
         private readonly conversationBridge?: ConversationBridge, // Optional for backward compatibility
     ) {
-        super(logger, eventBus, SwarmState.UNINITIALIZED);
+        super(logger, SwarmState.UNINITIALIZED, "SwarmStateMachine");
     }
 
     // Implementation of ManagedTaskStateMachine methods
@@ -183,29 +191,46 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 
                 this.state = SwarmState.IDLE;
                 
-                // Emit state change to UI
-                await this.socketEmitter.emitSwarmStateUpdate(
-                    this.conversationId!, // We know conversationId is set at this point
-                    ExecutionStates.STARTING,
-                    "Swarm initialization complete, entering idle state",
-                    convoId,
+                // Emit state change to UI via unified events
+                await this.publishUnifiedEvent(
+                    EventTypes.STATE_SWARM_UPDATED,
+                    {
+                        entityType: "swarm",
+                        entityId: this.conversationId!,
+                        oldState: "UNINITIALIZED",
+                        newState: ExecutionStates.STARTING,
+                        message: "Swarm initialization complete, entering idle state",
+                    },
+                    {
+                        conversationId: this.conversationId!,
+                        priority: "medium",
+                        deliveryGuarantee: "fire-and-forget",
+                    },
                 );
                 
-                // Emit initial config
-                await this.socketEmitter.emitSwarmConfigUpdate(
-                    this.conversationId!,
+                // Emit initial config via unified events
+                await this.publishUnifiedEvent(
+                    EventTypes.CONFIG_SWARM_UPDATED,
                     {
-                        goal,
-                        subtasks: [],
-                        swarmLeader: leaderBot.id,
-                        stats: {
-                            startedAt: Date.now(),
-                            totalToolCalls: 0,
-                            totalCredits: "0",
-                            lastProcessingCycleEndedAt: null,
+                        entityType: "swarm",
+                        entityId: this.conversationId!,
+                        config: {
+                            goal,
+                            subtasks: [],
+                            swarmLeader: leaderBot.id,
+                            stats: {
+                                startedAt: Date.now(),
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                lastProcessingCycleEndedAt: null,
+                            },
                         },
                     },
-                    convoId,
+                    {
+                        conversationId: this.conversationId!,
+                        priority: "medium",
+                        deliveryGuarantee: "fire-and-forget",
+                    },
                 );
                 
                 await this.handleEvent(startEvent);
@@ -220,12 +245,26 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         } catch (error) {
             this.state = SwarmState.FAILED;
             
-            // Emit failure state
-            await this.socketEmitter.emitSwarmStateUpdate(
-                this.conversationId!,
-                ExecutionStates.FAILED,
-                `Swarm initialization failed: ${error instanceof Error ? error.message : String(error)}`,
-                convoId,
+            // Emit failure state via unified events
+            await this.publishUnifiedEvent(
+                EventTypes.STATE_SWARM_UPDATED,
+                {
+                    entityType: "swarm",
+                    entityId: this.conversationId!,
+                    oldState: "STARTING",
+                    newState: ExecutionStates.FAILED,
+                    message: `Swarm initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+                    error: error instanceof Error ? {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack,
+                    } : { message: String(error) },
+                },
+                {
+                    conversationId: this.conversationId!,
+                    priority: "high",
+                    deliveryGuarantee: "reliable",
+                },
             );
             
             throw error;
@@ -315,14 +354,23 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         });
 
         // Emit event for monitoring
-        await this.eventPublisher.publishStateChange(
-            "swarm",
-            event.conversationId,
-            "STARTING",
-            "INITIALIZED",
+        await this.publishUnifiedEvent(
+            EventTypes.STATE_SWARM_UPDATED,
             {
-                goal: event.goal,
-                leaderId: leaderBot.id,
+                entityType: "swarm",
+                entityId: event.conversationId,
+                oldState: "STARTING",
+                newState: "INITIALIZED",
+                message: `Swarm initialized with goal: "${event.goal}"`,
+                metadata: {
+                    goal: event.goal,
+                    leaderId: leaderBot.id,
+                },
+            },
+            {
+                conversationId: event.conversationId,
+                priority: "medium",
+                deliveryGuarantee: "reliable",
             },
         );
     }
@@ -377,10 +425,22 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         };
 
         // Emit swarm stopped event
-        await this.emitEvent("swarm.stopped", {
-            swarmId: this.conversationId,
-            finalState,
-        });
+        await this.publishUnifiedEvent(
+            EventTypes.STATE_SWARM_UPDATED,
+            {
+                entityType: "swarm",
+                entityId: this.conversationId,
+                oldState: this.state,
+                newState: mode === "force" ? "TERMINATED" : "STOPPED",
+                message: reason || "Swarm stopped",
+                metadata: finalState,
+            },
+            {
+                conversationId: this.conversationId,
+                priority: "high",
+                deliveryGuarantee: "reliable",
+            },
+        );
 
         return finalState;
     }
@@ -538,11 +598,26 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             });
 
             // Emit response event for monitoring
-            await this.eventPublisher.publish("swarm.message.processed", {
-                swarmId: event.conversationId,
-                originalMessage: messageText,
-                responseGenerated: true,
-            });
+            await this.publishUnifiedEvent(
+                EventTypes.ROUTINE_STEP_COMPLETED,
+                {
+                    runId: event.conversationId,
+                    stepId: generatePK(),
+                    stepType: "message_processing",
+                    duration: 0,
+                    creditsUsed: "0",
+                    success: true,
+                    outputs: {
+                        messageProcessed: messageText,
+                        responseGenerated: true,
+                    },
+                },
+                {
+                    conversationId: event.conversationId,
+                    priority: "medium",
+                    deliveryGuarantee: "fire-and-forget",
+                },
+            );
         }, "handleExternalMessage", { conversationId: event.conversationId });
     }
 
@@ -594,12 +669,22 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             });
 
             // Emit tool execution event
-            await this.eventPublisher.publish("swarm.tool.executed", {
-                swarmId: event.conversationId,
-                toolName: pendingToolCall.toolName,
-                toolParams: pendingToolCall.params,
-                approved: true,
-            });
+            await this.publishUnifiedEvent(
+                EventTypes.TOOL_COMPLETED,
+                {
+                    toolName: pendingToolCall.toolName,
+                    toolCallId: pendingToolCall.id || generatePK(),
+                    parameters: pendingToolCall.params,
+                    result: { approved: true, executed: true },
+                    duration: 0,
+                    creditsUsed: "0",
+                },
+                {
+                    conversationId: event.conversationId,
+                    priority: "medium",
+                    deliveryGuarantee: "reliable",
+                },
+            );
         }, "handleApprovedTool", { 
             conversationId: event.conversationId,
             tool: event.payload?.pendingToolCall?.toolName, 
@@ -658,12 +743,21 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             });
 
             // Emit tool rejection handled event
-            await this.eventPublisher.publish("swarm.tool.rejected", {
-                swarmId: event.conversationId,
-                toolName: pendingToolCall.toolName,
-                rejectionReason,
-                fallbackGenerated: true,
-            });
+            await this.publishUnifiedEvent(
+                EventTypes.TOOL_APPROVAL_REJECTED,
+                {
+                    toolName: pendingToolCall.toolName,
+                    toolCallId: pendingToolCall.id || generatePK(),
+                    pendingId: pendingToolCall.pendingId,
+                    rejectedBy: event.sessionUser?.id,
+                    reason: rejectionReason,
+                },
+                {
+                    conversationId: event.conversationId,
+                    priority: "medium",
+                    deliveryGuarantee: "reliable",
+                },
+            );
         }, "handleRejectedTool", { 
             conversationId: event.conversationId,
             tool: event.payload?.pendingToolCall?.toolName, 
@@ -712,11 +806,25 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             });
 
             // Emit task coordination event
-            await this.eventPublisher.publish("swarm.task.assigned", {
-                swarmId: event.conversationId,
-                taskPayload: event.payload,
-                coordinationGenerated: true,
-            });
+            await this.publishUnifiedEvent(
+                EventTypes.STATE_TASK_UPDATED,
+                {
+                    entityType: "task",
+                    entityId: event.payload?.taskId || generatePK(),
+                    newState: "assigned",
+                    message: "Task assigned to swarm for coordination",
+                    metadata: {
+                        swarmId: event.conversationId,
+                        taskPayload: event.payload,
+                        taskType: event.payload?.runId ? "run_execution" : "general_task",
+                    },
+                },
+                {
+                    conversationId: event.conversationId,
+                    priority: "high",
+                    deliveryGuarantee: "reliable",
+                },
+            );
         }, "handleInternalTaskAssignment", { conversationId: event.conversationId });
     }
 
@@ -785,13 +893,40 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 responseLength: response.length,
             });
 
-            // Emit status processing event
-            await this.eventPublisher.publish("swarm.status.processed", {
-                swarmId: event.conversationId,
-                updateType: event.payload?.type,
-                statusData: event.payload,
-                processingGenerated: true,
-            });
+            // Emit status processing event based on update type
+            const eventType = event.payload?.type === "run_completed" ? EventTypes.ROUTINE_COMPLETED :
+                             event.payload?.type === "run_failed" ? EventTypes.ROUTINE_FAILED :
+                             event.payload?.type === "resource_alert" ? EventTypes.RESOURCE_EXHAUSTED :
+                             EventTypes.STATE_SWARM_UPDATED;
+                             
+            const eventData = event.payload?.type === "run_completed" || event.payload?.type === "run_failed" ? {
+                runId: event.payload.runId,
+                totalDuration: event.payload.duration || 0,
+                creditsUsed: event.payload.creditsUsed || "0",
+                error: event.payload?.error,
+            } : event.payload?.type === "resource_alert" ? {
+                entityType: "swarm",
+                entityId: event.conversationId,
+                resourceType: event.payload.resourceType || "credits",
+                threshold: event.payload.threshold,
+                current: event.payload.current,
+            } : {
+                entityType: "swarm",
+                entityId: event.conversationId,
+                newState: this.state,
+                message: `Status update processed: ${event.payload?.type}`,
+                metadata: event.payload,
+            };
+            
+            await this.publishUnifiedEvent(
+                eventType,
+                eventData,
+                {
+                    conversationId: event.conversationId,
+                    priority: "medium",
+                    deliveryGuarantee: "reliable",
+                },
+            );
         }, "handleInternalStatusUpdate", { 
             conversationId: event.conversationId,
             updateType: event.payload?.type, 

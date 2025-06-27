@@ -1,13 +1,8 @@
 import { type Logger } from "winston";
 import { 
     type RunContext,
-    type ExecutionContext,
-    type ProcessContext,
-    type CoordinationContext,
     type ContextScope,
-    DataSensitivity,
 } from "@vrooli/shared";
-import { type ProcessRunContext } from "../tier2/context/contextManager.js";
 import { type ExecutionRunContext } from "../tier3/context/runContext.js";
 
 /**
@@ -53,10 +48,16 @@ export interface ValidationWarning {
 /**
  * Context Validator - Validates different context types for consistency and safety
  */
+// Constants for validation limits
+const BYTES_PER_MB = 1024 * 1024;
+const MAX_VARIABLE_SIZE_BYTES = BYTES_PER_MB; // 1MB
+const MAX_SCOPE_DEPTH = 10;
+const LARGE_OBJECT_WARNING_SIZE = 100000; // 100KB
+
 export class ContextValidator {
     private readonly logger: Logger;
-    private readonly maxVariableSize: number = 1024 * 1024; // 1MB
-    private readonly maxScopeDepth: number = 10;
+    private readonly maxVariableSize: number = MAX_VARIABLE_SIZE_BYTES;
+    private readonly maxScopeDepth: number = MAX_SCOPE_DEPTH;
     private readonly sensitivePatterns: RegExp[] = [
         /password/i,
         /secret/i,
@@ -70,68 +71,8 @@ export class ContextValidator {
         this.logger = logger;
     }
 
-    /**
-     * Validates ProcessRunContext (Tier 2)
-     */
-    validateProcessRunContext(context: ProcessRunContext): ValidationResult {
-        const errors: ValidationError[] = [];
-        const warnings: ValidationWarning[] = [];
-        let itemsValidated = 0;
-
-        // Validate required structure
-        if (!context || typeof context !== "object") {
-            errors.push({
-                type: ContextValidationError.INVALID_STRUCTURE,
-                field: "root",
-                message: "Context must be a valid object",
-                severity: "critical",
-            });
-            return this.createResult(false, errors, warnings, "ProcessRunContext", itemsValidated);
-        }
-
-        // Validate variables
-        if (context.variables) {
-            const variableValidation = this.validateVariables(context.variables, "variables");
-            errors.push(...variableValidation.errors);
-            warnings.push(...variableValidation.warnings);
-            itemsValidated += Object.keys(context.variables).length;
-        }
-
-        // Validate blackboard
-        if (context.blackboard) {
-            const blackboardValidation = this.validateVariables(context.blackboard, "blackboard");
-            errors.push(...blackboardValidation.errors);
-            warnings.push(...blackboardValidation.warnings);
-            itemsValidated += Object.keys(context.blackboard).length;
-        }
-
-        // Validate scopes
-        if (context.scopes) {
-            const scopeValidation = this.validateScopes(context.scopes);
-            errors.push(...scopeValidation.errors);
-            warnings.push(...scopeValidation.warnings);
-            itemsValidated += context.scopes.length;
-        } else {
-            errors.push({
-                type: ContextValidationError.MISSING_REQUIRED_FIELD,
-                field: "scopes",
-                message: "Scopes array is required",
-                severity: "high",
-                suggestion: "Initialize with at least a global scope",
-            });
-        }
-
-        const isValid = errors.filter(e => e.severity === "critical" || e.severity === "high").length === 0;
-
-        this.logger.debug("[ContextValidator] Validated ProcessRunContext", {
-            valid: isValid,
-            errorCount: errors.length,
-            warningCount: warnings.length,
-            itemsValidated,
-        });
-
-        return this.createResult(isValid, errors, warnings, "ProcessRunContext", itemsValidated);
-    }
+    // Modern context validation now handled by RunExecutionContext and ExecutionRunContext
+    // See UnifiedRunStateMachine and tier3/context for modern validation patterns
 
     /**
      * Validates ExecutionRunContext (Tier 3)
@@ -204,7 +145,7 @@ export class ContextValidator {
     }
 
     /**
-     * Validates shared RunContext
+     * Validates shared RunContext (simple variables container)
      */
     validateRunContext(context: RunContext): ValidationResult {
         const errors: ValidationError[] = [];
@@ -222,51 +163,69 @@ export class ContextValidator {
             return this.createResult(false, errors, warnings, "RunContext", itemsValidated);
         }
 
-        // Validate required fields
-        const requiredFields = ["runId", "routineManifest", "variables"];
+        // Validate required fields - RunContext only has variables, blackboard, scopes
+        const requiredFields = ["variables", "blackboard", "scopes"] as const;
         for (const field of requiredFields) {
-            if (!(field in context) || !context[field as keyof RunContext]) {
+            if (!(field in context)) {
                 errors.push({
                     type: ContextValidationError.MISSING_REQUIRED_FIELD,
                     field,
-                    message: `Required field '${field}' is missing or empty`,
+                    message: `Required field '${field}' is missing`,
                     severity: "high",
                 });
             }
             itemsValidated++;
         }
 
-        // Validate variables Map
-        if (context.variables && context.variables instanceof Map) {
-            for (const [key, variable] of context.variables) {
-                const varValidation = this.validateContextVariable(key, variable);
-                errors.push(...varValidation.errors);
-                warnings.push(...varValidation.warnings);
-                itemsValidated++;
+        // Validate variables Record
+        if (context.variables) {
+            if (!this.isValidRecord(context.variables)) {
+                errors.push({
+                    type: ContextValidationError.INVALID_DATA_TYPE,
+                    field: "variables",
+                    message: "Variables must be a Record<string, unknown>",
+                    severity: "high",
+                });
+            } else {
+                const variableValidation = this.validateVariables(context.variables, "variables");
+                errors.push(...variableValidation.errors);
+                warnings.push(...variableValidation.warnings);
+                itemsValidated += Object.keys(context.variables).length;
             }
-        } else if (context.variables) {
-            errors.push({
-                type: ContextValidationError.INVALID_DATA_TYPE,
-                field: "variables",
-                message: "Variables must be a Map instance",
-                severity: "high",
-            });
         }
 
-        // Validate resource limits
-        if (context.resourceLimits) {
-            const limitsValidation = this.validateResourceLimits(context.resourceLimits);
-            errors.push(...limitsValidation.errors);
-            warnings.push(...limitsValidation.warnings);
-            itemsValidated++;
+        // Validate blackboard Record
+        if (context.blackboard) {
+            if (!this.isValidRecord(context.blackboard)) {
+                errors.push({
+                    type: ContextValidationError.INVALID_DATA_TYPE,
+                    field: "blackboard",
+                    message: "Blackboard must be a Record<string, unknown>",
+                    severity: "high",
+                });
+            } else {
+                const blackboardValidation = this.validateVariables(context.blackboard, "blackboard");
+                errors.push(...blackboardValidation.errors);
+                warnings.push(...blackboardValidation.warnings);
+                itemsValidated += Object.keys(context.blackboard).length;
+            }
         }
 
-        // Validate permissions
-        if (context.permissions) {
-            const permissionsValidation = this.validatePermissions(context.permissions);
-            errors.push(...permissionsValidation.errors);
-            warnings.push(...permissionsValidation.warnings);
-            itemsValidated += context.permissions.length;
+        // Validate scopes array
+        if (context.scopes) {
+            if (!Array.isArray(context.scopes)) {
+                errors.push({
+                    type: ContextValidationError.INVALID_DATA_TYPE,
+                    field: "scopes",
+                    message: "Scopes must be an array",
+                    severity: "high",
+                });
+            } else {
+                const scopeValidation = this.validateScopes(context.scopes);
+                errors.push(...scopeValidation.errors);
+                warnings.push(...scopeValidation.warnings);
+                itemsValidated += context.scopes.length;
+            }
         }
 
         const isValid = errors.filter(e => e.severity === "critical" || e.severity === "high").length === 0;
@@ -312,7 +271,7 @@ export class ContextValidator {
                     field: fieldPath,
                     message: `Variable '${key}' exceeds maximum size limit`,
                     severity: "medium",
-                    suggestion: `Keep variables under ${this.maxVariableSize} bytes`,
+                    suggestion: `Keep variables under ${this.maxVariableSize / BYTES_PER_MB}MB`,
                 });
             }
 
@@ -330,7 +289,7 @@ export class ContextValidator {
             // Performance warning for large objects
             if (typeof value === "object" && value !== null) {
                 const size = this.estimateObjectSize(value);
-                if (size > 100000) { // 100KB
+                if (size > LARGE_OBJECT_WARNING_SIZE) {
                     warnings.push({
                         field: fieldPath,
                         message: `Large object detected (${Math.round(size / 1024)}KB)`,
@@ -413,7 +372,7 @@ export class ContextValidator {
         return { errors, warnings };
     }
 
-    private validateUserData(userData: any): { errors: ValidationError[], warnings: ValidationWarning[] } {
+    private validateUserData(userData: Record<string, unknown>): { errors: ValidationError[], warnings: ValidationWarning[] } {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
@@ -465,37 +424,8 @@ export class ContextValidator {
         return { errors, warnings };
     }
 
-    private validateContextVariable(key: string, variable: any): { errors: ValidationError[], warnings: ValidationWarning[] } {
-        const errors: ValidationError[] = [];
-        const warnings: ValidationWarning[] = [];
 
-        // Validate variable structure
-        const requiredFields = ["key", "value", "source", "timestamp", "sensitivity", "mutable"];
-        for (const field of requiredFields) {
-            if (!(field in variable)) {
-                errors.push({
-                    type: ContextValidationError.MISSING_REQUIRED_FIELD,
-                    field: `variables.${key}.${field}`,
-                    message: `Variable field '${field}' is missing`,
-                    severity: "medium",
-                });
-            }
-        }
-
-        // Validate sensitivity level
-        if (variable.sensitivity && !Object.values(DataSensitivity).includes(variable.sensitivity)) {
-            errors.push({
-                type: ContextValidationError.INVALID_DATA_TYPE,
-                field: `variables.${key}.sensitivity`,
-                message: "Invalid sensitivity level",
-                severity: "medium",
-            });
-        }
-
-        return { errors, warnings };
-    }
-
-    private validateResourceLimits(limits: any): { errors: ValidationError[], warnings: ValidationWarning[] } {
+    private validateResourceLimits(limits: Record<string, unknown>): { errors: ValidationError[], warnings: ValidationWarning[] } {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
@@ -514,7 +444,7 @@ export class ContextValidator {
         return { errors, warnings };
     }
 
-    private validatePermissions(permissions: any[]): { errors: ValidationError[], warnings: ValidationWarning[] } {
+    private validatePermissions(permissions: Record<string, unknown>[]): { errors: ValidationError[], warnings: ValidationWarning[] } {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
@@ -571,6 +501,13 @@ export class ContextValidator {
         } catch {
             return 0;
         }
+    }
+
+    /**
+     * Type guard for validating Record<string, unknown> objects
+     */
+    private isValidRecord(obj: unknown): obj is Record<string, unknown> {
+        return typeof obj === "object" && obj !== null && !Array.isArray(obj);
     }
 
     private createResult(

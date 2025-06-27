@@ -18,22 +18,42 @@ interface NavigatorUsageStats {
 }
 
 /**
- * NavigatorRegistry - Universal navigator management
+ * NavigatorRegistry - Central Registry for Navigation Architectures
  * 
- * This registry manages different navigator implementations that enable
- * Vrooli to execute workflows from various platforms. Each navigator
- * translates platform-specific workflow definitions into a common
- * navigation interface.
+ * ## Current Implementation (Not Multi-Platform Yet!)
  * 
- * Supported platforms:
- * - Native Vrooli workflows
- * - BPMN (Business Process Model and Notation)
- * - Langchain (AI chain orchestration)
- * - Temporal (distributed workflow engine)
- * - Custom formats via plugin system
+ * Currently, this registry only manages ONE navigator: the NativeNavigator (factory).
+ * Despite its name suggesting "universal navigator management," it currently provides
+ * a unified interface for Vrooli's internal navigation formats only.
  * 
- * This creates a universal automation ecosystem where workflows from
- * different platforms can interoperate seamlessly.
+ * ## Current Architecture:
+ * ```
+ * NavigatorRegistry
+ *      └── "native" → NativeNavigator (Factory)
+ *                         ├── BpmnNavigator (BPMN-2.0 workflows)  
+ *                         ├── SequentialNavigator (Vrooli's native format)
+ *                         └── SingleStepNavigator (direct actions)
+ * ```
+ * 
+ * ## Future Multi-Platform Vision:
+ * ```
+ * NavigatorRegistry (Future)
+ *      ├── "native" → NativeNavigator (Vrooli formats)
+ *      ├── "langchain" → LangchainNavigator (AI chain orchestration)
+ *      ├── "temporal" → TemporalNavigator (distributed workflows)
+ *      └── "bpmn-external" → ExternalBPMNNavigator (external BPMN engines)
+ * ```
+ * 
+ * ## Why This Design?
+ * 1. **Future-Proof**: Architecture ready for multiple workflow platforms
+ * 2. **Unified Interface**: All navigators implement the same Navigator interface
+ * 3. **Auto-Detection**: Can automatically detect which navigator to use
+ * 4. **Metrics**: Tracks usage and performance of each navigation type
+ * 
+ * ## Important Note:
+ * The execution engine currently only uses the "native" navigator (factory) which
+ * handles all Vrooli routine types internally. This registry provides the foundation
+ * for future multi-platform support without requiring architecture changes.
  */
 export class NavigatorRegistry {
     private readonly navigators: Map<string, Navigator> = new Map();
@@ -47,15 +67,20 @@ export class NavigatorRegistry {
 
     /**
      * Initializes built-in navigators
+     * 
+     * Currently only registers the NativeNavigator (factory) which handles all
+     * Vrooli routine types internally. Future navigators for external platforms
+     * will be registered here.
      */
     private initializeDefaultNavigators(): void {
-        // Register native Vrooli navigator
+        // Register the native Vrooli navigator factory
+        // This single navigator handles BPMN, Sequential, and Single-Step routines
         this.registerNavigator(new NativeNavigator(this.logger));
 
-        // Register other platform navigators
-        // this.registerNavigator(new BPMNNavigator(this.logger));
+        // Future multi-platform navigators (not yet implemented):
         // this.registerNavigator(new LangchainNavigator(this.logger));
         // this.registerNavigator(new TemporalNavigator(this.logger));
+        // this.registerNavigator(new ExternalBPMNNavigator(this.logger));
 
         this.logger.info("[NavigatorRegistry] Default navigators initialized", {
             navigatorTypes: Array.from(this.navigators.keys()),

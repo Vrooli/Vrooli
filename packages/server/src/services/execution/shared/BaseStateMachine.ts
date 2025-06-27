@@ -9,9 +9,10 @@
  */
 
 import { type Logger } from "winston";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
-import { EventPublisher } from "./EventPublisher.js";
-import { ErrorHandler, ComponentErrorHandler } from "./ErrorHandler.js";
+import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { type IEventBus, EventUtils } from "../../events/index.js";
+import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Common states shared by all state machines
@@ -61,17 +62,23 @@ export abstract class BaseStateMachine<
     protected processingLock = false;
     protected disposed = false;
     protected pendingDrainTimeout: NodeJS.Timeout | null = null;
-    protected readonly eventPublisher: EventPublisher;
+    protected readonly unifiedEventBus: IEventBus | null;
+    protected readonly componentName: string;
     protected readonly errorHandler: ComponentErrorHandler;
     
     constructor(
         protected readonly logger: Logger,
-        protected readonly eventBus: EventBus,
         initialState: TState = BaseStates.UNINITIALIZED as TState,
+        componentName?: string,
     ) {
         this.state = initialState;
-        this.eventPublisher = new EventPublisher(eventBus, logger, this.constructor.name);
-        this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler(this.constructor.name);
+        this.componentName = componentName || this.constructor.name;
+        
+        // Get unified event system for modern event publishing
+        this.unifiedEventBus = getUnifiedEventSystem();
+        
+        // Create error handler for consistent error management
+        this.errorHandler = new ErrorHandler(logger, null).createComponentHandler(this.componentName);
     }
 
     /**
@@ -213,7 +220,7 @@ export abstract class BaseStateMachine<
                 };
             },
             "stop",
-            { mode, reason }
+            { mode, reason },
         );
 
         if (!result.success) {
@@ -254,7 +261,7 @@ export abstract class BaseStateMachine<
             const result = await this.errorHandler.wrap(
                 () => this.processEvent(event),
                 "processEvent",
-                { eventType: event.type }
+                { eventType: event.type },
             );
             
             if (!result.success) {
@@ -282,7 +289,7 @@ export abstract class BaseStateMachine<
     /**
      * Schedule the next drain cycle
      */
-    protected scheduleDrain(delayMs: number = 0): void {
+    protected scheduleDrain(delayMs = 0): void {
         if (this.disposed || this.state === BaseStates.PAUSED as TState) {
             return;
         }
@@ -295,7 +302,7 @@ export abstract class BaseStateMachine<
                 this.drain().catch(err => 
                     this.logger.error(`[${this.constructor.name}] Error in scheduled drain`, {
                         error: err instanceof Error ? err.message : String(err),
-                    })
+                    }),
                 );
             }, delayMs);
         } else {
@@ -303,8 +310,8 @@ export abstract class BaseStateMachine<
                 this.drain().catch(err => 
                     this.logger.error(`[${this.constructor.name}] Error in immediate drain`, {
                         error: err instanceof Error ? err.message : String(err),
-                    })
-                )
+                    }),
+                ),
             );
         }
     }
@@ -320,22 +327,79 @@ export abstract class BaseStateMachine<
     }
 
     /**
-     * Emit an event to the event bus using EventPublisher
+     * Helper method for publishing events using unified event system
+     */
+    protected async publishUnifiedEvent(
+        eventType: string,
+        data: any,
+        options?: {
+            deliveryGuarantee?: "fire-and-forget" | "reliable" | "barrier-sync";
+            priority?: "low" | "medium" | "high" | "critical";
+            tags?: string[];
+            userId?: string;
+            conversationId?: string;
+        },
+    ): Promise<void> {
+        if (!this.unifiedEventBus) {
+            this.logger.debug(`[${this.componentName}] Unified event bus not available, skipping event publish`);
+            return;
+        }
+
+        try {
+            const event = EventUtils.createBaseEvent(
+                eventType,
+                data,
+                EventUtils.createEventSource("cross-cutting", this.componentName, generatePK()),
+                EventUtils.createEventMetadata(
+                    options?.deliveryGuarantee || "fire-and-forget",
+                    options?.priority || "medium",
+                    {
+                        tags: options?.tags,
+                        userId: options?.userId,
+                        conversationId: options?.conversationId,
+                    },
+                ),
+            );
+
+            await this.unifiedEventBus.publish(event);
+        } catch (error) {
+            this.logger.error(`[${this.componentName}] Failed to publish unified event`, {
+                eventType,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    /**
+     * Emit an event to the event bus using UnifiedEventSystem
      */
     protected async emitEvent(type: string, data: unknown): Promise<void> {
-        await this.eventPublisher.publish(`state.machine.${type}`, data);
+        await this.publishUnifiedEvent(
+            `state.machine.${type}`,
+            data,
+            {
+                priority: "medium",
+                deliveryGuarantee: "reliable",
+            },
+        );
     }
 
     /**
      * Emit a state change event (common pattern for state machines)
      */
     protected async emitStateChange(fromState: TState, toState: TState, context?: Record<string, any>): Promise<void> {
-        await this.eventPublisher.publishStateChange(
-            "state_machine",
-            this.getTaskId(),
-            fromState,
-            toState,
-            context
+        await this.publishUnifiedEvent(
+            "state_machine.state.changed",
+            {
+                taskId: this.getTaskId(),
+                previousState: fromState,
+                newState: toState,
+                ...context,
+            },
+            {
+                priority: "medium",
+                deliveryGuarantee: "reliable",
+            },
         );
     }
 
@@ -346,7 +410,7 @@ export abstract class BaseStateMachine<
     protected async withEventErrorHandling<T>(
         operation: string,
         fn: () => Promise<T>,
-        fallback?: (error: unknown) => T
+        fallback?: (error: unknown) => T,
     ): Promise<T> {
         const result = await this.errorHandler.wrap(fn, operation);
         if (!result.success) {

@@ -1,10 +1,8 @@
 export * from "./orchestration/index.js";
-export * from "./context/index.js";
 export * from "./navigation/index.js";
 export * from "./tierTwoOrchestrator.js";
 
 export { NativeNavigator } from "./navigation/navigators/nativeNavigator.js";
-export { CheckpointManager } from "./persistence/checkpointManager.js";
 export { MOISEGate } from "./validation/moiseGate.js";
 export { type IRunStateStore } from "./state/runStateStore.js";
 

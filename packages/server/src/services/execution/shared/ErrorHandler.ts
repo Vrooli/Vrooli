@@ -1,7 +1,9 @@
+import { nanoid } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { EventPublisher } from "./EventPublisher.js";
+import { type IEventBus, EventUtils } from "../../events/index.js";
+import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
 
-export type Result<T, E = Error> = 
+export type Result<T, E = Error> =
     | { success: true; data: T }
     | { success: false; error: E };
 
@@ -40,12 +42,13 @@ export interface ErrorHandlerConfig {
  */
 export class ErrorHandler {
     private readonly config: Required<ErrorHandlerConfig>;
+    private readonly unifiedEventBus: IEventBus | null;
 
     constructor(
         private readonly logger: Logger,
-        private readonly eventPublisher?: EventPublisher,
         config: ErrorHandlerConfig = {},
     ) {
+        this.unifiedEventBus = getUnifiedEventSystem();
         this.config = {
             logByDefault: config.logByDefault ?? true,
             publishByDefault: config.publishByDefault ?? true,
@@ -65,22 +68,22 @@ export class ErrorHandler {
             const data = await operation();
             return { success: true, data };
         } catch (error) {
-            return this.handleError(error, context);
+            return await this.handleError(error, context);
         }
     }
 
     /**
      * Wrap a sync operation with error handling
      */
-    wrapSync<T>(
+    async wrapSync<T>(
         operation: () => T,
         context: ErrorContext,
-    ): Result<T> {
+    ): Promise<Result<T>> {
         try {
             const data = operation();
             return { success: true, data };
         } catch (error) {
-            return this.handleError(error, context);
+            return await this.handleError(error, context);
         }
     }
 
@@ -143,9 +146,9 @@ export class ErrorHandler {
             lastError = errorResult.error;
 
             // Check if error is retryable
-            const isRetryable = retryableErrors.some(code => 
-                lastError?.message?.includes(code) || 
-                (lastError as any)?.code === code
+            const isRetryable = retryableErrors.some(code =>
+                lastError?.message?.includes(code) ||
+                (lastError as any)?.code === code,
             );
 
             if (!isRetryable || attempt === maxRetries) {
@@ -173,12 +176,12 @@ export class ErrorHandler {
     /**
      * Handle an error with consistent logging and publishing
      */
-    private handleError<E = Error>(
+    private async handleError<E = Error>(
         error: unknown,
         context: ErrorContext,
-    ): Result<never, E> {
+    ): Promise<Result<never, E>> {
         const errorObj = this.normalizeError(error);
-        
+
         // Check if error should be ignored
         if (this.config.ignoredErrors.includes(errorObj.name)) {
             return { success: false, error: errorObj as E };
@@ -201,17 +204,36 @@ export class ErrorHandler {
         }
 
         // Publish error event if enabled
-        if ((context.publishError ?? this.config.publishByDefault) && this.eventPublisher) {
-            this.eventPublisher.publishError(
-                `${context.component}.${context.operation}`,
-                errorObj,
-                context.metadata,
-            ).catch(publishError => {
-                this.logger.error(`[${context.component}] Failed to publish error event`, {
-                    originalError: errorObj.message,
-                    publishError: publishError.message,
-                });
-            });
+        if ((context.publishError ?? this.config.publishByDefault)) {
+            // Try unified event system first, fallback to legacy
+            if (this.unifiedEventBus) {
+                try {
+                    const event = EventUtils.createBaseEvent(
+                        "component.error",
+                        {
+                            component: context.component,
+                            operation: context.operation,
+                            error: {
+                                name: errorObj.name,
+                                message: errorObj.message,
+                                stack: errorObj.stack,
+                            },
+                            ...context.metadata,
+                        },
+                        EventUtils.createEventSource("cross-cutting", "ErrorHandler", nanoid()),
+                        EventUtils.createEventMetadata("reliable", "high"),
+                    );
+                    await this.unifiedEventBus.publish(event);
+                } catch (publishError) {
+                    this.logger.error(`[${context.component}] Failed to publish error event to unified system`, {
+                        originalError: errorObj.message,
+                        publishError: publishError instanceof Error ? publishError.message : String(publishError),
+                    });
+                }
+            } else {
+                // No event bus available, error will only be logged
+                this.logger.debug("[ErrorHandler] No unified event bus available for error event publication");
+            }
         }
 
         return { success: false, error: errorObj as E };
@@ -313,7 +335,7 @@ export class ComponentErrorHandler {
     constructor(
         private readonly errorHandler: ErrorHandler,
         private readonly component: string,
-    ) {}
+    ) { }
 
     async wrap<T>(
         operation: () => Promise<T>,

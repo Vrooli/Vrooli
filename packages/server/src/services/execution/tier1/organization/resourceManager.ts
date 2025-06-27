@@ -1,15 +1,11 @@
-import { type Logger } from "winston";
 import {
     type ResourceAllocation,
     type ResourceType,
-    type ResourceReservation,
-    type ResourceReturn,
-    SwarmEventType as SwarmEventTypeEnum,
-    generatePk,
 } from "@vrooli/shared";
-import { type ResourceAmount } from "../../cross-cutting/resources/resourceManager.js";
-import { SwarmResourceAdapter } from "../../cross-cutting/resources/adapters.js";
+import { type Logger } from "winston";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { SwarmResourceAdapter } from "../../cross-cutting/resources/adapters.js";
+import { type ResourceAmount } from "../../cross-cutting/resources/resourceManager.js";
 import { BaseTierResourceManager } from "../../shared/BaseTierResourceManager.js";
 
 /**
@@ -51,26 +47,55 @@ export interface ResourceStatus {
  */
 export type AllocationStrategy = "fair" | "priority" | "performance" | "adaptive";
 
-/**
- * Resource optimization suggestion
- */
-export interface ResourceOptimization {
-    type: "rebalance" | "release" | "increase" | "throttle";
-    target: string; // swarmId or agentId
-    resourceType: ResourceType;
-    amount: number;
-    rationale: string;
-    expectedSavings: number;
-}
 
 /**
  * ResourceManager - Tier 1 Swarm Resource Management
  * 
- * This component extends BaseTierResourceManager to provide swarm-specific
- * resource management functionality using the SwarmResourceAdapter.
+ * This component provides the foundational resource allocation and tracking infrastructure
+ * for swarm-level operations in Vrooli's three-tier execution architecture. It serves as
+ * the bridge between high-level resource requests and the unified resource management core.
  * 
- * Complex behaviors like optimization and prediction emerge from resource
- * agents analyzing the events emitted by the unified manager.
+ * ## Architecture Philosophy
+ * 
+ * The ResourceManager follows Vrooli's emergent AI philosophy by providing:
+ * - **Deterministic Infrastructure**: Reliable resource allocation, tracking, and cleanup
+ * - **Rich Event Streams**: Comprehensive resource events for AI agent analysis
+ * - **Minimal Intelligence**: No hard-coded optimization algorithms
+ * - **Emergent Optimization**: Complex resource optimization emerges from AI agents
+ * 
+ * ## Resource Types Managed
+ * - **Credits**: Primary cost tracking mechanism across all operations
+ * - **Time**: Execution duration limits and tracking (milliseconds)
+ * - **Memory**: Peak usage tracking and allocation limits (bytes)
+ * - **Tokens**: LLM token consumption tracking and rate limiting
+ * - **API Calls**: External service rate limiting and usage tracking
+ * 
+ * ## Event-Driven Intelligence
+ * 
+ * The manager emits resource events that AI agents analyze to provide:
+ * - Pattern recognition in resource usage
+ * - Predictive allocation strategies
+ * - Cost optimization recommendations
+ * - Performance bottleneck detection
+ * - Automated scaling decisions
+ * 
+ * ## Resource Flow Hierarchy
+ * ```
+ * Tier 1 (Swarm) → Allocates to swarms and agent teams
+ * Tier 2 (Run)   → Distributes across routine executions
+ * Tier 3 (Step)  → Manages individual step execution
+ * ```
+ * 
+ * ## Emergent Optimization by Design
+ * 
+ * Resource optimization intelligence emerges from deployed AI agents that:
+ * 1. Analyze resource event streams in real-time
+ * 2. Learn usage patterns across swarms and teams
+ * 3. Propose optimizations through routine execution
+ * 4. Continuously improve recommendations based on outcomes
+ * 
+ * This approach ensures the system remains adaptable and can evolve optimization
+ * strategies without requiring code changes to the core infrastructure.
  */
 export class ResourceManager extends BaseTierResourceManager<SwarmResourceAdapter> {
     // Configuration constants remain for backward compatibility
@@ -103,47 +128,47 @@ export class ResourceManager extends BaseTierResourceManager<SwarmResourceAdapte
         agentId?: string,
     ): Promise<ResourceAllocation> {
         return this.withErrorHandling("allocate resources", async () => {
-        const entityId = agentId || swarmId;
-        const resourceAmount: ResourceAmount = {};
-        
-        // Map ResourceType to ResourceAmount
-        switch (type) {
-            case "credits":
-                resourceAmount.credits = amount;
-                break;
-            case "time":
-                resourceAmount.time = amount;
-                break;
-            case "memory":
-                resourceAmount.memory = amount;
-                break;
-            case "tokens":
-                resourceAmount.tokens = amount;
-                break;
-            case "api_calls":
-                resourceAmount.apiCalls = amount;
-                break;
-            default:
-                throw new Error(`Unknown resource type: ${type}`);
-        }
+            const entityId = agentId || swarmId;
+            const resourceAmount: ResourceAmount = {};
 
-        // Use unified manager to allocate
-        const allocation = await this.unifiedManager.allocate(
-            entityId,
-            agentId ? "team" : "swarm",
-            resourceAmount,
-        );
+            // Map ResourceType to ResourceAmount
+            switch (type) {
+                case "credits":
+                    resourceAmount.credits = amount;
+                    break;
+                case "time":
+                    resourceAmount.time = amount;
+                    break;
+                case "memory":
+                    resourceAmount.memory = amount;
+                    break;
+                case "tokens":
+                    resourceAmount.tokens = amount;
+                    break;
+                case "api_calls":
+                    resourceAmount.apiCalls = amount;
+                    break;
+                default:
+                    throw new Error(`Unknown resource type: ${type}`);
+            }
 
-        // Map to legacy ResourceAllocation format
-        return {
-            id: allocation.id,
-            swarmId,
-            agentId: agentId || swarmId,
-            resourceType: type,
-            amount,
-            purpose,
-            expiresAt: allocation.expires || new Date(Date.now() + 3600000),
-        };
+            // Use unified manager to allocate
+            const allocation = await this.unifiedManager.allocate(
+                entityId,
+                agentId ? "team" : "swarm",
+                resourceAmount,
+            );
+
+            // Map to legacy ResourceAllocation format
+            return {
+                id: allocation.id,
+                swarmId,
+                agentId: agentId || swarmId,
+                resourceType: type,
+                amount,
+                purpose,
+                expiresAt: allocation.expires || new Date(Date.now() + 3600000),
+            };
         });
     }
 
@@ -245,19 +270,21 @@ export class ResourceManager extends BaseTierResourceManager<SwarmResourceAdapte
      */
     private getAmountFromAllocation(allocation: any): number {
         const resources = allocation.resources;
-        return resources.credits || resources.time || resources.memory || 
-               resources.tokens || resources.apiCalls || 0;
+        return resources.credits || resources.time || resources.memory ||
+            resources.tokens || resources.apiCalls || 0;
     }
 
     /**
-     * Requests resources with priority handling
-     * Priority handling now emerges from AI agents
+     * Requests resources with priority handling.
+     * 
+     * Priority optimization emerges from AI agents analyzing resource events
+     * and proposing improved allocation strategies through routine execution.
      */
     async requestResources(
         request: ResourceRequest,
     ): Promise<ResourceAllocation> {
-        // Simply delegate to allocateResources
-        // Priority optimization emerges from resource agents
+        // Priority optimization emerges from resource agents analyzing
+        // allocation patterns and proposing improvements
         return this.allocateResources(
             request.swarmId,
             request.purpose,
@@ -268,17 +295,10 @@ export class ResourceManager extends BaseTierResourceManager<SwarmResourceAdapte
     }
 
     /**
-     * Optimizes resource allocation
-     * Optimization now emerges from AI agents analyzing events
-     */
-    async optimizeAllocations(): Promise<ResourceOptimization[]> {
-        // Legacy method - returns empty array
-        // Real optimization happens through emergent AI behavior
-        return [];
-    }
-
-    /**
-     * Track resource usage
+     * Track resource usage across swarms and agent teams.
+     * 
+     * Emits usage events that AI optimization agents analyze to identify
+     * patterns, inefficiencies, and opportunities for improvement.
      */
     async trackResourceUsage(
         swarmId: string,

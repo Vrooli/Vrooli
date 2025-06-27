@@ -1,72 +1,99 @@
+// AI_CHECK: STARTUP_ERRORS=4 | LAST: 2025-06-25 | FIXED: Import/export mismatch causing module not found error
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { BaseComponent } from "../shared/BaseComponent.js";
-import { ExecutionSocketEventEmitter } from "../shared/SocketEventEmitter.js";
-import { RunStateMachine } from "./orchestration/runStateMachine.js";
+// Socket events now handled through unified event system
 import { NavigatorRegistry } from "./navigation/navigatorRegistry.js";
-import { BranchCoordinator } from "./orchestration/branchCoordinator.js";
-import { StepExecutor } from "./orchestration/stepExecutor.js";
-import { ContextManager } from "./context/contextManager.js";
-import { CheckpointManager } from "./persistence/checkpointManager.js";
-// Intelligence components removed - functionality provided by emergent agents
-import { MOISEGate } from "./validation/moiseGate.js";
-import { type IRunStateStore, getRunStateStore } from "./state/runStateStore.js";
+import { EventTypes } from "../../events/index.js";
+import { UnifiedRunStateMachine } from "./orchestration/unifiedRunStateMachine.js";
+// Legacy components removed - functionality consolidated in UnifiedRunStateMachine
 import {
-    type ExecutionId,
     type ExecutionResult,
-    type ExecutionStatus,
-    type ResourceAllocation,
     type RoutineExecutionInput,
-    type RunStatus,
     type Run,
     type TierCapabilities,
     type TierCommunicationInterface,
     type TierExecutionRequest,
     RunState,
-    generatePk,
 } from "@vrooli/shared";
+import { type IRunStateStore, getRunStateStore } from "./state/runStateStore.js";
+import { MOISEGate } from "./validation/moiseGate.js";
 
 /**
- * Tier Two Orchestrator
+ * Tier Two Orchestrator - Main Entry Point for Tier 2 Process Intelligence
  * 
- * Main entry point for Tier 2 process intelligence.
- * Manages run lifecycle, routine navigation, and orchestration.
+ * This class serves as the public API and facade for Tier 2 in the three-tier execution architecture.
+ * It implements the TierCommunicationInterface to enable cross-tier communication with Tier 1 
+ * (Swarm Coordination) and Tier 3 (Tool Execution).
+ * 
+ * ## Architecture Position:
+ * ```
+ * Tier 1 (Swarm) → TierTwoOrchestrator → Tier 3 (Execution)
+ *                          ↓
+ *                  UnifiedRunStateMachine (Internal Implementation)
+ * ```
+ * 
+ * ## Key Responsibilities:
+ * 1. **Initialization**: Sets up all Tier 2 dependencies (state store, navigators, MOISE+ gate)
+ * 2. **API Gateway**: Provides stable public interface for Tier 1 to execute routines
+ * 3. **Delegation**: Delegates all complex execution logic to UnifiedRunStateMachine
+ * 4. **Event Coordination**: Manages cross-tier event subscriptions and emissions
+ * 5. **Resource Management**: Initializes and manages shared resources
+ * 
+ * ## Relationship to Other Components:
+ * - **UnifiedRunStateMachine**: The actual implementation of all Tier 2 logic. TierTwoOrchestrator
+ *   creates and manages a single instance of this state machine.
+ * - **RunOrchestrator**: NOT directly used. UnifiedRunStateMachine provides its own run management
+ *   implementation but exposes a compatible interface via getRunOrchestrator().
+ * - **NavigatorRegistry**: Shared dependency that manages routine navigation strategies
+ * - **MOISEGate**: Shared dependency for organizational permission validation
+ * 
+ * ## Design Rationale:
+ * This thin orchestration layer exists to:
+ * - Provide a stable public API that won't change even if internal implementation does
+ * - Handle initialization complexity that shouldn't be in the state machine
+ * - Enable easier testing by separating concerns
+ * - Follow the Facade pattern for simplified external interaction
+ * 
+ * @see UnifiedRunStateMachine - The comprehensive state machine implementation
+ * @see {@link https://github.com/Vrooli/Vrooli/blob/main/docs/architecture/execution/tiers/tier2-process-intelligence} - Tier 2 Architecture Documentation
  */
 export class TierTwoOrchestrator extends BaseComponent implements TierCommunicationInterface {
     private readonly tier3Executor: TierCommunicationInterface;
-    private readonly runMachines: Map<string, RunStateMachine> = new Map();
+    
+    // Core unified architecture - single comprehensive state machine
+    private readonly unifiedStateMachine: UnifiedRunStateMachine;
+    
+    // Shared dependencies used by unified state machine
     private readonly navigatorRegistry: NavigatorRegistry;
-    private readonly branchCoordinator: BranchCoordinator;
-    private readonly stepExecutor: StepExecutor;
-    private readonly contextManager: ContextManager;
-    private readonly checkpointManager: CheckpointManager;
-    // Intelligence components removed - functionality provided by emergent agents
     private readonly moiseGate: MOISEGate;
     private readonly stateStore: IRunStateStore;
-    private readonly socketEmitter = ExecutionSocketEventEmitter.get();
 
-    // Track active executions for interface compliance
-    private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; runId: string }> = new Map();
 
     constructor(logger: Logger, eventBus: EventBus, tier3Executor: TierCommunicationInterface) {
         super(logger, eventBus, "TierTwoOrchestrator");
         this.tier3Executor = tier3Executor;
-        
-        // Initialize components
+
+        // Initialize shared dependencies
         this.stateStore = getRunStateStore();
         this.initializeStateStore();
         this.navigatorRegistry = new NavigatorRegistry(logger);
-        this.branchCoordinator = new BranchCoordinator(eventBus, logger, this.stateStore);
-        this.stepExecutor = new StepExecutor(logger, eventBus);
-        this.contextManager = new ContextManager(logger);
-        this.checkpointManager = new CheckpointManager(logger);
-        // Intelligence components removed - functionality provided by emergent agents
         this.moiseGate = new MOISEGate(logger);
-        
+
+        // Initialize unified state machine with all dependencies
+        this.unifiedStateMachine = new UnifiedRunStateMachine(
+            logger,
+            eventBus,
+            this.navigatorRegistry,
+            this.moiseGate,
+            this.stateStore,
+            tier3Executor,
+        );
+
         // Setup event handlers
         this.setupEventHandlers();
-        
-        this.logger.info("[TierTwoOrchestrator] Initialized");
+
+        this.logger.info("[TierTwoOrchestrator] Initialized with unified architecture");
     }
 
     /**
@@ -83,7 +110,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
     }
 
     /**
-     * Starts a new run
+     * Starts a new run using UnifiedRunStateMachine for comprehensive execution
      */
     async startRun(config: {
         runId: string;
@@ -99,43 +126,52 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
         };
         userId: string;
     }): Promise<void> {
-        this.logger.info("[TierTwoOrchestrator] Starting run", {
+        this.logger.info("[TierTwoOrchestrator] Starting run with unified architecture", {
             runId: config.runId,
             routineVersionId: config.routineVersionId,
         });
 
         try {
-            // Create run state machine
-            const stateMachine = new RunStateMachine(
-                this.logger,
-                this.eventBus,
-                this.stateStore,
-                this.tier3Executor,
-            );
+            // Use unified state machine for comprehensive execution
+            const runOrchestrator = this.unifiedStateMachine.getRunOrchestrator();
 
-            this.runMachines.set(config.runId, stateMachine);
-
-            // Start the run
-            await stateMachine.start({
-                runId: config.runId,
-                swarmId: config.swarmId,
-                routine: config.routine,
-                inputs: config.inputs,
-                config: config.config,
+            // Create and start the run
+            const run = await runOrchestrator.createRun({
+                routineId: config.routineVersionId,
                 userId: config.userId,
+                inputs: config.inputs,
+                config: {
+                    maxRetries: 3,
+                    timeout: config.config.timeout,
+                    parallel: true,
+                    strategy: config.config.strategy,
+                    maxSteps: config.config.maxSteps,
+                },
+                swarmId: config.swarmId,
             });
 
-            // Emit run started event
-            await this.eventPublisher.publish("run.started", {
+            // Start the run
+            await runOrchestrator.startRun(run.id);
+
+            // Emit run started event using unified event system
+            await this.publishUnifiedEvent(EventTypes.ROUTINE_STARTED, {
                 runId: config.runId,
                 routineVersionId: config.routineVersionId,
                 swarmId: config.swarmId,
+                routineName: run.routineName,
+                userId: run.userId,
+            }, {
+                deliveryGuarantee: "reliable",
+                priority: "high",
+                tags: ["routine", "orchestration"],
+                conversationId: config.swarmId,
             });
 
-            // Emit socket event for run progress (resolve swarmId to chatId in socket emitter)
-            await this.socketEmitter.emitSwarmConfigUpdate(
-                config.swarmId,
-                {
+            // Emit config update through unified event system
+            await this.publishUnifiedEvent(EventTypes.CONFIG_SWARM_UPDATED, {
+                entityType: "swarm",
+                entityId: config.swarmId,
+                config: {
                     // Update task progress - this would be mapped from the run
                     subtasks: [], // TODO: Map run steps to subtasks for display
                     stats: {
@@ -144,7 +180,11 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                         lastProcessingCycleEndedAt: Date.now(),
                     },
                 },
-            );
+            }, {
+                deliveryGuarantee: "fire-and-forget",
+                priority: "medium",
+                conversationId: config.swarmId,
+            });
 
         } catch (error) {
             this.logger.error("[TierTwoOrchestrator] Failed to start run", {
@@ -169,8 +209,9 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                 return null;
             }
 
-            const stateMachine = this.runMachines.get(runId);
-            const currentStep = stateMachine?.getCurrentStep();
+            // NEW: Use unified state machine run orchestrator
+            const runOrchestrator = this.unifiedStateMachine.getRunOrchestrator();
+            const currentStep = run.progress?.currentStepId;
 
             return {
                 progress: this.calculateProgress(run),
@@ -191,21 +232,29 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
      * Cancels a run
      */
     async cancelRun(runId: string, reason?: string): Promise<void> {
-        const stateMachine = this.runMachines.get(runId);
-        if (!stateMachine) {
+        // Use unified state machine run orchestrator
+        const runOrchestrator = this.unifiedStateMachine.getRunOrchestrator();
+        
+        // Check if run exists
+        const run = await runOrchestrator.getRunState(runId);
+        if (!run) {
             throw new Error(`Run ${runId} not found`);
         }
 
-        await stateMachine.cancel(reason || "User cancelled");
-        
-        // Remove from active machines
-        this.runMachines.delete(runId);
-        
+        await runOrchestrator.cancelRun(runId, reason || "User cancelled");
+
         // Emit cancellation event
-        await this.eventPublisher.publish("run.cancelled", {
-            runId,
-            reason,
-        });
+        await this.publishUnifiedEvent(
+            "run.cancelled",
+            {
+                runId,
+                reason,
+            },
+            {
+                priority: "high",
+                deliveryGuarantee: "reliable",
+            },
+        );
     }
 
     /**
@@ -213,20 +262,15 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
      */
     async shutdown(): Promise<void> {
         this.logger.info("[TierTwoOrchestrator] Shutting down");
-        
-        // Cancel all active runs
-        for (const [runId, stateMachine] of this.runMachines) {
-            try {
-                await stateMachine.cancel("System shutdown");
-            } catch (error) {
-                this.logger.error("[TierTwoOrchestrator] Error cancelling run during shutdown", {
-                    runId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
+
+        try {
+            // Stop the unified state machine (this will cancel all active runs)
+            await this.unifiedStateMachine.stop();
+        } catch (error) {
+            this.logger.error("[TierTwoOrchestrator] Error during shutdown", {
+                error: error instanceof Error ? error.message : String(error),
+            });
         }
-        
-        this.runMachines.clear();
     }
 
     /**
@@ -236,34 +280,40 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
         // Handle step completion from Tier 3
         this.eventBus.on("step.completed", async (event) => {
             const { runId, stepId, outputs } = event.data;
-            const stateMachine = this.runMachines.get(runId);
-            if (stateMachine) {
-                await stateMachine.handleStepCompletion(stepId, outputs);
-            }
+            // Use unified state machine run orchestrator
+            const runOrchestrator = this.unifiedStateMachine.getRunOrchestrator();
+            
+            // Update run progress
+            await runOrchestrator.updateProgress(runId, {
+                currentStepId: stepId,
+                completedSteps: [...(await runOrchestrator.getRunState(runId))?.progress?.completedSteps || [], stepId],
+            });
         });
 
         // Handle step failure from Tier 3
         this.eventBus.on("step.failed", async (event) => {
             const { runId, stepId, error } = event.data;
-            const stateMachine = this.runMachines.get(runId);
-            if (stateMachine) {
-                await stateMachine.handleStepFailure(stepId, error);
-            }
+            // Use unified state machine run orchestrator
+            const runOrchestrator = this.unifiedStateMachine.getRunOrchestrator();
+            
+            // Fail the run
+            await runOrchestrator.failRun(runId, `Step ${stepId} failed: ${error}`);
         });
 
         // Handle performance insights
         this.eventBus.on("performance.insight", async (event) => {
             const { runId } = event.data;
-            const stateMachine = this.runMachines.get(runId);
-            if (stateMachine) {
-                await stateMachine.handlePerformanceInsight(event.data);
-            }
+            // Performance insights can be logged or used for optimization
+            this.logger.info("[TierTwoOrchestrator] Performance insight received", {
+                runId,
+                insight: event.data,
+            });
         });
     }
 
     private calculateProgress(run: Run): number {
         if (!run.metrics) return 0;
-        
+
         const { stepsCompleted = 0, totalSteps = 1 } = run.metrics;
         return Math.min((stepsCompleted / totalSteps) * 100, 100);
     }
@@ -273,210 +323,29 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
      */
 
     /**
-     * Execute a routine execution request
+     * Execute a routine execution request using UnifiedRunStateMachine
      */
     async execute<TInput extends RoutineExecutionInput, TOutput>(
         request: TierExecutionRequest<TInput>,
     ): Promise<ExecutionResult<TOutput>> {
-        const { context, input, allocation, options } = request;
-        const executionId = context.executionId;
-
-        // Track execution
-        this.activeExecutions.set(executionId, {
-            status: ExecutionStatus.RUNNING,
-            startTime: new Date(),
-            runId: input.routineId,
-        });
-
-        try {
-            this.logger.info("[TierTwoOrchestrator] Starting tier execution", {
-                executionId,
-                routineId: input.routineId,
-            });
-
-            // Create a run ID for this execution
-            const runId = generatePk();
-
-            // Start routine execution through the existing startRun method
-            // Note: This is a simplified implementation - in practice we'd need to load the routine data
-            await this.startRun({
-                runId,
-                swarmId: context.swarmId,
-                routineVersionId: input.routineId,
-                routine: { workflow: input.workflow }, // Simplified routine data
-                inputs: input.parameters,
-                config: {
-                    strategy: options?.strategy || "reasoning",
-                    model: "gpt-4",
-                    maxSteps: 50,
-                    timeout: parseInt(allocation.maxDurationMs?.toString() || "300000"),
-                },
-                userId: context.userId || "system",
-            });
-
-            // Wait for completion (simplified - in practice this would be more sophisticated)
-            const result = await this.waitForCompletion(runId, parseInt(allocation.maxDurationMs?.toString() || "300000"));
-
-            // Update execution status
-            this.activeExecutions.set(executionId, {
-                status: ExecutionStatus.COMPLETED,
-                startTime: this.activeExecutions.get(executionId)!.startTime,
-                runId,
-            });
-
-            const executionResult: ExecutionResult<TOutput> = {
-                success: true,
-                result: result as TOutput,
-                outputs: result as Record<string, unknown>,
-                resourcesUsed: {
-                    creditsUsed: "10", // Simplified
-                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
-                    memoryUsedMB: 64,
-                    stepsExecuted: 1,
-                },
-                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
-                context,
-                metadata: {
-                    strategy: "routine_execution",
-                    version: "1.0.0",
-                    timestamp: new Date().toISOString(),
-                },
-                confidence: 0.85,
-                performanceScore: 0.80,
-            };
-
-            return executionResult;
-
-        } catch (error) {
-            // Update execution status
-            this.activeExecutions.set(executionId, {
-                status: ExecutionStatus.FAILED,
-                startTime: this.activeExecutions.get(executionId)!.startTime,
-                runId: this.activeExecutions.get(executionId)?.runId || "unknown",
-            });
-
-            this.logger.error("[TierTwoOrchestrator] Tier execution failed", {
-                executionId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-
-            const errorResult: ExecutionResult<TOutput> = {
-                success: false,
-                error: {
-                    code: "TIER2_EXECUTION_FAILED",
-                    message: error instanceof Error ? error.message : "Unknown error",
-                    tier: "tier2",
-                    type: error instanceof Error ? error.constructor.name : "Error",
-                },
-                resourcesUsed: {
-                    creditsUsed: "0",
-                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
-                    memoryUsedMB: 0,
-                    stepsExecuted: 0,
-                },
-                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
-                context,
-                metadata: {
-                    strategy: "routine_execution",
-                    version: "1.0.0",
-                    timestamp: new Date().toISOString(),
-                },
-                confidence: 0.0,
-                performanceScore: 0.0,
-            };
-
-            return errorResult;
-        }
+        // Delegate to unified state machine for complete execution
+        return await this.unifiedStateMachine.execute(request) as ExecutionResult<TOutput>;
     }
 
     /**
-     * Get execution status for monitoring
-     */
-    async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
-        const execution = this.activeExecutions.get(executionId);
-        return execution?.status || ExecutionStatus.COMPLETED;
-    }
-
-    /**
-     * Cancel a running execution
-     */
-    async cancelExecution(executionId: ExecutionId): Promise<void> {
-        const execution = this.activeExecutions.get(executionId);
-        if (execution) {
-            this.activeExecutions.set(executionId, {
-                ...execution,
-                status: ExecutionStatus.CANCELLED,
-            });
-
-            // Cancel the associated run
-            await this.cancelRun(execution.runId, "Execution cancelled");
-
-            this.logger.info("[TierTwoOrchestrator] Execution cancelled", { executionId });
-        }
-    }
-
-    /**
-     * Get tier capabilities
+     * Get tier capabilities from UnifiedRunStateMachine
      */
     async getCapabilities(): Promise<TierCapabilities> {
-        return {
-            tier: "tier2",
-            supportedInputTypes: ["RoutineExecutionInput"],
-            supportedStrategies: ["reasoning", "deterministic", "conversational"],
-            maxConcurrency: 5,
-            estimatedLatency: {
-                p50: 15000,
-                p95: 90000,
-                p99: 300000,
-            },
-            resourceLimits: {
-                maxCredits: "100000",
-                maxDurationMs: 3600000, // 1 hour
-                maxMemoryMB: 4096,
-            },
-        };
+        // Get capabilities from unified state machine
+        return await this.unifiedStateMachine.getCapabilities();
     }
 
     /**
-     * Wait for run completion (simplified implementation)
+     * Get tier status information from UnifiedRunStateMachine
      */
-    private async waitForCompletion(runId: string, timeoutMs: number): Promise<Record<string, unknown>> {
-        const startTime = Date.now();
-        const checkInterval = 1000; // Check every second
-
-        return new Promise((resolve, reject) => {
-            const checkStatus = async () => {
-                try {
-                    const run = await this.stateStore.getRun(runId);
-                    if (!run) {
-                        reject(new Error(`Run ${runId} not found`));
-                        return;
-                    }
-
-                    if (run.state === RunState.COMPLETED) {
-                        resolve(run.outputs || {});
-                        return;
-                    }
-
-                    if (run.state === RunState.FAILED) {
-                        reject(new Error(`Run ${runId} failed: ${run.errors?.join(", ")}`));
-                        return;
-                    }
-
-                    if (Date.now() - startTime > timeoutMs) {
-                        reject(new Error(`Run ${runId} timed out after ${timeoutMs}ms`));
-                        return;
-                    }
-
-                    // Continue checking
-                    setTimeout(checkStatus, checkInterval);
-
-                } catch (error) {
-                    reject(error);
-                }
-            };
-
-            checkStatus();
-        });
+    getTierStatus() {
+        // Get status from unified state machine
+        return this.unifiedStateMachine.getTierStatus();
     }
+
 }

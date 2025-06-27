@@ -1,3 +1,4 @@
+// AI_CHECK: STARTUP_ERRORS=2 | LAST: 2025-06-25
 import { type Logger } from "winston";
 import {
     type TeamFormation,
@@ -59,7 +60,7 @@ export class TeamManager extends BaseComponent {
         this.teams.set(formation.swarmId, formation);
 
         // Emit team formed event for agents to analyze
-        await this.publishEvent("swarm.events", {
+        await this.publishUnifiedEvent("swarm.team.formed", {
             type: SwarmEventTypeEnum.TEAM_FORMED,
             swarmId: formation.swarmId,
             teamId: formation.id,
@@ -70,6 +71,10 @@ export class TeamManager extends BaseComponent {
                 capabilities: a.capabilities,
             })),
             timestamp: new Date(),
+        }, {
+            deliveryGuarantee: "fire-and-forget",
+            priority: "medium",
+            tags: ["team", "formation", "coordination"],
         });
     }
 
@@ -111,13 +116,17 @@ export class TeamManager extends BaseComponent {
         });
 
         // Emit update event for agents to analyze
-        await this.publishEvent("swarm.events", {
+        await this.publishUnifiedEvent("swarm.team.updated", {
             type: SwarmEventTypeEnum.TEAM_UPDATED,
             swarmId,
             teamId: team.id,
             changes: Object.keys(updates),
             agentCount: team.agents.length,
             timestamp: new Date(),
+        }, {
+            deliveryGuarantee: "fire-and-forget",
+            priority: "medium",
+            tags: ["team", "update", "coordination"],
         });
     }
 
@@ -144,11 +153,15 @@ export class TeamManager extends BaseComponent {
         });
 
         // Emit removal event for agents to analyze
-        await this.publishEvent("swarm.events", {
+        await this.publishUnifiedEvent("swarm.team.dissolved", {
             type: SwarmEventTypeEnum.TEAM_DISSOLVED,
             swarmId,
             teamId: team.id,
             timestamp: new Date(),
+        }, {
+            deliveryGuarantee: "fire-and-forget",
+            priority: "medium",
+            tags: ["team", "dissolution", "coordination"],
         });
     }
 
@@ -203,9 +216,13 @@ export class TeamManager extends BaseComponent {
         this.teams.clear();
         this.agentRegistry.clear();
         
-        await this.publishEvent("swarm.events", {
+        await this.publishUnifiedEvent("swarm.team.manager.shutdown", {
             type: SwarmEventTypeEnum.TEAM_MANAGER_SHUTDOWN,
             timestamp: new Date(),
+        }, {
+            deliveryGuarantee: "reliable",
+            priority: "high",
+            tags: ["team", "shutdown", "lifecycle"],
         });
     }
 }
