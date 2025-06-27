@@ -77,7 +77,8 @@ async function main() {
                             config.setActiveProfile(profile);
                             console.log(chalk.green(`✓ Switched to profile: ${profile}`));
                         } catch (error) {
-                            console.error(chalk.red(`✗ ${error.message}`));
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            console.error(chalk.red(`✗ ${errorMessage}`));
                             process.exit(1);
                         }
                     })
@@ -91,7 +92,8 @@ async function main() {
                             config.createProfile(profile, { url: options.url });
                             console.log(chalk.green(`✓ Created profile: ${profile}`));
                         } catch (error) {
-                            console.error(chalk.red(`✗ ${error.message}`));
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            console.error(chalk.red(`✗ ${errorMessage}`));
                             process.exit(1);
                         }
                     })
@@ -100,8 +102,9 @@ async function main() {
         await program.parseAsync();
     } catch (error) {
         logger.error("CLI error", error);
-        console.error(chalk.red(`\n✗ Error: ${error.message}`));
-        if (error.stack && process.env.DEBUG) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(chalk.red(`\n✗ Error: ${errorMessage}`));
+        if (error instanceof Error && error.stack && process.env.DEBUG) {
             console.error(error.stack);
         }
         process.exit(1);

@@ -96,13 +96,14 @@ export class AuthCommands {
                 throw error;
             }
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
             if (this.config.isJsonOutput()) {
                 console.log(JSON.stringify({
                     success: false,
-                    error: error.message,
+                    error: errorMessage,
                 }));
             } else {
-                console.error(chalk.red(`✗ Login failed: ${error.message}`));
+                console.error(chalk.red(`✗ Login failed: ${errorMessage}`));
             }
             process.exit(1);
         }
@@ -135,7 +136,8 @@ export class AuthCommands {
                 console.log(chalk.green("✓ Credentials cleared"));
             }
         } catch (error) {
-            console.error(chalk.red(`✗ Logout failed: ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red(`✗ Logout failed: ${errorMessage}`));
             process.exit(1);
         }
     }
@@ -186,11 +188,12 @@ export class AuthCommands {
                 spinner.fail("Not authenticated");
                 this.config.clearAuth();
                 
+                const errorMessage = error instanceof Error ? error.message : String(error);
                 if (this.config.isJsonOutput()) {
                     console.log(JSON.stringify({
                         authenticated: false,
                         profile: this.config.getActiveProfileName(),
-                        error: error.message,
+                        error: errorMessage,
                     }));
                 } else {
                     console.log(chalk.red("\n✗ Authentication invalid"));
@@ -200,7 +203,8 @@ export class AuthCommands {
                 }
             }
         } catch (error) {
-            console.error(chalk.red(`✗ Status check failed: ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red(`✗ Status check failed: ${errorMessage}`));
             process.exit(1);
         }
     }
@@ -230,10 +234,11 @@ export class AuthCommands {
                 }
             }
         } catch (error) {
-            if (error.message.includes("401")) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes("401")) {
                 console.error(chalk.red("✗ Not authenticated. Run 'vrooli auth login' first."));
             } else {
-                console.error(chalk.red(`✗ Failed to get user info: ${error.message}`));
+                console.error(chalk.red(`✗ Failed to get user info: ${errorMessage}`));
             }
             process.exit(1);
         }
@@ -269,7 +274,7 @@ export class AuthCommands {
             });
         }
 
-        const answers = questions.length > 0 ? await inquirer.prompt(questions) : {};
+        const answers = questions.length > 0 ? await inquirer.prompt(questions as any) : {};
 
         return {
             email: options.email || answers.email,

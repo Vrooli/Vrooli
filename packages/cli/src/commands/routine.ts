@@ -117,7 +117,8 @@ export class RoutineCommands {
                 routineData = JSON.parse(fileContent);
             } catch (error) {
                 spinner.fail("Invalid JSON");
-                console.error(chalk.red(`✗ JSON parse error: ${error.message}`));
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(chalk.red(`✗ JSON parse error: ${errorMessage}`));
                 process.exit(1);
             }
 
@@ -145,7 +146,7 @@ export class RoutineCommands {
 
             // Import to server
             spinner.text = "Uploading to server...";
-            const response = await this.client.post("/resource", routineData);
+            const response = await this.client.post("/api/resource", routineData);
 
             spinner.succeed("Routine imported successfully");
 
@@ -161,15 +162,18 @@ export class RoutineCommands {
         } catch (error) {
             spinner.fail("Import failed");
             
-            if (error.code === "ENOENT") {
+            const err = error as any;
+            if (err.code === "ENOENT") {
                 console.error(chalk.red(`✗ File not found: ${filePath}`));
-            } else if (error.details) {
-                console.error(chalk.red(`✗ Server error: ${error.message}`));
-                if (this.config.isDebug() && error.details) {
-                    console.error("Details:", error.details);
+            } else if (err.details) {
+                const errorMessage = err.message || String(error);
+                console.error(chalk.red(`✗ Server error: ${errorMessage}`));
+                if (this.config.isDebug() && err.details) {
+                    console.error("Details:", err.details);
                 }
             } else {
-                console.error(chalk.red(`✗ ${error.message}`));
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(chalk.red(`✗ ${errorMessage}`));
             }
             process.exit(1);
         }
@@ -219,14 +223,15 @@ export class RoutineCommands {
                     await this.importRoutineSilent(file, options.dryRun);
                     results.success.push(file);
                 } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
                     results.failed.push({
                         file,
-                        error: error.message,
+                        error: errorMessage,
                     });
 
                     if (options.failFast) {
                         progressBar.stop();
-                        throw new Error(`Import failed for ${filename}: ${error.message}`);
+                        throw new Error(`Import failed for ${filename}: ${errorMessage}`);
                     }
                 }
             }
@@ -257,7 +262,8 @@ export class RoutineCommands {
                 process.exit(1);
             }
         } catch (error) {
-            console.error(chalk.red(`✗ Directory import failed: ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red(`✗ Directory import failed: ${errorMessage}`));
             process.exit(1);
         }
     }
@@ -279,7 +285,8 @@ export class RoutineCommands {
             console.log(chalk.green(`✓ Routine exported to: ${absolutePath}`));
         } catch (error) {
             spinner.fail("Export failed");
-            console.error(chalk.red(`✗ ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red(`✗ ${errorMessage}`));
             process.exit(1);
         }
     }
@@ -330,7 +337,8 @@ export class RoutineCommands {
                 console.log(chalk.gray(`Showing ${response.items.length} of ${response.total} routines`));
             }
         } catch (error) {
-            console.error(chalk.red(`✗ Failed to list routines: ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red(`✗ Failed to list routines: ${errorMessage}`));
             process.exit(1);
         }
     }
@@ -380,7 +388,8 @@ export class RoutineCommands {
             }
         } catch (error) {
             spinner.fail("Failed to fetch routine");
-            console.error(chalk.red(`✗ ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red(`✗ ${errorMessage}`));
             process.exit(1);
         }
     }
@@ -398,7 +407,8 @@ export class RoutineCommands {
                 routineData = JSON.parse(fileContent);
             } catch (error) {
                 console.error(chalk.red("✗ Invalid JSON:"));
-                console.error(`  ${error.message}`);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`  ${errorMessage}`);
                 process.exit(1);
             }
 
@@ -419,7 +429,8 @@ export class RoutineCommands {
                 process.exit(1);
             }
         } catch (error) {
-            console.error(chalk.red(`✗ Validation error: ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red(`✗ Validation error: ${errorMessage}`));
             process.exit(1);
         }
     }
@@ -497,7 +508,8 @@ export class RoutineCommands {
                 process.exit(1);
             });
         } catch (error) {
-            console.error(chalk.red(`✗ Failed to run routine: ${error.message}`));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(chalk.red(`✗ Failed to run routine: ${errorMessage}`));
             process.exit(1);
         }
     }
@@ -512,7 +524,7 @@ export class RoutineCommands {
         }
 
         if (!dryRun) {
-            return await this.client.post("/api/routine", routineData);
+            return await this.client.post("/api/resource", routineData);
         }
     }
 
@@ -563,7 +575,7 @@ export class RoutineCommands {
 
         // Check for multi-step routines (Sequential or BPMN)
         if (config.graph) {
-            this.validateGraphConfig(config.graph, errors);
+            await this.validateGraphConfig(config.graph, errors, extensive);
         }
         // Check for single-step routines (Action, API, Generate, etc.)
         else if (config.callDataAction || config.callDataApi || config.callDataGenerate || 
@@ -586,7 +598,7 @@ export class RoutineCommands {
         if (!version.translations || !Array.isArray(version.translations) || version.translations.length === 0) {
             errors.push("Version missing translations array");
         } else {
-            const englishTranslation = version.translations.find(t => t.language === "en");
+            const englishTranslation = version.translations.find((t: any) => t.language === "en");
             if (!englishTranslation || !englishTranslation.name) {
                 errors.push("Missing English translation with name");
             }
@@ -598,7 +610,7 @@ export class RoutineCommands {
         };
     }
 
-    private validateGraphConfig(graph: any, errors: string[]): void {
+    private async validateGraphConfig(graph: any, errors: string[], extensive?: boolean): Promise<void> {
         if (!graph.__type) {
             errors.push("Graph missing '__type' field");
             return;
@@ -615,11 +627,37 @@ export class RoutineCommands {
             if (!schema.steps || !Array.isArray(schema.steps)) {
                 errors.push("Sequential graph missing 'steps' array");
             } else {
+                // Track all subroutine IDs that need validation
+                const subroutineIds: { stepIndex: number; id: string }[] = [];
+
                 schema.steps.forEach((step: any, index: number) => {
                     if (!step.id || !step.name || !step.subroutineId) {
                         errors.push(`Step ${index + 1}: missing required fields (id, name, subroutineId)`);
+                    } else if (step.subroutineId) {
+                        // Check if it's a TODO placeholder
+                        if (step.subroutineId.startsWith("TODO:")) {
+                            errors.push(`Step ${index + 1}: Contains TODO placeholder - subroutine ID needs to be replaced with actual ID`);
+                        } else {
+                            subroutineIds.push({ stepIndex: index, id: step.subroutineId });
+                        }
                     }
                 });
+
+                // If extensive validation is enabled and we have a client, check subroutine existence
+                if (extensive && subroutineIds.length > 0 && this.client) {
+                    console.log(chalk.gray("\n  Checking subroutine existence..."));
+                    
+                    for (const { stepIndex, id } of subroutineIds) {
+                        try {
+                            // Try to fetch the subroutine
+                            await this.client.get(`/api/routine/${id}`);
+                            console.log(chalk.gray(`    ✓ Step ${stepIndex + 1}: Subroutine '${id}' exists`));
+                        } catch (error) {
+                            errors.push(`Step ${stepIndex + 1}: Subroutine '${id}' not found in database`);
+                            console.log(chalk.red(`    ✗ Step ${stepIndex + 1}: Subroutine '${id}' not found`));
+                        }
+                    }
+                }
             }
 
             if (!schema.rootContext) {
@@ -632,6 +670,35 @@ export class RoutineCommands {
 
             if (!schema.activityMap || typeof schema.activityMap !== "object") {
                 errors.push("BPMN graph missing 'activityMap'");
+            } else if (extensive) {
+                // Validate subroutines in activityMap
+                const activityIds: { activityId: string; subroutineId: string }[] = [];
+                
+                for (const [activityId, activity] of Object.entries(schema.activityMap)) {
+                    if ((activity as any).subroutineId) {
+                        const subroutineId = (activity as any).subroutineId;
+                        if (subroutineId.startsWith("TODO:")) {
+                            errors.push(`Activity '${activityId}': Contains TODO placeholder - subroutine ID needs to be replaced`);
+                        } else {
+                            activityIds.push({ activityId, subroutineId });
+                        }
+                    }
+                }
+
+                // Check existence if we have activities to validate
+                if (activityIds.length > 0 && this.client) {
+                    console.log(chalk.gray("\n  Checking BPMN subroutine existence..."));
+                    
+                    for (const { activityId, subroutineId } of activityIds) {
+                        try {
+                            await this.client.get(`/api/routine/${subroutineId}`);
+                            console.log(chalk.gray(`    ✓ Activity '${activityId}': Subroutine '${subroutineId}' exists`));
+                        } catch (error) {
+                            errors.push(`Activity '${activityId}': Subroutine '${subroutineId}' not found in database`);
+                            console.log(chalk.red(`    ✗ Activity '${activityId}': Subroutine '${subroutineId}' not found`));
+                        }
+                    }
+                }
             }
         } else {
             errors.push(`Unknown graph type: ${graph.__type}`);
@@ -711,7 +778,7 @@ export class RoutineCommands {
                 console.log(JSON.stringify(routines, null, 2));
             } else if (options.format === "ids") {
                 console.log("\n" + chalk.cyan("Routine IDs (for copy/paste):"));
-                routines.forEach((routine: any) => {
+                routines.forEach((routine: { publicId: string }) => {
                     console.log(`"${routine.publicId}"`);
                 });
             } else {
@@ -771,7 +838,7 @@ export class RoutineCommands {
                 console.log(JSON.stringify(routines, null, 2));
             } else if (options.format === "mapping") {
                 console.log("\n" + chalk.cyan("ID Mapping Reference:"));
-                routines.forEach(routine => {
+                routines.forEach((routine: any) => {
                     console.log(`"${routine.publicId}" # ${routine.name} (${routine.type})`);
                 });
             } else {
@@ -779,7 +846,7 @@ export class RoutineCommands {
                 console.log("ID".padEnd(20) + "Name".padEnd(30) + "Type".padEnd(20) + "Description");
                 console.log("─".repeat(90));
                 
-                routines.forEach(routine => {
+                routines.forEach((routine: any) => {
                     console.log(
                         routine.publicId.padEnd(20) + 
                         routine.name.substring(0, 28).padEnd(30) + 

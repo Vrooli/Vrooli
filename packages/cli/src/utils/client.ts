@@ -1,5 +1,4 @@
-import axios, { AxiosInstance } from "axios";
-import type { AxiosError, AxiosRequestConfig } from "./types.js";
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from "axios";
 import { io, Socket } from "socket.io-client";
 import { ConfigManager } from "./config.js";
 import { logger } from "./logger.js";
@@ -66,8 +65,8 @@ export class ApiClient {
                 }
 
                 // Handle 401 - try to refresh token
-                if (error.response?.status === 401 && error.config && !error.config._retry) {
-                    error.config._retry = true;
+                if (error.response?.status === 401 && error.config && !(error.config as any)._retry) {
+                    (error.config as any)._retry = true;
 
                     try {
                         await this.refreshAuth();
@@ -248,6 +247,6 @@ export class ApiClient {
         const response = await this.axios.post<{ data: T }>(`/api/${endpoint}`, variables, config);
         
         // Return just the data portion
-        return response.data.data || response.data;
+        return (response.data as any).data || response.data;
     }
 }

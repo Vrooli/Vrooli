@@ -19,7 +19,7 @@ export interface CliConfig {
 export class ConfigManager {
     private configDir: string;
     private configPath: string;
-    private config: CliConfig;
+    private config!: CliConfig;
     private debug: boolean = false;
     private jsonOutput: boolean = false;
 
