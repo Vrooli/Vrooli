@@ -70,9 +70,11 @@ RoutineApi routines are commonly used as subroutines within RoutineMultiStep wor
               "param2": "{{input.parameter2}}"
             },
             "timeoutMs": 30000,
-            "retryPolicy": {
-              "maxAttempts": 3,
-              "backoffMs": 1000
+            "meta": {
+              "retryPolicy": {
+                "maxAttempts": 3,
+                "backoffMs": 1000
+              }
             }
           }
         },
@@ -84,9 +86,11 @@ RoutineApi routines are commonly used as subroutines within RoutineMultiStep wor
                 "fieldName": "parameter1",
                 "id": "param1_input",
                 "label": "Parameter 1",
-                "type": "TextInput",
+                "type": "Text",
                 "isRequired": true,
-                "placeholder": "Enter value for parameter 1"
+                "props": {
+                  "placeholder": "Enter value for parameter 1"
+                }
               }
             ]
           }
@@ -278,10 +282,12 @@ Use `{{env.VARIABLE_NAME}}` for sensitive data:
 #### Retry Policy Configuration
 ```json
 {
-  "retryPolicy": {
-    "maxAttempts": 3,
-    "backoffMs": 1000,
-    "retryOn": [500, 502, 503, 504]
+  "meta": {
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffMs": 1000,
+      "retryOn": [500, 502, 503, 504]
+    }
   }
 }
 ```
@@ -405,9 +411,11 @@ Use `{{env.VARIABLE_NAME}}` for sensitive data:
         "sort": "{{input.sortOrder}}"
       },
       "timeoutMs": 20000,
-      "retryPolicy": {
-        "maxAttempts": 2,
-        "backoffMs": 2000
+      "meta": {
+        "retryPolicy": {
+          "maxAttempts": 2,
+          "backoffMs": 2000
+        }
       }
     }
   }
@@ -422,17 +430,21 @@ Use `{{env.VARIABLE_NAME}}` for sensitive data:
 ```json
 {
   "fieldName": "apiParameter",
-  "type": "TextInput",
+  "type": "Text",
   "isRequired": true,
   "label": "API Parameter",
-  "placeholder": "Enter parameter value"
+  "props": {
+    "placeholder": "Enter parameter value"
+  }
 },
 {
   "fieldName": "optionalParam",
-  "type": "TextInput", 
+  "type": "Text", 
   "isRequired": false,
   "label": "Optional Parameter",
-  "defaultValue": "default_value"
+  "props": {
+    "defaultValue": "default_value"
+  }
 }
 ```
 
@@ -448,7 +460,9 @@ Use `{{env.VARIABLE_NAME}}` for sensitive data:
   "fieldName": "configOptions",
   "type": "Selector",
   "label": "Configuration",
-  "options": ["option1", "option2", "option3"]
+  "props": {
+    "options": ["option1", "option2", "option3"]
+  }
 }
 ```
 
@@ -487,7 +501,7 @@ Use `{{env.VARIABLE_NAME}}` for sensitive data:
 },
 {
   "fieldName": "errorMessage",
-  "type": "TextInput",
+  "type": "Text",
   "label": "Error Message (if any)"
 }
 ```

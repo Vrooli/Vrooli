@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     StatsResource,
     StatsResourceSearchInput,
@@ -432,7 +432,7 @@ export class StatsResourceMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get resource statistics by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
                 const period = url.searchParams.get("period") as PeriodType;
@@ -463,7 +463,7 @@ export class StatsResourceMSWHandlers {
             }),
             
             // Search resource statistics
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, async (req, res, ctx) => {
                 const body = await req.json() as StatsResourceSearchInput;
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
@@ -505,7 +505,7 @@ export class StatsResourceMSWHandlers {
             }),
             
             // Get trending resources
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/trending`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/trending`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -523,7 +523,7 @@ export class StatsResourceMSWHandlers {
             }),
             
             // Get time series data for resource
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id/timeseries`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id/timeseries`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
                 const days = parseInt(url.searchParams.get("days") || "30");
@@ -538,7 +538,7 @@ export class StatsResourceMSWHandlers {
             }),
             
             // Get aggregated statistics for multiple resources
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/aggregate`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/aggregate`, async (req, res, ctx) => {
                 const { resourceIds, periodType } = await req.json() as {
                     resourceIds: string[];
                     periodType: PeriodType;
@@ -563,7 +563,7 @@ export class StatsResourceMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -572,7 +572,7 @@ export class StatsResourceMSWHandlers {
             }),
             
             // Permission error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("view")),
@@ -580,7 +580,7 @@ export class StatsResourceMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -594,7 +594,7 @@ export class StatsResourceMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const stats = this.responseFactory.createMockStats({
                     resource: {
@@ -618,11 +618,11 @@ export class StatsResourceMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/resource/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/resource/search`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
         ];

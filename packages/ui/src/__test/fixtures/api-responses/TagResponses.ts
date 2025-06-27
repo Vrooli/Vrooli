@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     Tag, 
     TagCreateInput, 
@@ -431,7 +431,7 @@ export class TagMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create tag
-            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, async (req, res, ctx) => {
                 const body = await req.json() as TagCreateInput;
                 
                 // Validate input
@@ -454,7 +454,7 @@ export class TagMSWHandlers {
             }),
             
             // Get tag by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const tag = this.responseFactory.createMockTag({ id: id as string });
@@ -467,7 +467,7 @@ export class TagMSWHandlers {
             }),
             
             // Update tag
-            rest.put(`${this.responseFactory["baseUrl"]}/api/tag/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/tag/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as TagUpdateInput;
                 
@@ -490,12 +490,12 @@ export class TagMSWHandlers {
             }),
             
             // Delete tag
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List tags
-            rest.get(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -548,7 +548,7 @@ export class TagMSWHandlers {
             }),
             
             // Get trending tags
-            rest.get(`${this.responseFactory["baseUrl"]}/api/tag/trending`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag/trending`, (req, res, ctx) => {
                 const tags = this.responseFactory.createTrendingTags();
                 const response = this.responseFactory.createTagListResponse(tags);
                 
@@ -566,7 +566,7 @@ export class TagMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -576,7 +576,7 @@ export class TagMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -585,7 +585,7 @@ export class TagMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -593,7 +593,7 @@ export class TagMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -607,7 +607,7 @@ export class TagMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, async (req, res, ctx) => {
                 const body = await req.json() as TagCreateInput;
                 const tag = this.responseFactory.createTagFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(tag);
@@ -626,11 +626,11 @@ export class TagMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/tag`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/tag/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

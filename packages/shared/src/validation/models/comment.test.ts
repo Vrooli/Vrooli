@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commentFixtures, commentTestDataFactory } from "../../__test/fixtures/api/commentFixtures.js";
+import { commentFixtures, commentTestDataFactory } from "../../__test/fixtures/api-inputs/commentFixtures.js";
 import { CommentFor } from "../../api/types.js";
 import { runComprehensiveValidationTests, testValidation } from "./__test/validationTestUtils.js";
 import { commentValidation } from "./comment.js";

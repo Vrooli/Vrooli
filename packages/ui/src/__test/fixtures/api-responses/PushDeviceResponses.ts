@@ -6,7 +6,7 @@
  * push notification device registration and management.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     PushDevice, 
     PushDeviceCreateInput, 
@@ -488,7 +488,7 @@ export class PushDeviceMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create push device
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device`, async (req, res, ctx) => {
                 const body = await req.json() as PushDeviceCreateInput;
                 
                 // Validate input
@@ -511,7 +511,7 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Get push device by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const pushDevice = this.responseFactory.createMockPushDevice({ id: id as string });
@@ -524,7 +524,7 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Update push device
-            rest.put(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as PushDeviceUpdateInput;
                 
@@ -552,12 +552,12 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Delete push device
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List push devices
-            rest.get(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -590,7 +590,7 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Test push notification
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, async (req, res, ctx) => {
                 const body = await req.json() as PushDeviceTestInput;
                 
                 // Simulate success
@@ -610,7 +610,7 @@ export class PushDeviceMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -622,7 +622,7 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -631,7 +631,7 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -639,7 +639,7 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Duplicate device error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(409),
                     ctx.json(this.responseFactory.createDuplicateDeviceErrorResponse("https://fcm.googleapis.com/fcm/send/example")),
@@ -647,7 +647,7 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Invalid subscription error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(422),
                     ctx.json(this.responseFactory.createInvalidSubscriptionErrorResponse()),
@@ -655,7 +655,7 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Push test failure
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createPushTestFailureResponse("Device is offline")),
@@ -663,7 +663,7 @@ export class PushDeviceMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -677,7 +677,7 @@ export class PushDeviceMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device`, async (req, res, ctx) => {
                 const body = await req.json() as PushDeviceCreateInput;
                 const pushDevice = this.responseFactory.createPushDeviceFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(pushDevice);
@@ -689,7 +689,7 @@ export class PushDeviceMSWHandlers {
                 );
             }),
             
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, async (req, res, ctx) => {
                 const response = this.responseFactory.createPushTestSuccessResponse();
                 
                 return res(
@@ -706,15 +706,15 @@ export class PushDeviceMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/push-device/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/push-device/test`, (req, res, ctx) => {
                 return res.networkError("Unable to reach push notification service");
             }),
         ];

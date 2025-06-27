@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { apiKeyFixtures, apiKeyTestDataFactory } from "../../__test/fixtures/api/apiKeyFixtures.js";
+import { apiKeyFixtures, apiKeyTestDataFactory } from "../../__test/fixtures/api-inputs/apiKeyFixtures.js";
 import { runComprehensiveValidationTests, testValidation } from "./__test/validationTestUtils.js";
 import { apiKeyValidation } from "./apiKey.js";
 

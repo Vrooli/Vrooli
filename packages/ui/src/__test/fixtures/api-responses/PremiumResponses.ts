@@ -6,7 +6,7 @@
  * Premium objects represent subscription plans, premium features, and tier management.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import {
     PaymentType} from "@vrooli/shared";
 import type { 
@@ -509,7 +509,7 @@ export class PremiumMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get subscription status
-            rest.get(`${this.responseFactory["baseUrl"]}/api/check-subscription`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/check-subscription`, (req, res, ctx) => {
                 const response: CheckSubscriptionResponse = {
                     paymentType: PaymentType.PremiumMonthly,
                     status: "already_subscribed",
@@ -522,7 +522,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Get subscription prices
-            rest.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, (req, res, ctx) => {
                 const prices = this.responseFactory.createMockPricing();
                 const response = this.responseFactory.createPricingResponse(prices);
                 
@@ -533,7 +533,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Create checkout session
-            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async (req, res, ctx) => {
                 const body = await req.json() as CreateCheckoutSessionParams;
                 
                 // Basic validation
@@ -558,7 +558,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Create portal session
-            rest.post(`${this.responseFactory["baseUrl"]}/api/create-portal-session`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-portal-session`, async (req, res, ctx) => {
                 const body = await req.json() as CreatePortalSessionParams;
                 
                 if (!body.userId || !body.returnUrl) {
@@ -582,7 +582,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Get premium details by user ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
                 const { userId } = req.params;
                 
                 const premium = this.responseFactory.createMockPremium({ 
@@ -598,7 +598,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Update subscription
-            rest.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, async (req, res, ctx) => {
                 const { userId } = req.params;
                 const body = await req.json() as PremiumSubscriptionInput;
                 
@@ -623,12 +623,12 @@ export class PremiumMSWHandlers {
             }),
             
             // Cancel subscription
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // Check credits payment
-            rest.get(`${this.responseFactory["baseUrl"]}/api/check-credits-payment`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/check-credits-payment`, (req, res, ctx) => {
                 const response: CheckCreditsPaymentResponse = {
                     status: "new_credits_received",
                 };
@@ -654,7 +654,7 @@ export class PremiumMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -665,7 +665,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Subscription not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
                 const { userId } = req.params;
                 return res(
                     ctx.status(404),
@@ -674,7 +674,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Payment failed error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
                 return res(
                     ctx.status(402),
                     ctx.json(this.responseFactory.createPaymentFailedErrorResponse("Insufficient funds")),
@@ -682,7 +682,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Subscription limit error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/premium/check-limit`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/premium/check-limit`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createSubscriptionLimitErrorResponse("projects", 100)),
@@ -690,7 +690,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Permission error
-            rest.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/premium/:userId`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("manage")),
@@ -698,7 +698,7 @@ export class PremiumMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -712,7 +712,7 @@ export class PremiumMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, async (req, res, ctx) => {
                 const body = await req.json() as CreateCheckoutSessionParams;
                 const checkoutUrl = this.responseFactory.createMockCheckoutUrl();
                 const response = this.responseFactory.createCheckoutResponse(checkoutUrl);
@@ -731,11 +731,11 @@ export class PremiumMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/create-checkout-session`, (req, res, ctx) => {
                 return res.networkError("Payment service connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/subscription-prices`, (req, res, ctx) => {
                 return res.networkError("Pricing service timeout");
             }),
         ];

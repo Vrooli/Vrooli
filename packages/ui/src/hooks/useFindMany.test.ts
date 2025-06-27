@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { describe, it, expect, afterEach, vi } from "vitest";
 

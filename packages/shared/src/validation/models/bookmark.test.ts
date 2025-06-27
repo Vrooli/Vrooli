@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookmarkFixtures, bookmarkTestDataFactory } from "../../__test/fixtures/api/bookmarkFixtures.js";
+import { bookmarkFixtures, bookmarkTestDataFactory } from "../../__test/fixtures/api-inputs/bookmarkFixtures.js";
 import { BookmarkFor } from "../../api/types.js";
 import { runComprehensiveValidationTests, testValidation } from "./__test/validationTestUtils.js";
 import { bookmarkValidation } from "./bookmark.js";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { meetingFixtures, meetingTestDataFactory } from "../../__test/fixtures/api/meetingFixtures.js";
+import { meetingFixtures, meetingTestDataFactory } from "../../__test/fixtures/api-inputs/meetingFixtures.js";
 import { runComprehensiveValidationTests, testValidation } from "./__test/validationTestUtils.js";
 import { meetingValidation } from "./meeting.js";
 

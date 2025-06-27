@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { emailFixtures, emailTestDataFactory } from "../../__test/fixtures/api/emailFixtures.js";
+import { emailFixtures, emailTestDataFactory } from "../../__test/fixtures/api-inputs/emailFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { emailValidation } from "./email.js";
 

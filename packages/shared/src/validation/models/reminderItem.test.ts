@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { reminderItemFixtures, reminderItemTestDataFactory } from "../../__test/fixtures/api/reminderItemFixtures.js";
+import { reminderItemFixtures, reminderItemTestDataFactory } from "../../__test/fixtures/api-inputs/reminderItemFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { reminderItemValidation } from "./reminderItem.js";
 

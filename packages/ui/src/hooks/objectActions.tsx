@@ -1,5 +1,5 @@
 
-import { BookmarkFor, CopyType, DUMMY_ID, DeleteType, LINKS, ReactionFor, endpointsActions, endpointsBookmark, endpointsReaction, exists, getReactionScore, setDotNotationValue, shapeBookmark, type Bookmark, type BookmarkCreateInput, type BookmarkSearchInput, type BookmarkSearchResult, type CopyInput, type CopyResult, type Count, type DeleteManyInput, type DeleteOneInput, type ListObject, type ModelType, type ReactInput, type Role, type Success, type User } from "@vrooli/shared";
+import { BookmarkFor, CommentFor, CopyType, DUMMY_ID, DeleteType, LINKS, ReactionFor, ReportFor, endpointsActions, endpointsBookmark, endpointsComment, endpointsReaction, endpointsReport, exists, getReactionScore, setDotNotationValue, shapeBookmark, shapeComment, shapeReport, type Bookmark, type BookmarkCreateInput, type BookmarkSearchInput, type BookmarkSearchResult, type Comment, type CommentCreateInput, type CopyInput, type CopyResult, type Count, type DeleteManyInput, type DeleteOneInput, type ListObject, type ModelType, type ReactInput, type Report, type ReportCreateInput, type Role, type Success, type User } from "@vrooli/shared";
 import { useCallback, useContext, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import { BulkDeleteDialog } from "../components/dialogs/BulkDeleteDialog/BulkDeleteDialog.js";
@@ -13,6 +13,7 @@ import { useBookmarkListsStore } from "../stores/bookmarkListsStore.js";
 import { BulkObjectAction, BulkObjectActionComplete, getAvailableBulkActions } from "../utils/actions/bulkObjectActions.js";
 import { ObjectAction, ObjectActionComplete, getAvailableActions, type ActionCompletePayloads, type ActionStartPayloads } from "../utils/actions/objectActions.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
+import { ELEMENT_IDS } from "../utils/consts.js";
 import { getDisplay, getYouDot } from "../utils/display/listTools.js";
 import { openObject, openObjectEdit } from "../utils/navigation/openObject.js";
 import { PubSub } from "../utils/pubsub.js";
@@ -247,7 +248,7 @@ export type UseBulkObjectActionsProps<T extends ListObject = ListObject> = {
     setLocation: SetLocation;
 };
 
-export type UseBulkObjectActionsReturn<T extends ListObject = ListObject> = {
+export type UseBulkObjectActionsReturn = {
     availableActions: BulkObjectAction[];
     closeBookmarkDialog: () => unknown;
     closeDeleteDialog: () => unknown;
@@ -259,7 +260,7 @@ export type UseBulkObjectActionsReturn<T extends ListObject = ListObject> = {
     isProjectAddDialogOpen: boolean;
     isReportDialogOpen: boolean;
     onBulkActionStart: (action: BulkObjectAction | `${BulkObjectAction}`) => unknown;
-    onBulkActionComplete: (action: BulkObjectActionComplete | `${BulkObjectActionComplete}`, data: any) => unknown;
+    onBulkActionComplete: (action: BulkObjectActionComplete | `${BulkObjectActionComplete}`, data: unknown) => unknown;
 };
 
 function callIfExists(callback: (() => unknown) | null | undefined) {
@@ -275,12 +276,12 @@ export function useBulkObjectActions<T extends ListObject = ListObject>({
     selectedData,
     setAllData,
     setSelectedData,
-    setLocation,
-}: UseBulkObjectActionsProps<T>): UseBulkObjectActionsReturn<T> {
+    _setLocation,
+}: UseBulkObjectActionsProps<T>): UseBulkObjectActionsReturn {
     const session = useContext(SessionContext);
 
     // Callback when an action is completed
-    const onBulkActionComplete = useCallback((action: BulkObjectActionComplete | `${BulkObjectActionComplete}`, data: any) => {
+    const onBulkActionComplete = useCallback((action: BulkObjectActionComplete | `${BulkObjectActionComplete}`, data: unknown) => {
         console.log("onBulkActionComplete", action, data, selectedData);
         if (selectedData.length === 0) {
             return;
@@ -320,7 +321,7 @@ export function useBulkObjectActions<T extends ListObject = ListObject>({
     const [isReportDialogOpen, setIsReportDialogOpen] = useState<boolean>(false);
 
     // Dialog openers/closers
-    const openBookmarkDialog = useCallback(() => setIsBookmarkDialogOpen(true), [setIsBookmarkDialogOpen]);
+    const _openBookmarkDialog = useCallback(() => setIsBookmarkDialogOpen(true), [setIsBookmarkDialogOpen]);
     const closeBookmarkDialog = useCallback(() => setIsBookmarkDialogOpen(false), [setIsBookmarkDialogOpen]);
     const openProjectAddDialog = useCallback(() => setIsProjectAddDialogOpen(true), [setIsProjectAddDialogOpen]);
     const closeProjectAddDialog = useCallback(() => setIsProjectAddDialogOpen(false), [setIsProjectAddDialogOpen]);
@@ -581,16 +582,16 @@ export type UseObjectActionsProps = {
     isListReorderable?: boolean;
     object: ListObject | null | undefined;
     objectType: ListObject["__typename"] | undefined;
-    openAddCommentDialog?: () => unknown;
     setLocation: SetLocation;
-    setObject: Dispatch<SetStateAction<any>>;
-} & Pick<ObjectListItemProps<any>, "canNavigate" | "onClick"> & {
-    onAction?: ObjectListItemProps<any>["onAction"];
+    setObject: Dispatch<SetStateAction<ListObject>>;
+} & Pick<ObjectListItemProps<ListObject>, "canNavigate" | "onClick"> & {
+    onAction?: ObjectListItemProps<ListObject>["onAction"];
 }
 
 export type UseObjectActionsReturn = {
     availableActions: ObjectAction[];
     closeBookmarkDialog: () => unknown;
+    closeCommentDialog: () => unknown;
     closeDeleteDialog: () => unknown;
     closeDonateDialog: () => unknown;
     closeShareDialog: () => unknown;
@@ -598,6 +599,7 @@ export type UseObjectActionsReturn = {
     closeReportDialog: () => unknown;
     DeleteDialogComponent: JSX.Element | null;
     isBookmarkDialogOpen: boolean;
+    isCommentDialogOpen: boolean;
     isDeleteDialogOpen: boolean;
     isDonateDialogOpen: boolean;
     isShareDialogOpen: boolean;
@@ -611,12 +613,11 @@ export type UseObjectActionsReturn = {
 /** Hook for updating state and navigating upon completing an action */
 export function useObjectActions({
     canNavigate,
-    isListReorderable, //TODO: Implement reordering
+    _isListReorderable, //TODO: Implement reordering
     object,
     objectType,
     onClick,
     onAction,
-    openAddCommentDialog,
     setLocation,
     setObject,
 }: UseObjectActionsProps): UseObjectActionsReturn {
@@ -679,6 +680,24 @@ export function useObjectActions({
                 }
                 break;
             }
+            case ObjectActionComplete.Comment: {
+                // Comment added successfully - could update comment count or trigger refresh
+                console.log("Comment added successfully", { object, data });
+                // No specific UI update needed as the comment will appear in the comment list
+                break;
+            }
+            case ObjectActionComplete.Report: {
+                // Report submitted successfully
+                console.log("Report submitted successfully", { object, data });
+                // No specific UI update needed
+                break;
+            }
+            case ObjectActionComplete.Share: {
+                // Share completed successfully
+                console.log("Share completed successfully", { object, data });
+                // No specific UI update needed
+                break;
+            }
         }
     }, [object, onAction, setLocation, setObject]);
 
@@ -713,25 +732,49 @@ export function useObjectActions({
         objectType: objectType as ModelType,
         onActionComplete,
     });
+    const {
+        closeCommentDialog,
+        handleAddComment: _handleAddComment,
+        isCommentDialogOpen,
+        openCommentDialog,
+    } = useCommenter({
+        objectId: object?.root?.id ?? object?.id, // Can only comment on root objects
+        objectType: objectType?.replace("Version", "") as ModelType | undefined,
+        onActionComplete,
+    });
+    const {
+        closeReportDialog,
+        handleReport: _handleReport,
+        isReportDialogOpen,
+        openReportDialog,
+    } = useReporter({
+        objectId: object?.root?.id ?? object?.id, // Can only report root objects
+        objectType: objectType?.replace("Version", "") as ModelType | undefined,
+        onActionComplete,
+    });
+    const {
+        closeShareDialog,
+        handleShare: _handleShare,
+        isShareDialogOpen,
+        openShareDialog,
+    } = useSharer({
+        objectId: object?.root?.id ?? object?.id, // Can only share root objects
+        objectType: objectType?.replace("Version", "") as ModelType | undefined,
+        onActionComplete,
+    });
 
     // Determine which actions are available    
     const availableActions = useMemo(() => getAvailableActions(object, session), [object, session]);
 
-    // Dialog states
+    // Dialog states for hooks not yet implemented
     const [isDonateDialogOpen, setIsDonateDialogOpen] = useState<boolean>(false);
-    const [isShareDialogOpen, setIsShareDialogOpen] = useState<boolean>(false);
     const [isStatsDialogOpen, setIsStatsDialogOpen] = useState<boolean>(false);
-    const [isReportDialogOpen, setIsReportDialogOpen] = useState<boolean>(false);
 
-    // Dialog openers/closers
+    // Dialog openers/closers for hooks not yet implemented
     const openDonateDialog = useCallback(() => setIsDonateDialogOpen(true), [setIsDonateDialogOpen]);
     const closeDonateDialog = useCallback(() => setIsDonateDialogOpen(false), [setIsDonateDialogOpen]);
-    const openShareDialog = useCallback(() => setIsShareDialogOpen(true), [setIsShareDialogOpen]);
-    const closeShareDialog = useCallback(() => setIsShareDialogOpen(false), [setIsShareDialogOpen]);
     const openStatsDialog = useCallback(() => setIsStatsDialogOpen(true), [setIsStatsDialogOpen]);
     const closeStatsDialog = useCallback(() => setIsStatsDialogOpen(false), [setIsStatsDialogOpen]);
-    const openReportDialog = useCallback(() => setIsReportDialogOpen(true), [setIsReportDialogOpen]);
-    const closeReportDialog = useCallback(() => setIsReportDialogOpen(false), [setIsReportDialogOpen]);
 
     // Callback when an action is started
     const onActionStart = useCallback(<T extends keyof ActionStartPayloads>(
@@ -748,7 +791,7 @@ export function useObjectActions({
                 handleBookmark(action === ObjectAction.Bookmark);
                 break;
             case ObjectAction.Comment:
-                callIfExists(openAddCommentDialog);
+                callIfExists(openCommentDialog);
                 break;
             case ObjectAction.Delete:
                 callIfExists(handleDelete);
@@ -783,11 +826,12 @@ export function useObjectActions({
                 handleVote(action === ObjectAction.VoteUp ? "👍" : "👎");
                 break;
         }
-    }, [canNavigate, handleBookmark, handleCopy, handleDelete, handleVote, object, onClick, openAddCommentDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, session, setLocation]);
+    }, [canNavigate, handleBookmark, handleCopy, handleDelete, handleVote, object, onClick, openCommentDialog, openDonateDialog, openReportDialog, openShareDialog, openStatsDialog, session, setLocation]);
 
     return {
         availableActions,
         closeBookmarkDialog,
+        closeCommentDialog,
         closeDeleteDialog,
         closeDonateDialog,
         closeShareDialog,
@@ -795,6 +839,7 @@ export function useObjectActions({
         closeReportDialog,
         DeleteDialogComponent,
         isBookmarkDialogOpen,
+        isCommentDialogOpen,
         isDeleteDialogOpen,
         isDonateDialogOpen,
         isShareDialogOpen,
@@ -846,4 +891,225 @@ export function useVoter({
     }, [hasVotingSupport, fetch, objectId, objectType, onActionComplete]);
 
     return { handleVote, hasVotingSupport };
+}
+
+type UseCommenterProps = {
+    objectId: string | null | undefined;
+    objectType: `${ModelType}` | undefined;
+    onActionComplete: <T extends "Comment">(action: T, data: ActionCompletePayloads[T]) => unknown;
+};
+
+/**
+ * Hook for simplifying the use of adding comments on an object
+ */
+export function useCommenter({
+    objectId,
+    objectType,
+    onActionComplete,
+}: UseCommenterProps) {
+    const [createComment] = useLazyFetch<CommentCreateInput, Comment>(endpointsComment.createOne);
+
+    const hasCommentingSupport = objectType && objectType in CommentFor;
+    const [isCommentDialogOpen, setIsCommentDialogOpen] = useState<boolean>(false);
+    const closeCommentDialog = useCallback(() => { setIsCommentDialogOpen(false); }, []);
+
+    const handleAddComment = useCallback((commentText: string, language = "en") => {
+        // Validate objectId and objectType
+        if (!objectType || !objectId) {
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+        if (!hasCommentingSupport) {
+            PubSub.get().publish("snack", { messageKey: "CommentNotSupported", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<CommentCreateInput, Comment>({
+            fetch: createComment,
+            inputs: shapeComment.create({
+                __typename: "Comment",
+                id: DUMMY_ID,
+                commentedOn: {
+                    __typename: CommentFor[objectType],
+                    id: objectId,
+                },
+                translations: [{
+                    __typename: "CommentTranslation",
+                    id: DUMMY_ID,
+                    language,
+                    text: commentText,
+                }],
+            }),
+            successMessage: () => ({ messageKey: "CommentAdded" }),
+            onSuccess: (data) => {
+                onActionComplete(ObjectActionComplete.Comment as "Comment", data);
+                setIsCommentDialogOpen(false);
+            },
+        });
+    }, [objectType, objectId, createComment, hasCommentingSupport, onActionComplete]);
+
+    const openCommentDialog = useCallback(() => {
+        if (!hasCommentingSupport) {
+            PubSub.get().publish("snack", { messageKey: "CommentNotSupported", severity: "Error" });
+            return;
+        }
+        setIsCommentDialogOpen(true);
+    }, [hasCommentingSupport]);
+
+    return {
+        isCommentDialogOpen,
+        handleAddComment,
+        openCommentDialog,
+        closeCommentDialog,
+        hasCommentingSupport,
+    };
+}
+
+type UseReporterProps = {
+    objectId: string | null | undefined;
+    objectType: `${ModelType}` | undefined;
+    onActionComplete: <T extends "Report">(action: T, data: ActionCompletePayloads[T]) => unknown;
+};
+
+/**
+ * Hook for simplifying reporting an object
+ */
+export function useReporter({
+    objectId,
+    objectType,
+    onActionComplete,
+}: UseReporterProps) {
+    const [createReport] = useLazyFetch<ReportCreateInput, Report>(endpointsReport.createOne);
+
+    const hasReportingSupport = objectType && objectType in ReportFor;
+    const [isReportDialogOpen, setIsReportDialogOpen] = useState<boolean>(false);
+    const closeReportDialog = useCallback(() => { setIsReportDialogOpen(false); }, []);
+
+    const handleReport = useCallback((reason: string, details?: string, language = "en") => {
+        // Validate objectId and objectType
+        if (!objectType || !objectId) {
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+        if (!hasReportingSupport) {
+            PubSub.get().publish("snack", { messageKey: "ReportNotSupported", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<ReportCreateInput, Report>({
+            fetch: createReport,
+            inputs: shapeReport.create({
+                __typename: "Report",
+                id: DUMMY_ID,
+                createdFor: {
+                    __typename: ReportFor[objectType],
+                    id: objectId,
+                },
+                reason,
+                details: details || "",
+                language,
+            }),
+            successMessage: () => ({ messageKey: "ReportSubmitted" }),
+            onSuccess: (data) => {
+                onActionComplete(ObjectActionComplete.Report as "Report", data);
+                setIsReportDialogOpen(false);
+            },
+        });
+    }, [objectType, objectId, createReport, hasReportingSupport, onActionComplete]);
+
+    const openReportDialog = useCallback(() => {
+        if (!hasReportingSupport) {
+            PubSub.get().publish("snack", { messageKey: "ReportNotSupported", severity: "Error" });
+            return;
+        }
+        setIsReportDialogOpen(true);
+    }, [hasReportingSupport]);
+
+    return {
+        isReportDialogOpen,
+        handleReport,
+        openReportDialog,
+        closeReportDialog,
+        hasReportingSupport,
+    };
+}
+
+type UseSharerProps = {
+    objectId: string | null | undefined;
+    objectType: `${ModelType}` | undefined;
+    onActionComplete?: <T extends "Share">(action: T, data: ActionCompletePayloads[T]) => unknown;
+};
+
+/**
+ * Hook for simplifying sharing an object
+ */
+export function useSharer({
+    objectId,
+    objectType,
+    onActionComplete,
+}: UseSharerProps) {
+    const [isShareDialogOpen, setIsShareDialogOpen] = useState<boolean>(false);
+    const closeShareDialog = useCallback(() => { setIsShareDialogOpen(false); }, []);
+
+    // Most objects can be shared via URL, so we have basic support for all objects
+    const hasSharingSupport = Boolean(objectId && objectType);
+
+    const handleShare = useCallback(async (shareData?: { 
+        url?: string;
+        title?: string;
+        text?: string;
+    }) => {
+        if (!objectId || !objectType) {
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
+            return;
+        }
+
+        // Use Web Share API if available
+        if (navigator.share && shareData) {
+            try {
+                await navigator.share(shareData);
+                PubSub.get().publish("snack", { messageKey: "ShareSuccess", severity: "Success" });
+                if (onActionComplete) {
+                    onActionComplete(ObjectActionComplete.Share as "Share", { success: true });
+                }
+                setIsShareDialogOpen(false);
+                return;
+            } catch (err) {
+                // User cancelled or error occurred, fallback to dialog
+                console.warn("Web Share API failed:", err);
+            }
+        }
+
+        // Fallback to copy to clipboard
+        if (shareData?.url) {
+            try {
+                await navigator.clipboard.writeText(shareData.url);
+                PubSub.get().publish("snack", { messageKey: "LinkCopied", severity: "Success" });
+                if (onActionComplete) {
+                    onActionComplete(ObjectActionComplete.Share as "Share", { success: true });
+                }
+                setIsShareDialogOpen(false);
+                return;
+            } catch (err) {
+                console.warn("Clipboard API failed:", err);
+            }
+        }
+
+        // If all else fails, open the share dialog
+        setIsShareDialogOpen(true);
+    }, [objectId, objectType, onActionComplete]);
+
+    const openShareDialog = useCallback(() => {
+        if (!hasSharingSupport) {
+            PubSub.get().publish("snack", { messageKey: "ShareNotSupported", severity: "Error" });
+            return;
+        }
+        setIsShareDialogOpen(true);
+    }, [hasSharingSupport]);
+
+    return {
+        isShareDialogOpen,
+        handleShare,
+        openShareDialog,
+        closeShareDialog,
+        hasSharingSupport,
+    };
 }

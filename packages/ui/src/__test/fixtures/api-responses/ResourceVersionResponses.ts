@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     ResourceVersion, 
     ResourceVersionCreateInput, 
@@ -414,7 +414,7 @@ export class ResourceVersionMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create resource version
-            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async (req, res, ctx) => {
                 const body = await req.json() as ResourceVersionCreateInput;
                 
                 // Validate input
@@ -437,7 +437,7 @@ export class ResourceVersionMSWHandlers {
             }),
             
             // Get resource version by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const resourceVersion = this.responseFactory.createMockResourceVersion({ id: id as string });
@@ -450,7 +450,7 @@ export class ResourceVersionMSWHandlers {
             }),
             
             // Update resource version
-            rest.put(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ResourceVersionUpdateInput;
                 
@@ -468,12 +468,12 @@ export class ResourceVersionMSWHandlers {
             }),
             
             // Delete resource version
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List resource versions
-            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -513,7 +513,7 @@ export class ResourceVersionMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -524,7 +524,7 @@ export class ResourceVersionMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -533,7 +533,7 @@ export class ResourceVersionMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -541,7 +541,7 @@ export class ResourceVersionMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -555,7 +555,7 @@ export class ResourceVersionMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, async (req, res, ctx) => {
                 const body = await req.json() as ResourceVersionCreateInput;
                 const resourceVersion = this.responseFactory.createResourceVersionFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(resourceVersion);
@@ -574,11 +574,11 @@ export class ResourceVersionMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/resource-version`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/resource-version/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

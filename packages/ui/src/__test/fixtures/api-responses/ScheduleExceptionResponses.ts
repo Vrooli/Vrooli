@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     ScheduleException, 
     ScheduleExceptionCreateInput, 
@@ -424,7 +424,7 @@ export class ScheduleExceptionMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create schedule exception
-            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async (req, res, ctx) => {
                 const body = await req.json() as ScheduleExceptionCreateInput;
                 
                 // Validate input
@@ -447,7 +447,7 @@ export class ScheduleExceptionMSWHandlers {
             }),
             
             // Get schedule exception by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const exception = this.responseFactory.createMockException({ id: id as string });
@@ -460,7 +460,7 @@ export class ScheduleExceptionMSWHandlers {
             }),
             
             // Update schedule exception
-            rest.put(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ScheduleExceptionUpdateInput;
                 
@@ -487,12 +487,12 @@ export class ScheduleExceptionMSWHandlers {
             }),
             
             // Delete schedule exception
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List schedule exceptions
-            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -537,7 +537,7 @@ export class ScheduleExceptionMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -548,7 +548,7 @@ export class ScheduleExceptionMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -557,7 +557,7 @@ export class ScheduleExceptionMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -565,7 +565,7 @@ export class ScheduleExceptionMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -579,7 +579,7 @@ export class ScheduleExceptionMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, async (req, res, ctx) => {
                 const body = await req.json() as ScheduleExceptionCreateInput;
                 const exception = this.responseFactory.createExceptionFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(exception);
@@ -598,11 +598,11 @@ export class ScheduleExceptionMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/schedule-exception`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/schedule-exception/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

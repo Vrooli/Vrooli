@@ -40,14 +40,14 @@ export const MicrophoneButtonShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1200, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -61,7 +61,7 @@ export const MicrophoneButtonShowcase: Story = {
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {/* Variant Control */}
                             <FormControl component="fieldset" size="small">
@@ -87,7 +87,7 @@ export const MicrophoneButtonShowcase: Story = {
                                     onChange={(e) => setSize(Number(e.target.value))}
                                     size="small"
                                     inputProps={{ min: 24, max: 100, step: 4 }}
-                                    sx={{ width: '100%' }}
+                                    sx={{ width: "100%" }}
                                 />
                                 <Typography variant="caption" sx={{ mt: 0.5, color: "text.secondary" }}>
                                     {size}px × {size}px
@@ -141,7 +141,7 @@ export const MicrophoneButtonShowcase: Story = {
                                         value={customFill || "#9333EA"}
                                         onChange={(e) => setCustomFill(e.target.value)}
                                         size="small"
-                                        sx={{ width: '100%' }}
+                                        sx={{ width: "100%" }}
                                     />
                                 )}
                             </FormControl>
@@ -199,7 +199,7 @@ export const MicrophoneButtonShowcase: Story = {
                                 xs: "repeat(2, 1fr)", 
                                 sm: "repeat(4, 1fr)",
                             }, 
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {variants.map(v => (
                                 <Box 
@@ -208,7 +208,7 @@ export const MicrophoneButtonShowcase: Story = {
                                         p: 3,
                                         borderRadius: 2,
                                         backgroundColor: (v === "space" || v === "neon") ? "#001122" : "grey.100",
-                                        textAlign: "center"
+                                        textAlign: "center",
                                     }}
                                 >
                                     <Typography 
@@ -216,7 +216,7 @@ export const MicrophoneButtonShowcase: Story = {
                                         sx={{ 
                                             mb: 2, 
                                             textTransform: "capitalize",
-                                            color: (v === "space" || v === "neon") ? "#fff" : "inherit"
+                                            color: (v === "space" || v === "neon") ? "#fff" : "inherit",
                                         }}
                                     >
                                         {v === "solid" ? "Solid (3D)" : v === "neon" ? "Neon" : v}

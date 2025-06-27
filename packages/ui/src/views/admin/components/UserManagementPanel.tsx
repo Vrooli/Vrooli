@@ -8,7 +8,6 @@ import {
     Dialog,
     DialogActions,
     DialogContent,
-    DialogTitle,
     FormControl,
     Grid,
     IconButton,
@@ -27,8 +26,9 @@ import {
     Typography,
     Alert,
     Stack,
-    Tooltip,
 } from "@mui/material";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
+import { DialogTitle } from "../../../components/dialogs/DialogTitle/DialogTitle.js";
 import { AccountStatus } from "@vrooli/shared";
 import React, { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -146,7 +146,7 @@ export const UserManagementPanel: React.FC = () => {
             
             // Update local state
             setUsers(prev => prev.map(user => 
-                user.id === userId ? { ...user, status } : user
+                user.id === userId ? { ...user, status } : user,
             ));
             
             setStatusDialog(false);
@@ -356,7 +356,7 @@ export const UserManagementPanel: React.FC = () => {
                                                     openConfirmDialog(
                                                         t("ResetPassword"),
                                                         t("ResetPasswordConfirm", { user: user.name || user.email }),
-                                                        () => handlePasswordReset(user.id)
+                                                        () => handlePasswordReset(user.id),
                                                     );
                                                 }}
                                             >
@@ -384,7 +384,7 @@ export const UserManagementPanel: React.FC = () => {
 
             {/* Status Change Dialog */}
             <Dialog open={statusDialog} onClose={() => setStatusDialog(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>{t("ChangeUserStatus")}</DialogTitle>
+                <DialogTitle id="change-user-status-dialog" title={t("ChangeUserStatus")} />
                 <DialogContent>
                     {selectedUser && (
                         <>
@@ -442,7 +442,7 @@ export const UserManagementPanel: React.FC = () => {
 
             {/* Confirmation Dialog */}
             <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog(prev => ({ ...prev, open: false }))}>
-                <DialogTitle>{confirmDialog.title}</DialogTitle>
+                <DialogTitle id="confirm-dialog" title={confirmDialog.title} />
                 <DialogContent>
                     <Typography>{confirmDialog.message}</Typography>
                 </DialogContent>

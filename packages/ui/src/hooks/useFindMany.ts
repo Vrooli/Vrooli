@@ -236,7 +236,6 @@ export function useFindMany<DataType extends Record<string, any>>({
     const getData = useCallback(() => {
         if (!readyToSearch(params.current)) return;
         lastParams.current = deepClone(params.current);
-        // params.current.loading = true;
         getPageData({
             take,
             sortBy: params.current.sortBy,

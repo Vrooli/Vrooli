@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reportResponseFixtures, reportResponseTestDataFactory } from "../../__test/fixtures/api/reportResponseFixtures.js";
+import { reportResponseFixtures, reportResponseTestDataFactory } from "../../__test/fixtures/api-inputs/reportResponseFixtures.js";
 import { ReportSuggestedAction } from "../../api/types.js";
 import { runComprehensiveValidationTests, testValidation } from "./__test/validationTestUtils.js";
 import { reportResponseValidation } from "./reportResponse.js";

@@ -2,6 +2,8 @@ import { act, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
+import * as yup from "yup";
+import { renderWithFormik, formInteractions, formAssertions } from "../../__test/helpers/formTestHelpers";
 import { Radio, PrimaryRadio, SecondaryRadio, DangerRadio, CustomRadio } from "./Radio.js";
 
 describe("Radio", () => {
@@ -442,6 +444,346 @@ describe("Radio", () => {
             const radioInput = screen.getByTestId("radio-input");
             expect(radioInput.getAttribute("data-custom")).toBe("custom-value");
             expect(radioInput.getAttribute("id")).toBe("custom-id");
+        });
+    });
+
+    describe("Formik integration", () => {
+        it("works as a controlled component within Formik", async () => {
+            const { user, getFormValues } = renderWithFormik(
+                <>
+                    <Radio name="choice" value="option1" />
+                    <Radio name="choice" value="option2" />
+                    <Radio name="choice" value="option3" />
+                </>,
+                {
+                    initialValues: { choice: "" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
+            
+            expect(radios[0].checked).toBe(false);
+            expect(radios[1].checked).toBe(false);
+            expect(radios[2].checked).toBe(false);
+
+            await act(async () => {
+                await user.click(radios[1]);
+            });
+
+            expect(radios[0].checked).toBe(false);
+            expect(radios[1].checked).toBe(true);
+            expect(radios[2].checked).toBe(false);
+            expect(getFormValues().choice).toBe("option2");
+        });
+
+        it("submits selected radio value correctly", async () => {
+            const { user, onSubmit, submitForm } = renderWithFormik(
+                <>
+                    <Radio name="plan" value="basic" />
+                    <Radio name="plan" value="premium" />
+                    <Radio name="plan" value="enterprise" />
+                    <button type="submit">Submit</button>
+                </>,
+                {
+                    initialValues: { plan: "" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input");
+            
+            await act(async () => {
+                await user.click(radios[1]); // Select premium
+            });
+
+            await submitForm();
+
+            formAssertions.expectFormSubmitted(onSubmit, { plan: "premium" });
+        });
+
+        it("validates required radio selection", async () => {
+            const validationSchema = yup.object({
+                agreement: yup.string()
+                    .required("Please select an option"),
+            });
+
+            const { user, onSubmit } = renderWithFormik(
+                <>
+                    <Radio name="agreement" value="yes" />
+                    <Radio name="agreement" value="no" />
+                    <button type="submit">Submit</button>
+                </>,
+                {
+                    initialValues: { agreement: "" },
+                    formikConfig: { validationSchema },
+                }
+            );
+
+            const submitButton = screen.getByRole("button", { name: /submit/i });
+            
+            await act(async () => {
+                await user.click(submitButton);
+            });
+
+            expect(onSubmit).not.toHaveBeenCalled();
+            formAssertions.expectFieldError("Please select an option");
+        });
+
+        it("respects initial values in radio groups", () => {
+            const { getFormValues } = renderWithFormik(
+                <>
+                    <Radio name="size" value="small" />
+                    <Radio name="size" value="medium" />
+                    <Radio name="size" value="large" />
+                </>,
+                {
+                    initialValues: { size: "medium" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
+            
+            expect(radios[0].checked).toBe(false);
+            expect(radios[1].checked).toBe(true);
+            expect(radios[2].checked).toBe(false);
+            expect(getFormValues().size).toBe("medium");
+        });
+
+        it("resets to initial value on form reset", async () => {
+            const { user, resetForm } = renderWithFormik(
+                <>
+                    <Radio name="frequency" value="daily" />
+                    <Radio name="frequency" value="weekly" />
+                    <Radio name="frequency" value="monthly" />
+                </>,
+                {
+                    initialValues: { frequency: "weekly" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
+            
+            expect(radios[1].checked).toBe(true);
+
+            await act(async () => {
+                await user.click(radios[2]); // Select monthly
+            });
+
+            expect(radios[1].checked).toBe(false);
+            expect(radios[2].checked).toBe(true);
+
+            resetForm();
+
+            expect(radios[1].checked).toBe(true);
+            expect(radios[2].checked).toBe(false);
+        });
+
+        it("handles multiple independent radio groups", async () => {
+            const { user, onSubmit, submitForm, getFormValues } = renderWithFormik(
+                <>
+                    <fieldset>
+                        <legend>Color</legend>
+                        <Radio name="color" value="red" />
+                        <Radio name="color" value="blue" />
+                        <Radio name="color" value="green" />
+                    </fieldset>
+                    <fieldset>
+                        <legend>Size</legend>
+                        <Radio name="size" value="s" />
+                        <Radio name="size" value="m" />
+                        <Radio name="size" value="l" />
+                    </fieldset>
+                </>,
+                {
+                    initialValues: { color: "", size: "" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input");
+            
+            await act(async () => {
+                await user.click(radios[1]); // Select blue
+                await user.click(radios[4]); // Select medium
+            });
+
+            expect(getFormValues()).toEqual({
+                color: "blue",
+                size: "m",
+            });
+
+            await submitForm();
+
+            formAssertions.expectFormSubmitted(onSubmit, {
+                color: "blue",
+                size: "m",
+            });
+        });
+
+        it("updates field touched state on blur", async () => {
+            const { user, isFieldTouched } = renderWithFormik(
+                <>
+                    <Radio name="preference" value="email" />
+                    <Radio name="preference" value="phone" />
+                </>,
+                {
+                    initialValues: { preference: "" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input");
+            
+            expect(isFieldTouched("preference")).toBe(false);
+
+            await act(async () => {
+                await user.click(radios[0]);
+                await user.tab(); // Blur
+            });
+
+            expect(isFieldTouched("preference")).toBe(true);
+        });
+
+        it("preserves disabled state in Formik context", async () => {
+            const { user } = renderWithFormik(
+                <>
+                    <Radio name="status" value="active" />
+                    <Radio name="status" value="inactive" disabled />
+                    <Radio name="status" value="pending" />
+                </>,
+                {
+                    initialValues: { status: "inactive" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
+            
+            expect(radios[1].disabled).toBe(true);
+            expect(radios[1].checked).toBe(true);
+
+            await act(async () => {
+                await user.click(radios[1]);
+            });
+
+            // Value should not change from disabled radio
+            expect(radios[1].checked).toBe(true);
+        });
+
+        it("works with variant radios in Formik", async () => {
+            const { user, getFormValues } = renderWithFormik(
+                <>
+                    <PrimaryRadio name="theme" value="primary" />
+                    <SecondaryRadio name="theme" value="secondary" />
+                    <DangerRadio name="theme" value="danger" />
+                    <CustomRadio name="theme" value="custom" customColor="#ff6600" />
+                </>,
+                {
+                    initialValues: { theme: "" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input");
+            expect(radios).toHaveLength(4);
+
+            await act(async () => {
+                await user.click(radios[2]); // Select danger
+            });
+
+            expect(getFormValues().theme).toBe("danger");
+        });
+
+        it("handles programmatic value changes", async () => {
+            const { setFieldValue, getFormValues } = renderWithFormik(
+                <>
+                    <Radio name="priority" value="low" />
+                    <Radio name="priority" value="medium" />
+                    <Radio name="priority" value="high" />
+                </>,
+                {
+                    initialValues: { priority: "low" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
+            
+            expect(radios[0].checked).toBe(true);
+
+            await setFieldValue("priority", "high");
+
+            expect(radios[0].checked).toBe(false);
+            expect(radios[2].checked).toBe(true);
+            expect(getFormValues().priority).toBe("high");
+        });
+
+        it("handles validation for specific radio values", async () => {
+            const validationSchema = yup.object({
+                consent: yup.string()
+                    .oneOf(["yes"], "You must agree to continue")
+                    .required("Please make a selection"),
+            });
+
+            const { user, onSubmit } = renderWithFormik(
+                <>
+                    <Radio name="consent" value="yes" />
+                    <Radio name="consent" value="no" />
+                    <button type="submit">Submit</button>
+                </>,
+                {
+                    initialValues: { consent: "" },
+                    formikConfig: { validationSchema },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input");
+            const submitButton = screen.getByRole("button", { name: /submit/i });
+            
+            // Try to submit with "no" selected
+            await act(async () => {
+                await user.click(radios[1]); // Select "no"
+                await user.click(submitButton);
+            });
+
+            expect(onSubmit).not.toHaveBeenCalled();
+            formAssertions.expectFieldError("You must agree to continue");
+
+            // Now select "yes" and submit
+            await act(async () => {
+                await user.click(radios[0]); // Select "yes"
+                await user.click(submitButton);
+            });
+
+            formAssertions.expectFormSubmitted(onSubmit, { consent: "yes" });
+        });
+
+        it("maintains proper keyboard navigation within Formik", async () => {
+            const { user, getFormValues } = renderWithFormik(
+                <>
+                    <Radio name="rating" value="1" />
+                    <Radio name="rating" value="2" />
+                    <Radio name="rating" value="3" />
+                    <Radio name="rating" value="4" />
+                    <Radio name="rating" value="5" />
+                </>,
+                {
+                    initialValues: { rating: "3" },
+                }
+            );
+
+            const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
+            
+            radios[2].focus(); // Focus on the initially selected radio
+
+            await act(async () => {
+                await user.keyboard("{ArrowDown}");
+            });
+
+            expect(document.activeElement).toBe(radios[3]);
+            expect(getFormValues().rating).toBe("4");
+
+            await act(async () => {
+                await user.keyboard("{ArrowUp}");
+                await user.keyboard("{ArrowUp}");
+            });
+
+            expect(document.activeElement).toBe(radios[1]);
+            expect(getFormValues().rating).toBe("2");
         });
     });
 });

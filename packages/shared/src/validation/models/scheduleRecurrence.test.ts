@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { scheduleRecurrenceFixtures, scheduleRecurrenceTestDataFactory } from "../../__test/fixtures/api/scheduleRecurrenceFixtures.js";
+import { scheduleRecurrenceFixtures, scheduleRecurrenceTestDataFactory } from "../../__test/fixtures/api-inputs/scheduleRecurrenceFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { scheduleRecurrenceValidation } from "./scheduleRecurrence.js";
 

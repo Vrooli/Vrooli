@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     StatsSite,
     StatsSiteSearchInput,
@@ -452,7 +452,7 @@ export class StatsSiteMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get current site statistics
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Week;
                 
@@ -467,7 +467,7 @@ export class StatsSiteMSWHandlers {
             }),
             
             // Get site statistics by period
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, (req, res, ctx) => {
                 const { period } = req.params;
                 
                 const statsByPeriod = this.responseFactory.createStatsByPeriod();
@@ -481,7 +481,7 @@ export class StatsSiteMSWHandlers {
             }),
             
             // Search site statistics
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, async (req, res, ctx) => {
                 const body = await req.json() as StatsSiteSearchInput;
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
@@ -517,7 +517,7 @@ export class StatsSiteMSWHandlers {
             }),
             
             // Get admin dashboard statistics
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
                 const stats = this.responseFactory.createAdminDashboardStats();
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
@@ -528,7 +528,7 @@ export class StatsSiteMSWHandlers {
             }),
             
             // Get growth metrics
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/growth`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/growth`, (req, res, ctx) => {
                 const growthMetrics = this.responseFactory.createGrowthMetrics();
                 
                 return res(
@@ -545,7 +545,7 @@ export class StatsSiteMSWHandlers {
             }),
             
             // Get time series data
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/timeseries`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/timeseries`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const days = parseInt(url.searchParams.get("days") || "30");
                 
@@ -566,7 +566,7 @@ export class StatsSiteMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/:period`, (req, res, ctx) => {
                 const { period } = req.params;
                 return res(
                     ctx.status(404),
@@ -575,7 +575,7 @@ export class StatsSiteMSWHandlers {
             }),
             
             // Permission error (admin only)
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("view admin statistics")),
@@ -583,7 +583,7 @@ export class StatsSiteMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/site/search`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -597,7 +597,7 @@ export class StatsSiteMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
                 const stats = this.responseFactory.createMockStats();
                 const response = this.responseFactory.createSuccessResponse(stats);
                 
@@ -615,11 +615,11 @@ export class StatsSiteMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/current`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/site/admin/dashboard`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
         ];

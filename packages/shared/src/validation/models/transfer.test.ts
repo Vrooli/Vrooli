@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { transferFixtures, transferTestDataFactory } from "../../__test/fixtures/api/transferFixtures.js";
+import { transferFixtures, transferTestDataFactory } from "../../__test/fixtures/api-inputs/transferFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { transferValidation } from "./transfer.js";
 

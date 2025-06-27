@@ -4,6 +4,7 @@
 import { CodeLanguage, DUMMY_ID, ResourceUsedFor, ResourceSubType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { PromptUpsert } from "./PromptUpsert.js";
 
 // Create simplified mock data for Prompt responses
@@ -203,13 +204,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findPromptVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findPromptVersion), () => {
                 return HttpResponse.json({ data: mockPromptVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockPromptVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockPromptVersionData),
     },
 };
 
@@ -231,13 +232,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findPromptVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findPromptVersion), () => {
                 return HttpResponse.json({ data: mockPromptVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockPromptVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockPromptVersionData),
     },
 };
 
@@ -251,7 +252,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findPromptVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findPromptVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockPromptVersionData });
@@ -259,7 +260,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockPromptVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockPromptVersionData),
     },
 };
 

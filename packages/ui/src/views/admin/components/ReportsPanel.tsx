@@ -8,7 +8,6 @@ import {
     Dialog,
     DialogActions,
     DialogContent,
-    DialogTitle,
     FormControl,
     Grid,
     IconButton,
@@ -27,11 +26,12 @@ import {
     Typography,
     Alert,
     Stack,
-    Tooltip,
     Menu,
     ListItemIcon,
     ListItemText,
 } from "@mui/material";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
+import { DialogTitle } from "../../../components/dialogs/DialogTitle/DialogTitle.js";
 import React, { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -192,7 +192,7 @@ export const ReportsPanel: React.FC = () => {
                         reviewedAt: new Date().toISOString(),
                         reviewedBy: "current_admin",
                     }
-                    : report
+                    : report,
             ));
             
             setReviewDialog(false);
@@ -213,7 +213,7 @@ export const ReportsPanel: React.FC = () => {
             setReports(prev => prev.map(report => 
                 report.id === reportId 
                     ? { ...report, status: newStatus as any }
-                    : report
+                    : report,
             ));
         } catch (error) {
             console.error("Failed to perform content action:", error);
@@ -469,7 +469,7 @@ export const ReportsPanel: React.FC = () => {
 
             {/* Review Dialog */}
             <Dialog open={reviewDialog} onClose={() => setReviewDialog(false)} maxWidth="md" fullWidth>
-                <DialogTitle>{t("ReviewReport")}</DialogTitle>
+                <DialogTitle id="review-report-dialog" title={t("ReviewReport")} />
                 <DialogContent>
                     {selectedReport && (
                         <>

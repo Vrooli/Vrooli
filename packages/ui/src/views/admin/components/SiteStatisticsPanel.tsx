@@ -13,9 +13,9 @@ import {
     IconButton,
     Button,
     Alert,
-    useTheme
+    useTheme,
 } from "@mui/material";
-import { DAYS_1_MS, WEEKS_1_MS, MONTHS_1_MS, YEARS_1_MS, endpointsStatsSite, StatPeriodType, type StatsSite, type StatsSiteSearchInput, type StatsSiteSearchResult } from "@vrooli/shared";
+import { DAYS_1_MS, WEEKS_1_MS, MONTHS_1_MS, YEARS_1_MS, endpointsStatsSite, type StatPeriodType, type StatsSite, type StatsSiteSearchInput, type StatsSiteSearchResult } from "@vrooli/shared";
 import React, { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLazyFetch } from "../../../hooks/useFetch.js";
@@ -180,8 +180,8 @@ function SiteStatisticsPanel(): React.ReactElement {
 
         const latestStats = stats[stats.length - 1];
         try {
-            const resourcesCreated = JSON.parse(latestStats.resourcesCreatedByType || '{}');
-            const resourcesCompleted = JSON.parse(latestStats.resourcesCompletedByType || '{}');
+            const resourcesCreated = JSON.parse(latestStats.resourcesCreatedByType || "{}");
+            const resourcesCompleted = JSON.parse(latestStats.resourcesCompletedByType || "{}");
             
             return {
                 routinesCreated: resourcesCreated.Routine || 0,
@@ -285,7 +285,7 @@ function SiteStatisticsPanel(): React.ReactElement {
                                     height: 24,
                                     "& .MuiChip-label": {
                                         px: 1,
-                                    }
+                                    },
                                 }}
                             />
                         )}
@@ -538,7 +538,7 @@ function SiteStatisticsPanel(): React.ReactElement {
                                 sx={{ 
                                     fontWeight: 700,
                                     mb: 2,
-                                    color: metrics.runCompletionRate >= 80 ? "success.main" : metrics.runCompletionRate >= 50 ? "warning.main" : "error.main"
+                                    color: metrics.runCompletionRate >= 80 ? "success.main" : metrics.runCompletionRate >= 50 ? "warning.main" : "error.main",
                                 }}
                             >
                                 {metrics.runCompletionRate}%

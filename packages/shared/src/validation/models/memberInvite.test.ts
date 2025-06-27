@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { memberInviteFixtures, memberInviteTestDataFactory } from "../../__test/fixtures/api/memberInviteFixtures.js";
+import { memberInviteFixtures, memberInviteTestDataFactory } from "../../__test/fixtures/api-inputs/memberInviteFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { memberInviteValidation } from "./memberInvite.js";
 

@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     Transfer, 
     TransferCreateInput, 
@@ -469,7 +469,7 @@ export class TransferMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create transfer
-            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/transfer`, async (req, res, ctx) => {
                 const body = await req.json() as TransferCreateInput;
                 
                 // Validate input
@@ -492,7 +492,7 @@ export class TransferMSWHandlers {
             }),
             
             // Get transfer by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const transfer = this.responseFactory.createMockTransfer({ id: id as string });
@@ -505,7 +505,7 @@ export class TransferMSWHandlers {
             }),
             
             // Update transfer
-            rest.put(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as TransferUpdateInput;
                 
@@ -529,12 +529,12 @@ export class TransferMSWHandlers {
             }),
             
             // Delete transfer
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List transfers
-            rest.get(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -578,7 +578,7 @@ export class TransferMSWHandlers {
             }),
             
             // Accept transfer
-            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer/:id/accept`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/transfer/:id/accept`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const transfer = this.responseFactory.createMockTransfer({ 
@@ -595,7 +595,7 @@ export class TransferMSWHandlers {
             }),
             
             // Reject transfer
-            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer/:id/reject`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/transfer/:id/reject`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const transfer = this.responseFactory.createMockTransfer({ 
@@ -612,7 +612,7 @@ export class TransferMSWHandlers {
             }),
             
             // Cancel transfer
-            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer/:id/cancel`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/transfer/:id/cancel`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const transfer = this.responseFactory.createMockTransfer({ 
@@ -636,7 +636,7 @@ export class TransferMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -647,7 +647,7 @@ export class TransferMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -656,7 +656,7 @@ export class TransferMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -664,7 +664,7 @@ export class TransferMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -678,7 +678,7 @@ export class TransferMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/transfer`, async (req, res, ctx) => {
                 const body = await req.json() as TransferCreateInput;
                 const transfer = this.responseFactory.createTransferFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(transfer);
@@ -697,11 +697,11 @@ export class TransferMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/transfer`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/transfer/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

@@ -540,7 +540,7 @@ return analyze_data(input)
 },
 {
   "fieldName": "errorLog",
-  "type": "TextInput",
+  "type": "Text",
   "label": "Error Messages (if any)"
 },
 {

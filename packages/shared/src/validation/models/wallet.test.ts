@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { walletFixtures } from "../../__test/fixtures/api/walletFixtures.js";
+import { walletFixtures } from "../../__test/fixtures/api-inputs/walletFixtures.js";
 import { runStandardValidationTests } from "./__test/validationTestUtils.js";
 import { walletValidation } from "./wallet.js";
 

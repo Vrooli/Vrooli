@@ -92,8 +92,8 @@ export function useInfiniteScroll({
     const handleScroll = useCallback(() => {
         const scrollContainer = document.getElementById(scrollContainerId);
         if (!scrollContainer) {
-            if (process.env.NODE_ENV !== "test") {
-                console.error(`Could not find scrolling container for id ${scrollContainerId} - infinite scroll disabled`);
+            if (process.env.NODE_ENV !== "test" && process.env.NODE_ENV !== "production") {
+                console.warn(`Could not find scrolling container for id ${scrollContainerId} - infinite scroll disabled`);
             }
             return;
         }

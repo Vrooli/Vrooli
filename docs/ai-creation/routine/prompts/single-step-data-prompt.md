@@ -2,32 +2,36 @@
 
 ## Overview
 
-You are an expert AI system designer tasked with creating **RoutineData** routines for Vrooli. These are single-step routines that perform specialized data processing, transformation, and manipulation operations. They serve as atomic building blocks for data workflows, ETL processes, and information management within larger systems.
+You are an expert AI system designer tasked with creating **RoutineData** routines for Vrooli. These are single-step routines that perform data processing, transformation, validation, and ETL (Extract, Transform, Load) operations. They serve as atomic building blocks for data manipulation workflows.
 
 ## Purpose
 
 RoutineData routines are used for:
-- **Data transformation**: Convert data between formats and structures
-- **Data validation**: Check data integrity and quality
-- **Data enrichment**: Add metadata and computed fields
-- **Data aggregation**: Combine and summarize datasets
-- **Data filtering**: Extract subsets based on criteria
+- **Data transformation**: Convert data between formats (JSON, CSV, XML, etc.)
+- **Data validation**: Verify data structure, format, and content integrity
+- **Data processing**: Clean, filter, aggregate, and manipulate data
+- **ETL operations**: Extract, transform, and load data workflows
+- **Format conversion**: Transform data structures and schemas
 
 ## Execution Context
 
 ### Tier 3 Execution
 RoutineData operates at **Tier 3** of Vrooli's architecture:
-- **Optimized processing**: Efficient data manipulation engines
-- **Format support**: Multiple data formats (JSON, CSV, XML, etc.)
-- **Template-based operations**: Dynamic data processing rules
-- **Memory management**: Efficient handling of large datasets
+- **Direct data processing**: Immediate data manipulation and transformation
+- **Sandboxed execution**: Secure code execution for data operations
+- **Template-based processing**: Dynamic data transformation based on inputs
+- **Multiple output formats**: Support for various data output structures
 
 ### Integration with Multi-Step Workflows
 RoutineData routines are commonly used as subroutines within RoutineMultiStep workflows for:
-- **ETL steps**: Extract, transform, and load data between systems
-- **Preprocessing steps**: Clean and prepare data for analysis
-- **Postprocessing steps**: Format results for presentation
-- **Data quality steps**: Validate and ensure data integrity
+- **Data preparation steps**: Clean and format data for further processing
+- **Data validation steps**: Ensure data quality and structure compliance
+- **Format conversion steps**: Transform data between different formats
+- **Data enrichment steps**: Add computed fields and derived values
+
+## Important Note
+
+**RoutineData does not have a dedicated call data configuration type.** Instead, it uses **RoutineCode** configuration (`callDataCode`) to execute sandboxed data processing operations. This provides flexibility to handle various data processing tasks using code execution.
 
 ## JSON Structure Requirements
 
@@ -55,33 +59,24 @@ RoutineData routines are commonly used as subroutines within RoutineMultiStep wo
       "resourceSubType": "RoutineData",
       "config": {
         "__version": "1.0",
-        "callDataData": {
+        "callDataCode": {
           "__version": "1.0",
           "schema": {
-            "operation": "transform",
-            "inputFormat": "json",
-            "outputFormat": "json",
-            "transformationRules": {
-              "mappings": [
-                {
-                  "source": "{{input.sourceField}}",
-                  "target": "{{input.targetField}}",
-                  "transform": "{{input.transformation}}"
+            "inputTemplate": {
+              "data": "{{input.sourceData}}",
+              "format": "{{input.inputFormat}}",
+              "options": "{{input.processingOptions}}"
+            },
+            "outputMappings": [
+              {
+                "schemaIndex": 0,
+                "mapping": {
+                  "processedData": "result.data",
+                  "format": "result.format",
+                  "recordCount": "result.count"
                 }
-              ],
-              "filters": "{{input.filterCriteria}}",
-              "aggregations": "{{input.aggregationRules}}"
-            },
-            "validationRules": {
-              "required": "{{input.requiredFields}}",
-              "types": "{{input.fieldTypes}}",
-              "constraints": "{{input.constraints}}"
-            },
-            "options": {
-              "preserveMetadata": true,
-              "errorHandling": "{{input.errorHandling}}",
-              "batchSize": "{{input.batchSize}}"
-            }
+              }
+            ]
           }
         },
         "formInput": {
@@ -94,7 +89,7 @@ RoutineData routines are commonly used as subroutines within RoutineMultiStep wo
                 "label": "Source Data",
                 "type": "JSON",
                 "isRequired": true,
-                "placeholder": "Enter data to process"
+                "placeholder": "Enter source data to process..."
               }
             ]
           }
@@ -110,10 +105,10 @@ RoutineData routines are commonly used as subroutines within RoutineMultiStep wo
                 "type": "JSON"
               },
               {
-                "fieldName": "processingMetadata",
-                "id": "processing_metadata_output",
-                "label": "Processing Metadata",
-                "type": "JSON"
+                "fieldName": "recordCount",
+                "id": "record_count_output",
+                "label": "Record Count",
+                "type": "IntegerInput"
               }
             ]
           }
@@ -124,9 +119,9 @@ RoutineData routines are commonly used as subroutines within RoutineMultiStep wo
         {
           "id": "[generate-19-digit-snowflake-id]",
           "language": "en",
-          "name": "Descriptive Data Routine Name",
-          "description": "What this data routine processes and transforms.",
-          "instructions": "How to use this routine and what data to provide."
+          "name": "Descriptive Data Processing Routine Name",
+          "description": "What this routine processes and how it transforms the data.",
+          "instructions": "How to use this routine and what data formats to provide."
         }
       ]
     }
@@ -136,439 +131,100 @@ RoutineData routines are commonly used as subroutines within RoutineMultiStep wo
 
 ## Configuration Details
 
-### callDataData Schema
+### Using callDataCode for Data Processing
 
-#### Required Fields
-- **`operation`**: Type of data operation to perform
-- **`inputFormat`**: Format of input data
-- **`outputFormat`**: Format of output data
+Since RoutineData uses code execution for data processing, configure the `callDataCode` schema:
 
-#### Optional Fields
-- **`transformationRules`**: Rules for data transformation
-- **`validationRules`**: Rules for data validation
-- **`options`**: Processing options and configuration
-
-### Data Operations
-
-#### Transform Operations
+#### Input Template Structure
 ```json
 {
-  "operation": "transform",
-  "transformationRules": {
-    "mappings": [
-      {
-        "source": "{{input.sourceField}}",
-        "target": "{{input.targetField}}",
-        "transform": "{{input.transformationType}}"
-      }
-    ]
+  "inputTemplate": {
+    "data": "{{input.sourceData}}",
+    "operation": "{{input.operation}}",
+    "options": "{{input.options}}"
   }
 }
 ```
 
-#### Validation Operations
+#### Output Mappings
 ```json
 {
-  "operation": "validate",
-  "validationRules": {
-    "required": ["{{input.requiredField1}}", "{{input.requiredField2}}"],
-    "types": {
-      "{{input.field1}}": "string",
-      "{{input.field2}}": "number"
-    },
-    "constraints": "{{input.validationConstraints}}"
-  }
-}
-```
-
-#### Aggregation Operations
-```json
-{
-  "operation": "aggregate",
-  "transformationRules": {
-    "aggregations": [
-      {
-        "field": "{{input.aggregateField}}",
-        "function": "{{input.aggregateFunction}}",
-        "groupBy": "{{input.groupByField}}"
-      }
-    ]
-  }
-}
-```
-
-#### Filter Operations
-```json
-{
-  "operation": "filter",
-  "transformationRules": {
-    "filters": [
-      {
-        "field": "{{input.filterField}}",
-        "operator": "{{input.filterOperator}}",
-        "value": "{{input.filterValue}}"
-      }
-    ]
-  }
-}
-```
-
-### Data Formats
-
-#### JSON Processing
-```json
-{
-  "inputFormat": "json",
-  "outputFormat": "json"
-}
-```
-
-#### CSV Processing
-```json
-{
-  "inputFormat": "csv",
-  "outputFormat": "json",
-  "options": {
-    "delimiter": "{{input.csvDelimiter}}",
-    "headers": "{{input.hasHeaders}}",
-    "encoding": "{{input.encoding}}"
-  }
-}
-```
-
-#### XML Processing
-```json
-{
-  "inputFormat": "xml",
-  "outputFormat": "json",
-  "options": {
-    "rootElement": "{{input.xmlRoot}}",
-    "attributeHandling": "{{input.attributeMode}}"
-  }
-}
-```
-
-### Transformation Rules
-
-#### Field Mapping
-```json
-{
-  "mappings": [
+  "outputMappings": [
     {
-      "source": "old_field_name",
-      "target": "new_field_name",
-      "transform": "rename"
-    },
-    {
-      "source": "numeric_string",
-      "target": "numeric_value",
-      "transform": "toNumber"
-    },
-    {
-      "source": "timestamp_string",
-      "target": "datetime",
-      "transform": "parseDate"
+      "schemaIndex": 0,
+      "mapping": {
+        "processedData": "result.data",
+        "metadata": "result.metadata",
+        "errors": "result.errors"
+      }
     }
   ]
 }
 ```
 
-#### Data Enrichment
+### Data Processing Operations
+
+#### Data Validation
 ```json
 {
-  "mappings": [
-    {
-      "source": "computed",
-      "target": "full_name",
-      "transform": "concat",
-      "params": ["first_name", " ", "last_name"]
-    },
-    {
-      "source": "computed",
-      "target": "category_score",
-      "transform": "calculate",
-      "params": {"formula": "score * weight"}
-    }
-  ]
-}
-```
-
-### Validation Rules
-
-#### Field Requirements
-```json
-{
-  "validationRules": {
-    "required": ["id", "name", "email"],
-    "types": {
-      "id": "string",
-      "age": "number",
-      "active": "boolean",
-      "tags": "array"
-    },
-    "constraints": {
-      "email": {"pattern": "^[^@]+@[^@]+\\.[^@]+$"},
-      "age": {"min": 0, "max": 150},
-      "name": {"minLength": 1, "maxLength": 100}
-    }
+  "inputTemplate": {
+    "data": "{{input.dataset}}",
+    "schema": "{{input.validationSchema}}",
+    "strictMode": "{{input.strictValidation}}"
   }
 }
 ```
 
-## Common Use Cases & Templates
-
-### 1. CSV to JSON Conversion
+#### Format Conversion
 ```json
 {
-  "callDataData": {
-    "schema": {
-      "operation": "transform",
-      "inputFormat": "csv",
-      "outputFormat": "json",
-      "transformationRules": {
-        "mappings": [
-          {
-            "source": "{{input.csvHeaders}}",
-            "target": "{{input.jsonFields}}",
-            "transform": "fieldMapping"
-          }
-        ]
-      },
-      "options": {
-        "delimiter": "{{input.delimiter}}",
-        "hasHeaders": "{{input.hasHeaders}}",
-        "preserveMetadata": true
-      }
-    }
+  "inputTemplate": {
+    "sourceData": "{{input.sourceData}}",
+    "fromFormat": "{{input.sourceFormat}}",
+    "toFormat": "{{input.targetFormat}}"
   }
 }
 ```
 
-### 2. Data Validation and Cleaning
+#### Data Aggregation
 ```json
 {
-  "callDataData": {
-    "schema": {
-      "operation": "validate",
-      "inputFormat": "json",
-      "outputFormat": "json",
-      "validationRules": {
-        "required": "{{input.requiredFields}}",
-        "types": "{{input.fieldTypes}}",
-        "constraints": {
-          "email": {"pattern": "^[^@]+@[^@]+\\.[^@]+$"},
-          "phone": {"pattern": "^\\+?[1-9]\\d{1,14}$"}
-        }
-      },
-      "transformationRules": {
-        "mappings": [
-          {
-            "source": "email",
-            "target": "email",
-            "transform": "toLowerCase"
-          },
-          {
-            "source": "name",
-            "target": "name",
-            "transform": "trim"
-          }
-        ]
-      },
-      "options": {
-        "errorHandling": "{{input.errorMode}}",
-        "cleanInvalidRecords": "{{input.autoClean}}"
-      }
-    }
+  "inputTemplate": {
+    "dataset": "{{input.dataset}}",
+    "groupBy": "{{input.groupByFields}}",
+    "aggregations": "{{input.aggregationFunctions}}"
   }
 }
 ```
 
-### 3. Data Aggregation and Summarization
-```json
-{
-  "callDataData": {
-    "schema": {
-      "operation": "aggregate",
-      "inputFormat": "json",
-      "outputFormat": "json",
-      "transformationRules": {
-        "aggregations": [
-          {
-            "field": "{{input.valueField}}",
-            "function": "{{input.aggregateFunction}}",
-            "groupBy": "{{input.groupByField}}"
-          },
-          {
-            "field": "record_count",
-            "function": "count",
-            "groupBy": "{{input.groupByField}}"
-          }
-        ]
-      },
-      "options": {
-        "includeMetadata": true,
-        "sortResults": "{{input.sortOrder}}"
-      }
-    }
-  }
-}
-```
+### Form Configuration
 
-### 4. Data Filtering and Subset Extraction
-```json
-{
-  "callDataData": {
-    "schema": {
-      "operation": "filter",
-      "inputFormat": "json",
-      "outputFormat": "json",
-      "transformationRules": {
-        "filters": [
-          {
-            "field": "{{input.filterField}}",
-            "operator": "{{input.filterOperator}}",
-            "value": "{{input.filterValue}}"
-          },
-          {
-            "field": "{{input.dateField}}",
-            "operator": "between",
-            "value": ["{{input.startDate}}", "{{input.endDate}}"]
-          }
-        ]
-      },
-      "options": {
-        "limit": "{{input.maxRecords}}",
-        "offset": "{{input.skipRecords}}"
-      }
-    }
-  }
-}
-```
-
-### 5. Data Format Conversion
-```json
-{
-  "callDataData": {
-    "schema": {
-      "operation": "transform",
-      "inputFormat": "{{input.sourceFormat}}",
-      "outputFormat": "{{input.targetFormat}}",
-      "transformationRules": {
-        "mappings": "{{input.fieldMappings}}",
-        "formatOptions": {
-          "dateFormat": "{{input.dateFormat}}",
-          "numberFormat": "{{input.numberFormat}}",
-          "encoding": "{{input.outputEncoding}}"
-        }
-      },
-      "options": {
-        "preserveStructure": "{{input.preserveStructure}}",
-        "flattenNested": "{{input.flattenNested}}"
-      }
-    }
-  }
-}
-```
-
-### 6. Data Enrichment
-```json
-{
-  "callDataData": {
-    "schema": {
-      "operation": "transform",
-      "inputFormat": "json",
-      "outputFormat": "json",
-      "transformationRules": {
-        "mappings": [
-          {
-            "source": "computed",
-            "target": "full_address",
-            "transform": "concat",
-            "params": ["street", ", ", "city", ", ", "state"]
-          },
-          {
-            "source": "created_at",
-            "target": "age_days",
-            "transform": "dateDiff",
-            "params": {"unit": "days", "from": "now"}
-          },
-          {
-            "source": "metadata",
-            "target": "enriched_at",
-            "transform": "addTimestamp"
-          }
-        ]
-      },
-      "options": {
-        "addMetadata": true,
-        "computedFieldPrefix": "computed_"
-      }
-    }
-  }
-}
-```
-
-## Form Configuration
-
-### Input Form Elements
-
-#### Source Data
+#### Input Form Elements
+Common input types for data processing:
 ```json
 {
   "fieldName": "sourceData",
   "type": "JSON",
   "isRequired": true,
   "label": "Source Data",
-  "placeholder": "Enter data to process as JSON"
+  "placeholder": "Enter data to process..."
 },
-{
-  "fieldName": "dataFormat",
-  "type": "Selector",
-  "label": "Input Format",
-  "options": ["json", "csv", "xml"],
-  "defaultValue": "json"
-}
-```
-
-#### Processing Configuration
-```json
 {
   "fieldName": "operation",
   "type": "Selector",
-  "isRequired": true,
-  "label": "Operation Type",
-  "options": ["transform", "validate", "aggregate", "filter"]
+  "label": "Processing Operation",
+  "options": ["validate", "transform", "aggregate", "filter"]
 },
 {
-  "fieldName": "transformationRules",
-  "type": "JSON",
-  "label": "Transformation Rules",
-  "placeholder": "Enter transformation configuration"
-}
-```
-
-#### Processing Options
-```json
-{
-  "fieldName": "errorHandling",
+  "fieldName": "outputFormat",
   "type": "Selector",
-  "label": "Error Handling",
-  "options": ["strict", "lenient", "skip"],
-  "defaultValue": "lenient"
-},
-{
-  "fieldName": "batchSize",
-  "type": "IntegerInput",
-  "label": "Batch Size",
-  "defaultValue": 1000,
-  "min": 1,
-  "max": 100000
+  "label": "Output Format", 
+  "options": ["JSON", "CSV", "XML", "TSV"]
 }
 ```
 
-### Output Form Elements
-
-#### Processed Results
+#### Output Form Elements
+Standard output for data processing:
 ```json
 {
   "fieldName": "processedData",
@@ -581,43 +237,147 @@ RoutineData routines are commonly used as subroutines within RoutineMultiStep wo
   "label": "Records Processed"
 },
 {
-  "fieldName": "processingTime",
-  "type": "IntegerInput",
-  "label": "Processing Time (ms)"
+  "fieldName": "validationErrors",
+  "type": "JSON",
+  "label": "Validation Errors (if any)"
 }
 ```
 
-#### Quality Metrics
+## Common Use Cases & Templates
+
+### 1. CSV to JSON Conversion
 ```json
 {
-  "fieldName": "validRecords",
-  "type": "IntegerInput",
-  "label": "Valid Records"
-},
+  "callDataCode": {
+    "schema": {
+      "inputTemplate": {
+        "csvData": "{{input.csvContent}}",
+        "delimiter": "{{input.delimiter}}",
+        "headers": "{{input.hasHeaders}}"
+      },
+      "outputMappings": [
+        {
+          "schemaIndex": 0,
+          "mapping": {
+            "jsonData": "result.json",
+            "recordCount": "result.count"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### 2. Data Validation
+```json
 {
-  "fieldName": "invalidRecords",
-  "type": "IntegerInput",
-  "label": "Invalid Records"
-},
+  "callDataCode": {
+    "schema": {
+      "inputTemplate": {
+        "dataset": "{{input.data}}",
+        "rules": "{{input.validationRules}}",
+        "mode": "{{input.validationMode}}"
+      },
+      "outputMappings": [
+        {
+          "schemaIndex": 0,
+          "mapping": {
+            "isValid": "result.valid",
+            "errors": "result.errors",
+            "validRecords": "result.validCount"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### 3. Data Aggregation
+```json
 {
-  "fieldName": "qualityScore",
-  "type": "IntegerInput",
-  "label": "Data Quality Score (0-100)"
+  "callDataCode": {
+    "schema": {
+      "inputTemplate": {
+        "dataset": "{{input.dataset}}",
+        "groupByFields": "{{input.groupBy}}",
+        "aggregationFunctions": "{{input.aggregations}}"
+      },
+      "outputMappings": [
+        {
+          "schemaIndex": 0,
+          "mapping": {
+            "aggregatedData": "result.aggregations",
+            "groupCount": "result.groups"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### 4. Data Filtering
+```json
+{
+  "callDataCode": {
+    "schema": {
+      "inputTemplate": {
+        "dataset": "{{input.sourceData}}",
+        "filterCriteria": "{{input.filters}}",
+        "operator": "{{input.logicalOperator}}"
+      },
+      "outputMappings": [
+        {
+          "schemaIndex": 0,
+          "mapping": {
+            "filteredData": "result.data",
+            "matchCount": "result.matches"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### 5. Data Transformation
+```json
+{
+  "callDataCode": {
+    "schema": {
+      "inputTemplate": {
+        "sourceData": "{{input.data}}",
+        "transformations": "{{input.transformRules}}",
+        "outputSchema": "{{input.targetSchema}}"
+      },
+      "outputMappings": [
+        {
+          "schemaIndex": 0,
+          "mapping": {
+            "transformedData": "result.data",
+            "transformationLog": "result.log"
+          }
+        }
+      ]
+    }
+  }
 }
 ```
 
 ## Execution Strategies
 
 ### Deterministic Strategy (Recommended)
-**Best for**: Consistent data transformations, ETL processes, validation
+**Best for**: Data processing operations requiring consistent results
 ```json
 {
   "executionStrategy": "deterministic"
 }
 ```
 
-### Reasoning Strategy  
-**Best for**: Complex data processing requiring decision-making
+### Reasoning Strategy
+**Best for**: Complex data analysis requiring decision-making
 ```json
 {
   "executionStrategy": "reasoning"
@@ -630,58 +390,41 @@ RoutineData routines are commonly used as subroutines within RoutineMultiStep wo
 1. **Resource Type**: Must be `"Routine"` 
 2. **Resource Sub Type**: Must be `"RoutineData"`
 3. **Config Version**: Must have `"__version": "1.0"` at root level
-4. **Call Data**: Must have `callDataData` with proper schema
-5. **Operation**: Must specify valid data operation
-6. **Input/Output Formats**: Must specify supported data formats
-7. **Forms**: Must have both `formInput` and `formOutput`
-8. **IDs**: 19-digit snowflake IDs for all `id` fields
-9. **Public IDs**: 10-12 character alphanumeric for `publicId` fields
-10. **Tags**: Must be empty array `[]`
+4. **Call Data**: Must have `callDataCode` (NOT callDataData) with proper schema
+5. **Forms**: Must have both `formInput` and `formOutput` 
+6. **IDs**: 19-digit snowflake IDs for all `id` fields
+7. **Public IDs**: 10-12 character alphanumeric for `publicId` fields
+8. **Tags**: Must be empty array `[]`
 
-### Data-Specific Requirements
-1. **Format Support**: Input/output formats must be supported
-2. **Rule Structure**: Transformation and validation rules must be valid
-3. **Template Variables**: Proper `{{variable}}` syntax
-4. **Performance**: Consider memory and processing limits
-5. **Error Handling**: Appropriate error handling configuration
-
-### Quality Requirements  
-1. **Data Integrity**: Ensure data consistency and accuracy
-2. **Performance**: Optimize for large dataset processing
-3. **Validation**: Comprehensive data quality checks
-4. **Error Recovery**: Handle malformed data gracefully
+### Code Configuration Requirements
+1. **Input Template**: Must be valid object structure
+2. **Output Mappings**: Must include at least one mapping with schemaIndex
+3. **Field Names**: Must match between form fields and template variables
+4. **Data Types**: Input/output types should match expected data structures
 
 ## Generation Guidelines
 
-### 1. Understand the Data Processing Need
-- **Data Types**: What kind of data will be processed?
-- **Transformations**: What changes need to be made?
-- **Quality Requirements**: What validation is needed?
-- **Performance**: What are the volume and speed requirements?
+### 1. Understand the Data Operation
+- **Input Format**: What data format is being processed?
+- **Transformation**: What processing or transformation is needed?
+- **Output Format**: What format should the result be in?
+- **Validation**: What validation rules should be applied?
 
 ### 2. Design the Processing Logic
-- **Input Handling**: How to parse and validate input data
-- **Transformation Rules**: What operations to perform
-- **Output Formatting**: How to structure the results
-- **Error Handling**: How to handle malformed or invalid data
+- **Input Structure**: Design clear input template for code execution
+- **Processing Steps**: Define the data processing operations
+- **Output Mapping**: Map processing results to routine outputs
+- **Error Handling**: Plan for data processing errors
 
-### 3. Configure Processing Options
-- **Batch Size**: Balance memory usage and performance
-- **Error Handling**: Choose appropriate error handling strategy
-- **Validation**: Set appropriate data quality checks
-- **Metadata**: Decide what processing metadata to include
+### 3. Configure Data Flow
+- **Input Validation**: Ensure input data meets requirements
+- **Processing Options**: Allow configuration of processing parameters
+- **Output Structure**: Provide structured, useful output format
 
-### 4. Plan Input/Output Structure
-- **Data Format**: Choose optimal input/output formats
-- **Field Mapping**: Define clear field transformations
-- **Result Structure**: Organize outputs for downstream use
-- **Quality Metrics**: Include data quality information
-
-### 5. Consider Performance
-- **Memory Usage**: Estimate memory requirements for datasets
-- **Processing Speed**: Optimize transformation algorithms
-- **Scalability**: Design for growing data volumes
-- **Resource Limits**: Set appropriate processing limits
+### 4. Plan for Reusability
+- **Generic Operations**: Design for common data processing patterns
+- **Configurable Parameters**: Allow customization of processing behavior
+- **Modular Design**: Focus on single data processing responsibility
 
 ## Quality Checklist
 
@@ -689,40 +432,26 @@ Before generating a RoutineData routine, verify:
 
 ### Structure:
 - [ ] `resourceSubType` is `"RoutineData"`
-- [ ] `callDataData` schema is complete and valid
+- [ ] Uses `callDataCode` configuration (NOT callDataData)
 - [ ] Both `formInput` and `formOutput` are defined
 - [ ] All IDs follow correct format
-- [ ] `executionStrategy` is appropriate for the data operation
+- [ ] `executionStrategy` is appropriate for data processing
 
-### Data Configuration:
-- [ ] Operation type is valid and supported
-- [ ] Input/output formats are specified and supported
-- [ ] Transformation rules are properly structured
-- [ ] Validation rules are comprehensive
+### Code Configuration:
+- [ ] `inputTemplate` properly maps form inputs
+- [ ] `outputMappings` includes proper schemaIndex and mapping
 - [ ] Template variables use correct syntax
-
-### Processing Logic:
-- [ ] Data transformations are efficient and correct
-- [ ] Validation rules ensure data quality
-- [ ] Error handling covers edge cases
-- [ ] Performance considerations are addressed
+- [ ] All input fields are referenced in template
 
 ### Forms:
-- [ ] Input form captures all necessary processing parameters
-- [ ] Output form includes results and quality metrics
+- [ ] Input form captures all necessary data and options
+- [ ] Output form includes processed data and metadata
 - [ ] Field names match template variables
-- [ ] Required fields are properly marked
-
-### Quality Assurance:
-- [ ] Data integrity is maintained throughout processing
-- [ ] Validation rules prevent bad data propagation
-- [ ] Error handling provides useful feedback
-- [ ] Performance is optimized for expected data volumes
+- [ ] Data types are appropriate for processing operations
 
 ### Metadata:
-- [ ] Name clearly describes the data operation
-- [ ] Description explains what data processing is performed
-- [ ] Instructions guide users on proper data format
-- [ ] Performance characteristics are documented
+- [ ] Name clearly describes the data processing operation
+- [ ] Description explains what data is processed and how
+- [ ] Instructions guide users on input formats and options
 
-Generate RoutineData routines that provide reliable, efficient data processing capabilities while maintaining data quality and being easily composable into larger data workflows.
+Generate RoutineData routines that provide reliable, efficient data processing capabilities while being easily composable into larger data workflows.

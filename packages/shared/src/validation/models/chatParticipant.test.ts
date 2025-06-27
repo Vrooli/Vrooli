@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { chatParticipantFixtures, chatParticipantTestDataFactory } from "../../__test/fixtures/api/chatParticipantFixtures.js";
+import { chatParticipantFixtures, chatParticipantTestDataFactory } from "../../__test/fixtures/api-inputs/chatParticipantFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { chatParticipantValidation } from "./chatParticipant.js";
 

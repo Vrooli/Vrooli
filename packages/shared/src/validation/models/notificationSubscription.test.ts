@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { notificationSubscriptionFixtures, notificationSubscriptionTestDataFactory } from "../../__test/fixtures/api/notificationSubscriptionFixtures.js";
+import { notificationSubscriptionFixtures, notificationSubscriptionTestDataFactory } from "../../__test/fixtures/api-inputs/notificationSubscriptionFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { notificationSubscriptionValidation } from "./notificationSubscription.js";
 

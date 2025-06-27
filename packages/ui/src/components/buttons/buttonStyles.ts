@@ -79,34 +79,34 @@ export const VARIANT_STYLES: Record<ButtonVariant, string> = {
         "tw-bg-secondary-main tw-text-white tw-border-0",
         "hover:tw-bg-secondary-dark",
         "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
-        "tw-shadow-md hover:tw-shadow-lg"
+        "tw-shadow-md hover:tw-shadow-lg",
     ),
     
     secondary: cn(
         "tw-bg-gray-200 tw-text-gray-800 tw-border-0",
         "hover:tw-bg-gray-300",
         "focus:tw-ring-1 focus:tw-ring-gray-400 focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
-        "tw-shadow-sm hover:tw-shadow-md"
+        "tw-shadow-sm hover:tw-shadow-md",
     ),
     
     outline: cn(
         "tw-bg-transparent tw-text-secondary-main",
         "tw-border-2 tw-border-solid tw-border-current",
         "hover:tw-bg-secondary-main hover:tw-text-white hover:tw-border-secondary-main",
-        "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50"
+        "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
     ),
     
     ghost: cn(
         "tw-bg-transparent tw-text-secondary-main tw-border-0",
         "hover:tw-bg-secondary-main hover:tw-bg-opacity-10",
-        "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50"
+        "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
     ),
     
     danger: cn(
         "tw-bg-red-600 tw-text-white tw-border-0",
         "hover:tw-bg-red-700",
         "focus:tw-ring-1 focus:tw-ring-red-600 focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
-        "tw-shadow-md hover:tw-shadow-lg"
+        "tw-shadow-md hover:tw-shadow-lg",
     ),
     
     space: cn(
@@ -117,18 +117,18 @@ export const VARIANT_STYLES: Record<ButtonVariant, string> = {
         // Direct gradient application
         "tw-bg-gradient-to-r tw-from-secondary-main tw-to-primary-main",
         "hover:tw-from-secondary-dark hover:tw-to-primary-dark",
-        "hover:tw-shadow-secondary-main/40"
+        "hover:tw-shadow-secondary-main/40",
     ),
     
     custom: cn(
         "tw-transition-all tw-duration-200 tw-border-0",
         "focus:tw-ring-1 focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
-        "tw-shadow-md hover:tw-shadow-lg"
+        "tw-shadow-md hover:tw-shadow-lg",
     ),
     
     neon: cn(
         "tw-button-neon-container",
-        "tw-text-white tw-group"
+        "tw-text-white tw-group",
     ),
 };
 
@@ -164,7 +164,7 @@ export const BASE_BUTTON_STYLES = cn(
     "focus:tw-ring-offset-background",
     
     // Positioning for effects
-    "tw-relative tw-overflow-hidden"
+    "tw-relative tw-overflow-hidden",
 );
 
 /**
@@ -230,7 +230,7 @@ export const buildButtonClasses = ({
         disabled && "tw-opacity-50 tw-cursor-not-allowed tw-pointer-events-none tw-button-disabled",
         
         // Custom overrides
-        className
+        className,
     );
 };
 
@@ -239,11 +239,11 @@ export const buildButtonClasses = ({
  */
 export const createRippleStyle = (
     ripple: { x: number; y: number },
-    color: string
+    color: string,
 ) => {
-    const fadeColor = color.includes('rgba') 
-        ? color.replace(/[\d.]+(?=\))/, '0.1')
-        : 'rgba(255, 255, 255, 0.1)';
+    const fadeColor = color.includes("rgba") 
+        ? color.replace(/[\d.]+(?=\))/, "0.1")
+        : "rgba(255, 255, 255, 0.1)";
     
     return {
         left: ripple.x - BUTTON_CONFIG.RIPPLE.RADIUS,
@@ -262,7 +262,7 @@ export const createRippleStyle = (
  */
 export const getContrastTextColor = (bgColor: string): string => {
     // Remove # if present and convert to RGB
-    const hex = bgColor.replace('#', '');
+    const hex = bgColor.replace("#", "");
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);
@@ -271,7 +271,7 @@ export const getContrastTextColor = (bgColor: string): string => {
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     
     // Return black text for light backgrounds, white for dark
-    return luminance > 0.5 ? '#000000' : '#FFFFFF';
+    return luminance > 0.5 ? "#000000" : "#FFFFFF";
 };
 
 /**
@@ -292,7 +292,7 @@ export const getCustomButtonStyle = (color: string) => ({
  * Creates a semi-transparent version of the color for focus states
  */
 export const getCustomFocusRingColor = (color: string): string => {
-    const hex = color.replace('#', '');
+    const hex = color.replace("#", "");
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);

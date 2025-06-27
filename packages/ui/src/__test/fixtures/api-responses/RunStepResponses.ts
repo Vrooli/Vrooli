@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     RunStep,
     RunProjectStep,
@@ -415,7 +415,7 @@ export class RunStepMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get run step by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 // Randomly return routine or project step
@@ -432,7 +432,7 @@ export class RunStepMSWHandlers {
             }),
             
             // Update run step status
-            rest.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const { status } = await req.json() as { status: RunStepStatus };
                 
@@ -449,7 +449,7 @@ export class RunStepMSWHandlers {
             }),
             
             // List run steps
-            rest.get(`${this.responseFactory["baseUrl"]}/api/run-step`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-step`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -495,7 +495,7 @@ export class RunStepMSWHandlers {
             }),
             
             // Start run step
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const runStep = this.responseFactory.createMockRoutineRunStep({ id: id as string });
@@ -510,7 +510,7 @@ export class RunStepMSWHandlers {
             }),
             
             // Complete run step
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/complete`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/complete`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const runStep = this.responseFactory.createMockRoutineRunStep({ 
@@ -528,7 +528,7 @@ export class RunStepMSWHandlers {
             }),
             
             // Skip run step
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/skip`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/skip`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const runStep = this.responseFactory.createMockRoutineRunStep({ id: id as string });
@@ -550,7 +550,7 @@ export class RunStepMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -559,7 +559,7 @@ export class RunStepMSWHandlers {
             }),
             
             // Permission error
-            rest.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
@@ -567,7 +567,7 @@ export class RunStepMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run-step/:id/start`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -581,7 +581,7 @@ export class RunStepMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const { status } = await req.json() as { status: RunStepStatus };
                 
@@ -603,11 +603,11 @@ export class RunStepMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/run-step/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/run-step/:id/status`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
         ];

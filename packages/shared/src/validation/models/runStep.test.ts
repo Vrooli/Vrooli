@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { runStepFixtures, runStepTestDataFactory } from "../../__test/fixtures/api/runStepFixtures.js";
+import { runStepFixtures, runStepTestDataFactory } from "../../__test/fixtures/api-inputs/runStepFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { runRoutineStepValidation } from "./runStep.js";
 

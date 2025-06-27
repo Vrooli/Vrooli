@@ -1,9 +1,7 @@
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import Tooltip from "@mui/material/Tooltip";
+import { Dialog, DialogContent, DialogTitle } from "../dialogs/Dialog/Dialog.js";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
-import { styled, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import i18next from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -40,15 +38,6 @@ function WaveForm() {
     );
 }
 
-const CustomDialog = styled(Dialog)(() => ({
-    zIndex: Z_INDEX.Popup,
-    "& > .MuiDialog-container": {
-        "& > .MuiPaper-root": {
-            borderRadius: "16px",
-            zIndex: Z_INDEX.Popup,
-        },
-    },
-}));
 
 /**
  * TranscriptDialog - A dialog for displaying the current transcript and listening animation
@@ -62,11 +51,12 @@ export function TranscriptDialog({
     const { t } = useTranslation();
 
     return (
-        <CustomDialog
+        <Dialog
+            isOpen={isListening}
             onClose={handleClose}
-            open={isListening}
+            size="sm"
+            title={t("Listening")}
         >
-            <DialogTitle>{t("Listening")}</DialogTitle>
             <DialogContent>
                 <WaveForm />
                 {/* Centered transcript */}
@@ -74,7 +64,7 @@ export function TranscriptDialog({
                     {transcript.length > 0 ? transcript : showHint ? t("SpeakClearly") : ""}
                 </Typography>
             </DialogContent>
-        </CustomDialog>
+        </Dialog>
     );
 }
 

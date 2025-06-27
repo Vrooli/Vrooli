@@ -29,6 +29,10 @@ RoutineInternalAction routines are commonly used as subroutines within RoutineMu
 - **Notification steps**: Send alerts and updates to users
 - **Cleanup steps**: Manage resources after workflow completion
 
+## Important Note
+
+**RoutineInternalAction uses `callDataAction` configuration** (not `callDataInternalAction`). The resource subtype is "RoutineInternalAction" but the configuration field is "callDataAction" - this is by design to keep the configuration field names concise.
+
 ## JSON Structure Requirements
 
 ### Complete RoutineInternalAction Structure
@@ -86,7 +90,9 @@ RoutineInternalAction routines are commonly used as subroutines within RoutineMu
                 "label": "Resource Type",
                 "type": "Selector",
                 "isRequired": true,
-                "options": ["Project", "Routine", "User", "Team"]
+                "props": {
+                  "options": ["Project", "Routine", "User", "Team"]
+                }
               }
             ]
           }

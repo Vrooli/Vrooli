@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { scheduleFixtures, scheduleTestDataFactory } from "../../__test/fixtures/api/scheduleFixtures.js";
+import { scheduleFixtures, scheduleTestDataFactory } from "../../__test/fixtures/api-inputs/scheduleFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { scheduleValidation } from "./schedule.js";
 

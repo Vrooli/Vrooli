@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type {
     ReportResponse,
     ReportResponseCreateInput,
@@ -492,7 +492,7 @@ export class ReportResponseMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create report response
-            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async (req, res, ctx) => {
                 const body = await req.json() as ReportResponseCreateInput;
 
                 // Validate input
@@ -515,7 +515,7 @@ export class ReportResponseMSWHandlers {
             }),
 
             // Get report response by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
                 const { id } = req.params;
 
                 const reportResponse = this.responseFactory.createMockReportResponse({ id: id as string });
@@ -528,7 +528,7 @@ export class ReportResponseMSWHandlers {
             }),
 
             // Update report response
-            rest.put(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ReportResponseUpdateInput;
 
@@ -548,12 +548,12 @@ export class ReportResponseMSWHandlers {
             }),
 
             // Delete report response
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
 
             // List report responses
-            rest.get(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -586,7 +586,7 @@ export class ReportResponseMSWHandlers {
             }),
 
             // Get report responses for a specific report
-            rest.get(`${this.responseFactory["baseUrl"]}/api/report/:reportId/responses`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/report/:reportId/responses`, (req, res, ctx) => {
                 const { reportId } = req.params;
 
                 const responses = this.responseFactory.createModeratorWorkflowResponse();
@@ -606,7 +606,7 @@ export class ReportResponseMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -617,7 +617,7 @@ export class ReportResponseMSWHandlers {
             }),
 
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -626,7 +626,7 @@ export class ReportResponseMSWHandlers {
             }),
 
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -634,7 +634,7 @@ export class ReportResponseMSWHandlers {
             }),
 
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -648,7 +648,7 @@ export class ReportResponseMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, async (req, res, ctx) => {
                 const body = await req.json() as ReportResponseCreateInput;
                 const reportResponse = this.responseFactory.createReportResponseFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(reportResponse);
@@ -667,11 +667,11 @@ export class ReportResponseMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/report-response`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
 
-            rest.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/report-response/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

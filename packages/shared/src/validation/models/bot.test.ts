@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { botFixtures, botTestDataFactory, botTranslationFixtures, botTranslationTestDataFactory } from "../../__test/fixtures/api/botFixtures.js";
+import { botFixtures, botTestDataFactory, botTranslationFixtures, botTranslationTestDataFactory } from "../../__test/fixtures/api-inputs/botFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { botTranslationValidation, botValidation } from "./bot.js";
 

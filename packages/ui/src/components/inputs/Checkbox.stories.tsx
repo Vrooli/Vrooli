@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import TextField from "@mui/material/TextField";
-import { Checkbox, CheckboxVariant, CheckboxSize } from "./Checkbox.js";
+import { Checkbox, type CheckboxVariant, type CheckboxSize } from "./Checkbox.js";
 import { FormControlLabel } from "./FormControlLabel.js";
 import { FormGroup } from "./FormGroup.js";
 import { Switch } from "./Switch/Switch.js";
@@ -64,14 +64,14 @@ export const CheckboxShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1200, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -80,14 +80,14 @@ export const CheckboxShowcase: Story = {
                         borderRadius: 2, 
                         boxShadow: 1,
                         height: "fit-content",
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Checkbox Controls</Typography>
                         
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {/* Size Control */}
                             <FormControl component="fieldset">
@@ -139,7 +139,7 @@ export const CheckboxShowcase: Story = {
                                     value={customColor}
                                     onChange={(e) => setCustomColor(e.target.value)}
                                     size="small"
-                                    sx={{ width: '100%' }}
+                                    sx={{ width: "100%" }}
                                 />
                             </FormControl>
                         </Box>
@@ -151,7 +151,7 @@ export const CheckboxShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Checkbox Variants</Typography>
                         
@@ -160,9 +160,9 @@ export const CheckboxShowcase: Story = {
                             gridTemplateColumns: { 
                                 xs: "1fr", 
                                 sm: "repeat(2, 1fr)", 
-                                md: "repeat(3, 1fr)"
+                                md: "repeat(3, 1fr)",
                             }, 
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {variants.map(variant => (
                                 <Box key={variant}>
@@ -170,7 +170,7 @@ export const CheckboxShowcase: Story = {
                                         variant="subtitle2" 
                                         sx={{ 
                                             mb: 1, 
-                                            textTransform: "capitalize"
+                                            textTransform: "capitalize",
                                         }}
                                     >
                                         {variant}
@@ -189,8 +189,8 @@ export const CheckboxShowcase: Story = {
                                                             ...prev,
                                                             [variant]: {
                                                                 ...prev[variant],
-                                                                checked: e.target.checked
-                                                            }
+                                                                checked: e.target.checked,
+                                                            },
                                                         }));
                                                     }}
                                                 />
@@ -210,8 +210,8 @@ export const CheckboxShowcase: Story = {
                                                             ...prev,
                                                             [variant]: {
                                                                 ...prev[variant],
-                                                                unchecked: e.target.checked
-                                                            }
+                                                                unchecked: e.target.checked,
+                                                            },
                                                         }));
                                                     }}
                                                 />
@@ -244,7 +244,7 @@ export const CheckboxShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Size Comparison</Typography>
                         
@@ -269,7 +269,7 @@ export const CheckboxShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Indeterminate State Example</Typography>
                         <Typography variant="body2" sx={{ mb: 2 }}>
@@ -290,7 +290,7 @@ export const CheckboxShowcase: Story = {
                                 }
                                 label="Select All"
                             />
-                            <Box sx={{ display: 'flex', flexDirection: 'column', ml: 3 }}>
+                            <Box sx={{ display: "flex", flexDirection: "column", ml: 3 }}>
                                 <FormControlLabel
                                     control={
                                         <Checkbox
@@ -300,7 +300,7 @@ export const CheckboxShowcase: Story = {
                                             checked={checkedItems.item1}
                                             onChange={(e) => setCheckedItems(prev => ({
                                                 ...prev,
-                                                item1: e.target.checked
+                                                item1: e.target.checked,
                                             }))}
                                         />
                                     }
@@ -315,7 +315,7 @@ export const CheckboxShowcase: Story = {
                                             checked={checkedItems.item2}
                                             onChange={(e) => setCheckedItems(prev => ({
                                                 ...prev,
-                                                item2: e.target.checked
+                                                item2: e.target.checked,
                                             }))}
                                         />
                                     }
@@ -330,7 +330,7 @@ export const CheckboxShowcase: Story = {
                                             checked={checkedItems.item3}
                                             onChange={(e) => setCheckedItems(prev => ({
                                                 ...prev,
-                                                item3: e.target.checked
+                                                item3: e.target.checked,
                                             }))}
                                         />
                                     }
@@ -346,7 +346,7 @@ export const CheckboxShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Task List Example</Typography>
                         
@@ -358,7 +358,7 @@ export const CheckboxShowcase: Story = {
                                     "Review pull requests",
                                     "Attend team standup",
                                     "Update task board",
-                                    "Write unit tests"
+                                    "Write unit tests",
                                 ].map((task, index) => (
                                     <FormControlLabel
                                         key={index}

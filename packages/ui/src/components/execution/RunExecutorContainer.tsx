@@ -1,5 +1,5 @@
 import { Box, Collapse, IconButton, Typography, Skeleton } from "@mui/material";
-import { ChatMessageRunConfig } from "@vrooli/shared";
+import { type ChatMessageRunConfig } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";

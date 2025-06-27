@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { teamFixtures, teamTestDataFactory } from "../../__test/fixtures/api/teamFixtures.js";
+import { teamFixtures, teamTestDataFactory } from "../../__test/fixtures/api-inputs/teamFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { teamValidation } from "./team.js";
 

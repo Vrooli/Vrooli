@@ -419,8 +419,7 @@ function ChatForm({
                             />
                             <TranslatedAdvancedInput
                                 language={language}
-                                maxChars={2048}
-                                minRows={4}
+                                features={{ maxChars: 2048, minRowsCollapsed: 4 }}
                                 name="description"
                                 placeholder={t("Description")}
                             />

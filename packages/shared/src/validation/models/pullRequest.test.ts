@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { pullRequestFixtures, pullRequestTestDataFactory } from "../../__test/fixtures/api/pullRequestFixtures.js";
+import { pullRequestFixtures, pullRequestTestDataFactory } from "../../__test/fixtures/api-inputs/pullRequestFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { pullRequestValidation } from "./pullRequest.js";
 

@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     Wallet, 
     WalletCreateInput, 
@@ -511,7 +511,7 @@ export class WalletMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create wallet
-            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async (req, res, ctx) => {
                 const body = await req.json() as WalletCreateInput;
                 
                 // Validate input
@@ -534,7 +534,7 @@ export class WalletMSWHandlers {
             }),
             
             // Get wallet by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const wallet = this.responseFactory.createMockWallet({ id: id as string });
@@ -547,7 +547,7 @@ export class WalletMSWHandlers {
             }),
             
             // Update wallet
-            rest.put(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as WalletUpdateInput;
                 
@@ -578,12 +578,12 @@ export class WalletMSWHandlers {
             }),
             
             // Delete wallet
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List wallets
-            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -632,7 +632,7 @@ export class WalletMSWHandlers {
             }),
             
             // Verify wallet
-            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verify`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verify`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const wallet = this.responseFactory.createMockWallet({ 
@@ -650,7 +650,7 @@ export class WalletMSWHandlers {
             }),
             
             // Check wallet verification status
-            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verification-status`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id/verification-status`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 // Simulate verification status check
@@ -682,7 +682,7 @@ export class WalletMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -693,7 +693,7 @@ export class WalletMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -702,7 +702,7 @@ export class WalletMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -710,7 +710,7 @@ export class WalletMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -724,7 +724,7 @@ export class WalletMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, async (req, res, ctx) => {
                 const body = await req.json() as WalletCreateInput;
                 const wallet = this.responseFactory.createWalletFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(wallet);
@@ -743,11 +743,11 @@ export class WalletMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/wallet`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/wallet/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

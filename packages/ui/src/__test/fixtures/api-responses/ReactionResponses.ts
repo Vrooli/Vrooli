@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     Reaction, 
     ReactInput,
@@ -593,7 +593,7 @@ export class ReactionMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // React to object (add/update/remove reaction)
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async (req, res, ctx) => {
                 const body = await req.json() as ReactInput;
                 const userId = "user_test"; // In real tests, extract from auth header
                 
@@ -619,7 +619,7 @@ export class ReactionMSWHandlers {
             }),
             
             // Search reactions
-            rest.get(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -691,7 +691,7 @@ export class ReactionMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -702,7 +702,7 @@ export class ReactionMSWHandlers {
             }),
             
             // Rate limit error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
                 return res(
                     ctx.status(429),
                     ctx.json(this.responseFactory.createRateLimitErrorResponse()),
@@ -710,7 +710,7 @@ export class ReactionMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -718,7 +718,7 @@ export class ReactionMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -732,7 +732,7 @@ export class ReactionMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async (req, res, ctx) => {
                 const body = await req.json() as ReactInput;
                 const validation = await this.responseFactory.validateReactInput(body);
                 
@@ -759,11 +759,11 @@ export class ReactionMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reaction`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];
@@ -774,7 +774,7 @@ export class ReactionMSWHandlers {
      */
     createOptimisticHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reaction`, async (req, res, ctx) => {
                 const body = await req.json() as ReactInput;
                 
                 // Simulate very fast response for optimistic UI updates

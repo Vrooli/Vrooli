@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     StatsTeam,
     StatsTeamSearchInput,
@@ -521,7 +521,7 @@ export class StatsTeamMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Get team statistics by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
                 const period = url.searchParams.get("period") as PeriodType;
@@ -552,7 +552,7 @@ export class StatsTeamMSWHandlers {
             }),
             
             // Search team statistics
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, async (req, res, ctx) => {
                 const body = await req.json() as StatsTeamSearchInput;
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
@@ -594,7 +594,7 @@ export class StatsTeamMSWHandlers {
             }),
             
             // Get top performing teams
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/top-performers`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/top-performers`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const period = url.searchParams.get("period") as PeriodType || PeriodTypeEnum.Month;
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -612,7 +612,7 @@ export class StatsTeamMSWHandlers {
             }),
             
             // Get time series data for team
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id/timeseries`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id/timeseries`, (req, res, ctx) => {
                 const { id } = req.params;
                 const url = new URL(req.url);
                 const days = parseInt(url.searchParams.get("days") || "30");
@@ -627,7 +627,7 @@ export class StatsTeamMSWHandlers {
             }),
             
             // Get aggregated statistics for multiple teams
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/team/aggregate`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/aggregate`, async (req, res, ctx) => {
                 const { teamIds, periodType } = await req.json() as {
                     teamIds: string[];
                     periodType: PeriodType;
@@ -652,7 +652,7 @@ export class StatsTeamMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -661,7 +661,7 @@ export class StatsTeamMSWHandlers {
             }),
             
             // Permission error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("view")),
@@ -669,7 +669,7 @@ export class StatsTeamMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -683,7 +683,7 @@ export class StatsTeamMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 const stats = this.responseFactory.createMockStats({
                     team: {
@@ -707,11 +707,11 @@ export class StatsTeamMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/stats/team/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/stats/team/search`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
         ];

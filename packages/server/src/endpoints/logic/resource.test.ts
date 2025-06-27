@@ -27,9 +27,9 @@ describe("EndpointsResource", () => {
     beforeEach(async () => {
         // Clean up tables used in tests
         const prisma = DbProvider.get();
-        await prisma.resourceVersion.deleteMany();
+        await prisma.resource_version.deleteMany();
         await prisma.resource.deleteMany();
-        await prisma.team_member.deleteMany();
+        await prisma.member.deleteMany();
         await prisma.team.deleteMany();
         await prisma.tag.deleteMany();
         await prisma.user.deleteMany();
@@ -61,7 +61,7 @@ describe("EndpointsResource", () => {
                 createdById: testUsers[0].id,
                 members: [{
                     userId: testUsers[0].id,
-                    permissions: '["owner"]',
+                    permissions: "[\"owner\"]",
                 }],
             }),
         });
@@ -347,7 +347,7 @@ describe("EndpointsResource", () => {
                 const result = await resource.findMany({ input }, { req, res }, resource_findMany);
 
                 expect(result.results.every(r => 
-                    r.root?.createdBy?.id === testUsers[0].id.toString()
+                    r.root?.createdBy?.id === testUsers[0].id.toString(),
                 )).toBe(true);
             });
 
@@ -489,7 +489,7 @@ describe("EndpointsResource", () => {
                         createdById: testUser[0].id,
                         members: [{
                             userId: testUser[0].id,
-                            permissions: '["owner"]',
+                            permissions: "[\"owner\"]",
                         }],
                     }),
                 });

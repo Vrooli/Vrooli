@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LINKS, ModelType } from "@vrooli/shared";
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -11,9 +12,9 @@ describe("goBack function", () => {
         sessionStorage.clear();
         vi.clearAllMocks();
         // Mock window.history.back method
-        Object.defineProperty(window.history, 'back', {
+        Object.defineProperty(window.history, "back", {
             value: mockHistoryBack,
-            writable: true
+            writable: true,
         });
     });
 

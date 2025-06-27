@@ -12,7 +12,7 @@ import {
     userTranslationFixtures,
     userTranslationTestDataFactory,
     validateSessionFixtures,
-} from "../../__test/fixtures/api/userFixtures.js";
+} from "../../__test/fixtures/api-inputs/userFixtures.js";
 import { runComprehensiveValidationTests, runStandardValidationTests } from "./__test/validationTestUtils.js";
 import {
     emailLogInSchema,

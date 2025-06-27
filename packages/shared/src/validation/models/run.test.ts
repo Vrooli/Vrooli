@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { runFixtures, runTestDataFactory } from "../../__test/fixtures/api/runFixtures.js";
+import { runFixtures, runTestDataFactory } from "../../__test/fixtures/api-inputs/runFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { runValidation } from "./run.js";
 

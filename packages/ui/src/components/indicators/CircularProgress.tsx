@@ -51,7 +51,7 @@ export const CircularProgress = forwardRef<SVGSVGElement, CircularProgressProps>
             className,
             ...props
         },
-        ref
+        ref,
     ) => {
         const strokeWidth = Math.min(Math.max(thickness, 1), 10);
         const radius = (size - strokeWidth) / 2;
@@ -60,7 +60,7 @@ export const CircularProgress = forwardRef<SVGSVGElement, CircularProgressProps>
         const spinnerClasses = cn(
             variantClasses[variant],
             "tw-animate-spin",
-            className
+            className,
         );
 
         if (dualRing) {
@@ -142,29 +142,23 @@ export const CircularProgress = forwardRef<SVGSVGElement, CircularProgressProps>
                     strokeDashoffset={circumference * 0.25}
                     strokeLinecap="round"
                     className="tw-origin-center"
-                    style={{
-                        animation: "dash 1.5s ease-in-out infinite",
-                    }}
-                />
-                <style jsx>{`
-                    @keyframes dash {
-                        0% {
-                            stroke-dasharray: 1px, ${circumference}px;
-                            stroke-dashoffset: 0px;
-                        }
-                        50% {
-                            stroke-dasharray: ${circumference * 0.75}px, ${circumference}px;
-                            stroke-dashoffset: -${circumference * 0.25}px;
-                        }
-                        100% {
-                            stroke-dasharray: ${circumference * 0.75}px, ${circumference}px;
-                            stroke-dashoffset: -${circumference}px;
-                        }
-                    }
-                `}</style>
+                >
+                    <animate
+                        attributeName="stroke-dasharray"
+                        values={`1,${circumference};${circumference * 0.75},${circumference};${circumference * 0.75},${circumference}`}
+                        dur="1.5s"
+                        repeatCount="indefinite"
+                    />
+                    <animate
+                        attributeName="stroke-dashoffset"
+                        values={`0;-${circumference * 0.25};-${circumference}`}
+                        dur="1.5s"
+                        repeatCount="indefinite"
+                    />
+                </circle>
             </svg>
         );
-    }
+    },
 );
 
 CircularProgress.displayName = "CircularProgress";
@@ -220,33 +214,33 @@ export const OrbitalSpinner = ({ size = 40, className }: { size?: number; classN
             <div 
                 className="tw-absolute tw-inset-0 tw-rounded-full tw-border-2" 
                 style={{ 
-                    borderColor: 'rgba(22, 163, 97, 0.2)', // Secondary main with low opacity
+                    borderColor: "rgba(22, 163, 97, 0.2)", // Secondary main with low opacity
                 }}
             />
             
             {/* Main rotating ring with gradient */}
-            <div className="tw-absolute tw-inset-0 tw-animate-spin" style={{ animationDuration: '2.5s' }}>
+            <div className="tw-absolute tw-inset-0 tw-animate-spin" style={{ animationDuration: "2.5s" }}>
                 <div 
                     className="tw-h-full tw-w-full tw-rounded-full tw-border-2 tw-border-transparent"
                     style={{
-                        borderTopColor: 'var(--secondary-main)',
-                        borderRightColor: 'var(--secondary-light)',
-                        filter: 'drop-shadow(0 0 6px rgba(22, 163, 97, 0.6))',
+                        borderTopColor: "var(--secondary-main)",
+                        borderRightColor: "var(--secondary-light)",
+                        filter: "drop-shadow(0 0 6px rgba(22, 163, 97, 0.6))",
                     }}
                 />
             </div>
             
             {/* Orbiting particles - representing the 3-tier architecture */}
             {[
-                { angle: 0, duration: '1.2s', color: '#0fa', size: 0.15 }, // Cyan (neon from landing)
-                { angle: 120, duration: '1.6s', color: 'var(--secondary-main)', size: 0.12 },
-                { angle: 240, duration: '2s', color: 'var(--secondary-light)', size: 0.1 },
+                { angle: 0, duration: "1.2s", color: "#0fa", size: 0.15 }, // Cyan (neon from landing)
+                { angle: 120, duration: "1.6s", color: "var(--secondary-main)", size: 0.12 },
+                { angle: 240, duration: "2s", color: "var(--secondary-light)", size: 0.1 },
             ].map((orbit, i) => (
                 <div
                     key={i}
-                    className="tw-absolute tw-inset-0"
+                    className="tw-absolute tw-inset-0 tw-animate-spin"
                     style={{
-                        animation: `spin ${orbit.duration} linear infinite`,
+                        animationDuration: orbit.duration,
                     }}
                 >
                     <div
@@ -268,26 +262,14 @@ export const OrbitalSpinner = ({ size = 40, className }: { size?: number; classN
             <div 
                 className="tw-absolute tw-rounded-full"
                 style={{
-                    top: '30%',
-                    left: '30%',
-                    width: '40%',
-                    height: '40%',
-                    background: 'radial-gradient(circle, rgba(15, 170, 170, 0.3) 0%, transparent 70%)',
-                    filter: 'blur(4px)',
+                    top: "30%",
+                    left: "30%",
+                    width: "40%",
+                    height: "40%",
+                    background: "radial-gradient(circle, rgba(15, 170, 170, 0.3) 0%, transparent 70%)",
+                    filter: "blur(4px)",
                 }}
             />
-            
-            {/* Add CSS animation */}
-            <style jsx>{`
-                @keyframes spin {
-                    from {
-                        transform: rotate(0deg);
-                    }
-                    to {
-                        transform: rotate(360deg);
-                    }
-                }
-            `}</style>
         </div>
     );
 };

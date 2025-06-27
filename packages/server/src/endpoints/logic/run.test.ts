@@ -14,8 +14,7 @@ import { run } from "./run.js";
 // Import database fixtures
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { RunDbFactory } from "../../__test/fixtures/db/runFixtures.js";
-import { ProjectDbFactory } from "../../__test/fixtures/db/projectFixtures.js";
-import { RoutineDbFactory } from "../../__test/fixtures/db/routineFixtures.js";
+import { createResourceDbFactory } from "../../__test/fixtures/db/ResourceDbFactory.js";
 
 describe("EndpointsRun", () => {
     beforeAll(async () => {
@@ -30,10 +29,8 @@ describe("EndpointsRun", () => {
         const prisma = DbProvider.get();
         await prisma.runProject.deleteMany();
         await prisma.runRoutine.deleteMany();
-        await prisma.projectVersion.deleteMany();
-        await prisma.project.deleteMany();
-        await prisma.routineVersion.deleteMany();
-        await prisma.routine.deleteMany();
+        await prisma.resource_version.deleteMany();
+        await prisma.resource.deleteMany();
         await prisma.schedule.deleteMany();
         await prisma.user.deleteMany();
         // Clear Redis cache
@@ -50,25 +47,31 @@ describe("EndpointsRun", () => {
         // Create test users
         const testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
         
-        // Create test projects and routines
-        const project1 = await DbProvider.get().project.create({
-            data: ProjectDbFactory.createWithVersion({
+        // Create factory instance
+        const resourceFactory = createResourceDbFactory(DbProvider.get());
+        
+        // Create test projects and routines (all stored as resources)
+        const project1 = await DbProvider.get().resource.create({
+            data: resourceFactory.createWithVersion({
+                resourceType: "Project",
                 createdById: testUsers[0].id,
                 isPrivate: false,
             }),
             include: { versions: true },
         });
 
-        const project2 = await DbProvider.get().project.create({
-            data: ProjectDbFactory.createWithVersion({
+        const project2 = await DbProvider.get().resource.create({
+            data: resourceFactory.createWithVersion({
+                resourceType: "Project",
                 createdById: testUsers[1].id,
                 isPrivate: true,
             }),
             include: { versions: true },
         });
 
-        const routine1 = await DbProvider.get().routine.create({
-            data: RoutineDbFactory.createWithVersion({
+        const routine1 = await DbProvider.get().resource.create({
+            data: resourceFactory.createWithVersion({
+                resourceType: "Routine",
                 createdById: testUsers[0].id,
                 isPrivate: false,
             }),

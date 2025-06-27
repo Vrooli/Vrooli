@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     View, 
     ViewCreateInput, 
@@ -472,7 +472,7 @@ export class ViewMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create view (track view)
-            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/view`, async (req, res, ctx) => {
                 const body = await req.json() as ViewCreateInput;
                 
                 // Validate input
@@ -495,7 +495,7 @@ export class ViewMSWHandlers {
             }),
             
             // Get view by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const view = this.responseFactory.createMockView({ id: id as string });
@@ -508,7 +508,7 @@ export class ViewMSWHandlers {
             }),
             
             // Update view
-            rest.put(`${this.responseFactory["baseUrl"]}/api/view/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/view/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ViewUpdateInput;
                 
@@ -527,12 +527,12 @@ export class ViewMSWHandlers {
             }),
             
             // Delete view
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List views
-            rest.get(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -578,7 +578,7 @@ export class ViewMSWHandlers {
             }),
             
             // Get trending views
-            rest.get(`${this.responseFactory["baseUrl"]}/api/view/trending`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/view/trending`, (req, res, ctx) => {
                 const views = this.responseFactory.createTrendingViews();
                 const response = this.responseFactory.createViewListResponse(views);
                 
@@ -589,7 +589,7 @@ export class ViewMSWHandlers {
             }),
             
             // Get recent views for user
-            rest.get(`${this.responseFactory["baseUrl"]}/api/view/recent/:userId`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/view/recent/:userId`, (req, res, ctx) => {
                 const { userId } = req.params;
                 
                 const views = this.responseFactory.createRecentViewsForUser(userId as string);
@@ -609,7 +609,7 @@ export class ViewMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -620,7 +620,7 @@ export class ViewMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -629,7 +629,7 @@ export class ViewMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -637,7 +637,7 @@ export class ViewMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -651,7 +651,7 @@ export class ViewMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/view`, async (req, res, ctx) => {
                 const body = await req.json() as ViewCreateInput;
                 const view = this.responseFactory.createViewFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(view);
@@ -670,11 +670,11 @@ export class ViewMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/view`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/view/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

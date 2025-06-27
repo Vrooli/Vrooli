@@ -83,7 +83,7 @@ RoutineWeb routines are commonly used as subroutines within RoutineMultiStep wor
                 "fieldName": "searchTerm",
                 "id": "search_term_input",
                 "label": "Search Term",
-                "type": "TextInput",
+                "type": "Text",
                 "isRequired": true,
                 "placeholder": "Enter search query"
               }
@@ -395,14 +395,14 @@ Options: "news", "images", "videos", "academic", "shopping", "books"
 ```json
 {
   "fieldName": "searchTerm",
-  "type": "TextInput",
+  "type": "Text",
   "isRequired": true,
   "label": "Search Term",
   "placeholder": "Enter your search query"
 },
 {
   "fieldName": "context",
-  "type": "TextInput",
+  "type": "Text",
   "label": "Additional Context",
   "placeholder": "Add context or modifiers"
 }
@@ -461,7 +461,7 @@ Options: "news", "images", "videos", "academic", "shopping", "books"
 },
 {
   "fieldName": "searchQuery",
-  "type": "TextInput",
+  "type": "Text",
   "label": "Actual Query Used"
 }
 ```
@@ -480,7 +480,7 @@ Options: "news", "images", "videos", "academic", "shopping", "books"
 },
 {
   "fieldName": "keyFindings",
-  "type": "TextInput",
+  "type": "Text",
   "label": "Key Findings"
 }
 ```

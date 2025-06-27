@@ -73,9 +73,11 @@ RoutineGenerate routines are commonly used as subroutines within RoutineMultiSte
                 "fieldName": "inputFieldName",
                 "id": "input_field_id",
                 "label": "Input Field Label",
-                "type": "TextInput",
+                "type": "Text",
                 "isRequired": true,
-                "placeholder": "Enter your input here..."
+                "props": {
+                  "placeholder": "Enter your input here..."
+                }
               }
             ]
           }
@@ -88,7 +90,7 @@ RoutineGenerate routines are commonly used as subroutines within RoutineMultiSte
                 "fieldName": "response",
                 "id": "response_output",
                 "label": "Generated Response",
-                "type": "TextInput"
+                "type": "Text"
               }
             ]
           }
@@ -154,22 +156,29 @@ Common input types for text generation:
 ```json
 {
   "fieldName": "sourceText",
-  "type": "TextInput",
+  "type": "Text",
   "isRequired": true,
   "label": "Source Text",
-  "placeholder": "Enter text to analyze..."
+  "props": {
+    "placeholder": "Enter text to analyze..."
+  }
 },
 {
   "fieldName": "criteria", 
-  "type": "TextArea",
+  "type": "Text",
   "label": "Analysis Criteria",
-  "placeholder": "Specify what aspects to analyze..."
+  "props": {
+    "placeholder": "Specify what aspects to analyze...",
+    "minRows": 3
+  }
 },
 {
   "fieldName": "outputFormat",
   "type": "Selector", 
   "label": "Output Format",
-  "options": ["Summary", "Detailed Report", "Bullet Points"]
+  "props": {
+    "options": ["Summary", "Detailed Report", "Bullet Points"]
+  }
 }
 ```
 
@@ -178,13 +187,17 @@ Standard output for generated content:
 ```json
 {
   "fieldName": "response",
-  "type": "TextInput", 
+  "type": "Text", 
   "label": "Generated Response"
 },
 {
   "fieldName": "confidence",
   "type": "IntegerInput",
-  "label": "Confidence Score (1-100)"
+  "label": "Confidence Score (1-100)",
+  "props": {
+    "min": 1,
+    "max": 100
+  }
 },
 {
   "fieldName": "metadata",

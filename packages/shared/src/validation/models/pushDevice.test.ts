@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { pushDeviceFixtures, pushDeviceTestDataFactory } from "../../__test/fixtures/api/pushDeviceFixtures.js";
+import { pushDeviceFixtures, pushDeviceTestDataFactory } from "../../__test/fixtures/api-inputs/pushDeviceFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { pushDeviceValidation } from "./pushDevice.js";
 

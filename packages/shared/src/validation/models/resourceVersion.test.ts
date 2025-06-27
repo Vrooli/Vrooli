@@ -1,5 +1,5 @@
 import { describe } from "vitest";
-import { resourceVersionFixtures, resourceVersionTestDataFactory } from "../../__test/fixtures/api/resourceVersionFixtures.js";
+import { resourceVersionFixtures, resourceVersionTestDataFactory } from "../../__test/fixtures/api-inputs/resourceVersionFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { resourceVersionValidation } from "./resourceVersion.js";
 

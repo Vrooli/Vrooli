@@ -1,7 +1,8 @@
-import { Box, Typography, Paper, Divider, LinearProgress, Chip, Alert, Table, TableBody, TableCell, TableRow, IconButton, Collapse, useTheme } from "@mui/material";
-import { ExecutionStep } from "./RoutineExecutor.js";
+import { Box, Typography, Paper, Divider, LinearProgress, Chip, Alert, Table, TableBody, TableCell, TableRow, Collapse, useTheme } from "@mui/material";
+import { IconButton } from "../buttons/IconButton.js";
+import { type ExecutionStep } from "./RoutineExecutor.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { ResourceVersion, ResourceSubType, CodeLanguage } from "@vrooli/shared";
+import { type ResourceVersion, ResourceSubType, CodeLanguage } from "@vrooli/shared";
 import { useState } from "react";
 import { CodeInputBase } from "../inputs/CodeInput/CodeInput.js";
 
@@ -121,7 +122,7 @@ function RoutineTypeDetails({ resourceVersion, config, onConfigExpandChange }: {
                                         bgcolor: "action.hover", 
                                         borderRadius: 1,
                                         fontFamily: "monospace",
-                                        whiteSpace: "pre-wrap"
+                                        whiteSpace: "pre-wrap",
                                     }}
                                 >
                                     {generateConfig.prompt}
@@ -154,7 +155,7 @@ function RoutineTypeDetails({ resourceVersion, config, onConfigExpandChange }: {
                                         borderRadius: 1,
                                         fontFamily: "monospace",
                                         whiteSpace: "pre-wrap",
-                                        overflow: "auto"
+                                        overflow: "auto",
                                     }}
                                 >
                                     {codeConfig.code}
@@ -273,7 +274,7 @@ function RoutineTypeDetails({ resourceVersion, config, onConfigExpandChange }: {
                     pt: 2,
                     pb: 1,
                     mt: 2,
-                    zIndex: 100
+                    zIndex: 100,
                 }}
             >
                 <IconButton
@@ -288,7 +289,7 @@ function RoutineTypeDetails({ resourceVersion, config, onConfigExpandChange }: {
                         "&:hover": {
                             bgcolor: "action.hover",
                             boxShadow: 3,
-                        }
+                        },
                     }}
                 >
                     <IconCommon name={showFullConfig ? "Compress" : "OpenThread"} size={20} />

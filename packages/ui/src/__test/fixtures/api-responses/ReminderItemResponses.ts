@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     ReminderItem, 
     ReminderItemCreateInput, 
@@ -484,7 +484,7 @@ export class ReminderItemMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create reminder item
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, async (req, res, ctx) => {
                 const body = await req.json() as ReminderItemCreateInput;
                 
                 // Validate input
@@ -507,7 +507,7 @@ export class ReminderItemMSWHandlers {
             }),
             
             // Get reminder item by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const reminderItem = this.responseFactory.createMockReminderItem({ id: id as string });
@@ -520,7 +520,7 @@ export class ReminderItemMSWHandlers {
             }),
             
             // Update reminder item
-            rest.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ReminderItemUpdateInput;
                 
@@ -539,12 +539,12 @@ export class ReminderItemMSWHandlers {
             }),
             
             // Delete reminder item
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List reminder items
-            rest.get(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -600,7 +600,7 @@ export class ReminderItemMSWHandlers {
             }),
             
             // Toggle completion status
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id/toggle-complete`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id/toggle-complete`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const reminderItem = this.responseFactory.createMockReminderItem({ 
@@ -625,7 +625,7 @@ export class ReminderItemMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -636,7 +636,7 @@ export class ReminderItemMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -645,7 +645,7 @@ export class ReminderItemMSWHandlers {
             }),
             
             // Permission error
-            rest.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("update")),
@@ -653,7 +653,7 @@ export class ReminderItemMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -667,7 +667,7 @@ export class ReminderItemMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, async (req, res, ctx) => {
                 const body = await req.json() as ReminderItemCreateInput;
                 const reminderItem = this.responseFactory.createReminderItemFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(reminderItem);
@@ -679,7 +679,7 @@ export class ReminderItemMSWHandlers {
                 );
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as ReminderItemUpdateInput;
                 
@@ -705,15 +705,15 @@ export class ReminderItemMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/reminder-item`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
             
-            rest.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/reminder-item/:id`, (req, res, ctx) => {
                 return res.networkError("Request timeout");
             }),
         ];

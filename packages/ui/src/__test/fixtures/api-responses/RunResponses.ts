@@ -5,7 +5,7 @@
  * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-import { rest, type RestHandler } from "msw";
+import { http, type RestHandler } from "msw";
 import type { 
     Run, 
     RunCreateInput, 
@@ -275,7 +275,6 @@ export class RunResponseFactory {
                 versionLabel: "1.0.0",
                 versionNotes: "Initial version",
                 complexity: 5,
-                simplicity: 8,
                 timesStarted: 10,
                 timesCompleted: 8,
                 isAutomatable: true,
@@ -426,7 +425,7 @@ export class RunMSWHandlers {
     createSuccessHandlers(): RestHandler[] {
         return [
             // Create run
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run`, async (req, res, ctx) => {
                 const body = await req.json() as RunCreateInput;
                 
                 // Validate input
@@ -449,7 +448,7 @@ export class RunMSWHandlers {
             }),
             
             // Get run by ID
-            rest.get(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const run = this.responseFactory.createMockRun({ id: id as string });
@@ -462,7 +461,7 @@ export class RunMSWHandlers {
             }),
             
             // Update run
-            rest.put(`${this.responseFactory["baseUrl"]}/api/run/:id`, async (req, res, ctx) => {
+            http.put(`${this.responseFactory["baseUrl"]}/api/run/:id`, async (req, res, ctx) => {
                 const { id } = req.params;
                 const body = await req.json() as RunUpdateInput;
                 
@@ -485,12 +484,12 @@ export class RunMSWHandlers {
             }),
             
             // Delete run
-            rest.delete(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
+            http.delete(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
                 return res(ctx.status(204));
             }),
             
             // List runs
-            rest.get(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
                 const url = new URL(req.url);
                 const page = parseInt(url.searchParams.get("page") || "1");
                 const limit = parseInt(url.searchParams.get("limit") || "10");
@@ -523,7 +522,7 @@ export class RunMSWHandlers {
             }),
             
             // Start run
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run/:id/start`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run/:id/start`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const run = this.responseFactory.createMockRun({ 
@@ -541,7 +540,7 @@ export class RunMSWHandlers {
             }),
             
             // Complete run
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run/:id/complete`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run/:id/complete`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const startedAt = new Date(Date.now() - 3600000).toISOString();
@@ -565,7 +564,7 @@ export class RunMSWHandlers {
             }),
             
             // Cancel run
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run/:id/cancel`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run/:id/cancel`, (req, res, ctx) => {
                 const { id } = req.params;
                 
                 const run = this.responseFactory.createMockRun({ 
@@ -590,7 +589,7 @@ export class RunMSWHandlers {
     createErrorHandlers(): RestHandler[] {
         return [
             // Validation error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
                 return res(
                     ctx.status(400),
                     ctx.json(this.responseFactory.createValidationErrorResponse({
@@ -600,7 +599,7 @@ export class RunMSWHandlers {
             }),
             
             // Not found error
-            rest.get(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
                 const { id } = req.params;
                 return res(
                     ctx.status(404),
@@ -609,7 +608,7 @@ export class RunMSWHandlers {
             }),
             
             // Permission error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
                 return res(
                     ctx.status(403),
                     ctx.json(this.responseFactory.createPermissionErrorResponse("create")),
@@ -617,7 +616,7 @@ export class RunMSWHandlers {
             }),
             
             // Server error
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
                 return res(
                     ctx.status(500),
                     ctx.json(this.responseFactory.createServerErrorResponse()),
@@ -631,7 +630,7 @@ export class RunMSWHandlers {
      */
     createLoadingHandlers(delay = 2000): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, async (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run`, async (req, res, ctx) => {
                 const body = await req.json() as RunCreateInput;
                 const run = this.responseFactory.createRunFromInput(body);
                 const response = this.responseFactory.createSuccessResponse(run);
@@ -650,11 +649,11 @@ export class RunMSWHandlers {
      */
     createNetworkErrorHandlers(): RestHandler[] {
         return [
-            rest.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
+            http.post(`${this.responseFactory["baseUrl"]}/api/run`, (req, res, ctx) => {
                 return res.networkError("Network connection failed");
             }),
             
-            rest.get(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
+            http.get(`${this.responseFactory["baseUrl"]}/api/run/:id`, (req, res, ctx) => {
                 return res.networkError("Connection timeout");
             }),
         ];

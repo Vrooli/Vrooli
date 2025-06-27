@@ -239,7 +239,7 @@ export class ProjectVersionMSWHandlers {
         
         return [
             // Get user's projects
-            rest.post("*/api/projectVersion/findMany", (req: any, res: any, ctx: any) => {
+            http.post("*/api/projectVersion/findMany", (req: any, res: any, ctx: any) => {
                 const projects = this.factory.createMockProjectVersions(10);
                 return res(
                     ctx.status(200),
@@ -259,7 +259,7 @@ export class ProjectVersionMSWHandlers {
             }),
             
             // Get single project version
-            rest.get("*/api/projectVersion/:id", (req: any, res: any, ctx: any) => {
+            http.get("*/api/projectVersion/:id", (req: any, res: any, ctx: any) => {
                 const { id } = req.params;
                 const project = this.factory.createMockProjectVersion({ id });
                 return res(
@@ -269,7 +269,7 @@ export class ProjectVersionMSWHandlers {
             }),
             
             // Create project version
-            rest.post("*/api/projectVersion", (req: any, res: any, ctx: any) => {
+            http.post("*/api/projectVersion", (req: any, res: any, ctx: any) => {
                 const project = this.factory.createMockProjectVersion(req.body);
                 return res(
                     ctx.status(201),
@@ -278,7 +278,7 @@ export class ProjectVersionMSWHandlers {
             }),
             
             // Update project version
-            rest.put("*/api/projectVersion/:id", (req: any, res: any, ctx: any) => {
+            http.put("*/api/projectVersion/:id", (req: any, res: any, ctx: any) => {
                 const { id } = req.params;
                 const project = this.factory.createMockProjectVersion({ 
                     ...req.body,
@@ -300,7 +300,7 @@ export class ProjectVersionMSWHandlers {
         const { rest } = require("msw");
         
         return [
-            rest.post("*/api/projectVersion/findMany", (req: any, res: any, ctx: any) => {
+            http.post("*/api/projectVersion/findMany", (req: any, res: any, ctx: any) => {
                 return res(ctx.delay(delay), ctx.status(200), ctx.json({ edges: [], pageInfo: {} }));
             }),
         ];
