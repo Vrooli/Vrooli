@@ -292,7 +292,7 @@ class ReconnectionEventFactory extends BaseEventFactory<SocketEvent<SocketReconn
         },
     } satisfies SocketEvent<SocketReconnectData>;
 
-    sequence = this.createSequence("escalating", { count: 5, interval: 1000 });
+    sequence = this.createSequence("escalating", { count: 5 });
 
     variants = {
         firstAttempt: this.single,
@@ -482,7 +482,7 @@ export const socketEventFixtures = {
         unstableNetwork: connectionFactory.withJitter([
             connectionFactory.single,
             connectionFactory.variants.disconnect,
-            reconnectionFactory.single,
+            connectionFactory.single,
             connectionFactory.single,
             connectionFactory.variants.disconnect,
         ], 5000, 2000),
@@ -530,8 +530,8 @@ export const socketEventFixtures = {
         createRoomJoinEvent: (roomType: "chat" | "run" | "user", id: string) =>
             roomFactory.create({ roomType, roomId: id }),
 
-        createErrorEvent: (code: string, message: string, details?: unknown) =>
-            errorFactory.create({ code, message, ...details as SocketErrorData }),
+        createErrorEvent: (code: string, message: string, details?: Partial<SocketErrorData>) =>
+            errorFactory.create({ ...details, code, message }),
 
         // New factory methods
         createReconnectSequence: (attempts = 5) =>
@@ -539,7 +539,7 @@ export const socketEventFixtures = {
 
         createRoomSequence: (rooms: Array<{ type: "chat" | "run" | "user"; id: string }>) =>
             rooms.map((room, i) =>
-                reconnectionFactory.withDelay(
+                roomFactory.withDelay(
                     roomFactory.create({ roomType: room.type, roomId: room.id }),
                     i * 100,
                 ),
@@ -548,6 +548,10 @@ export const socketEventFixtures = {
         createCorrelatedConnection: (correlationId: string = generateCorrelationId()) =>
             connectionFactory.createCorrelated(correlationId, [
                 connectionFactory.single,
+            ]),
+
+        createCorrelatedRoomJoins: (correlationId: string = generateCorrelationId()) =>
+            roomFactory.createCorrelated(correlationId, [
                 roomFactory.create({ roomType: "user", roomId: "user_123" }),
                 roomFactory.create({ roomType: "chat", roomId: "chat_456" }),
             ]),

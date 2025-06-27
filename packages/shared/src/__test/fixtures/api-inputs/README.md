@@ -42,7 +42,7 @@ Only add custom tests for:
 ### Example: Simple Validation Test
 ```typescript
 import { describe } from "vitest";
-import { userFixtures, userTestDataFactory } from "../../__test/fixtures/api/userFixtures.js";
+import { userFixtures, userTestDataFactory } from "../../userFixtures.js";
 import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
 import { userValidation } from "./user.js";
 
@@ -100,7 +100,7 @@ Our API fixtures use a sophisticated two-tier system designed for different test
 
 **Example:**
 ```typescript
-import { userFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { userFixtures } from "@vrooli/shared";
 
 const minimalUser = userFixtures.minimal.create;
 const invalidUser = userFixtures.invalid.missingRequired.create;
@@ -118,7 +118,7 @@ const invalidUser = userFixtures.invalid.missingRequired.create;
 
 **Example:**
 ```typescript
-import { projectAPIFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { projectAPIFixtures } from "@vrooli/shared";
 
 // Dynamic generation
 const project = projectAPIFixtures.createFactory({ name: "My Project" });
@@ -370,7 +370,7 @@ graph TD
 
 ### Current Usage (Problematic)
 ```typescript
-import { teamFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { teamFixtures } from "@vrooli/shared";
 
 // No type safety!
 const team = teamFixtures.minimal.create;
@@ -379,7 +379,7 @@ team.unknownField = "compiles but wrong!"; // TypeScript doesn't catch this
 
 ### Ideal Usage (Type-Safe)
 ```typescript
-import { teamAPIFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { teamAPIFixtures } from "@vrooli/shared";
 
 // Full type safety
 const team = teamAPIFixtures.createFactory({

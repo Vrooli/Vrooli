@@ -136,7 +136,7 @@ export const typedModelFixtures = createTypedFixtures(modelFixtures, modelValida
 After updating each file:
 ```bash
 cd /root/Vrooli/packages/shared
-tsc --noEmit src/__test/fixtures/api/[filename].ts
+tsc --noEmit src/__test/fixtures/api-inputs/[filename].ts
 ```
 
 The only errors should be from external dependencies, not from the fixture code itself.

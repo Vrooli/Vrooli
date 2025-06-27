@@ -7,7 +7,7 @@
  * 
  * @example Basic usage:
  * ```typescript
- * import { userAPIFixtures } from "@vrooli/shared/__test/fixtures/api";
+ * import { userAPIFixtures } from "@vrooli/shared";
  * 
  * const user = userAPIFixtures.createFactory({ name: "Test User" });
  * const validation = await userAPIFixtures.validateCreate(user);
@@ -109,7 +109,7 @@ import { projectAPIFixtures } from "./factories/projectAPIFixtures.js";
  * 
  * @example Legacy fixtures:
  * ```typescript
- * import { apiFixtures } from "@vrooli/shared/__test/fixtures/api";
+ * import { apiFixtures } from "@vrooli/shared";
  * 
  * const user = apiFixtures.userFixtures.minimal.create;
  * const team = apiFixtures.teamFixtures.complete.create;
@@ -117,7 +117,7 @@ import { projectAPIFixtures } from "./factories/projectAPIFixtures.js";
  * 
  * @example Modern type-safe factories:
  * ```typescript
- * import { apiFixtures } from "@vrooli/shared/__test/fixtures/api";
+ * import { apiFixtures } from "@vrooli/shared";
  * 
  * const user = apiFixtures.userAPIFixtures.createFactory({ name: "Test" });
  * const team = apiFixtures.teamAPIFixtures.createPublicTeam("My Team");
@@ -129,26 +129,26 @@ export const apiFixtures = {
     userFixtures,
     userTranslationFixtures,
     botFixtures,
-    
+
     // Legacy Team-related fixtures  
     teamFixtures,
-    
+
     // Legacy Bookmark-related fixtures
     bookmarkFixtures,
     bookmarkListFixtures,
-    
+
     // Legacy Chat-related fixtures
     chatFixtures,
-    
+
     // Legacy Content fixtures
     commentFixtures,
-    
+
     // Modern Type-Safe API Factories
     userAPIFixtures,
     teamAPIFixtures,
     bookmarkAPIFixtures,
     projectAPIFixtures,
-    
+
     // TODO: Add all other fixtures to namespace
     // This provides organized access while maintaining backward compatibility
 };

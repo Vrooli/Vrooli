@@ -5,8 +5,8 @@
 
 import { type ChatMessage, type ChatParticipant, type User } from "../../../api/types.js";
 import { type ChatSocketEventPayloads, type StreamErrorPayload } from "../../../consts/socketEvents.js";
-import { chatMessageFixtures } from "../api/chatMessageFixtures.js";
-import { userFixtures } from "../api/userFixtures.js";
+import { chatMessageFixtures } from "../api-inputs/chatMessageFixtures.js";
+import { userFixtures } from "../api-inputs/userFixtures.js";
 import { BaseEventFactory } from "./BaseEventFactory.js";
 import { type BaseEvent, type CorrelatedEvent, type StatefulEvent, type TimedEvent } from "./types.js";
 

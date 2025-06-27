@@ -7,11 +7,14 @@
  * 
  * Upgraded to use the unified error fixture factory pattern with enhanced
  * error composition, recovery testing, and round-trip testing integration.
+ * 
+ * Enhanced with VrooliError interface compatibility for cross-package validation.
  */
 
 // Core types and infrastructure
 export * from "./composition.js";
 export * from "./types.js";
+export * from "./errorTestUtils.js";
 
 // All error fixture files
 export * from "./apiErrors.js";

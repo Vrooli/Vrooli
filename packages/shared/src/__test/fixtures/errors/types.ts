@@ -3,7 +3,12 @@
  * 
  * This file defines the foundational types for all error fixtures,
  * implementing the unified factory pattern described in the README.
+ * 
+ * Now enhanced with VrooliError interface compatibility for cross-package validation.
  */
+
+import { type ParseableError } from "../../../errors/index.js";
+import { type ServerError, type TranslationKeyError } from "../../../consts/api.js";
 
 // Base error context for rich error scenarios
 export interface ErrorContext {
@@ -308,4 +313,58 @@ export abstract class BaseErrorFactory<TError> implements ErrorFixtureFactory<TE
         escalated.userImpact = "blocking";
         return escalated;
     }
+}
+
+/**
+ * Enhanced base error fixture that implements VrooliError interface.
+ * This bridges error fixtures with the VrooliError architecture for 
+ * cross-package validation and ServerResponseParser compatibility.
+ */
+export class BaseErrorFixture implements ParseableError {
+    public code: TranslationKeyError;
+    public trace: string;
+    public data?: Record<string, any>;
+
+    constructor(code: TranslationKeyError, trace: string, data?: Record<string, any>) {
+        this.code = code;
+        this.trace = trace;
+        this.data = data;
+    }
+
+    toServerError(): ServerError {
+        return { trace: this.trace, code: this.code };
+    }
+
+    isParseableByUI(): boolean {
+        return true;
+    }
+
+    getSeverity(): "Error" | "Warning" | "Info" {
+        const codeStr = this.code.toLowerCase();
+        
+        if (codeStr.includes("warning") || codeStr.includes("warn")) {
+            return "Warning";
+        }
+        
+        if (codeStr.includes("info") || codeStr.includes("notice")) {
+            return "Info";
+        }
+        
+        return "Error";
+    }
+
+    getUserMessage(languages: string[] = ["en"]): string {
+        // For fixtures, we typically use the code as the fallback message
+        return `Error: ${this.code}`;
+    }
+}
+
+/**
+ * Enhanced factory pattern for error fixtures that implements VrooliError interface.
+ * This provides a migration path from the old BaseErrorFactory to VrooliError compatibility.
+ */
+export interface VrooliErrorFactory<TError extends ParseableError> {
+    createWithTrace(code: TranslationKeyError, traceBase: string): TError;
+    createMockError(code: TranslationKeyError): TError;
+    validateCompatibility(error: TError): boolean;
 }

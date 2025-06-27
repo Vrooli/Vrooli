@@ -58,10 +58,42 @@ export class BaseAPIFixtureFactory<
         return this.config.edgeCases;
     }
     
+    /**
+     * Recursively regenerate IDs in an object to ensure uniqueness
+     */
+    private regenerateIds<T>(obj: T): T {
+        if (!obj || typeof obj !== "object") {
+            return obj;
+        }
+        
+        if (Array.isArray(obj)) {
+            return obj.map(item => this.regenerateIds(item)) as unknown as T;
+        }
+        
+        const result: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+            if (key === "id" && typeof value === "string") {
+                // Generate a new ID for any 'id' field
+                result[key] = generatePK().toString();
+            } else if (typeof value === "object" && value !== null) {
+                // Recursively process nested objects and arrays
+                result[key] = this.regenerateIds(value);
+            } else {
+                // Copy other values as-is
+                result[key] = value;
+            }
+        }
+        
+        return result as T;
+    }
+
     // Factory methods with type safety
     createFactory = (overrides?: Partial<TCreateInput>): TCreateInput => {
-        const base = { ...this.config.complete.create };
-        const withOverrides = { ...base, ...overrides };
+        // Deep clone the base to avoid mutations
+        const base = JSON.parse(JSON.stringify(this.config.complete.create));
+        // Regenerate all IDs to ensure uniqueness
+        const withFreshIds = this.regenerateIds(base);
+        const withOverrides = { ...withFreshIds, ...overrides };
         
         if (this.customizers) {
             return this.customizers.create(withOverrides, overrides);

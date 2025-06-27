@@ -316,7 +316,7 @@ describe("Bot Configuration", () => {
 ## 🔗 Related Documentation
 
 - [Fixtures Overview](/docs/testing/fixtures-overview.md) - General fixture system documentation
-- [API Fixtures](/packages/shared/src/__test/fixtures/api/README.md) - API fixture layer that consumes configs
+- [API Fixtures](/packages/shared/src/__test/fixtures/api-inputs/README.md) - API fixture layer that consumes configs
 - [Database Fixtures](/packages/server/src/__test/fixtures/db/README.md) - DB fixtures that persist configs
 - [Shape Configs](/packages/shared/src/shape/configs/README.md) - Source configuration type definitions
 
