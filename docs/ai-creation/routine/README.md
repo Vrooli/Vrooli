@@ -14,14 +14,24 @@ The AI routine creation system provides a structured workflow for:
 
 ```
 docs/ai-creation/routine/
-├── README.md              # This file
-├── prompt.md              # AI routine generation instructions
-├── backlog.md             # Queue of routine ideas to process
-└── staged/                # Generated routine definitions ready for import
+├── README.md                    # This file
+├── prompt.md                    # AI routine generation instructions
+├── backlog.md                   # Queue of routine ideas to process
+├── subroutine-resolver.md       # Enhanced resolution system documentation
+├── staged/                      # Generated routine definitions ready for import
+│   ├── subroutines/            # Generated reusable subroutines
+│   ├── main-routines/          # Main routines using subroutines
+│   └── [legacy files]          # Files from basic generation
+├── cache/                       # Resolution system cache
+│   ├── search-results.json     # Cached semantic search results
+│   ├── staged-index.json       # Index of staged subroutines
+│   └── resolution-map.json     # Capability to subroutine mappings
+└── templates/                   # Common patterns (future)
 
 scripts/main/
-├── routine-generate.sh    # Convert backlog items to staged routines
-└── routine-import.sh      # Import and validate staged routines
+├── routine-generate-enhanced.sh # Smart multi-pass generation (recommended)
+├── routine-generate.sh          # Basic generation (legacy)
+└── routine-import.sh            # Import and validate staged routines
 ```
 
 ## Quick Start
@@ -41,13 +51,25 @@ Edit `backlog.md` to add new routine concepts:
 ```
 
 ### 2. Generate Routines
-Process backlog items into complete routine definitions:
 
+#### Option A: Enhanced Generation with Smart Subroutine Resolution (Recommended)
+```bash
+./scripts/main/routine-generate-enhanced.sh
+```
+
+This enhanced system provides:
+- **Semantic search** for existing subroutines to avoid duplication
+- **Multi-pass generation** that creates missing subroutines automatically  
+- **Smart dependency resolution** with proper reuse of components
+- **Staged file scanning** to reuse already-generated subroutines
+- **Hierarchical organization** with separate subroutines and main routines
+
+#### Option B: Basic Generation (Legacy)
 ```bash
 ./scripts/main/routine-generate.sh
 ```
 
-This calls `maintenance-agent.sh` with the AI creation workflow prompt to automatically read the backlog, generate complete JSON definitions, and save them to `staged/`.
+This calls `maintenance-agent.sh` with the AI creation workflow prompt to automatically read the backlog, generate complete JSON definitions, and save them to `staged/` (may include TODO placeholders for subroutines).
 
 ### 3. Import and Test
 Import generated routines into your local Vrooli instance:

@@ -62,8 +62,8 @@ services:
     # Health probes (liveness and readiness) for the UI service.
     # Kubernetes uses these probes to determine if the container is healthy and ready to receive traffic.
     probes:
-      livenessPath: /healthcheck  # Path for the liveness probe (is the app running?).
-      readinessPath: /healthcheck # Path for the readiness probe (is the app ready to serve requests?).
+      livenessPath: /  # Path for the liveness probe (check if nginx is serving files).
+      readinessPath: / # Path for the readiness probe (check if nginx is serving files).
     # Resource requests and limits for the UI service.
     # `requests` are guaranteed resources, while `limits` are the maximum allowed.
     resources:
@@ -98,7 +98,7 @@ services:
     # Or, it can be a full image path (e.g., "another-registry/jobs-image"), which will be used as-is, ignoring `image.registry`.
     repository: jobs
     tag: dev
-    port: 9230
+    port: 4001
     probes:
       livenessPath: /healthcheck
       readinessPath: /healthcheck

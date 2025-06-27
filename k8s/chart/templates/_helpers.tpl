@@ -59,7 +59,6 @@ These are used by Service objects to select Pods and by workload controllers
 {{- define "vrooli.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "vrooli.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{- "\n" }} {{- /* Ensure newline before end define */}}
 {{- end -}}
 
 {{/*
@@ -72,4 +71,33 @@ Example: {{ include "vrooli.componentLabels" (dict "componentName" "my-component
 app.kubernetes.io/component: {{ .componentName | trunc 63 | trimSuffix "-" }}
 {{- "\n" }} {{- /* Ensure newline before end if/define */}}
 {{- end }}
+{{- end -}}
+
+{{/*
+Create a safe component name by converting camelCase to kebab-case
+Uses a simple approach that works with Helm's template engine
+*/}}
+{{- define "vrooli.componentName" -}}
+{{- if eq . "nsfwDetector" -}}
+nsfw-detector
+{{- else if eq . "ui" -}}
+ui
+{{- else if eq . "server" -}}
+server
+{{- else if eq . "jobs" -}}
+jobs
+{{- else -}}
+{{- . | lower | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the service account to use
+*/}}
+{{- define "vrooli.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
+{{- default (include "vrooli.fullname" .) .Values.serviceAccount.name -}}
+{{- else -}}
+{{- default "default" .Values.serviceAccount.name -}}
+{{- end -}}
 {{- end -}} 

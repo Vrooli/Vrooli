@@ -1,5 +1,4 @@
 # Run this file by typing: docker-compose up -d
-version: "3.9"
 services:
   ui:
     build:

@@ -33,9 +33,9 @@ services:
     enabled: true # Enable the NSFW detector service in the production environment.
     # tag: "1.1.0" # Assuming values.yaml has the correct production tag for nsfwDetector, or override here.
 
-# Disable Adminer in production using the top-level key
+# Disable Adminer in production for security
 adminer:
-  enabled: false
+  enabled: false # SECURITY: Disable database admin tools in production
 
 # --- Ingress Configuration for Production ---
 # Enable and configure Ingress for exposing services externally in production.
@@ -59,8 +59,7 @@ ingress:
         #   port: 5329
   # TLS configuration for enabling HTTPS.
   tls:
-    - secretName: your-prod-tls-secret # FIXME: Replace with the name of the Kubernetes Secret containing your TLS certificate and key for the production domain.
-                                       # This secret is often managed by cert-manager or manually created.
+    - secretName: vrooli-tls-secret # TLS secret for production domain
       hosts:
         - do-origin.vrooli.com # The DNS-only domain that traffic is routed to
 
@@ -80,7 +79,7 @@ persistence:
   nsfwDetector:
     enabled: true # Enable persistence for NSFW detector if it downloads/caches models or data.
     size: "1Gi" 
-    storageClass: "your-prod-standard-storageclass" # FIXME: Specify appropriate StorageClass for model storage.
+    storageClass: "gp2" # AWS GP2 storage class for model storage
 
 # --- CrunchyData PGO PostgreSQL Configuration Overrides for Production ---
 pgoPostgresql:
@@ -89,7 +88,7 @@ pgoPostgresql:
     count: 3 # Ensure 3 replicas for HA in production (1 primary, 2 replicas)
     storage:
       size: "100Gi" # Set PostgreSQL data storage size for production
-      storageClass: "your-prod-ssd-storageclass" # FIXME: Replace with your actual production SSD StorageClass
+      storageClass: "gp3" # AWS GP3 SSD storage class for production PostgreSQL
     # Pod Anti-Affinity for PostgreSQL instances to ensure they are scheduled on different nodes/zones
     affinity:
       podAntiAffinity:
@@ -121,14 +120,12 @@ pgoPostgresql:
       repos:
         - name: "repo1" # Default repo name
           # --- S3-based Repository for Production ---
-          # FIXME: Uncomment and configure for S3. Ensure the PVC-based 'volume' config (if any from base values.yaml) is not active for this repo.
           s3:
-            bucket: "your-vrooli-prod-pgbackrest-s3-bucket" # FIXME: Your S3 bucket name
-            endpoint: "s3.your-region.amazonaws.com"        # FIXME: Your S3 endpoint (e.g., s3.us-east-1.amazonaws.com)
-            region: "your-region"                           # FIXME: e.g., us-east-1
-            # secretName: "pgo-s3-credentials" # FIXME: K8s Secret in {{ .Release.Namespace }} containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY for pgBackRest S3 access.
-                                               # This secret needs to be created manually or via VSO if PGO supports it.
-            # path: "vrooli-prod/backups" # Optional: path within the bucket
+            bucket: "vrooli-prod-pgbackrest-backups" # Production S3 bucket for PostgreSQL backups
+            endpoint: "s3.us-east-1.amazonaws.com"   # AWS S3 endpoint for us-east-1
+            region: "us-east-1"                      # AWS region
+            secretName: "pgo-s3-credentials"         # K8s Secret containing AWS credentials for pgBackRest
+            path: "vrooli-prod/backups"              # Path within the bucket
           # --- PVC-based Repository (Ensure this is NOT used for prod S3 repo) ---
           # volume: # This should be removed or ensured it's not configured if S3 is active for this repo.
           #   storage: "5Gi"
@@ -146,7 +143,7 @@ spotahomeRedis:
           resources:
             requests:
               storage: "2Gi" # Set Redis storage size for production
-        storageClassName: "your-prod-fast-storageclass" # FIXME: Replace with your actual fast StorageClass for Redis
+        storageClassName: "gp3" # AWS GP3 fast storage class for Redis
       keepAfterDeletion: true # CRITICAL: Keep PVCs when RedisFailover CR is deleted in production
     # Pod Anti-Affinity for Redis server pods
     affinity:
@@ -157,7 +154,7 @@ spotahomeRedis:
                 - key: "app.kubernetes.io/name" # Adjust label key based on Spotahome operator's pod labels
                   operator: In
                   values:
-                    - {{ printf "%s-%s" .Release.Name .Values.spotahomeRedis.name | trunc 63 | trimSuffix "-" }} # Default Helm name construction for the RedisFailover resource
+                    - "vrooli-prod-vrooli-rf" # Static name for production Redis resources
                 - key: "databases.spotahome.com/component" # Label often used by Spotahome
                   operator: In
                   values: ["redis"]
@@ -184,7 +181,7 @@ spotahomeRedis:
                 - key: "app.kubernetes.io/name" # Adjust label key based on Spotahome operator's pod labels
                   operator: In
                   values:
-                    - {{ printf "%s-%s" .Release.Name .Values.spotahomeRedis.name | trunc 63 | trimSuffix "-" }}
+                    - "vrooli-prod-vrooli-rf" # Static name for production Redis resources
                 - key: "databases.spotahome.com/component" # Label often used by Spotahome
                   operator: In
                   values: ["sentinel"]
@@ -204,9 +201,8 @@ spotahomeRedis:
 # --- Vault Secrets Operator (VSO) Configuration ---
 vso:
   enabled: true
-  # vaultAddr: "https://prod-vault.your-domain.com" # FIXME: Uncomment and set your production Vault address
+  vaultAddr: "https://vault.vrooli.com" # Production Vault address
   k8sAuthRole: "vrooli-vso-sync-role" # Ensure this matches the role configured in Vault
-  # vaultAuthRef: "" # Inherited or set if specific for prod
 
   secrets:
     # Non-sensitive configuration shared by UI, Server, and Jobs for Production

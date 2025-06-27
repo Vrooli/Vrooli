@@ -43,7 +43,7 @@ spec:
         {{- end }}
         spec:
           accessModes:
-            {{- toYaml .spec.accessModes | nindent 12 }} # e.g., ["ReadWriteOnce"]
+            {{- toYaml .persistentVolumeClaim.spec.accessModes | nindent 12 }} # e.g., ["ReadWriteOnce"]
           resources:
             requests:
               storage: {{ .persistentVolumeClaim.spec.resources.requests.storage }}

@@ -12,10 +12,10 @@ This template generates Services for each service defined in .Values.services
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "vrooli.fullname" $ }}-{{ $name }}
+  name: {{ include "vrooli.fullname" $ }}-{{ include "vrooli.componentName" $name }}
   labels:
     {{- include "vrooli.labels" $ | nindent 4 }}
-    {{- include "vrooli.componentLabels" (dict "componentName" $name "root" $) | nindent 4 }}
+    {{- include "vrooli.componentLabels" (dict "componentName" (include "vrooli.componentName" $name) "root" $) | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -25,6 +25,6 @@ spec:
       name: http {{- if eq $name "nsfwDetector" }}-tcp{{- end }} # Ensure port name is valid if it's just numbers
   selector:
     {{- include "vrooli.selectorLabels" $ | nindent 4 }}
-    {{- include "vrooli.componentLabels" (dict "componentName" $name "root" $) | nindent 4 }}
+    {{- include "vrooli.componentLabels" (dict "componentName" (include "vrooli.componentName" $name) "root" $) | nindent 4 }}
 {{- end }}{{/* if $serviceEnabled */}}
 {{- end }} 

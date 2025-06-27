@@ -35,6 +35,7 @@
     "devDependencies": {
         "@swc/cli": "^0.4.1-nightly.20240914",
         "@swc/core": "^1.7.35",
+        "@types/cli-progress": "^3.11.6",
         "@types/inquirer": "^9.0.7",
         "@types/node": "^22.10.2",
         "@typescript-eslint/eslint-plugin": "^8.17.0",

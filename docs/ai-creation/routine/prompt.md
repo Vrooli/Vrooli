@@ -161,12 +161,7 @@ To create a valid routine that can be stored and executed, you must generate a s
   "isPrivate": false,
   "permissions": "{}",
   "isInternal": false,  // Only true for system routines
-  "tags": [
-    {
-      "id": "[generate-snowflake-id]",
-      "tag": "YourTagHere"
-    }
-  ],
+  "tags": [],
   "versions": [
     {
       "id": "[generate-snowflake-id]",
@@ -209,33 +204,33 @@ To create a valid routine that can be stored and executed, you must generate a s
    - Resource: `id`, `publicId`, `resourceType` (must be "Routine"), `versions` (at least one)
    - ResourceVersion: `id`, `publicId`, `versionLabel`, `isComplete`, `resourceSubType`, `config`, `translations` (at least one)
    - Translation: `id`, `language`, `name` (description and instructions highly recommended)
+   - **Tags**: MUST be empty array `"tags": []` (no valid tag IDs available)
 
-3. **Subroutine References (CRITICAL)**:
-   - All `subroutineId` values MUST reference routines that exist in the database
-   - **BEFORE generating the routine JSON, you MUST use available-subroutines.txt to find existing routines**
+3. **Subroutine References (CRITICAL - Enhanced Resolution System)**:
+   - All `subroutineId` values MUST reference routines that exist or will be generated
+   - **USE THE ENHANCED SUBROUTINE RESOLUTION SYSTEM**
    
-   **Subroutine Discovery Process:**
-   1. Check if `available-subroutines.txt` exists in the routine directory
-   2. If it exists, use ONLY the publicIds listed in that file
-   3. Match subroutines based on their name and type to your routine's needs
-   4. Use the exact `publicId` from the file (the quoted string before the # comment)
+   **Enhanced Resolution Process (Multi-Pass System):**
+   1. **Semantic Search First**: Use `vrooli routine search "capability description"` to find existing routines
+   2. **Check Staged Files**: Look for already-generated subroutines in the staging directory
+   3. **Generate Missing Dependencies**: Automatically create subroutines as separate staged files
+   4. **Reuse When Possible**: Avoid duplicate generation through smart matching
    
-   **If Subroutine Discovery is Unavailable:**
-   - Add a TODO comment in the JSON where the subroutineId is needed
+   **Resolution Priority Order:**
+   1. Existing database routines (via CLI search with >80% semantic match)
+   2. Already-staged subroutines (in `staged/subroutines/` directory)  
+   3. Generate new subroutines as separate files (saved to `staged/subroutines/`)
+   4. Use descriptive TODO only as last resort for complex dependencies
+   
+   **Subroutine Generation Guidelines:**
+   - Generate subroutines as **separate JSON files** in `staged/subroutines/`
+   - Use **single-step routines** for most subroutines (RoutineGenerate, RoutineCode, etc.)
+   - Make subroutines **reusable** with clear input/output interfaces
+   - Reference generated subroutines by their `publicId` in main routines
+   
+   **Legacy Fallback (only if enhanced system unavailable):**
    - Format: `"subroutineId": "TODO: Need [type] subroutine for [purpose]"`
    - Example: `"subroutineId": "TODO: Need text analysis subroutine for sentiment detection"`
-   
-   **Example from available-subroutines.txt:**
-   ```
-   "abc123def456" # AnalyzeTextSentiment (RoutineGenerate)
-   "ghi789jkl012" # WebSearchAndSummarize (RoutineMultiStep)
-   "mno345pqr678" # TransformDataFormat (RoutineCode)
-   ```
-   
-   **IMPORTANT**: 
-   - NEVER make up or guess subroutine IDs
-   - ONLY use IDs from available-subroutines.txt if it exists
-   - Always include TODO comments if the file is unavailable
 
 4. **Config Structure Rules**:
    - Config MUST have `__version: "1.0"` at root level

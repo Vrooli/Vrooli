@@ -30,7 +30,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/usr/local/share/pnpm-store \
 # Copy full source and build all packages
 COPY . .
 # Generate Prisma client for correct schema
-RUN pnpm --filter @vrooli/prisma run generate -- --schema=packages/server/src/db/schema.prisma
+RUN pnpm --filter @vrooli/server run prisma-generate
 
 # Build shared utilities
 RUN pnpm --filter @vrooli/shared run build
@@ -70,4 +70,4 @@ COPY --from=base ${PROJECT_DIR}/node_modules ./node_modules
 COPY --from=base ${PROJECT_DIR} .
 EXPOSE ${PORT_UI}
 RUN corepack enable && corepack prepare pnpm@latest --activate
-CMD ["pnpm", "--filter", "@vrooli/ui", "run", "dev", "--", "--host", "0.0.0.0", "--port", "${PORT_UI}"] 
+CMD pnpm --filter @vrooli/ui run dev -- --host 0.0.0.0 --port ${PORT_UI:-3000} 

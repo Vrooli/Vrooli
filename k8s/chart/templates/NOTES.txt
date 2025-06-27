@@ -117,7 +117,7 @@ Adminer is ENABLED.
         {{- if eq .service "adminer" }}
           {{- $adminerIngressConfigured = true }}
   Access Adminer via Ingress at: http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ if ne .path "/" }}{{ .path }}{{ end }}
-          {{- break 2 }}
+          {{- break }}
         {{- end }}
       {{- end }}
     {{- end }}
