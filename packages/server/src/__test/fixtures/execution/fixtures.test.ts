@@ -16,7 +16,7 @@ import {
     highPerformanceAnalyticsContext,
     securityResponseIntegration,
     complianceMonitoringIntegration,
-    executionFixtures
+    executionFixtures,
 } from "./fixtures.js";
 
 // ================================================================================================
@@ -29,7 +29,7 @@ describe("Tier 1: Coordination Intelligence Fixtures", () => {
         runComprehensiveExecutionTests(
             securityMonitoringSwarm,
             "chat",
-            "security-monitoring-swarm"
+            "security-monitoring-swarm",
         );
         
         it("should demonstrate emergent threat detection capabilities", () => {
@@ -40,7 +40,7 @@ describe("Tier 1: Coordination Intelligence Fixtures", () => {
         
         it("should show evolution from reactive to predictive defense", () => {
             expect(securityMonitoringSwarm.emergence.evolutionPath).toBe(
-                "reactive monitoring → proactive hunting → predictive defense"
+                "reactive monitoring → proactive hunting → predictive defense",
             );
         });
         
@@ -55,7 +55,7 @@ describe("Tier 1: Coordination Intelligence Fixtures", () => {
             expect(securityMonitoringSwarm.swarmMetadata?.expectedAgentCount).toBeGreaterThan(1);
             expect(securityMonitoringSwarm.swarmMetadata?.minViableAgents).toBeGreaterThan(0);
             expect(securityMonitoringSwarm.swarmMetadata?.minViableAgents).toBeLessThanOrEqual(
-                securityMonitoringSwarm.swarmMetadata?.expectedAgentCount || 0
+                securityMonitoringSwarm.swarmMetadata?.expectedAgentCount || 0,
             );
         });
     });
@@ -64,7 +64,7 @@ describe("Tier 1: Coordination Intelligence Fixtures", () => {
         runComprehensiveExecutionTests(
             complianceAuditSwarm,
             "chat", 
-            "compliance-audit-swarm"
+            "compliance-audit-swarm",
         );
         
         it("should demonstrate cross-regulatory compliance capabilities", () => {
@@ -83,7 +83,7 @@ describe("Tier 2: Process Intelligence Fixtures", () => {
         runComprehensiveExecutionTests(
             vulnerabilityAssessmentRoutine,
             "routine",
-            "vulnerability-assessment-routine"
+            "vulnerability-assessment-routine",
         );
         
         it("should demonstrate adaptive security assessment capabilities", () => {
@@ -112,7 +112,7 @@ describe("Tier 2: Process Intelligence Fixtures", () => {
                 "discovery-scan",
                 "vulnerability-scan", 
                 "risk-analysis",
-                "remediation-planning"
+                "remediation-planning",
             ]);
         });
     });
@@ -121,7 +121,7 @@ describe("Tier 2: Process Intelligence Fixtures", () => {
         runComprehensiveExecutionTests(
             dataPrivacyComplianceRoutine,
             "routine",
-            "data-privacy-compliance-routine"
+            "data-privacy-compliance-routine",
         );
         
         it("should demonstrate privacy protection capabilities", () => {
@@ -145,7 +145,7 @@ describe("Tier 3: Execution Intelligence Fixtures", () => {
         runComprehensiveExecutionTests(
             secureCodeExecutionContext,
             "run",
-            "secure-code-execution-context"
+            "secure-code-execution-context",
         );
         
         it("should demonstrate intelligent security capabilities", () => {
@@ -187,7 +187,7 @@ describe("Tier 3: Execution Intelligence Fixtures", () => {
         runComprehensiveExecutionTests(
             highPerformanceAnalyticsContext,
             "run",
-            "high-performance-analytics-context"
+            "high-performance-analytics-context",
         );
         
         it("should demonstrate optimization capabilities", () => {
@@ -279,7 +279,7 @@ describe("Fixture Collection", () => {
             if ("emergence" in fixture) {
                 expect(fixture.emergence.capabilities.length).toBeGreaterThan(0);
                 expect(fixture.emergence.capabilities.every(cap => 
-                    typeof cap === "string" && cap.length > 0
+                    typeof cap === "string" && cap.length > 0,
                 )).toBe(true);
             }
         });
@@ -287,13 +287,13 @@ describe("Fixture Collection", () => {
     
     it("should cover all three tiers", () => {
         const tier1Fixtures = Object.values(executionFixtures).filter(f => 
-            "integration" in f && f.integration.tier === "tier1"
+            "integration" in f && f.integration.tier === "tier1",
         );
         const tier2Fixtures = Object.values(executionFixtures).filter(f =>
-            "integration" in f && f.integration.tier === "tier2"  
+            "integration" in f && f.integration.tier === "tier2",  
         );
         const tier3Fixtures = Object.values(executionFixtures).filter(f =>
-            "integration" in f && f.integration.tier === "tier3"
+            "integration" in f && f.integration.tier === "tier3",
         );
         
         expect(tier1Fixtures.length).toBeGreaterThan(0);
@@ -311,7 +311,7 @@ describe("Fixture Collection", () => {
                     cap.includes("security") || 
                     cap.includes("threat") || 
                     cap.includes("compliance") ||
-                    cap.includes("vulnerability")
+                    cap.includes("vulnerability"),
                 );
             }
             return false;

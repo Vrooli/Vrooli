@@ -13,19 +13,19 @@ import type {
     BaseConfigObject,
     ChatConfigObject,
     RoutineConfigObject,
-    RunConfigObject
+    RunConfigObject,
 } from "@vrooli/shared";
 import type { 
     ExecutionFixture,
     SwarmFixture,
     RoutineFixture,
     ExecutionContextFixture,
-    ValidationResult
+    ValidationResult,
 } from "./executionValidationUtils.js";
 import type { 
     ExecutionResult,
     ExecutionOptions,
-    ErrorCondition
+    ErrorCondition,
 } from "./executionRunner.js";
 import { ExecutionFixtureRunner } from "./executionRunner.js";
 
@@ -146,7 +146,7 @@ export class ErrorScenarioRunner {
      */
     async executeErrorScenario<T extends BaseConfigObject>(
         scenario: ErrorScenarioFixture<T>,
-        inputData: any
+        inputData: any,
     ): Promise<ErrorTestResult> {
         const startTime = performance.now();
         let errorDetectedAt = 0;
@@ -157,17 +157,17 @@ export class ErrorScenarioRunner {
             const options: ExecutionOptions = {
                 testConditions: {
                     errorInjection: scenario.errorCondition,
-                    expectedBehavior: scenario.expectedBehavior
+                    expectedBehavior: scenario.expectedBehavior,
                 },
                 validateEmergence: true,
-                mockExternalDeps: true
+                mockExternalDeps: true,
             };
 
             // Execute with error injection
             const executionResult = await this.executionRunner.executeWithErrorInjection(
                 scenario.baseFixture,
                 scenario.errorCondition,
-                inputData
+                inputData,
             );
 
             errorDetectedAt = this.extractErrorDetectionTime(executionResult);
@@ -176,13 +176,13 @@ export class ErrorScenarioRunner {
             // Validate error handling behavior
             const errorHandlingCorrect = this.validateErrorHandling(
                 executionResult,
-                scenario.expectedBehavior
+                scenario.expectedBehavior,
             );
 
             // Check graceful degradation
             const gracefulDegradationOccurred = this.checkGracefulDegradation(
                 executionResult,
-                scenario.expectedBehavior
+                scenario.expectedBehavior,
             );
 
             // Extract recovery actions
@@ -199,8 +199,8 @@ export class ErrorScenarioRunner {
                     timeToDetectError: errorDetectedAt - startTime,
                     timeToStartRecovery: recoveryStartedAt - startTime,
                     totalRecoveryTime: endTime - recoveryStartedAt,
-                    finalSuccessRate: this.calculateSuccessRate(executionResult)
-                }
+                    finalSuccessRate: this.calculateSuccessRate(executionResult),
+                },
             };
         } catch (error) {
             const endTime = performance.now();
@@ -212,8 +212,8 @@ export class ErrorScenarioRunner {
                     detectedCapabilities: [],
                     performanceMetrics: {
                         latency: endTime - startTime,
-                        resourceUsage: { memory: 0, cpu: 0, tokens: 0 }
-                    }
+                        resourceUsage: { memory: 0, cpu: 0, tokens: 0 },
+                    },
                 },
                 errorHandlingCorrect: false,
                 recoveryActionsAttempted: [],
@@ -222,8 +222,8 @@ export class ErrorScenarioRunner {
                     timeToDetectError: errorDetectedAt - startTime,
                     timeToStartRecovery: 0,
                     totalRecoveryTime: 0,
-                    finalSuccessRate: 0
-                }
+                    finalSuccessRate: 0,
+                },
             };
         }
     }
@@ -233,7 +233,7 @@ export class ErrorScenarioRunner {
      */
     async executeErrorScenarioSuite<T extends BaseConfigObject>(
         scenarios: ErrorScenarioFixture<T>[],
-        inputData: any
+        inputData: any,
     ): Promise<ErrorScenarioSuiteResult> {
         const results: ErrorTestResult[] = [];
         const categoryResults: Record<string, ErrorTestResult[]> = {};
@@ -256,7 +256,7 @@ export class ErrorScenarioRunner {
             results,
             categoryResults,
             summary,
-            overallResilience: this.calculateOverallResilience(results)
+            overallResilience: this.calculateOverallResilience(results),
         };
     }
 
@@ -266,7 +266,7 @@ export class ErrorScenarioRunner {
 
     private validateErrorHandling(
         result: ExecutionResult,
-        expected: ExpectedErrorBehavior
+        expected: ExpectedErrorBehavior,
     ): boolean {
         // Check if failure behavior matches expectation
         if (expected.shouldFail && result.success) {
@@ -294,7 +294,7 @@ export class ErrorScenarioRunner {
 
     private checkGracefulDegradation(
         result: ExecutionResult,
-        expected: ExpectedErrorBehavior
+        expected: ExpectedErrorBehavior,
     ): boolean {
         if (!expected.gracefulDegradation) {
             return true; // No graceful degradation expected
@@ -302,7 +302,7 @@ export class ErrorScenarioRunner {
 
         // Check if expected degradation capabilities are still present
         return expected.gracefulDegradation.every(capability =>
-            result.detectedCapabilities.includes(capability)
+            result.detectedCapabilities.includes(capability),
         );
     }
 
@@ -323,7 +323,7 @@ export class ErrorScenarioRunner {
         }
 
         const errorEntry = result.executionTrace.find(entry => 
-            entry.action.includes("error") || entry.action.includes("failure")
+            entry.action.includes("error") || entry.action.includes("failure"),
         );
         
         return errorEntry?.timestamp || 0;
@@ -335,7 +335,7 @@ export class ErrorScenarioRunner {
         }
 
         const recoveryEntry = result.executionTrace.find(entry => 
-            entry.action.includes("recovery") || entry.action.includes("fallback")
+            entry.action.includes("recovery") || entry.action.includes("fallback"),
         );
         
         return recoveryEntry?.timestamp || 0;
@@ -366,7 +366,7 @@ export class ErrorScenarioRunner {
             averageRecoveryTime: avgRecoveryTime,
             averageSuccessRate: avgSuccessRate,
             errorHandlingRate: correctlyHandled / total,
-            resilienceScore: this.calculateResilienceScore(results)
+            resilienceScore: this.calculateResilienceScore(results),
         };
     }
 
@@ -386,7 +386,7 @@ export class ErrorScenarioRunner {
             overallResilienceScore: this.calculateResilienceScore(results),
             errorCoverage: errorCategories.size,
             recoveryEffectiveness: successfulRecoveries / results.length,
-            adaptabilityScore: totalRecoveryActions / results.length
+            adaptabilityScore: totalRecoveryActions / results.length,
         };
     }
 
@@ -396,7 +396,7 @@ export class ErrorScenarioRunner {
             errorHandling: 0.4,
             gracefulDegradation: 0.3,
             recoveryTime: 0.2,
-            successRate: 0.1
+            successRate: 0.1,
         };
 
         const errorHandlingScore = results.filter(r => r.errorHandlingCorrect).length / results.length;
@@ -452,7 +452,7 @@ export interface ResilienceMetrics {
  * Create comprehensive error scenarios for a given fixture
  */
 export function createStandardErrorScenarios<T extends BaseConfigObject>(
-    baseFixture: ExecutionFixture<T>
+    baseFixture: ExecutionFixture<T>,
 ): ErrorScenarioFixture<T>[] {
     return [
         // Resource limitation scenarios
@@ -462,19 +462,19 @@ export function createStandardErrorScenarios<T extends BaseConfigObject>(
                 type: "memory_limit",
                 description: "Memory usage exceeds available resources",
                 injectionPoint: "execution",
-                parameters: { memoryLimit: 512 } // 512MB limit
+                parameters: { memoryLimit: 512 }, // 512MB limit
             },
             expectedBehavior: {
                 shouldFail: false,
                 gracefulDegradation: ["basic_operation"],
                 fallbackBehaviors: ["reduce_complexity", "use_simpler_model"],
-                maxLatencyMs: 10000
+                maxLatencyMs: 10000,
             },
             metadata: {
                 severity: "medium",
                 category: "resource",
-                description: "Tests behavior under memory constraints"
-            }
+                description: "Tests behavior under memory constraints",
+            },
         },
 
         // Network failure scenarios
@@ -484,20 +484,20 @@ export function createStandardErrorScenarios<T extends BaseConfigObject>(
                 type: "network_failure",
                 description: "Network connectivity is intermittent",
                 injectionPoint: "integration",
-                parameters: { networkLatency: 5000, failureRate: 0.3 }
+                parameters: { networkLatency: 5000, failureRate: 0.3 },
             },
             expectedBehavior: {
                 shouldFail: false,
                 gracefulDegradation: ["offline_operation"],
                 fallbackBehaviors: ["use_cache", "retry_with_backoff"],
                 maxLatencyMs: 15000,
-                shouldAttemptRecovery: true
+                shouldAttemptRecovery: true,
             },
             metadata: {
                 severity: "high",
                 category: "network",
-                description: "Tests resilience to network issues"
-            }
+                description: "Tests resilience to network issues",
+            },
         },
 
         // AI model failure scenarios
@@ -507,19 +507,19 @@ export function createStandardErrorScenarios<T extends BaseConfigObject>(
                 type: "ai_model_error",
                 description: "AI model returns invalid responses",
                 injectionPoint: "execution",
-                parameters: { modelErrorType: "invalid_response" }
+                parameters: { modelErrorType: "invalid_response" },
             },
             expectedBehavior: {
                 shouldFail: false,
                 gracefulDegradation: ["basic_response"],
                 fallbackBehaviors: ["use_fallback_model", "template_response"],
-                shouldAttemptRecovery: true
+                shouldAttemptRecovery: true,
             },
             metadata: {
                 severity: "high",
                 category: "ai_model",
-                description: "Tests handling of AI model failures"
-            }
+                description: "Tests handling of AI model failures",
+            },
         },
 
         // Configuration corruption scenarios
@@ -529,19 +529,19 @@ export function createStandardErrorScenarios<T extends BaseConfigObject>(
                 type: "data_corruption",
                 description: "Configuration data is corrupted",
                 injectionPoint: "validation",
-                parameters: { corruptionType: "config", corruptionRate: 0.1 }
+                parameters: { corruptionType: "config", corruptionRate: 0.1 },
             },
             expectedBehavior: {
                 shouldFail: true,
                 errorMessagePattern: ".*config.*corrupt.*|.*validation.*failed.*",
-                shouldAttemptRecovery: false
+                shouldAttemptRecovery: false,
             },
             metadata: {
                 severity: "critical",
                 category: "config",
-                description: "Tests handling of corrupted configuration"
-            }
-        }
+                description: "Tests handling of corrupted configuration",
+            },
+        },
     ];
 }
 
@@ -555,13 +555,13 @@ export function createStandardErrorScenarios<T extends BaseConfigObject>(
 export function runErrorScenarioTests<T extends BaseConfigObject>(
     scenarios: ErrorScenarioFixture<T>[],
     fixtureName: string,
-    inputData: any = { query: "test input" }
+    inputData: any = { query: "test input" },
 ): void {
     describe(`${fixtureName} error scenarios`, () => {
         const runner = new ErrorScenarioRunner();
 
         scenarios.forEach((scenario, index) => {
-            const testName = `should handle ${scenario.errorCondition.type} ${scenario.metadata?.severity ? `(${scenario.metadata.severity})` : ''}`;
+            const testName = `should handle ${scenario.errorCondition.type} ${scenario.metadata?.severity ? `(${scenario.metadata.severity})` : ""}`;
             
             it(testName, async () => {
                 const result = await runner.executeErrorScenario(scenario, inputData);

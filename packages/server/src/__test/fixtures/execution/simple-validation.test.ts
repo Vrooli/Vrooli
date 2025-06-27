@@ -16,7 +16,7 @@ import {
     combineValidationResults,
     createMinimalEmergence,
     createMinimalIntegration,
-    FixtureCreationUtils
+    FixtureCreationUtils,
 } from "./executionValidationUtils.js";
 import type { SwarmFixture, RoutineFixture, ExecutionContextFixture } from "./types.js";
 
@@ -24,43 +24,42 @@ import type { SwarmFixture, RoutineFixture, ExecutionContextFixture } from "./ty
 const simpleSwarmFixture: SwarmFixture = {
     config: {
         __version: "1.0.0",
-        chat: {
-            messages: []
-        }
-    } as any,
+        stats: {
+            totalToolCalls: 0,
+            totalCredits: "0",
+            startedAt: null,
+            lastProcessingCycleEndedAt: null,
+        },
+    },
     emergence: {
         capabilities: ["coordination", "routing"],
-        evolutionPath: "reactive → proactive"
+        evolutionPath: "reactive → proactive",
     },
     integration: {
         tier: "tier1",
         producedEvents: ["tier1.swarm.initialized"],
-        consumedEvents: ["user.request.received"]
+        consumedEvents: ["user.request.received"],
     },
     swarmMetadata: {
         formation: "dynamic",
         coordinationPattern: "emergence",
         expectedAgentCount: 3,
-        minViableAgents: 2
-    }
+        minViableAgents: 2,
+    },
 };
 
 const simpleRoutineFixture: RoutineFixture = {
     config: {
         __version: "1.0.0",
-        routine: {
-            nodes: [],
-            nodeLinks: []
-        }
-    } as any,
+    },
     emergence: {
         capabilities: ["classification", "routing"],
-        evolutionPath: "conversational → reasoning"
+        evolutionPath: "conversational → reasoning",
     },
     integration: {
         tier: "tier2",
         producedEvents: ["tier2.routine.completed"],
-        consumedEvents: ["tier1.task.assigned"]
+        consumedEvents: ["tier1.task.assigned"],
     },
     evolutionStage: {
         current: "conversational",
@@ -68,26 +67,39 @@ const simpleRoutineFixture: RoutineFixture = {
         performanceMetrics: {
             averageExecutionTime: 2000,
             successRate: 0.85,
-            costPerExecution: 0.05
-        }
-    }
+            costPerExecution: 0.05,
+        },
+    },
 };
 
 const simpleExecutionFixture: ExecutionContextFixture = {
     config: {
         __version: "1.0.0",
-        run: {
-            id: "test-run"
-        }
-    } as any,
+        branches: [],
+        config: {
+            botConfig: {},
+            decisionConfig: {
+                inputGenerationStrategy: "latest" as const,
+                pathSelectionStrategy: "first" as const,
+                subroutineExecutionStrategy: "parallel" as const,
+            },
+            limits: {},
+            executionConfig: {},
+        },
+        decisions: [],
+        metrics: {
+            creditsSpent: "0",
+        },
+        subcontexts: [],
+    },
     emergence: {
         capabilities: ["tool_execution", "resource_management"],
-        evolutionPath: "basic → optimized"
+        evolutionPath: "basic → optimized",
     },
     integration: {
         tier: "tier3",
         producedEvents: ["tier3.execution.completed"],
-        consumedEvents: ["tier2.step.ready"]
+        consumedEvents: ["tier2.step.ready"],
     },
     executionMetadata: {
         supportedStrategies: ["conversational", "deterministic"],
@@ -95,9 +107,9 @@ const simpleExecutionFixture: ExecutionContextFixture = {
         performanceCharacteristics: {
             latency: "low",
             throughput: "high", 
-            resourceUsage: "optimized"
-        }
-    }
+            resourceUsage: "optimized",
+        },
+    },
 };
 
 describe("Execution Fixture Design Validation", () => {
@@ -133,7 +145,7 @@ describe("Execution Fixture Design Validation", () => {
         it("should validate chat config", async () => {
             const result = await validateConfigAgainstSchema(
                 simpleSwarmFixture.config,
-                "chat"
+                "chat",
             );
             expect(result.pass).toBe(true);
         });
@@ -141,7 +153,7 @@ describe("Execution Fixture Design Validation", () => {
         it("should validate routine config", async () => {
             const result = await validateConfigAgainstSchema(
                 simpleRoutineFixture.config,
-                "routine"
+                "routine",
             );
             expect(result.pass).toBe(true);
         });
@@ -149,7 +161,7 @@ describe("Execution Fixture Design Validation", () => {
         it("should validate run config", async () => {
             const result = await validateConfigAgainstSchema(
                 simpleExecutionFixture.config,
-                "run"
+                "run",
             );
             expect(result.pass).toBe(true);
         });
@@ -208,7 +220,7 @@ describe("Execution Fixture Design Validation", () => {
             const results = [
                 { pass: true, message: "Test 1 passed" },
                 { pass: true, message: "Test 2 passed" },
-                { pass: false, message: "Test 3 failed", errors: ["Error"] }
+                { pass: false, message: "Test 3 failed", errors: ["Error"] },
             ];
             
             const combined = combineValidationResults(results);
@@ -225,9 +237,9 @@ describe("Execution Fixture Design Validation", () => {
                 "chat",
                 {
                     emergence: {
-                        capabilities: ["custom_capability"]
-                    }
-                }
+                        capabilities: ["custom_capability"],
+                    },
+                },
             );
             
             expect(fixture.config).toBeDefined();
@@ -239,7 +251,7 @@ describe("Execution Fixture Design Validation", () => {
         it("should create benchmark configuration", () => {
             const benchmarkConfig = FixtureCreationUtils.createBenchmarkConfig({
                 maxLatencyMs: 1000,
-                minAccuracy: 0.9
+                minAccuracy: 0.9,
             });
             
             expect(benchmarkConfig.iterations).toBeDefined();

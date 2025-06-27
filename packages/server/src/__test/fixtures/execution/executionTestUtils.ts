@@ -466,9 +466,9 @@ export class ExecutionFixtureFactory<TConfig> {
         private baseFixtures: ExecutionTestFixtures<TConfig>,
         private ConfigClass?: any,
         configType?: string,
-        sharedFixtures?: any
+        sharedFixtures?: any,
     ) {
-        this.configType = configType || 'unknown';
+        this.configType = configType || "unknown";
         this.sharedFixtures = sharedFixtures;
     }
     
@@ -506,7 +506,7 @@ export class ExecutionFixtureFactory<TConfig> {
      */
     createWithSharedFoundation(
         sharedFixtureName: string,
-        overrides?: Partial<ExecutionFixture<TConfig>>
+        overrides?: Partial<ExecutionFixture<TConfig>>,
     ): ExecutionFixture<TConfig> {
         if (!this.sharedFixtures) {
             throw new Error(`No shared fixtures provided for config type '${this.configType}'`);
@@ -569,7 +569,7 @@ export class ExecutionFixtureFactory<TConfig> {
 
         // Create tier-specific variants
         const baseTier = this.inferTierFromConfig();
-        if (baseTier !== 'cross-tier') {
+        if (baseTier !== "cross-tier") {
             variants[`${baseTier}_optimized`] = this.createComplete({
                 integration: { 
                     tier: baseTier,
@@ -577,26 +577,26 @@ export class ExecutionFixtureFactory<TConfig> {
                     consumedEvents: [`${baseTier}.system.optimize_request`],
                 },
                 emergence: {
-                    capabilities: [...(this.baseFixtures.complete.emergence.capabilities || []), 'optimization'],
-                    evolutionPath: 'baseline → optimized → expert',
-                }
+                    capabilities: [...(this.baseFixtures.complete.emergence.capabilities || []), "optimization"],
+                    evolutionPath: "baseline → optimized → expert",
+                },
             });
         }
 
         // Create evolution stage variants for routine configs
-        if (this.configType === 'routine') {
-            const evolutionStages = ['conversational', 'reasoning', 'deterministic'];
+        if (this.configType === "routine") {
+            const evolutionStages = ["conversational", "reasoning", "deterministic"];
             evolutionStages.forEach((stage, index) => {
                 variants[`evolution_${stage}`] = this.createComplete({
                     emergence: {
                         ...this.baseFixtures.complete.emergence,
-                        evolutionPath: evolutionStages.join(' → '),
+                        evolutionPath: evolutionStages.join(" → "),
                         learningMetrics: {
                             performanceImprovement: `stage_${index + 1}_improvement`,
                             adaptationTime: `${Math.max(100 - index * 30, 10)}ms`,
-                            innovationRate: index === 0 ? 'high' : index === 1 ? 'medium' : 'low',
-                        }
-                    }
+                            innovationRate: index === 0 ? "high" : index === 1 ? "medium" : "low",
+                        },
+                    },
                 });
             });
         }
@@ -614,20 +614,20 @@ export class ExecutionFixtureFactory<TConfig> {
         // Validate minimal with enhanced checks
         results.minimal = await this.validateFixtureComprehensive(
             this.baseFixtures.minimal,
-            "minimal"
+            "minimal",
         );
         
         // Validate complete with enhanced checks
         results.complete = await this.validateFixtureComprehensive(
             this.baseFixtures.complete,
-            "complete"
+            "complete",
         );
         
         // Validate all variants
         for (const [name, variant] of Object.entries(this.baseFixtures.variants)) {
             results[`variant_${name}`] = await this.validateFixtureComprehensive(
                 variant,
-                `variant: ${name}`
+                `variant: ${name}`,
             );
         }
 
@@ -638,12 +638,12 @@ export class ExecutionFixtureFactory<TConfig> {
                     const sharedVariant = this.createWithSharedFoundation(sharedName);
                     results[`shared_${sharedName}`] = await this.validateFixtureComprehensive(
                         sharedVariant,
-                        `shared: ${sharedName}`
+                        `shared: ${sharedName}`,
                     );
                 } catch (error) {
                     results[`shared_${sharedName}`] = {
                         pass: false,
-                        message: `Failed to create shared variant: ${error instanceof Error ? error.message : String(error)}`
+                        message: `Failed to create shared variant: ${error instanceof Error ? error.message : String(error)}`,
                     };
                 }
             }
@@ -661,8 +661,8 @@ export class ExecutionFixtureFactory<TConfig> {
                 totalValidations,
                 successRate: passedValidations / totalValidations,
                 configType: this.configType,
-                hasSharedIntegration: !!this.sharedFixtures
-            }
+                hasSharedIntegration: !!this.sharedFixtures,
+            },
         };
         
         return results;
@@ -673,7 +673,7 @@ export class ExecutionFixtureFactory<TConfig> {
      */
     private async validateFixtureComprehensive(
         fixture: ExecutionFixture<TConfig>,
-        description: string
+        description: string,
     ): Promise<ValidationResult> {
         const errors: string[] = [];
         const warnings: string[] = [];
@@ -698,7 +698,7 @@ export class ExecutionFixtureFactory<TConfig> {
                     const roundTripConsistent = JSON.stringify(exported) === JSON.stringify(reexported);
                     validationSteps.roundTrip = {
                         pass: roundTripConsistent,
-                        message: roundTripConsistent ? "Round-trip consistent" : "Round-trip inconsistent"
+                        message: roundTripConsistent ? "Round-trip consistent" : "Round-trip inconsistent",
                     };
                     
                     if (!roundTripConsistent) {
@@ -707,7 +707,7 @@ export class ExecutionFixtureFactory<TConfig> {
                 } catch (error) {
                     validationSteps.roundTrip = {
                         pass: false,
-                        message: `Round-trip test failed: ${error instanceof Error ? error.message : String(error)}`
+                        message: `Round-trip test failed: ${error instanceof Error ? error.message : String(error)}`,
                     };
                     errors.push(`Round-trip test error: ${error instanceof Error ? error.message : String(error)}`);
                 }
@@ -751,17 +751,17 @@ export class ExecutionFixtureFactory<TConfig> {
                             pass: missingKeys.length === 0,
                             message: missingKeys.length === 0 
                                 ? "Shared compatibility validated" 
-                                : `Missing shared keys: ${missingKeys.join(', ')}`
+                                : `Missing shared keys: ${missingKeys.join(", ")}`,
                         };
                         
                         if (missingKeys.length > 0) {
-                            warnings.push(`Shared compatibility issues: ${missingKeys.join(', ')}`);
+                            warnings.push(`Shared compatibility issues: ${missingKeys.join(", ")}`);
                         }
                     }
                 } catch (error) {
                     validationSteps.sharedCompatibility = {
                         pass: false,
-                        message: `Shared compatibility test failed: ${error instanceof Error ? error.message : String(error)}`
+                        message: `Shared compatibility test failed: ${error instanceof Error ? error.message : String(error)}`,
                     };
                     warnings.push(`Shared compatibility test error: ${error instanceof Error ? error.message : String(error)}`);
                 }
@@ -780,15 +780,15 @@ export class ExecutionFixtureFactory<TConfig> {
                     configType: this.configType,
                     hasSharedIntegration: !!this.sharedFixtures,
                     totalSteps: Object.keys(validationSteps).length,
-                    passedSteps: Object.values(validationSteps).filter((step: any) => step.pass).length
-                }
+                    passedSteps: Object.values(validationSteps).filter((step: any) => step.pass).length,
+                },
             };
         } catch (error) {
             return {
                 pass: false,
                 message: `Comprehensive validation error for ${description}: ${error instanceof Error ? error.message : String(error)}`,
                 errors: [error instanceof Error ? error.message : String(error)],
-                data: { validationSteps, description, configType: this.configType }
+                data: { validationSteps, description, configType: this.configType },
             };
         }
     }
@@ -833,8 +833,8 @@ export class ExecutionFixtureFactory<TConfig> {
                 totalFixtures,
                 successRate: passedFixtures / totalFixtures,
                 configType: this.configType,
-                hasSharedIntegration: !!this.sharedFixtures
-            }
+                hasSharedIntegration: !!this.sharedFixtures,
+            },
         };
     }
 

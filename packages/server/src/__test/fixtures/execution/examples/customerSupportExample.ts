@@ -9,11 +9,11 @@
 import { chatConfigFixtures, routineConfigFixtures, runConfigFixtures } from "@vrooli/shared";
 import type { ChatConfigObject, RoutineConfigObject, RunConfigObject } from "@vrooli/shared";
 import { 
-    SwarmFixture,
-    RoutineFixture, 
-    ExecutionContextFixture,
+    type SwarmFixture,
+    type RoutineFixture, 
+    type ExecutionContextFixture,
     FixtureCreationUtils,
-    runComprehensiveExecutionTests
+    runComprehensiveExecutionTests,
 } from "../index.js";
 
 // ================================================================================================
@@ -33,13 +33,13 @@ export const customerSupportSwarmFixture: SwarmFixture = {
             "Route incoming inquiries to appropriate specialists",
             "Escalate complex issues intelligently", 
             "Maintain context across conversation threads",
-            "Learn from interaction patterns to improve response quality"
+            "Learn from interaction patterns to improve response quality",
         ],
         eventSubscriptions: {
             "user.inquiry.received": true,
             "support.escalation.required": true,
-            "quality.feedback.provided": true
-        }
+            "quality.feedback.provided": true,
+        },
     } as ChatConfigObject,
     
     emergence: {
@@ -48,24 +48,24 @@ export const customerSupportSwarmFixture: SwarmFixture = {
             "context_retention", 
             "adaptive_escalation",
             "quality_improvement",
-            "customer_satisfaction"
+            "customer_satisfaction",
         ],
         eventPatterns: [
             "support.*",
             "customer.*", 
-            "quality.*"
+            "quality.*",
         ],
         evolutionPath: "reactive → proactive → predictive",
         emergenceConditions: {
             minAgents: 3,
             requiredResources: ["knowledge_base", "routing_engine", "quality_monitor"],
-            environmentalFactors: ["stable_network", "available_specialists"]
+            environmentalFactors: ["stable_network", "available_specialists"],
         },
         learningMetrics: {
             performanceImprovement: "resolution_time_reduction",
             adaptationTime: "minutes",
-            innovationRate: "continuous"
-        }
+            innovationRate: "continuous",
+        },
     },
     
     integration: {
@@ -74,23 +74,23 @@ export const customerSupportSwarmFixture: SwarmFixture = {
             "tier1.swarm.initialized",
             "tier1.task.decomposed", 
             "tier1.agent.assigned",
-            "tier1.coordination.completed"
+            "tier1.coordination.completed",
         ],
         consumedEvents: [
             "user.inquiry.received",
             "tier2.routine.completed",
-            "tier3.execution.results"
+            "tier3.execution.results",
         ],
         sharedResources: [
             "customer_context_store",
             "knowledge_base_index",
-            "quality_metrics_cache"
+            "quality_metrics_cache",
         ],
         crossTierDependencies: {
             dependsOn: ["event_bus", "resource_manager", "monitoring_system"],
-            provides: ["coordination_intelligence", "task_distribution", "quality_oversight"]
+            provides: ["coordination_intelligence", "task_distribution", "quality_oversight"],
         },
-        mcpTools: ["SpawnSwarm", "ResourceManage", "SendMessage"]
+        mcpTools: ["SpawnSwarm", "ResourceManage", "SendMessage"],
     },
     
     swarmMetadata: {
@@ -102,34 +102,34 @@ export const customerSupportSwarmFixture: SwarmFixture = {
             { role: "technical_specialist", count: 2 },
             { role: "billing_specialist", count: 1 },
             { role: "escalation_handler", count: 1 },
-            { role: "quality_monitor", count: 1 }
-        ]
+            { role: "quality_monitor", count: 1 },
+        ],
     },
     
     validation: {
         emergenceTests: [
             "coordination_emergence",
             "quality_improvement_detection", 
-            "adaptive_routing_validation"
+            "adaptive_routing_validation",
         ],
         integrationTests: [
             "cross_tier_communication",
             "resource_sharing_validation",
-            "event_flow_consistency"
+            "event_flow_consistency",
         ],
         evolutionTests: [
             "performance_improvement_over_time",
             "complexity_reduction_measurement",
-            "predictive_capability_development"
-        ]
+            "predictive_capability_development",
+        ],
     },
     
     metadata: {
         domain: "customer_support",
         complexity: "complex",
         maintainer: "customer_success_team",
-        lastUpdated: new Date().toISOString()
-    }
+        lastUpdated: new Date().toISOString(),
+    },
 };
 
 // ================================================================================================
@@ -151,33 +151,33 @@ export const customerInquiryRoutineFixture: RoutineFixture = {
                 name: "Classify Customer Inquiry", 
                 type: "conversational",
                 inputs: ["customer_message", "conversation_history"],
-                outputs: ["inquiry_category", "urgency_level", "complexity_score"]
+                outputs: ["inquiry_category", "urgency_level", "complexity_score"],
             },
             {
                 id: "route_to_specialist",
                 name: "Route to Appropriate Specialist",
                 type: "conversational", 
                 inputs: ["inquiry_category", "specialist_availability"],
-                outputs: ["assigned_specialist", "estimated_resolution_time"]
+                outputs: ["assigned_specialist", "estimated_resolution_time"],
             },
             {
                 id: "monitor_resolution",
                 name: "Monitor Resolution Progress",
                 type: "conversational",
                 inputs: ["resolution_progress", "customer_feedback"], 
-                outputs: ["satisfaction_score", "improvement_suggestions"]
-            }
+                outputs: ["satisfaction_score", "improvement_suggestions"],
+            },
         ],
         errorHandling: {
             strategy: "graceful_degradation",
             fallbackBehavior: "escalate_to_human",
-            retryAttempts: 3
+            retryAttempts: 3,
         },
         resourceRequirements: {
             computeUnits: "moderate",
             memoryMB: 512,
-            timeoutMs: 30000
-        }
+            timeoutMs: 30000,
+        },
     } as RoutineConfigObject,
     
     emergence: {
@@ -186,24 +186,24 @@ export const customerInquiryRoutineFixture: RoutineFixture = {
             "intelligent_routing",
             "progress_monitoring", 
             "satisfaction_optimization",
-            "pattern_learning"
+            "pattern_learning",
         ],
         eventPatterns: [
             "customer.inquiry.*",
             "specialist.assignment.*",
-            "resolution.progress.*"
+            "resolution.progress.*",
         ],
         evolutionPath: "conversational → reasoning → deterministic",
         emergenceConditions: {
             minAgents: 1,
             requiredResources: ["nlp_processor", "routing_logic", "feedback_analyzer"],
-            environmentalFactors: ["sufficient_training_data", "specialist_availability"]
+            environmentalFactors: ["sufficient_training_data", "specialist_availability"],
         },
         learningMetrics: {
             performanceImprovement: "classification_accuracy_increase",
             adaptationTime: "hours",
-            innovationRate: "moderate"
-        }
+            innovationRate: "moderate",
+        },
     },
     
     integration: {
@@ -212,23 +212,23 @@ export const customerInquiryRoutineFixture: RoutineFixture = {
             "tier2.routine.started",
             "tier2.classification.completed",
             "tier2.routing.decided",
-            "tier2.monitoring.active"
+            "tier2.monitoring.active",
         ],
         consumedEvents: [
             "tier1.task.assigned",
             "customer.message.received",
-            "tier3.tool.results"
+            "tier3.tool.results",
         ],
         sharedResources: [
             "classification_models",
             "routing_rules",
-            "satisfaction_metrics"
+            "satisfaction_metrics",
         ],
         crossTierDependencies: {
             dependsOn: ["tier1_coordination", "tier3_execution"],
-            provides: ["process_orchestration", "adaptive_workflows"]
+            provides: ["process_orchestration", "adaptive_workflows"],
         },
-        mcpTools: ["RunRoutine", "ResourceManage"]
+        mcpTools: ["RunRoutine", "ResourceManage"],
     },
     
     evolutionStage: {
@@ -237,39 +237,39 @@ export const customerInquiryRoutineFixture: RoutineFixture = {
         evolutionTriggers: [
             "classification_accuracy_threshold_reached",
             "routing_pattern_stabilization",
-            "sufficient_training_interactions"
+            "sufficient_training_interactions",
         ],
         performanceMetrics: {
             averageExecutionTime: 5000, // ms
             successRate: 0.87,
-            costPerExecution: 0.12 // dollars
-        }
+            costPerExecution: 0.12, // dollars
+        },
     },
     
     validation: {
         emergenceTests: [
             "classification_capability_emergence",
             "routing_intelligence_development",
-            "adaptation_learning_validation"
+            "adaptation_learning_validation",
         ],
         integrationTests: [
             "tier_communication_validation",
             "resource_utilization_efficiency",
-            "event_sequence_correctness"
+            "event_sequence_correctness",
         ],
         evolutionTests: [
             "stage_transition_readiness",
             "performance_improvement_trending",
-            "complexity_optimization_progress"
-        ]
+            "complexity_optimization_progress",
+        ],
     },
     
     metadata: {
         domain: "customer_support",
         complexity: "medium",
         maintainer: "process_intelligence_team",
-        lastUpdated: new Date().toISOString()
-    }
+        lastUpdated: new Date().toISOString(),
+    },
 };
 
 // ================================================================================================
@@ -289,29 +289,29 @@ export const highPerformanceExecutionFixture: ExecutionContextFixture = {
             {
                 toolId: "nlp_classifier",
                 priority: "high",
-                resourceLimits: { maxMemoryMB: 256, maxTimeoutMs: 5000 }
+                resourceLimits: { maxMemoryMB: 256, maxTimeoutMs: 5000 },
             },
             {
                 toolId: "knowledge_retriever", 
                 priority: "medium",
-                resourceLimits: { maxMemoryMB: 128, maxTimeoutMs: 3000 }
+                resourceLimits: { maxMemoryMB: 128, maxTimeoutMs: 3000 },
             },
             {
                 toolId: "response_generator",
                 priority: "high", 
-                resourceLimits: { maxMemoryMB: 512, maxTimeoutMs: 10000 }
-            }
+                resourceLimits: { maxMemoryMB: 512, maxTimeoutMs: 10000 },
+            },
         ],
         resourceLimits: {
             maxConcurrentTasks: 10,
             maxMemoryMB: 1024,
-            maxExecutionTimeMs: 30000
+            maxExecutionTimeMs: 30000,
         },
         securityContext: {
             isolationLevel: "high",
             permissionModel: "least_privilege",
-            auditingEnabled: true
-        }
+            auditingEnabled: true,
+        },
     } as RunConfigObject,
     
     emergence: {
@@ -320,24 +320,24 @@ export const highPerformanceExecutionFixture: ExecutionContextFixture = {
             "resource_optimization",
             "performance_monitoring",
             "security_enforcement", 
-            "execution_intelligence"
+            "execution_intelligence",
         ],
         eventPatterns: [
             "execution.*",
             "tool.*",
-            "performance.*"
+            "performance.*",
         ],
         evolutionPath: "basic → optimized → autonomous",
         emergenceConditions: {
             minAgents: 1,
             requiredResources: ["tool_registry", "resource_monitor", "security_validator"],
-            environmentalFactors: ["stable_infrastructure", "available_compute"]
+            environmentalFactors: ["stable_infrastructure", "available_compute"],
         },
         learningMetrics: {
             performanceImprovement: "execution_latency_reduction",
             adaptationTime: "seconds",
-            innovationRate: "high"
-        }
+            innovationRate: "high",
+        },
     },
     
     integration: {
@@ -346,23 +346,23 @@ export const highPerformanceExecutionFixture: ExecutionContextFixture = {
             "tier3.execution.started",
             "tier3.tool.invoked",
             "tier3.results.generated",
-            "tier3.performance.measured"
+            "tier3.performance.measured",
         ],
         consumedEvents: [
             "tier2.routine.step",
             "tool.availability.updated",
-            "resource.constraint.detected"
+            "resource.constraint.detected",
         ],
         sharedResources: [
             "tool_execution_pool",
             "performance_metrics_store",
-            "security_validation_cache"
+            "security_validation_cache",
         ],
         crossTierDependencies: {
             dependsOn: ["tier2_orchestration", "infrastructure_services"],
-            provides: ["direct_execution", "tool_orchestration", "performance_insights"]
+            provides: ["direct_execution", "tool_orchestration", "performance_insights"],
         },
-        mcpTools: ["DefineTool", "ResourceManage"]
+        mcpTools: ["DefineTool", "ResourceManage"],
     },
     
     executionMetadata: {
@@ -371,34 +371,34 @@ export const highPerformanceExecutionFixture: ExecutionContextFixture = {
         performanceCharacteristics: {
             latency: "low", // < 100ms for tool invocation
             throughput: "high", // > 100 requests/second  
-            resourceUsage: "optimized" // adaptive based on workload
-        }
+            resourceUsage: "optimized", // adaptive based on workload
+        },
     },
     
     validation: {
         emergenceTests: [
             "adaptive_optimization_emergence",
             "intelligent_tool_selection",
-            "performance_learning_validation"
+            "performance_learning_validation",
         ],
         integrationTests: [
             "tool_orchestration_validation",
             "resource_management_efficiency",
-            "security_enforcement_compliance"
+            "security_enforcement_compliance",
         ],
         evolutionTests: [
             "optimization_improvement_measurement",
             "autonomy_development_tracking",
-            "intelligence_sophistication_growth"
-        ]
+            "intelligence_sophistication_growth",
+        ],
     },
     
     metadata: {
         domain: "high_performance_execution",
         complexity: "complex",
         maintainer: "execution_intelligence_team", 
-        lastUpdated: new Date().toISOString()
-    }
+        lastUpdated: new Date().toISOString(),
+    },
 };
 
 // ================================================================================================
@@ -416,7 +416,7 @@ export const completeCustomerSupportScenario = {
     tiers: {
         tier1: customerSupportSwarmFixture,
         tier2: customerInquiryRoutineFixture,
-        tier3: highPerformanceExecutionFixture
+        tier3: highPerformanceExecutionFixture,
     },
     
     expectedFlow: [
@@ -428,7 +428,7 @@ export const completeCustomerSupportScenario = {
         "tier3.execution.tools.invoked",
         "tier3.response.generated", 
         "tier2.monitoring.satisfaction.tracked",
-        "tier1.coordination.completed.successfully"
+        "tier1.coordination.completed.successfully",
     ],
     
     emergentCapabilities: [
@@ -436,7 +436,7 @@ export const completeCustomerSupportScenario = {
         "adaptive_quality_improvement", 
         "predictive_issue_resolution",
         "autonomous_optimization",
-        "compound_intelligence_growth"
+        "compound_intelligence_growth",
     ],
     
     performanceTargets: {
@@ -444,7 +444,7 @@ export const completeCustomerSupportScenario = {
         customerSatisfactionScore: "> 4.5/5.0", 
         firstContactResolutionRate: "> 85%",
         escalationRate: "< 15%",
-        systemUptime: "> 99.9%"
+        systemUptime: "> 99.9%",
     },
     
     learningOutcomes: [
@@ -452,8 +452,8 @@ export const completeCustomerSupportScenario = {
         "More efficient routing decisions", 
         "Better resource utilization patterns",
         "Enhanced predictive capabilities",
-        "Reduced operational costs"
-    ]
+        "Reduced operational costs",
+    ],
 };
 
 // ================================================================================================
@@ -468,21 +468,21 @@ export function demonstrateComprehensiveValidation(): void {
     runComprehensiveExecutionTests(
         customerSupportSwarmFixture,
         "chat",
-        "customer-support-swarm"
+        "customer-support-swarm",
     );
     
     // Validate Tier 2 Routine Fixture
     runComprehensiveExecutionTests(
         customerInquiryRoutineFixture,
         "routine", 
-        "customer-inquiry-routine"
+        "customer-inquiry-routine",
     );
     
     // Validate Tier 3 Execution Fixture
     runComprehensiveExecutionTests(
         highPerformanceExecutionFixture,
         "run",
-        "high-performance-execution"
+        "high-performance-execution",
     );
 }
 
@@ -494,12 +494,12 @@ export function demonstrateEvolutionValidation(): void {
     const evolutionStages = FixtureCreationUtils.createEvolutionSequence(
         customerInquiryRoutineFixture.config,
         "routine",
-        ["conversational", "reasoning", "deterministic"]
+        ["conversational", "reasoning", "deterministic"],
     );
     
     // Validate that each stage shows improvement
     for (let i = 1; i < evolutionStages.length; i++) {
-        const prevStage = evolutionStages[i-1] as any;
+        const prevStage = evolutionStages[i - 1] as any;
         const currStage = evolutionStages[i] as any;
         
         if (prevStage.evolutionStage && currStage.evolutionStage) {
@@ -522,5 +522,5 @@ export const customerSupportExampleFixtures = {
     swarm: customerSupportSwarmFixture,
     routine: customerInquiryRoutineFixture,
     execution: highPerformanceExecutionFixture,
-    scenario: completeCustomerSupportScenario
+    scenario: completeCustomerSupportScenario,
 };

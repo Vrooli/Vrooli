@@ -240,7 +240,7 @@ export class IntegrationTestRunner {
      * Run a complete cross-tier integration scenario
      */
     async runIntegrationScenario(
-        scenario: IntegrationScenario
+        scenario: IntegrationScenario,
     ): Promise<IntegrationTestResult> {
         const startTime = Date.now();
         
@@ -263,7 +263,7 @@ export class IntegrationTestRunner {
                         step,
                         scenario,
                         executionTrace,
-                        mockService
+                        mockService,
                     );
                     executionTrace.push(traceEntry);
                     
@@ -281,27 +281,27 @@ export class IntegrationTestRunner {
             // Validate event flows
             const eventFlowValidation = this.validateEventFlow(
                 scenario.expectedEventFlow,
-                this.eventTracker.getEventHistory()
+                this.eventTracker.getEventHistory(),
             );
             
             // Validate emergence
             const emergenceValidation = this.validateEmergence(
                 scenario.expectedCapabilities,
                 executionTrace,
-                scenario.validationCriteria
+                scenario.validationCriteria,
             );
             
             // Validate cross-tier coordination
             const crossTierValidation = this.validateCrossTierCoordination(
                 scenario.crossTierDependencies || [],
                 executionTrace,
-                this.eventTracker.getEventHistory()
+                this.eventTracker.getEventHistory(),
             );
             
             // Calculate performance metrics
             const performanceMetrics = this.calculatePerformanceMetrics(
                 executionTrace,
-                startTime
+                startTime,
             );
             
             // Determine overall success
@@ -309,7 +309,7 @@ export class IntegrationTestRunner {
                 eventFlowValidation,
                 emergenceValidation,
                 crossTierValidation,
-                issues
+                issues,
             );
             
             // Generate recommendations
@@ -317,7 +317,7 @@ export class IntegrationTestRunner {
                 eventFlowValidation,
                 emergenceValidation,
                 crossTierValidation,
-                performanceMetrics
+                performanceMetrics,
             );
             
             return {
@@ -331,7 +331,7 @@ export class IntegrationTestRunner {
                 detectedCapabilities: emergenceValidation.detectedCapabilities,
                 issues: issues.length > 0 ? issues : undefined,
                 warnings: warnings.length > 0 ? warnings : undefined,
-                recommendations
+                recommendations,
             };
         }, { debug: true, validateResponses: true });
     }
@@ -341,7 +341,7 @@ export class IntegrationTestRunner {
      */
     private setupIntegrationMocks(
         scenario: IntegrationScenario,
-        mockService: any
+        mockService: any,
     ): void {
         for (const tier of scenario.tiers) {
             tier.mockBehaviors.forEach((config, id) => {
@@ -352,8 +352,8 @@ export class IntegrationTestRunner {
                     metadata: {
                         tier: tier.tier,
                         domain: scenario.domain,
-                        scenario: scenario.name
-                    }
+                        scenario: scenario.name,
+                    },
                 });
             });
         }
@@ -364,7 +364,7 @@ export class IntegrationTestRunner {
             mockService.registerBehavior(`cross_tier_${id}`, {
                 pattern: config.pattern,
                 response: config,
-                priority: (config.priority || 10) + 5 // Higher priority for cross-tier
+                priority: (config.priority || 10) + 5, // Higher priority for cross-tier
             });
         });
     }
@@ -376,7 +376,7 @@ export class IntegrationTestRunner {
         step: IntegrationStep,
         scenario: IntegrationScenario,
         previousSteps: ExecutionTrace[],
-        mockService: any
+        mockService: any,
     ): Promise<ExecutionTrace> {
         const stepStartTime = Date.now();
         const eventsEmitted: ExecutionEvent[] = [];
@@ -403,7 +403,7 @@ export class IntegrationTestRunner {
                 step,
                 scenario,
                 eventsConsumed,
-                mockService
+                mockService,
             );
             
             // Extract emitted events
@@ -412,7 +412,7 @@ export class IntegrationTestRunner {
                     eventsEmitted.push(this.createExecutionEvent(
                         eventType,
                         step.tier,
-                        stepResult
+                        stepResult,
                     ));
                 }
             }
@@ -430,7 +430,7 @@ export class IntegrationTestRunner {
                 emergentBehavior,
                 eventsEmitted,
                 eventsConsumed,
-                errors: errors.length > 0 ? errors : undefined
+                errors: errors.length > 0 ? errors : undefined,
             };
             
         } catch (error) {
@@ -443,7 +443,7 @@ export class IntegrationTestRunner {
                 output: null,
                 eventsEmitted,
                 eventsConsumed,
-                errors: [error instanceof Error ? error.message : String(error)]
+                errors: [error instanceof Error ? error.message : String(error)],
             };
         }
     }
@@ -455,7 +455,7 @@ export class IntegrationTestRunner {
         step: IntegrationStep,
         scenario: IntegrationScenario,
         consumedEvents: ExecutionEvent[],
-        mockService: any
+        mockService: any,
     ): Promise<any> {
         const tierConfig = scenario.tiers.find(t => t.tier === step.tier);
         
@@ -468,13 +468,13 @@ export class IntegrationTestRunner {
             model: "gpt-4o-mini",
             messages: [{
                 role: "user",
-                content: this.createTierSpecificContent(step, consumedEvents, scenario.domain)
+                content: this.createTierSpecificContent(step, consumedEvents, scenario.domain),
             }],
             metadata: {
                 tier: step.tier,
                 step: step.name,
-                domain: scenario.domain
-            }
+                domain: scenario.domain,
+            },
         };
         
         // Execute with mock service
@@ -490,7 +490,7 @@ export class IntegrationTestRunner {
     private createTierSpecificContent(
         step: IntegrationStep,
         consumedEvents: ExecutionEvent[],
-        domain: string
+        domain: string,
     ): string {
         const baseContent = `Execute ${step.name} in ${step.tier} for ${domain} domain`;
         
@@ -508,7 +508,7 @@ export class IntegrationTestRunner {
     private processTierSpecificResult(
         tier: string,
         result: any,
-        tierConfig?: IntegrationTier
+        tierConfig?: IntegrationTier,
     ): any {
         const processed = { ...result };
         
@@ -516,7 +516,7 @@ export class IntegrationTestRunner {
         processed.metadata = {
             ...processed.metadata,
             tier,
-            processedAt: new Date().toISOString()
+            processedAt: new Date().toISOString(),
         };
         
         // Add tier-specific processing
@@ -525,7 +525,7 @@ export class IntegrationTestRunner {
                 processed.swarmCoordination = {
                     agentsInvolved: 3,
                     coordinationStrategy: "hierarchical",
-                    taskDelegation: true
+                    taskDelegation: true,
                 };
                 break;
                 
@@ -533,7 +533,7 @@ export class IntegrationTestRunner {
                 processed.routineExecution = {
                     strategy: "reasoning",
                     stepsExecuted: 4,
-                    optimizationApplied: true
+                    optimizationApplied: true,
                 };
                 break;
                 
@@ -541,7 +541,7 @@ export class IntegrationTestRunner {
                 processed.toolExecution = {
                     toolsUsed: result.response?.toolCalls?.length || 0,
                     resourcesConsumed: "moderate",
-                    performanceOptimized: true
+                    performanceOptimized: true,
                 };
                 break;
                 
@@ -549,7 +549,7 @@ export class IntegrationTestRunner {
                 processed.crossTierCoordination = {
                     tiersInvolved: ["tier1", "tier2", "tier3"],
                     synchronizationLatency: 50,
-                    dataConsistency: true
+                    dataConsistency: true,
                 };
                 break;
         }
@@ -563,7 +563,7 @@ export class IntegrationTestRunner {
     private createExecutionEvent(
         eventType: string,
         sourceTier: string,
-        stepResult: any
+        stepResult: any,
     ): ExecutionEvent {
         return {
             id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -576,9 +576,9 @@ export class IntegrationTestRunner {
             deliveryGuarantee: "reliable",
             priority: "medium",
             data: {
-                stepResult: stepResult,
-                sourceTier
-            }
+                stepResult,
+                sourceTier,
+            },
         };
     }
     
@@ -587,7 +587,7 @@ export class IntegrationTestRunner {
      */
     private detectStepEmergence(
         stepResult: any,
-        step: IntegrationStep
+        step: IntegrationStep,
     ): EmergentBehavior | undefined {
         if (!stepResult?.response) return undefined;
         
@@ -599,7 +599,7 @@ export class IntegrationTestRunner {
             { pattern: /adapt|learn|improve|evolve/, type: "adaptive_learning" },
             { pattern: /coordinate|synchronize|collaborate/, type: "coordination" },
             { pattern: /optimize|enhance|streamline/, type: "optimization" },
-            { pattern: /discover|insight|realize|understand/, type: "discovery" }
+            { pattern: /discover|insight|realize|understand/, type: "discovery" },
         ];
         
         for (const { pattern, type } of emergentPatterns) {
@@ -608,7 +608,7 @@ export class IntegrationTestRunner {
                     type,
                     confidence: 0.8,
                     evidence: [content],
-                    relatedCapability: this.mapBehaviorToCapability(type)
+                    relatedCapability: this.mapBehaviorToCapability(type),
                 };
             }
         }
@@ -621,7 +621,7 @@ export class IntegrationTestRunner {
      */
     private validateEventFlow(
         expectedFlows: EventFlowExpectation[],
-        eventHistory: ExecutionEvent[]
+        eventHistory: ExecutionEvent[],
     ): EventFlowValidation {
         const actualFlows: ActualEventFlow[] = [];
         let flowsMatched = 0;
@@ -637,14 +637,14 @@ export class IntegrationTestRunner {
                 eventType: currentEvent.type,
                 latency: nextEvent.timestamp.getTime() - currentEvent.timestamp.getTime(),
                 timestamp: currentEvent.timestamp.getTime(),
-                matched: false
+                matched: false,
             };
             
             // Try to match with expected flows
             const expectedFlow = expectedFlows.find(ef => 
                 ef.eventType === actualFlow.eventType &&
                 ef.fromTier === actualFlow.fromTier &&
-                ef.toTier === actualFlow.toTier
+                ef.toTier === actualFlow.toTier,
             );
             
             if (expectedFlow) {
@@ -674,7 +674,7 @@ export class IntegrationTestRunner {
             flowsTotal: expectedFlows.length,
             averageLatency,
             sequenceValidation,
-            valid
+            valid,
         };
     }
     
@@ -683,7 +683,7 @@ export class IntegrationTestRunner {
      */
     private validateEventSequence(
         expectedFlows: EventFlowExpectation[],
-        actualFlows: ActualEventFlow[]
+        actualFlows: ActualEventFlow[],
     ): SequenceValidation {
         const expectedSequence = expectedFlows
             .filter(ef => ef.sequence !== undefined)
@@ -698,14 +698,14 @@ export class IntegrationTestRunner {
         const sequenceCorrect = JSON.stringify(expectedSequence) === JSON.stringify(actualSequence);
         
         const outOfOrderEvents = actualSequence.filter((event, index) => 
-            expectedSequence[index] !== event
+            expectedSequence[index] !== event,
         );
         
         return {
             expectedSequence,
             actualSequence,
             sequenceCorrect,
-            outOfOrderEvents
+            outOfOrderEvents,
         };
     }
     
@@ -715,19 +715,19 @@ export class IntegrationTestRunner {
     private validateEmergence(
         expectedCapabilities: string[],
         executionTrace: ExecutionTrace[],
-        criteria?: IntegrationValidationCriteria
+        criteria?: IntegrationValidationCriteria,
     ): EmergenceValidation {
         // Simulate interactions for emergence detection
         const mockInteractions = executionTrace.map(trace => ({
             timestamp: new Date(trace.startTime),
             request: trace.input,
             response: trace.output?.response || trace.output,
-            context: { tier: trace.tier, step: trace.step }
+            context: { tier: trace.tier, step: trace.step },
         }));
         
         const emergenceResult = this.emergenceDetector.detectEmergence(
             mockInteractions,
-            expectedCapabilities
+            expectedCapabilities,
         );
         
         const detectedCapabilities = emergenceResult.expectedCapabilities;
@@ -755,7 +755,7 @@ export class IntegrationTestRunner {
             convergenceTime,
             stabilityPeriod,
             crossTierEmergence,
-            valid
+            valid,
         };
     }
     
@@ -793,7 +793,7 @@ export class IntegrationTestRunner {
     private validateCrossTierCoordination(
         expectedDependencies: CrossTierDependency[],
         executionTrace: ExecutionTrace[],
-        eventHistory: ExecutionEvent[]
+        eventHistory: ExecutionEvent[],
     ): CrossTierValidation {
         let satisfiedDependencies = 0;
         
@@ -813,7 +813,7 @@ export class IntegrationTestRunner {
         
         // Count coordination events
         const coordinationEvents = eventHistory.filter(e => 
-            e.category === "coordination" || e.type.includes("coordination")
+            e.category === "coordination" || e.type.includes("coordination"),
         ).length;
         
         // Calculate synchronization latency
@@ -826,7 +826,7 @@ export class IntegrationTestRunner {
         }
         
         const avgTierTimes = Array.from(tierTimes.values()).map(times => 
-            times.reduce((sum, t) => sum + t, 0) / times.length
+            times.reduce((sum, t) => sum + t, 0) / times.length,
         );
         const syncLatency = Math.max(...avgTierTimes) - Math.min(...avgTierTimes);
         
@@ -843,7 +843,7 @@ export class IntegrationTestRunner {
             coordinationEvents,
             syncrhonizationLatency: syncLatency,
             dataConsistency,
-            valid
+            valid,
         };
     }
     
@@ -871,7 +871,7 @@ export class IntegrationTestRunner {
      */
     private calculatePerformanceMetrics(
         executionTrace: ExecutionTrace[],
-        startTime: number
+        startTime: number,
     ): IntegrationPerformanceMetrics {
         const totalExecutionTime = Date.now() - startTime;
         
@@ -880,7 +880,7 @@ export class IntegrationTestRunner {
             tier1: 0,
             tier2: 0,
             tier3: 0,
-            coordination: 0
+            coordination: 0,
         };
         
         for (const trace of executionTrace) {
@@ -899,17 +899,17 @@ export class IntegrationTestRunner {
             trace.eventsEmitted.map(event => {
                 const nextTrace = executionTrace.find(t => 
                     t.startTime > trace.endTime && 
-                    t.eventsConsumed.some(consumed => consumed.type === event.type)
+                    t.eventsConsumed.some(consumed => consumed.type === event.type),
                 );
                 return nextTrace ? nextTrace.startTime - trace.endTime : 0;
-            })
+            }),
         ).filter(latency => latency > 0);
         
         const eventLatency = eventLatencies.length > 0 ? {
             min: Math.min(...eventLatencies),
             max: Math.max(...eventLatencies),
             average: eventLatencies.reduce((sum, l) => sum + l, 0) / eventLatencies.length,
-            p95: this.calculatePercentile(eventLatencies, 0.95)
+            p95: this.calculatePercentile(eventLatencies, 0.95),
         } : { min: 0, max: 0, average: 0, p95: 0 };
         
         return {
@@ -920,8 +920,8 @@ export class IntegrationTestRunner {
             resourceUtilization: {
                 memory: 0.3, // Simulated
                 cpu: 0.4,    // Simulated
-                network: 0.2  // Simulated
-            }
+                network: 0.2,  // Simulated
+            },
         };
     }
     
@@ -932,7 +932,7 @@ export class IntegrationTestRunner {
         eventFlowValidation: EventFlowValidation,
         emergenceValidation: EmergenceValidation,
         crossTierValidation: CrossTierValidation,
-        issues: string[]
+        issues: string[],
     ): boolean {
         return eventFlowValidation.valid &&
                emergenceValidation.valid &&
@@ -947,7 +947,7 @@ export class IntegrationTestRunner {
         eventFlowValidation: EventFlowValidation,
         emergenceValidation: EmergenceValidation,
         crossTierValidation: CrossTierValidation,
-        performanceMetrics: IntegrationPerformanceMetrics
+        performanceMetrics: IntegrationPerformanceMetrics,
     ): string[] {
         const recommendations: string[] = [];
         
@@ -990,7 +990,7 @@ export class IntegrationTestRunner {
             "adaptive_learning": "continuous_improvement",
             "coordination": "multi_agent_coordination",
             "optimization": "performance_optimization",
-            "discovery": "insight_generation"
+            "discovery": "insight_generation",
         };
         return mapping[behaviorType] || behaviorType;
     }

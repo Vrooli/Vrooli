@@ -9,7 +9,7 @@ import type {
     MockBehavior, 
     MockRegistryEntry, 
     AIMockService,
-    MockFactoryResult 
+    MockFactoryResult, 
 } from "../types.js";
 import { createAIMockResponse } from "../factories/responseFactory.js";
 import { createStreamingMock } from "../factories/streamingFactory.js";
@@ -23,7 +23,7 @@ export class MockRegistry implements AIMockService {
     private behaviors: Map<string, MockRegistryEntry> = new Map();
     private stats = {
         totalRequests: 0,
-        behaviorHits: {} as Record<string, number>
+        behaviorHits: {} as Record<string, number>,
     };
     private capturedInteractions: Array<{ request: LLMRequest; response: MockFactoryResult }> = [];
     private debugMode = false;
@@ -57,7 +57,7 @@ export class MockRegistry implements AIMockService {
             id,
             behavior,
             uses: 0,
-            created: new Date()
+            created: new Date(),
         });
         
         this.stats.behaviorHits[id] = 0;
@@ -70,10 +70,10 @@ export class MockRegistry implements AIMockService {
         this.stats.totalRequests++;
         
         if (this.debugMode) {
-            console.log(`[MockRegistry] Executing request:`, {
+            console.log("[MockRegistry] Executing request:", {
                 model: request.model,
                 messageCount: request.messages.length,
-                hasTools: !!request.tools?.length
+                hasTools: !!request.tools?.length,
             });
         }
         
@@ -84,7 +84,7 @@ export class MockRegistry implements AIMockService {
             // Use default response
             const defaultResponse = createAIMockResponse({
                 content: "Mock response (no matching behavior)",
-                model: request.model
+                model: request.model,
             });
             
             this.captureInteraction(request, defaultResponse);
@@ -99,7 +99,7 @@ export class MockRegistry implements AIMockService {
             // Behavior exhausted, use default
             const defaultResponse = createAIMockResponse({
                 content: "Mock response (behavior exhausted)",
-                model: request.model
+                model: request.model,
             });
             
             this.captureInteraction(request, defaultResponse);
@@ -145,7 +145,7 @@ export class MockRegistry implements AIMockService {
         this.behaviors.clear();
         this.stats = {
             totalRequests: 0,
-            behaviorHits: {}
+            behaviorHits: {},
         };
         this.capturedInteractions = [];
         
@@ -164,7 +164,7 @@ export class MockRegistry implements AIMockService {
     } {
         return {
             ...this.stats,
-            averageLatency: 50 // Mock value
+            averageLatency: 50, // Mock value
         };
     }
     

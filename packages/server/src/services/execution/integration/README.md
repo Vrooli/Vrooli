@@ -99,11 +99,11 @@ const tier1 = architecture.getTier1();
 
 const request: TierExecutionRequest<SwarmCoordinationInput> = {
     context: {
-        executionId: generatePk(),
-        swarmId: generatePk(),
+        executionId: generatePK(),
+        swarmId: generatePK(),
         userId: 'user123',
         timestamp: new Date(),
-        correlationId: generatePk(),
+        correlationId: generatePK(),
     },
     input: {
         goal: 'Research and summarize AI trends',

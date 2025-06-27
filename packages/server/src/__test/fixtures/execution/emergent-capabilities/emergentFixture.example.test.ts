@@ -14,18 +14,18 @@ import {
     createEmergenceTestScenarios,
     validateEmergentFixture,
     validateAgentConfig,
-    validateSwarmConfig
+    validateSwarmConfig,
 } from "./emergentValidationUtils.js";
 import {
     EMERGENT_FACTORIES,
     createIntegrationScenario,
-    createEvolutionSequence
+    createEvolutionSequence,
 } from "./EmergentFixtureFactory.js";
 import {
     SECURITY_AGENTS,
     HEALTHCARE_SECURITY_SWARM,
     TEST_LEARNING_EVENTS,
-    createTestEvent
+    createTestEvent,
 } from "./agent-types/emergentAgentFixtures.js";
 
 /**
@@ -38,22 +38,22 @@ describe("Customer Support Swarm Fixture", () => {
                 "customer_satisfaction",
                 "issue_resolution", 
                 "sentiment_analysis",
-                "proactive_support"
+                "proactive_support",
             ],
             learningMetrics: {
                 performanceImprovement: "response_time_reduction",
                 adaptationTime: "15 minutes",
                 innovationRate: "new_solution_per_100_tickets",
-                knowledgeRetention: "30 days"
-            }
-        }
+                knowledgeRetention: "30 days",
+            },
+        },
     });
     
     // Run comprehensive validation tests
     runComprehensiveEmergentTests(
         customerSupportSwarm,
         ChatConfig,
-        "customer-support-swarm"
+        "customer-support-swarm",
     );
     
     // Additional custom tests
@@ -63,7 +63,7 @@ describe("Customer Support Swarm Fixture", () => {
         beforeAll(() => {
             mockEmitter = new MockSocketEmitter({
                 correlationTracking: true,
-                stateTracking: true
+                stateTracking: true,
             });
         });
         
@@ -73,16 +73,16 @@ describe("Customer Support Swarm Fixture", () => {
                 createTestEvent("customer/inquiry", 1, "customer", {
                     message: "How do I reset my password?",
                     sentiment: "frustrated",
-                    priority: "high"
+                    priority: "high",
                 }),
                 createTestEvent("support/response", 2, "support", {
                     response: "I'll help you reset your password right away",
-                    resolution_time: 30
+                    resolution_time: 30,
                 }),
                 createTestEvent("customer/feedback", 1, "customer", {
                     satisfaction: 0.9,
-                    resolved: true
-                })
+                    resolved: true,
+                }),
             ];
             
             // Simulate emergence
@@ -90,7 +90,7 @@ describe("Customer Support Swarm Fixture", () => {
                 customerSupportSwarm,
                 mockEmitter,
                 customerEvents,
-                1000 // 1 second simulation
+                1000, // 1 second simulation
             );
             
             expect(result.emergedCapabilities).toContain("customer_satisfaction");
@@ -105,7 +105,7 @@ describe("Customer Support Swarm Fixture", () => {
                     customerSupportSwarm,
                     mockEmitter,
                     scenario.events,
-                    2000
+                    2000,
                 );
                 
                 // Check expected capabilities emerged
@@ -136,7 +136,7 @@ describe("Customer Inquiry Routine Evolution", () => {
     const evolutionStages = createEvolutionSequence(
         EMERGENT_FACTORIES.routine,
         "customerInquiry",
-        ["conversational", "reasoning", "deterministic"]
+        ["conversational", "reasoning", "deterministic"],
     );
     
     it("should show performance improvement across evolution stages", () => {
@@ -172,15 +172,15 @@ describe("Customer Inquiry Routine Evolution", () => {
                 input: "password reset request",
                 output: "standard password reset response",
                 executionTime: 8000 - (i * 50), // Getting faster
-                pattern_confidence: 0.5 + (i * 0.005) // Growing confidence
-            })
+                pattern_confidence: 0.5 + (i * 0.005), // Growing confidence
+            }),
         );
         
         const result = await simulateEmergence(
             routineFixture,
             mockEmitter,
             patternEvents,
-            5000
+            5000,
         );
         
         // Should detect optimization opportunity
@@ -196,13 +196,13 @@ describe("Healthcare Compliance Integration", () => {
         domain: "healthcare",
         tiers: ["tier1", "tier2", "tier3"],
         capabilities: ["hipaa_compliance", "privacy_protection", "audit_automation"],
-        complexity: "complex"
+        complexity: "complex",
     });
     
     it("should maintain HIPAA compliance across all tiers", async () => {
         const mockEmitter = new MockSocketEmitter({
             simulateNetwork: true,
-            networkCondition: "fiber"
+            networkCondition: "fiber",
         });
         
         // Simulate healthcare data flow
@@ -210,28 +210,28 @@ describe("Healthcare Compliance Integration", () => {
             createTestEvent("ai/medical/diagnosis", 3, "security", {
                 patientData: "REDACTED",
                 diagnosis: "General health assessment",
-                phi_detected: false
+                phi_detected: false,
             }, { securityLevel: "confidential" }),
             
             createTestEvent("data/patient/access", 2, "security", {
                 accessor: "Dr. Smith",
                 purpose: "treatment",
                 dataTypes: ["vitals", "history"],
-                authorized: true
+                authorized: true,
             }, { complianceRequired: true }),
             
             createTestEvent("audit/medical/created", 1, "security", {
                 event: "patient_data_access",
                 compliant: true,
-                violations: []
-            })
+                violations: [],
+            }),
         ];
         
         const result = await simulateEmergence(
             healthcareScenario.integration,
             mockEmitter,
             healthcareEvents,
-            3000
+            3000,
         );
         
         // Check compliance capabilities emerged
@@ -248,7 +248,7 @@ describe("Healthcare Compliance Integration", () => {
         it("should have valid tier1 swarm", async () => {
             const validation = await validateEmergentFixture(
                 healthcareScenario.tier1!,
-                ChatConfig
+                ChatConfig,
             );
             expect(validation.isValid).toBe(true);
             expect(validation.overallScore).toBeGreaterThanOrEqual(0.9);
@@ -257,7 +257,7 @@ describe("Healthcare Compliance Integration", () => {
         it("should have valid tier2 routine", async () => {
             const validation = await validateEmergentFixture(
                 healthcareScenario.tier2!,
-                RoutineConfig
+                RoutineConfig,
             );
             expect(validation.isValid).toBe(true);
         });
@@ -265,7 +265,7 @@ describe("Healthcare Compliance Integration", () => {
         it("should have valid tier3 execution", async () => {
             const validation = await validateEmergentFixture(
                 healthcareScenario.tier3!,
-                RunConfig
+                RunConfig,
             );
             expect(validation.isValid).toBe(true);
         });
@@ -305,9 +305,9 @@ describe("Financial Optimization Agent", () => {
             learningMetrics: {
                 performanceImprovement: "cost_per_transaction",
                 adaptationTime: "1 hour",
-                innovationRate: "optimization_per_day"
-            }
-        }
+                innovationRate: "optimization_per_day",
+            },
+        },
     });
     
     it("should detect cost optimization opportunities", async () => {
@@ -320,17 +320,17 @@ describe("Financial Optimization Agent", () => {
                 breakdown: {
                     unnecessary_api_calls: 45.00,
                     redundant_processing: 30.00,
-                    inefficient_caching: 25.00
+                    inefficient_caching: 25.00,
                 },
-                optimization_potential: 0.67
-            })
+                optimization_potential: 0.67,
+            }),
         ];
         
         const result = await simulateEmergence(
             optimizationAgent,
             mockEmitter,
             costEvents,
-            1000
+            1000,
         );
         
         expect(result.emergedCapabilities).toContain("cost_reduction");
@@ -345,8 +345,8 @@ describe("Resilience Agent Evolution", () => {
     const resilienceFixture = EMERGENT_FACTORIES.execution.createVariant("resourceConstrained", {
         emergence: {
             capabilities: ["graceful_degradation", "self_healing", "predictive_scaling"],
-            eventPatterns: ["failure/*", "recovery/*", "resource/*"]
-        }
+            eventPatterns: ["failure/*", "recovery/*", "resource/*"],
+        },
     });
     
     it("should handle cascading failures gracefully", async () => {
@@ -357,25 +357,25 @@ describe("Resilience Agent Evolution", () => {
             createTestEvent("failure/service", 3, "failure", {
                 service: "payment_processor",
                 type: "timeout",
-                impact: "high"
+                impact: "high",
             }),
             createTestEvent("failure/circuit_breaker", 2, "failure", {
                 service: "payment_processor",
                 state: "open",
-                fallback: "cache"
+                fallback: "cache",
             }),
             createTestEvent("recovery/started", 3, "recovery", {
                 strategy: "graceful_degradation",
                 services_affected: ["payment_processor"],
-                alternate_path: true
-            })
+                alternate_path: true,
+            }),
         ];
         
         const result = await simulateEmergence(
             resilienceFixture,
             mockEmitter,
             failureEvents,
-            2000
+            2000,
         );
         
         expect(result.emergedCapabilities).toContain("graceful_degradation");
@@ -405,8 +405,8 @@ describe("Factory Variants", () => {
         const base = EMERGENT_FACTORIES.routine.createMinimal();
         const override = {
             emergence: {
-                capabilities: ["custom_capability"]
-            }
+                capabilities: ["custom_capability"],
+            },
         };
         
         const merged = EMERGENT_FACTORIES.routine.create(override);
@@ -426,14 +426,14 @@ describe("Event Pattern Learning", () => {
             learningMetrics: {
                 performanceImprovement: "pattern_accuracy",
                 adaptationTime: "real-time",
-                innovationRate: "patterns_per_hour"
-            }
-        }
+                innovationRate: "patterns_per_hour",
+            },
+        },
     });
     
     it("should learn from event sequences", async () => {
         const mockEmitter = new MockSocketEmitter({
-            correlationTracking: true
+            correlationTracking: true,
         });
         
         // Create correlated event sequence
@@ -441,23 +441,23 @@ describe("Event Pattern Learning", () => {
         const eventSequence = [
             createTestEvent("system/load_high", 1, "system", 
                 { cpu: 0.85, memory: 0.75 }, 
-                { metadata: { correlationId } }
+                { metadata: { correlationId } },
             ),
             createTestEvent("performance/degradation", 2, "performance",
                 { latency: 2500, normal: 500 },
-                { metadata: { correlationId } }
+                { metadata: { correlationId } },
             ),
             createTestEvent("error/timeout", 3, "error",
                 { service: "api", count: 15 },
-                { metadata: { correlationId } }
-            )
+                { metadata: { correlationId } },
+            ),
         ];
         
         const result = await simulateEmergence(
             patternLearningAgent,
             mockEmitter,
             eventSequence,
-            1000
+            1000,
         );
         
         // Should recognize the pattern
@@ -479,7 +479,7 @@ describe("Fixture Complexity Levels", () => {
         
         // Minimal should have fewer capabilities
         expect(minimal.emergence.capabilities.length).toBeLessThan(
-            complete.emergence.capabilities.length
+            complete.emergence.capabilities.length,
         );
         
         // Minimal should not have optional fields
@@ -517,8 +517,8 @@ describe("Type Safety", () => {
                 // chatConfigFixtures properties
                 __version: "1.0.0",
                 id: "test-chat",
-                name: "Test Chat"
-            }
+                name: "Test Chat",
+            },
         });
         
         expect(valid).toBeDefined();
@@ -528,7 +528,7 @@ describe("Type Safety", () => {
         const unknown: unknown = {
             config: { __version: "1.0.0" },
             emergence: { capabilities: ["test"] },
-            integration: { tier: "tier1" }
+            integration: { tier: "tier1" },
         };
         
         const isValid = EMERGENT_FACTORIES.swarm.isValid(unknown);

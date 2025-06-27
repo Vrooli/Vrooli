@@ -250,7 +250,7 @@ export class AdaptiveSecurityScenarioRunner {
     ): Promise<number> {
         const startTime = Date.now();
         let mitigated = 0;
-        let threatIndex = 0;
+        const threatIndex = 0;
 
         while (Date.now() - startTime < duration) {
             // Apply threats according to their timing

@@ -1,4 +1,16 @@
 /**
+ * @deprecated DEPRECATED - This file will be removed as part of the event system redesign.
+ * 
+ * This component is being replaced by the unified event system that provides:
+ * - MQTT-style hierarchical topics (execution/metrics/*, execution/events/*)
+ * - Consistent BaseEvent format across all components
+ * - Delivery guarantees (fire-and-forget, reliable, barrier-sync)
+ * - Agent extensibility for emergent capabilities
+ * 
+ * Raw metrics and execution events will be emitted through the new event system.
+ * 
+ * See: /docs/plans/event-system-redesign.md for the migration plan.
+ * 
  * Execution Event Emitter - Minimal event emission for monitoring
  * 
  * This component replaces the complex UnifiedMonitoringService with simple

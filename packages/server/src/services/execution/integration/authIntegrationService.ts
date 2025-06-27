@@ -1,6 +1,7 @@
 import { type PrismaClient } from "@prisma/client";
 import { type Logger } from "winston";
 import { getUserLanguages } from "../../../auth/request.js";
+import { type IEventBus, EventUtils } from "../../events/index.js";
 
 /**
  * User data for execution context
@@ -28,17 +29,26 @@ export interface ExecutionUserData {
 /**
  * Authentication Integration Service
  * 
- * This service provides user authentication and authorization capabilities
- * for the execution architecture, integrating with Vrooli's existing
- * user management and permission systems.
+ * This service provides user authentication and emits access attempt events
+ * for security agents to evaluate. It integrates with Vrooli's existing
+ * user management systems while enabling fully emergent security decisions.
+ * 
+ * IMPORTANT: This service does NOT make security decisions. It only:
+ * 1. Fetches user data and context
+ * 2. Emits access attempt events
+ * 3. Waits for security agent responses via barrier-sync
+ * 
+ * All security intelligence emerges from agent behaviors.
  */
 export class AuthIntegrationService {
     private readonly prisma: PrismaClient;
     private readonly logger: Logger;
+    private readonly eventBus: IEventBus;
 
-    constructor(prisma: PrismaClient, logger: Logger) {
+    constructor(prisma: PrismaClient, logger: Logger, eventBus: IEventBus) {
         this.prisma = prisma;
         this.logger = logger;
+        this.eventBus = eventBus;
     }
 
     /**
@@ -279,31 +289,55 @@ export class AuthIntegrationService {
     }
 
     /**
-     * Checks if user can execute a specific routine
+     * Emits an access attempt event and waits for security agent decisions
      */
     async canUserExecuteRoutine(
         userId: string,
         routineId: string,
     ): Promise<{ allowed: boolean; reason?: string }> {
-        this.logger.debug("[AuthIntegrationService] Checking routine execution permission", {
+        this.logger.debug("[AuthIntegrationService] Emitting routine access attempt event", {
             userId,
             routineId,
         });
 
         try {
-            // Get user data
+            // Get user data and routine data for context
             const userData = await this.getUserData(userId);
             if (!userData) {
-                return { allowed: false, reason: "User not found" };
+                // Even for missing users, emit the event so agents can track attempts
+                const noUserEvent = EventUtils.createBaseEvent(
+                    "access/attempt/routine",
+                    {
+                        userId,
+                        routineId,
+                        userExists: false,
+                        resource: "routine",
+                        action: "execute",
+                        context: {
+                            timestamp: new Date(),
+                            source: "execution",
+                        },
+                    },
+                    EventUtils.createEventSource("cross-cutting", "AuthIntegrationService"),
+                    EventUtils.createEventMetadata("barrier-sync", "high", {
+                        barrierConfig: {
+                            quorum: 1,
+                            timeoutMs: 5000,
+                            timeoutAction: "auto-reject",
+                            requiredResponders: ["security_agent"],
+                        },
+                        userId,
+                    }),
+                );
+
+                const result = await this.eventBus.publishBarrierSync(noUserEvent as any);
+                return {
+                    allowed: result.success,
+                    reason: result.success ? undefined : "User not found",
+                };
             }
 
-            // Check basic permissions
-            if (!userData.permissions.canExecuteRoutines) {
-                return { allowed: false, reason: "User cannot execute routines" };
-            }
-
-            // Check routine access (implemented in routine storage service)
-            // This is a simplified check - the full check should be in RoutineStorageService
+            // Get routine information
             const resourceVersion = await this.prisma.resource_version.findFirst({
                 where: {
                     OR: [
@@ -316,41 +350,94 @@ export class AuthIntegrationService {
                 },
             });
 
-            if (!resourceVersion) {
-                return { allowed: false, reason: "Routine not found" };
-            }
+            // Create access attempt event with full context
+            const accessEvent = EventUtils.createBaseEvent(
+                "access/attempt/routine",
+                {
+                    userId: userData.id,
+                    routineId,
+                    resource: "routine",
+                    action: "execute",
+                    context: {
+                        userPermissions: userData.permissions,
+                        userTeams: userData.teamMemberships.map(tm => tm.teamId),
+                        userLanguages: userData.languages,
+                        routineExists: !!resourceVersion,
+                        routineOwner: resourceVersion?.root.ownedByUserId?.toString(),
+                        routineTeam: resourceVersion?.root.ownedByTeamId?.toString(),
+                        routineIsPrivate: resourceVersion?.root.isPrivate,
+                        timestamp: new Date(),
+                        source: "execution",
+                    },
+                },
+                EventUtils.createEventSource("cross-cutting", "AuthIntegrationService"),
+                EventUtils.createEventMetadata("barrier-sync", "high", {
+                    barrierConfig: {
+                        quorum: 1,
+                        timeoutMs: 5000,
+                        timeoutAction: "auto-reject",
+                        requiredResponders: ["security_agent"],
+                    },
+                    userId: userData.id,
+                }),
+            );
 
-            const resource = resourceVersion.root;
+            // Publish barrier-sync event and wait for security agent responses
+            const result = await this.eventBus.publishBarrierSync(accessEvent as any);
 
-            // Owner can always execute
-            if (resource.ownedByUserId === BigInt(userId)) {
+            // Aggregate agent responses
+            if (result.success) {
+                this.logger.info("[AuthIntegrationService] Access granted by security agents", {
+                    userId,
+                    routineId,
+                    responses: result.responses.length,
+                    duration: result.duration,
+                });
                 return { allowed: true };
-            }
+            } else {
+                // Extract denial reasons from agent responses
+                const denialReasons = result.responses
+                    .filter(r => r.response === "ALARM")
+                    .map(r => r.reason)
+                    .filter(Boolean);
 
-            // Check team membership
-            if (resource.ownedByTeamId) {
-                const teamMembership = userData.teamMemberships.find(
-                    tm => tm.teamId === resource.ownedByTeamId!.toString(),
-                );
-                if (teamMembership) {
-                    return { allowed: true };
-                }
-            }
+                const reason = denialReasons.length > 0
+                    ? denialReasons.join("; ")
+                    : result.timedOut
+                        ? "Security check timed out"
+                        : "Access denied by security policy";
 
-            // Check if public
-            if (!resource.isPrivate) {
-                return { allowed: true };
-            }
+                this.logger.warn("[AuthIntegrationService] Access denied by security agents", {
+                    userId,
+                    routineId,
+                    reason,
+                    responses: result.responses,
+                });
 
-            return { allowed: false, reason: "Access denied to private routine" };
+                return { allowed: false, reason };
+            }
 
         } catch (error) {
-            this.logger.error("[AuthIntegrationService] Permission check failed", {
+            this.logger.error("[AuthIntegrationService] Failed to check access permission", {
                 userId,
                 routineId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            return { allowed: false, reason: "Permission check failed" };
+
+            // In case of errors, emit an error event and default to deny
+            await this.eventBus.publish(EventUtils.createBaseEvent(
+                "access/error",
+                {
+                    userId,
+                    routineId,
+                    resource: "routine",
+                    action: "execute",
+                    error: error instanceof Error ? error.message : String(error),
+                },
+                EventUtils.createEventSource("cross-cutting", "AuthIntegrationService"),
+            ));
+
+            return { allowed: false, reason: "Access check failed due to system error" };
         }
     }
 
@@ -362,7 +449,7 @@ export class AuthIntegrationService {
         const englishTranslation = user.translations?.find(
             (t: any) => t.language.code === "en",
         );
-        
+
         if (englishTranslation?.name) {
             return englishTranslation.name;
         }
@@ -451,7 +538,7 @@ export class AuthIntegrationService {
     private parseApiKeyPermissions(permissions: any): Partial<ExecutionUserData["permissions"]> {
         try {
             const perms = typeof permissions === "string" ? JSON.parse(permissions) : permissions;
-            
+
             return {
                 canExecuteRoutines: perms.execution?.allowed !== false,
                 canCreateSwarms: perms.swarms?.allowed !== false,

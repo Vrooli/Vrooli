@@ -1,5 +1,5 @@
 import { MCPRegistry } from "../../../../services/mcp/registry.js";
-import { MCPTool } from "../../../../services/mcp/tools.js";
+import { type MCPTool } from "../../../../services/mcp/tools.js";
 import { logger } from "../../../../services/logger.js";
 
 export interface RegistryFixture {

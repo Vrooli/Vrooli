@@ -376,7 +376,7 @@ async function genSitemapForObject(
         const sitemapFileName = `${objectType}-${sitemapFileNames.length}.xml.gz`;
         try {
             const buffer = zlib.gzipSync(sitemap);
-            fs.writeFileSync(`${sitemapDir}/${sitemapFileName}`, buffer);
+            fs.writeFileSync(`${sitemapDir}/${sitemapFileName}`, buffer as unknown as Uint8Array);
             // Add sitemap file name to array only after successful write
             sitemapFileNames.push(sitemapFileName);
         } catch (error) {

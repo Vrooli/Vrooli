@@ -1,5 +1,5 @@
-import { ToolApprovalManager } from "../../../../services/execution/cross-cutting/approval/toolApprovalManager.js";
-import { EventPublisher } from "../../../../services/execution/shared/EventPublisher.js";
+import { type ToolApprovalManager } from "../../../../services/execution/cross-cutting/approval/toolApprovalManager.js";
+import { type EventPublisher } from "../../../../services/execution/shared/EventPublisher.js";
 import { logger } from "../../../../services/logger.js";
 
 export interface ApprovalScenario {
@@ -279,7 +279,7 @@ export class ApprovalWorkflowFixture {
 
     private async waitForApprovalDecision(
         requestId: string,
-        timeout: number = 10000,
+        timeout = 10000,
     ): Promise<ApprovalDecision> {
         const startTime = Date.now();
 

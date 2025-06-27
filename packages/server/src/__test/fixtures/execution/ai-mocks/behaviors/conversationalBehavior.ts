@@ -9,7 +9,7 @@ import type {
     AIMockConfig, 
     StatefulMockConfig, 
     DynamicMockConfig,
-    ConversationMockState 
+    ConversationMockState, 
 } from "../types.js";
 import { aiSuccessFixtures } from "../fixtures/successResponses.js";
 
@@ -21,7 +21,7 @@ export function createConversationalMock(
         personality?: "helpful" | "technical" | "casual" | "formal";
         memoryLimit?: number;
         contextAware?: boolean;
-    }
+    },
 ): StatefulMockConfig<ConversationMockState> {
     const personality = config?.personality || "helpful";
     const memoryLimit = config?.memoryLimit || 10;
@@ -32,7 +32,7 @@ export function createConversationalMock(
             messages: [],
             context: {},
             turnCount: 0,
-            totalTokens: 0
+            totalTokens: 0,
         },
         
         behavior: (request: LLMRequest, state: ConversationMockState): AIMockConfig => {
@@ -52,14 +52,14 @@ export function createConversationalMock(
                 userMessage.content,
                 personality,
                 state,
-                contextAware
+                contextAware,
             );
             
             // Update state with conversation history
             state.messages = [
                 ...state.messages.slice(-memoryLimit + 2),
                 userMessage,
-                { role: "assistant", content: response.content || "" }
+                { role: "assistant", content: response.content || "" },
             ];
             
             state.totalTokens += response.tokensUsed || 100;
@@ -73,7 +73,7 @@ export function createConversationalMock(
             state.context = { ...state.context, ...entities };
             
             return state;
-        }
+        },
     };
 }
 
@@ -91,7 +91,7 @@ export function createDynamicConversationalMock(): DynamicMockConfig {
             if (/^(hi|hello|hey|good\s+(morning|afternoon|evening))/i.test(lastMessage)) {
                 return {
                     content: getContextualGreeting(),
-                    confidence: 0.95
+                    confidence: 0.95,
                 };
             }
             
@@ -100,7 +100,7 @@ export function createDynamicConversationalMock(): DynamicMockConfig {
                 return {
                     content: "I'd be happy to help answer your question. Let me provide you with the information you're looking for.",
                     confidence: 0.88,
-                    reasoning: "User asked a direct question, providing helpful response"
+                    reasoning: "User asked a direct question, providing helpful response",
                 };
             }
             
@@ -122,7 +122,7 @@ export function createDynamicConversationalMock(): DynamicMockConfig {
             return null;
         },
         
-        fallback: aiSuccessFixtures.standardResponse()
+        fallback: aiSuccessFixtures.standardResponse(),
     };
 }
 
@@ -137,7 +137,7 @@ export function createFlowAwareMock(): StatefulMockConfig<{
     return {
         initialState: {
             depth: 0,
-            previousIntents: []
+            previousIntents: [],
         },
         
         behavior: (request, state) => {
@@ -149,7 +149,7 @@ export function createFlowAwareMock(): StatefulMockConfig<{
                 return {
                     content: `I see we're shifting from ${state.topic} to ${intent}. Let me help you with that.`,
                     confidence: 0.85,
-                    metadata: { topicTransition: true }
+                    metadata: { topicTransition: true },
                 };
             }
             
@@ -165,10 +165,10 @@ export function createFlowAwareMock(): StatefulMockConfig<{
                 confidence: 0.8 + (detailLevel * 0.1),
                 metadata: {
                     conversationDepth: state.depth,
-                    currentTopic: intent
-                }
+                    currentTopic: intent,
+                },
             };
-        }
+        },
     };
 }
 
@@ -185,7 +185,7 @@ export function createEmotionallyAwareMock(): DynamicMockConfig {
                 return {
                     content: "I understand this might be frustrating. Let me help you resolve this issue step by step.",
                     confidence: 0.9,
-                    metadata: { detectedEmotion: "frustration" }
+                    metadata: { detectedEmotion: "frustration" },
                 };
             }
             
@@ -194,7 +194,7 @@ export function createEmotionallyAwareMock(): DynamicMockConfig {
                 return {
                     content: "Great! I'm glad to help with this. Your enthusiasm is wonderful!",
                     confidence: 0.92,
-                    metadata: { detectedEmotion: "positive" }
+                    metadata: { detectedEmotion: "positive" },
                 };
             }
             
@@ -203,12 +203,12 @@ export function createEmotionallyAwareMock(): DynamicMockConfig {
                 return {
                     content: "Let me clarify this for you. I'll break it down into simpler terms.",
                     confidence: 0.87,
-                    reasoning: "Detected confusion in user message, providing clarification"
+                    reasoning: "Detected confusion in user message, providing clarification",
                 };
             }
             
             return null;
-        }
+        },
     };
 }
 
@@ -219,26 +219,26 @@ function generatePersonalityResponse(
     message: string,
     personality: string,
     state: ConversationMockState,
-    contextAware: boolean
+    contextAware: boolean,
 ): AIMockConfig {
     const responses: Record<string, () => AIMockConfig> = {
         helpful: () => ({
             content: `I'd be happy to help with that! ${contextAware && state.turnCount > 1 ? "Building on our previous discussion, " : ""}Let me assist you.`,
-            confidence: 0.9
+            confidence: 0.9,
         }),
         technical: () => ({
             content: `From a technical perspective, ${message.toLowerCase().includes("implementation") ? "the implementation approach" : "this solution"} involves several key considerations.`,
             confidence: 0.93,
-            model: "gpt-4o"
+            model: "gpt-4o",
         }),
         casual: () => ({
             content: `Sure thing! ${state.turnCount > 2 ? "We've been chatting for a bit now, and " : ""}I've got you covered.`,
-            confidence: 0.85
+            confidence: 0.85,
         }),
         formal: () => ({
             content: `Thank you for your inquiry. ${contextAware && state.context.userName ? `${state.context.userName}, ` : ""}I shall provide you with the requested information.`,
-            confidence: 0.91
-        })
+            confidence: 0.91,
+        }),
     };
     
     return responses[personality]?.() || aiSuccessFixtures.standardResponse();
@@ -282,7 +282,7 @@ function detectIntent(request: LLMRequest): string {
         { pattern: /create|build|make|generate/i, intent: "creation" },
         { pattern: /fix|debug|error|issue/i, intent: "troubleshooting" },
         { pattern: /optimize|improve|enhance/i, intent: "optimization" },
-        { pattern: /test|verify|check/i, intent: "testing" }
+        { pattern: /test|verify|check/i, intent: "testing" },
     ];
     
     for (const { pattern, intent } of intents) {
@@ -316,7 +316,7 @@ function generateDepthAwareResponse(intent: string, detailLevel: number): string
             : "Let's set up some tests.",
         general: (level) => level > 0.7
             ? "I'll provide a detailed response addressing all aspects of your query."
-            : "I'll help you with that."
+            : "I'll help you with that.",
     };
     
     return templates[intent]?.(detailLevel) || templates.general(detailLevel);
@@ -348,6 +348,6 @@ function analyzeSentiment(request: LLMRequest): {
     
     return {
         score: Math.max(-1, Math.min(1, score)),
-        isConfused
+        isConfused,
     };
 }

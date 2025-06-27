@@ -34,10 +34,10 @@ export function createIntelligentToolSelector(): DynamicMockConfig {
                 metadata: {
                     availableTools: request.tools.length,
                     selectedTools: toolCalls.length,
-                    selectionStrategy: "relevance-based"
-                }
+                    selectionStrategy: "relevance-based",
+                },
             };
-        }
+        },
     };
 }
 
@@ -51,7 +51,7 @@ export function createOptimizedToolExecutor(): StatefulMockConfig<{
     return {
         initialState: {
             toolPerformance: new Map(),
-            parallelizationEnabled: true
+            parallelizationEnabled: true,
         },
         
         behavior: (request, state) => {
@@ -64,7 +64,7 @@ export function createOptimizedToolExecutor(): StatefulMockConfig<{
                 query,
                 request.tools,
                 state.toolPerformance,
-                state.parallelizationEnabled
+                state.parallelizationEnabled,
             );
             
             // Update performance metrics
@@ -72,7 +72,7 @@ export function createOptimizedToolExecutor(): StatefulMockConfig<{
                 const perf = state.toolPerformance.get(step.tool) || {
                     avgTime: 100,
                     successRate: 1,
-                    calls: 0
+                    calls: 0,
                 };
                 perf.calls++;
                 state.toolPerformance.set(step.tool, perf);
@@ -81,7 +81,7 @@ export function createOptimizedToolExecutor(): StatefulMockConfig<{
             const toolCalls = executionPlan.map(step => ({
                 name: step.tool,
                 arguments: step.arguments,
-                result: step.expectedResult
+                result: step.expectedResult,
             }));
             
             return {
@@ -91,10 +91,10 @@ export function createOptimizedToolExecutor(): StatefulMockConfig<{
                     executionStrategy: "optimized",
                     parallelSteps: executionPlan.filter(s => s.parallel).length,
                     sequentialSteps: executionPlan.filter(s => !s.parallel).length,
-                    estimatedTime: calculateEstimatedTime(executionPlan, state.toolPerformance)
-                }
+                    estimatedTime: calculateEstimatedTime(executionPlan, state.toolPerformance),
+                },
             };
-        }
+        },
     };
 }
 
@@ -108,7 +108,7 @@ export function createAdaptiveToolRetry(): StatefulMockConfig<{
     return {
         initialState: {
             toolFailures: new Map(),
-            retryStrategies: new Map()
+            retryStrategies: new Map(),
         },
         
         behavior: (request, state) => {
@@ -136,8 +136,8 @@ export function createAdaptiveToolRetry(): StatefulMockConfig<{
                     metadata: {
                         retryAttempt: failures.count + 1,
                         strategy,
-                        previousError: failures.lastError
-                    }
+                        previousError: failures.lastError,
+                    },
                 };
             }
             
@@ -146,11 +146,11 @@ export function createAdaptiveToolRetry(): StatefulMockConfig<{
                 content: `Using ${requiredTool.name} to ${query}`,
                 toolCalls: [{
                     name: requiredTool.name,
-                    arguments: generateDefaultArguments(requiredTool)
+                    arguments: generateDefaultArguments(requiredTool),
                 }],
-                confidence: 0.9
+                confidence: 0.9,
             };
-        }
+        },
     };
 }
 
@@ -176,16 +176,16 @@ export function createToolComposer(): DynamicMockConfig {
                 toolCalls: compositionPlan.steps.map(step => ({
                     name: step.tool,
                     arguments: step.arguments,
-                    result: step.transforms ? step.transforms(step.previousResult) : undefined
+                    result: step.transforms ? step.transforms(step.previousResult) : undefined,
                 })),
                 reasoning: compositionPlan.reasoning,
                 confidence: compositionPlan.confidence,
                 metadata: {
                     compositionType: compositionPlan.type,
-                    toolCount: compositionPlan.steps.length
-                }
+                    toolCount: compositionPlan.steps.length,
+                },
             };
-        }
+        },
     };
 }
 
@@ -204,8 +204,8 @@ export function createContextAwareToolUser(): StatefulMockConfig<{
             conversationContext: {
                 topics: new Set(),
                 entities: new Map(),
-                preferences: new Map()
-            }
+                preferences: new Map(),
+            },
         },
         
         behavior: (request, state) => {
@@ -220,7 +220,7 @@ export function createContextAwareToolUser(): StatefulMockConfig<{
             const contextualizedTools = selectToolsWithContext(
                 query,
                 request.tools,
-                state.conversationContext
+                state.conversationContext,
             );
             
             return {
@@ -230,19 +230,19 @@ export function createContextAwareToolUser(): StatefulMockConfig<{
                     arguments: enrichArgumentsWithContext(
                         ct.baseArguments,
                         state.conversationContext,
-                        ct.tool
-                    )
+                        ct.tool,
+                    ),
                 })),
                 confidence: 0.88,
                 metadata: {
                     contextFactors: {
                         topics: Array.from(state.conversationContext.topics),
                         entityCount: state.conversationContext.entities.size,
-                        preferencesApplied: contextualizedTools.filter(ct => ct.preferenceApplied).length
-                    }
-                }
+                        preferencesApplied: contextualizedTools.filter(ct => ct.preferenceApplied).length,
+                    },
+                },
             };
-        }
+        },
     };
 }
 
@@ -264,8 +264,8 @@ export function createToolDiscoveryMock(): DynamicMockConfig {
                     confidence: 0.95,
                     metadata: {
                         discoveryType: "explicit-request",
-                        toolCount: tools.length
-                    }
+                        toolCount: tools.length,
+                    },
                 };
             }
             
@@ -278,19 +278,19 @@ export function createToolDiscoveryMock(): DynamicMockConfig {
                         content: `For your task, I can use: ${suggestions.map(s => s.tool).join(", ")}. ${suggestions[0].reason}`,
                         toolCalls: suggestions.slice(0, 1).map(s => ({
                             name: s.tool,
-                            arguments: s.suggestedArgs
+                            arguments: s.suggestedArgs,
                         })),
                         confidence: 0.85,
                         metadata: {
                             discoveryType: "task-based-suggestion",
-                            suggestions: suggestions.map(s => ({ tool: s.tool, reason: s.reason }))
-                        }
+                            suggestions: suggestions.map(s => ({ tool: s.tool, reason: s.reason })),
+                        },
                     };
                 }
             }
             
             return null;
-        }
+        },
     };
 }
 
@@ -318,7 +318,7 @@ function selectRelevantTools(query: string, tools: LLMTool[]): LLMTool[] {
 function planToolExecution(query: string, tools: LLMTool[]): AIMockToolCall[] {
     return tools.map(tool => ({
         name: tool.function.name,
-        arguments: generateDefaultArguments(tool)
+        arguments: generateDefaultArguments(tool),
     }));
 }
 
@@ -343,7 +343,7 @@ function createOptimalExecutionPlan(
     query: string,
     tools: LLMTool[],
     performance: Map<string, any>,
-    allowParallel: boolean
+    allowParallel: boolean,
 ): Array<{
     tool: string;
     arguments: any;
@@ -355,7 +355,7 @@ function createOptimalExecutionPlan(
         tool: tool.function.name,
         arguments: generateDefaultArguments(tool),
         parallel: allowParallel && index > 0,
-        expectedResult: { success: true }
+        expectedResult: { success: true },
     }));
     
     return plan;
@@ -395,7 +395,7 @@ function selectRetryStrategy(toolName: string, failures: { count: number; lastEr
 function applyRetryStrategy(
     tool: LLMTool,
     strategy: string,
-    failures: any
+    failures: any,
 ): AIMockToolCall {
     const baseArgs = generateDefaultArguments(tool);
     
@@ -403,23 +403,23 @@ function applyRetryStrategy(
         case "increase-timeout":
             return {
                 name: tool.function.name,
-                arguments: { ...baseArgs, timeout: 30000 }
+                arguments: { ...baseArgs, timeout: 30000 },
             };
         case "validate-inputs":
             return {
                 name: tool.function.name,
-                arguments: sanitizeArguments(baseArgs)
+                arguments: sanitizeArguments(baseArgs),
             };
         case "exponential-backoff":
             return {
                 name: tool.function.name,
                 arguments: baseArgs,
-                delay: Math.pow(2, failures.count) * 1000
+                delay: Math.pow(2, failures.count) * 1000,
             };
         default:
             return {
                 name: tool.function.name,
-                arguments: baseArgs
+                arguments: baseArgs,
             };
     }
 }
@@ -470,7 +470,7 @@ function sanitizeArguments(args: any): any {
 
 function planToolComposition(
     query: string,
-    tools: LLMTool[]
+    tools: LLMTool[],
 ): {
     type: string;
     description: string;
@@ -493,8 +493,8 @@ function planToolComposition(
             steps: tools.slice(0, 2).map((tool, i) => ({
                 tool: tool.function.name,
                 arguments: generateDefaultArguments(tool),
-                previousResult: i > 0 ? {} : undefined
-            }))
+                previousResult: i > 0 ? {} : undefined,
+            })),
         };
     }
     
@@ -506,8 +506,8 @@ function planToolComposition(
             confidence: 0.82,
             steps: tools.slice(0, 3).map(tool => ({
                 tool: tool.function.name,
-                arguments: generateDefaultArguments(tool)
-            }))
+                arguments: generateDefaultArguments(tool),
+            })),
         };
     }
     
@@ -535,7 +535,7 @@ function updateConversationContext(request: LLMRequest, context: any): void {
 function selectToolsWithContext(
     query: string,
     tools: LLMTool[],
-    context: any
+    context: any,
 ): Array<{
     tool: LLMTool;
     baseArguments: any;
@@ -550,7 +550,7 @@ function selectToolsWithContext(
         .map(tool => ({
             tool,
             baseArguments: generateDefaultArguments(tool),
-            preferenceApplied: false
+            preferenceApplied: false,
         }));
 }
 
@@ -576,7 +576,7 @@ function formatToolDiscoveryResponse(tools: LLMTool[]): string {
     }
     
     const toolList = tools.map(t => 
-        `- ${t.function.name}: ${t.function.description}`
+        `- ${t.function.name}: ${t.function.description}`,
     ).join("\n");
     
     return `I have access to ${tools.length} tools:\n${toolList}`;
@@ -584,7 +584,7 @@ function formatToolDiscoveryResponse(tools: LLMTool[]): string {
 
 function suggestToolsForTask(
     query: string,
-    tools: LLMTool[]
+    tools: LLMTool[],
 ): Array<{
     tool: string;
     reason: string;
@@ -602,7 +602,7 @@ function suggestToolsForTask(
             suggestions.push({
                 tool: tool.function.name,
                 reason: `This tool can ${tool.function.description.toLowerCase()}`,
-                suggestedArgs: generateDefaultArguments(tool)
+                suggestedArgs: generateDefaultArguments(tool),
             });
         }
     });
@@ -614,11 +614,11 @@ function calculateToolRelevance(query: string, tool: LLMTool): number {
     const queryWords = query.toLowerCase().split(/\s+/);
     const toolWords = [
         ...tool.function.name.toLowerCase().split("_"),
-        ...tool.function.description.toLowerCase().split(/\s+/)
+        ...tool.function.description.toLowerCase().split(/\s+/),
     ];
     
     const commonWords = queryWords.filter(word => 
-        toolWords.some(toolWord => toolWord.includes(word) || word.includes(toolWord))
+        toolWords.some(toolWord => toolWord.includes(word) || word.includes(toolWord)),
     );
     
     return commonWords.length / queryWords.length;

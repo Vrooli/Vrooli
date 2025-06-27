@@ -27,12 +27,12 @@ export function createStepByStepReasoning(): DynamicMockConfig {
                     content: conclusion,
                     reasoning: formatReasoningSteps(steps),
                     confidence: calculateConfidence(steps),
-                    model: "o1-mini"
+                    model: "o1-mini",
                 };
             }
             
             return null;
-        }
+        },
     };
 }
 
@@ -46,7 +46,7 @@ export function createSelfImprovingReasoning(): StatefulMockConfig<{
     return {
         initialState: {
             reasoningPatterns: new Map(),
-            feedback: []
+            feedback: [],
         },
         
         behavior: (request, state) => {
@@ -70,11 +70,11 @@ export function createSelfImprovingReasoning(): StatefulMockConfig<{
                     problemType,
                     improvementMetrics: {
                         successRate: pattern.success / Math.max(pattern.attempts, 1),
-                        totalAttempts: pattern.attempts
-                    }
-                }
+                        totalAttempts: pattern.attempts,
+                    },
+                },
             };
-        }
+        },
     };
 }
 
@@ -97,10 +97,10 @@ export function createHypothesisTestingMock(): DynamicMockConfig {
                 confidence: bestHypothesis.confidence,
                 metadata: {
                     hypothesesTested: hypotheses.length,
-                    selectedHypothesis: bestHypothesis.id
-                }
+                    selectedHypothesis: bestHypothesis.id,
+                },
             };
-        }
+        },
     };
 }
 
@@ -123,10 +123,10 @@ export function createCausalReasoningMock(): DynamicMockConfig {
                 confidence: calculateCausalConfidence(causalChain),
                 metadata: {
                     causalDepth: causalChain.length,
-                    rootCause: rootCause.description
-                }
+                    rootCause: rootCause.description,
+                },
             };
-        }
+        },
     };
 }
 
@@ -138,7 +138,7 @@ export function createAnalogicalReasoningMock(): StatefulMockConfig<{
 }> {
     return {
         initialState: {
-            knownPatterns: getDefaultPatterns()
+            knownPatterns: getDefaultPatterns(),
         },
         
         behavior: (request, state) => {
@@ -150,7 +150,7 @@ export function createAnalogicalReasoningMock(): StatefulMockConfig<{
             // Find similar patterns
             const similarities = state.knownPatterns.map(pattern => ({
                 pattern,
-                similarity: calculateSimilarity(currentProblem, pattern.pattern)
+                similarity: calculateSimilarity(currentProblem, pattern.pattern),
             })).sort((a, b) => b.similarity - a.similarity);
             
             const bestMatch = similarities[0];
@@ -160,17 +160,17 @@ export function createAnalogicalReasoningMock(): StatefulMockConfig<{
                     content: `This problem is similar to ${bestMatch.pattern.domain}. ${adaptSolution(bestMatch.pattern.solution, currentProblem)}`,
                     reasoning: `Drawing analogy from ${bestMatch.pattern.domain}:\n` +
                               `- Similar pattern: ${bestMatch.pattern.pattern}\n` +
-                              `- Adapted solution: Applying similar principles to current context`,
+                              "- Adapted solution: Applying similar principles to current context",
                     confidence: bestMatch.similarity,
                     metadata: {
                         analogySource: bestMatch.pattern.domain,
-                        similarityScore: bestMatch.similarity
-                    }
+                        similarityScore: bestMatch.similarity,
+                    },
                 };
             }
             
             return aiReasoningFixtures.stepByStepReasoning();
-        }
+        },
     };
 }
 
@@ -184,7 +184,7 @@ export function createMetacognitiveMock(): StatefulMockConfig<{
     return {
         initialState: {
             thinkingDepth: 0,
-            uncertainties: []
+            uncertainties: [],
         },
         
         behavior: (request, state) => {
@@ -200,17 +200,17 @@ export function createMetacognitiveMock(): StatefulMockConfig<{
             
             return {
                 content: thinkingAnalysis.response,
-                reasoning: `Metacognitive analysis:\n` +
+                reasoning: "Metacognitive analysis:\n" +
                           `- Thinking depth: ${state.thinkingDepth}\n` +
                           `- Confidence in approach: ${thinkingAnalysis.confidence}\n` +
                           `- Key insights: ${thinkingAnalysis.insights.join(", ")}`,
                 confidence: thinkingAnalysis.confidence,
                 metadata: {
                     metacognitionLevel: state.thinkingDepth,
-                    identifiedGaps: state.uncertainties
-                }
+                    identifiedGaps: state.uncertainties,
+                },
             };
-        }
+        },
     };
 }
 
@@ -222,7 +222,7 @@ function requiresReasoning(message: string): boolean {
         /why|how|explain|reasoning|think through|analyze/i,
         /pros and cons|compare|evaluate|decide/i,
         /what would happen if|predict|forecast/i,
-        /solve|calculate|figure out|work out/i
+        /solve|calculate|figure out|work out/i,
     ];
     
     return reasoningTriggers.some(pattern => pattern.test(message));
@@ -278,7 +278,7 @@ function classifyProblem(request: LLMRequest): string {
         { pattern: /why|cause|reason|because/i, type: "causal" },
         { pattern: /how|step|process|procedure/i, type: "procedural" },
         { pattern: /what if|would|could|should/i, type: "hypothetical" },
-        { pattern: /predict|forecast|future|will/i, type: "predictive" }
+        { pattern: /predict|forecast|future|will/i, type: "predictive" },
     ];
     
     for (const { pattern, type } of classifications) {
@@ -290,25 +290,25 @@ function classifyProblem(request: LLMRequest): string {
 
 function selectOptimalStrategy(
     problemType: string,
-    performance: { success: number; attempts: number }
+    performance: { success: number; attempts: number },
 ): { name: string; approach: string } {
     const strategies = {
         mathematical: [
             { name: "algebraic", approach: "systematic equation solving" },
-            { name: "numerical", approach: "iterative approximation" }
+            { name: "numerical", approach: "iterative approximation" },
         ],
         comparative: [
             { name: "criteria-based", approach: "weighted scoring matrix" },
-            { name: "pairwise", approach: "direct feature comparison" }
+            { name: "pairwise", approach: "direct feature comparison" },
         ],
         causal: [
             { name: "root-cause", approach: "5-whys analysis" },
-            { name: "fishbone", approach: "cause-and-effect diagram" }
+            { name: "fishbone", approach: "cause-and-effect diagram" },
         ],
         general: [
             { name: "first-principles", approach: "fundamental reasoning" },
-            { name: "pattern-matching", approach: "similar case analysis" }
-        ]
+            { name: "pattern-matching", approach: "similar case analysis" },
+        ],
     };
     
     const typeStrategies = strategies[problemType as keyof typeof strategies] || strategies.general;
@@ -322,12 +322,12 @@ function selectOptimalStrategy(
 
 function applyReasoningStrategy(
     strategy: { name: string; approach: string },
-    request: LLMRequest
+    request: LLMRequest,
 ): { process: string; conclusion: string; confidence: number } {
     return {
         process: `Applying ${strategy.name} strategy using ${strategy.approach}...`,
         conclusion: `Using ${strategy.approach}, I've determined the optimal solution.`,
-        confidence: 0.85
+        confidence: 0.85,
     };
 }
 
@@ -356,24 +356,24 @@ function generateHypotheses(problem: string): Array<{
         {
             id: "h1",
             hypothesis: "The issue is caused by incorrect configuration",
-            testable: true
+            testable: true,
         },
         {
             id: "h2",
             hypothesis: "The problem stems from resource constraints",
-            testable: true
+            testable: true,
         },
         {
             id: "h3",
             hypothesis: "This is due to external dependencies",
-            testable: true
-        }
+            testable: true,
+        },
     ];
 }
 
 function testHypothesis(
     hypothesis: { id: string; hypothesis: string; testable: boolean },
-    problem: string
+    problem: string,
 ): {
     hypothesis: typeof hypothesis;
     result: "supported" | "rejected" | "inconclusive";
@@ -387,7 +387,7 @@ function testHypothesis(
         hypothesis,
         result: randomResult > 0.7 ? "supported" : randomResult > 0.3 ? "inconclusive" : "rejected",
         evidence: `Testing revealed ${randomResult > 0.7 ? "strong" : "weak"} correlation`,
-        confidence: randomResult
+        confidence: randomResult,
     };
 }
 
@@ -404,25 +404,25 @@ function selectBestHypothesis(testResults: any[]): {
         return {
             id: supported[0].hypothesis.id,
             conclusion: supported[0].hypothesis.hypothesis,
-            confidence: supported[0].confidence
+            confidence: supported[0].confidence,
         };
     }
     
     return {
         id: "none",
         conclusion: "No hypothesis was strongly supported",
-        confidence: 0.5
+        confidence: 0.5,
     };
 }
 
 function formatHypothesisTesting(
     hypotheses: any[],
     results: any[],
-    selected: any
+    selected: any,
 ): string {
     return `Hypothesis testing process:
 ${hypotheses.map((h, i) => 
-    `- ${h.hypothesis}: ${results[i].result} (${(results[i].confidence * 100).toFixed(0)}% confidence)`
+    `- ${h.hypothesis}: ${results[i].result} (${(results[i].confidence * 100).toFixed(0)}% confidence)`,
 ).join("\n")}
 
 Selected: ${selected.conclusion}`;
@@ -431,7 +431,7 @@ Selected: ${selected.conclusion}`;
 function extractScenario(request: LLMRequest): any {
     return {
         description: request.messages.map(m => m.content).join(" "),
-        type: "general"
+        type: "general",
     };
 }
 
@@ -443,7 +443,7 @@ function buildCausalChain(scenario: any): Array<{
     // Simplified causal chain
     return [
         { cause: "Initial condition", effect: "Intermediate state", strength: 0.8 },
-        { cause: "Intermediate state", effect: "Final outcome", strength: 0.9 }
+        { cause: "Intermediate state", effect: "Final outcome", strength: 0.9 },
     ];
 }
 
@@ -479,18 +479,18 @@ function getDefaultPatterns(): Array<{
         {
             domain: "software architecture",
             pattern: "components need loose coupling",
-            solution: "use event-driven architecture or dependency injection"
+            solution: "use event-driven architecture or dependency injection",
         },
         {
             domain: "performance optimization",
             pattern: "system slows under load",
-            solution: "implement caching, optimize queries, or scale horizontally"
+            solution: "implement caching, optimize queries, or scale horizontally",
         },
         {
             domain: "team collaboration",
             pattern: "communication breakdown between teams",
-            solution: "establish clear interfaces and documentation"
-        }
+            solution: "establish clear interfaces and documentation",
+        },
     ];
 }
 
@@ -509,7 +509,7 @@ function adaptSolution(solution: string, problem: string): string {
 
 function analyzeOwnThinking(
     request: LLMRequest,
-    depth: number
+    depth: number,
 ): {
     needsMoreInfo: boolean;
     uncertainty: string;
@@ -528,8 +528,8 @@ function analyzeOwnThinking(
         insights: [
             "Pattern recognized",
             "Multiple factors considered",
-            "Trade-offs evaluated"
-        ]
+            "Trade-offs evaluated",
+        ],
     };
 }
 
@@ -538,7 +538,7 @@ function estimateComplexity(request: LLMRequest): number {
         request.messages.length > 5 ? 0.2 : 0,
         request.messages.some(m => m.content.length > 500) ? 0.3 : 0,
         request.messages.some(m => m.content.includes("complex")) ? 0.2 : 0,
-        request.tools && request.tools.length > 0 ? 0.3 : 0
+        request.tools && request.tools.length > 0 ? 0.3 : 0,
     ];
     
     return factors.reduce((sum, factor) => sum + factor, 0);

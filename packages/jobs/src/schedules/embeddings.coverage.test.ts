@@ -9,30 +9,7 @@ import type { MockedFunction } from "vitest";
 
 const { DbProvider } = await import("@vrooli/server");
 
-// Mock the EmbeddingService
-vi.mock("@vrooli/server", async () => {
-    const actual = await vi.importActual("@vrooli/server");
-    return {
-        ...actual,
-        EmbeddingService: {
-            get: () => ({
-                getEmbeddings: vi.fn().mockImplementation((objectType: string, sentences: string[]) => {
-                    // Return mock embeddings - arrays of 1536 dimensions (OpenAI standard)
-                    return sentences.map(() => Array(1536).fill(0.1));
-                }),
-            }),
-            getEmbeddableString: vi.fn().mockImplementation((data: string | Record<string, any>, language?: string) => {
-                // Simple mock implementation
-                const parts = [];
-                if (data.name) parts.push(data.name);
-                if (data.handle) parts.push(data.handle);
-                if (data.description) parts.push(data.description);
-                if (data.bio) parts.push(data.bio);
-                return parts.join(" ");
-            }),
-        },
-    };
-});
+// Import services to spy on them instead of using module mocks
 
 describe("embeddings coverage tests", () => {
     const testUserIds: bigint[] = [];
@@ -44,6 +21,23 @@ describe("embeddings coverage tests", () => {
         testUserIds.length = 0;
         testTeamIds.length = 0;
         testReminderIds.length = 0;
+        
+        // Setup spies on actual services instead of module mocks
+        const { EmbeddingService } = await import("@vrooli/server");
+        vi.spyOn(EmbeddingService, "get").mockReturnValue({
+            getEmbeddings: vi.fn().mockImplementation((objectType: string, sentences: string[]) => {
+                return sentences.map(() => Array(1536).fill(0.1));
+            }),
+        } as any);
+        
+        vi.spyOn(EmbeddingService, "getEmbeddableString").mockImplementation((data: any) => {
+            const parts = [];
+            if (data.name) parts.push(data.name);
+            if (data.handle) parts.push(data.handle);
+            if (data.description) parts.push(data.description);
+            if (data.bio) parts.push(data.bio);
+            return parts.join(" ");
+        });
     });
 
     afterEach(async () => {
@@ -147,7 +141,7 @@ describe("embeddings coverage tests", () => {
 
         it("should log warning when no embed function found for object type", async () => {
             const { logger } = await import("@vrooli/server");
-            const loggerSpy = vi.spyOn(logger, "warn");
+            vi.spyOn(logger, "warn");
             
             // We can't easily test this without complex mocking, but we can test 
             // the embedGetMap has all expected types
@@ -204,12 +198,13 @@ describe("embeddings coverage tests", () => {
             const loggerSpy = vi.spyOn(logger, "debug");
             
             // Create a team with current embeddings
+            const uniqueId = Date.now();
             const owner = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Owner",
-                    handle: "owner",
+                    handle: `owner_${uniqueId}`,
                     isBot: false,
                 },
             });
@@ -245,7 +240,7 @@ describe("embeddings coverage tests", () => {
                 "No items to embed after filtering",
                 expect.objectContaining({
                     objectType: "Team",
-                })
+                }),
             );
         });
     });
@@ -297,7 +292,7 @@ describe("embeddings coverage tests", () => {
                     error: expect.objectContaining({
                         message: "API Error",
                     }),
-                })
+                }),
             );
         });
     });

@@ -1,5 +1,5 @@
-import { EmergentAgent } from "../../../../services/execution/cross-cutting/agents/emergentAgent.js";
-import { EventPublisher } from "../../../../services/execution/shared/EventPublisher.js";
+import { type EmergentAgent } from "../../../../services/execution/cross-cutting/agents/emergentAgent.js";
+import { type EventPublisher } from "../../../../services/execution/shared/EventPublisher.js";
 
 export interface BehaviorPattern {
     name: string;
@@ -203,7 +203,7 @@ export class PatternMatcher {
     async testPattern(
         agents: EmergentAgent[],
         pattern: BehaviorPattern,
-        duration: number = 30000,
+        duration = 30000,
     ): Promise<PatternTestResult> {
         // Set up observation
         this.setupObservation(agents);

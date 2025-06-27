@@ -15,21 +15,15 @@ export { MinimalCircuitBreaker } from "./minimalCircuitBreaker.js";
 export { MinimalCircuitBreakerManager } from "./minimalCircuitBreakerManager.js";
 export type { MinimalCircuitBreakerConfig } from "./minimalCircuitBreaker.js";
 
-// Event publishing (already minimal)
-export { ResilienceEventPublisher } from "./resilienceEventPublisher.js";
+// Simple event publishing that emits standard patterns for agents
+export { SimpleResilienceEventPublisher } from "./simpleEventPublisher.js";
+export { SimpleRecoveryProvider } from "./simpleRecoveryProvider.js";
 
-// Basic error classification (will be simplified further)
-export { ErrorClassifier } from "./errorClassifier.js";
-export { RecoverySelector } from "./recoverySelector.js";
+// DEPRECATED: ErrorClassifier removed - violated emergent architecture principles
+// Replaced with ErrorReporter that emits raw error events for agent analysis
+export { ErrorReporter } from "./errorReporter.js";
 
-// DEPRECATED - Complex adaptive components that should be agent-driven
-export { 
-    AdaptiveCircuitBreaker, 
-    CircuitBreakerOpenError, 
-    CircuitBreakerFactory,
-} from "./circuitBreaker.js";
-export { CircuitBreakerManager } from "./circuitBreakerManager.js";
-export { FallbackStrategyEngine, FallbackStrategy } from "./fallbackStrategies.js";
+// DEPRECATED exports removed - these components violated emergent architecture principles
 
 /**
  * Re-export key types for convenience

@@ -107,7 +107,7 @@ export class EmergenceDetector {
     detectEmergence(
         interactions: MockInteraction[],
         expectedCapabilities: string[],
-        fixture?: EmergentCapabilityFixture<any>
+        fixture?: EmergentCapabilityFixture<any>,
     ): EmergenceDetectionResult {
         // Reset observation state
         this.observedBehaviors.clear();
@@ -117,7 +117,7 @@ export class EmergenceDetector {
         
         // Analyze interactions chronologically
         const sortedInteractions = interactions.sort(
-            (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+            (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
         );
         
         for (const interaction of sortedInteractions) {
@@ -144,7 +144,7 @@ export class EmergenceDetector {
         const emergenceScore = this.calculateEmergenceScore(
             detectedCapabilities, 
             expectedCapabilities, 
-            emergenceEvidence
+            emergenceEvidence,
         );
         
         // Calculate confidence level
@@ -156,7 +156,7 @@ export class EmergenceDetector {
             emergenceEvidence,
             emergenceScore,
             confidenceLevel,
-            temporalAnalysis
+            temporalAnalysis,
         };
     }
     
@@ -198,7 +198,7 @@ export class EmergenceDetector {
                 type: "empathy",
                 strength: this.calculatePatternStrength(content, ["understand", "sorry"]),
                 frequency: 1,
-                context: { content: response.content }
+                context: { content: response.content },
             });
         }
         
@@ -208,7 +208,7 @@ export class EmergenceDetector {
                 type: "solution_oriented",
                 strength: this.calculatePatternStrength(content, ["solution", "resolve"]),
                 frequency: 1,
-                context: { content: response.content }
+                context: { content: response.content },
             });
         }
         
@@ -218,7 +218,7 @@ export class EmergenceDetector {
                 type: "analytical_thinking",
                 strength: this.calculatePatternStrength(content, ["analyze", "pattern"]),
                 frequency: 1,
-                context: { content: response.content }
+                context: { content: response.content },
             });
         }
         
@@ -228,7 +228,7 @@ export class EmergenceDetector {
                 type: "coordination",
                 strength: this.calculatePatternStrength(content, ["coordinate", "delegate"]),
                 frequency: 1,
-                context: { content: response.content }
+                context: { content: response.content },
             });
         }
         
@@ -238,7 +238,7 @@ export class EmergenceDetector {
                 type: "adaptive_learning",
                 strength: this.calculatePatternStrength(content, ["learn", "adapt"]),
                 frequency: 1,
-                context: { content: response.content }
+                context: { content: response.content },
             });
         }
         
@@ -260,7 +260,7 @@ export class EmergenceDetector {
                 type: "tool_orchestration",
                 strength: Math.min(toolCalls.length / 5, 1.0), // Max at 5 tools
                 frequency: 1,
-                context: { toolCount: toolCalls.length, tools: toolCalls.map((t: any) => t.name) }
+                context: { toolCount: toolCalls.length, tools: toolCalls.map((t: any) => t.name) },
             });
         }
         
@@ -271,7 +271,7 @@ export class EmergenceDetector {
                     type: "task_delegation",
                     strength: 0.8,
                     frequency: 1,
-                    context: { tool: tool.name, arguments: tool.arguments }
+                    context: { tool: tool.name, arguments: tool.arguments },
                 });
             }
             
@@ -280,7 +280,7 @@ export class EmergenceDetector {
                     type: "proactive_notification",
                     strength: 0.7,
                     frequency: 1,
-                    context: { tool: tool.name }
+                    context: { tool: tool.name },
                 });
             }
             
@@ -289,7 +289,7 @@ export class EmergenceDetector {
                     type: "optimization_behavior",
                     strength: 0.9,
                     frequency: 1,
-                    context: { tool: tool.name }
+                    context: { tool: tool.name },
                 });
             }
         }
@@ -315,7 +315,7 @@ export class EmergenceDetector {
                 type: "structured_reasoning",
                 strength: Math.min(stepMatches.length / 5, 1.0),
                 frequency: 1,
-                context: { steps: stepMatches.length }
+                context: { steps: stepMatches.length },
             });
         }
         
@@ -325,7 +325,7 @@ export class EmergenceDetector {
                 type: "causal_reasoning",
                 strength: 0.8,
                 frequency: 1,
-                context: { reasoning }
+                context: { reasoning },
             });
         }
         
@@ -335,7 +335,7 @@ export class EmergenceDetector {
                 type: "synthetic_reasoning",
                 strength: 0.9,
                 frequency: 1,
-                context: { reasoning }
+                context: { reasoning },
             });
         }
         
@@ -355,7 +355,7 @@ export class EmergenceDetector {
                 type: "confidence_expression",
                 strength: metadata.confidence,
                 frequency: 1,
-                context: { confidence: metadata.confidence }
+                context: { confidence: metadata.confidence },
             });
         }
         
@@ -367,8 +367,8 @@ export class EmergenceDetector {
                 frequency: 1,
                 context: { 
                     executionTime: metadata.executionTime,
-                    accuracy: metadata.accuracy 
-                }
+                    accuracy: metadata.accuracy, 
+                },
             });
         }
         
@@ -379,7 +379,7 @@ export class EmergenceDetector {
                 strength: 1.0,
                 frequency: 1,
                 context: { capability: metadata.capability },
-                metadata
+                metadata,
             });
         }
         
@@ -389,7 +389,7 @@ export class EmergenceDetector {
                 type: "learning_progression",
                 strength: this.mapLearningStageToStrength(metadata.learningStage),
                 frequency: 1,
-                context: { stage: metadata.learningStage }
+                context: { stage: metadata.learningStage },
             });
         }
         
@@ -411,7 +411,7 @@ export class EmergenceDetector {
                 behavior: pattern.type,
                 strength: pattern.strength,
                 context: pattern.context,
-                relatedCapability: this.mapPatternToCapability(pattern.type)
+                relatedCapability: this.mapPatternToCapability(pattern.type),
             });
         }
     }
@@ -422,7 +422,7 @@ export class EmergenceDetector {
     private analyzeCapabilityEmergence(
         capability: string,
         patterns: Pattern[],
-        interaction: MockInteraction
+        interaction: MockInteraction,
     ): EmergenceEvidence | null {
         const requiredPatterns = this.getRequiredPatternsForCapability(capability);
         const matchingPatterns = patterns.filter(p => requiredPatterns.includes(p.type));
@@ -447,7 +447,7 @@ export class EmergenceDetector {
             confidence: evidenceStrength,
             timestamp: interaction.timestamp,
             source: "interaction",
-            emergenceType
+            emergenceType,
         };
     }
     
@@ -476,7 +476,7 @@ export class EmergenceDetector {
      */
     private analyzeTemporalPatterns(
         interactions: MockInteraction[],
-        evidence: EmergenceEvidence[]
+        evidence: EmergenceEvidence[],
     ): TemporalEmergencePattern {
         if (interactions.length === 0) {
             return {
@@ -484,7 +484,7 @@ export class EmergenceDetector {
                 emergenceVelocity: 0,
                 stabilityPeriod: 0,
                 regressionEvents: 0,
-                learningCurve: []
+                learningCurve: [],
             };
         }
         
@@ -510,7 +510,7 @@ export class EmergenceDetector {
             emergenceVelocity,
             stabilityPeriod,
             regressionEvents,
-            learningCurve
+            learningCurve,
         };
     }
     
@@ -520,7 +520,7 @@ export class EmergenceDetector {
     private calculateEmergenceScore(
         detectedCapabilities: Set<string>,
         expectedCapabilities: string[],
-        evidence: EmergenceEvidence[]
+        evidence: EmergenceEvidence[],
     ): number {
         const coverageScore = detectedCapabilities.size / expectedCapabilities.length;
         const evidenceScore = evidence.reduce((sum, e) => sum + e.confidence, 0) / Math.max(evidence.length, 1);
@@ -551,29 +551,29 @@ export class EmergenceDetector {
                 minimumEvidence: 2,
                 confidenceThreshold: 0.7,
                 temporalWindow: 30000,
-                requiredPatterns: ["empathy", "solution_oriented"]
+                requiredPatterns: ["empathy", "solution_oriented"],
             }],
             ["threat_detection", {
                 capability: "threat_detection",
                 minimumEvidence: 1,
                 confidenceThreshold: 0.8,
                 temporalWindow: 5000,
-                requiredPatterns: ["proactive_notification", "analytical_thinking"]
+                requiredPatterns: ["proactive_notification", "analytical_thinking"],
             }],
             ["task_delegation", {
                 capability: "task_delegation",
                 minimumEvidence: 1,
                 confidenceThreshold: 0.75,
                 temporalWindow: 15000,
-                requiredPatterns: ["coordination", "task_delegation"]
+                requiredPatterns: ["coordination", "task_delegation"],
             }],
             ["collective_intelligence", {
                 capability: "collective_intelligence",
                 minimumEvidence: 3,
                 confidenceThreshold: 0.8,
                 temporalWindow: 60000,
-                requiredPatterns: ["synthetic_reasoning", "coordination", "tool_orchestration"]
-            }]
+                requiredPatterns: ["synthetic_reasoning", "coordination", "tool_orchestration"],
+            }],
         ];
         
         for (const [key, threshold] of defaultThresholds) {
@@ -585,12 +585,12 @@ export class EmergenceDetector {
         // Initialize pattern matching logic
         this.patternRegistry.set("empathy", new PatternMatcher(
             ["understand", "sorry", "apologize", "frustrated", "help"],
-            0.6
+            0.6,
         ));
         
         this.patternRegistry.set("analytical", new PatternMatcher(
             ["analyze", "pattern", "correlation", "insight", "data"],
-            0.7
+            0.7,
         ));
         
         // Add more pattern matchers as needed
@@ -609,7 +609,7 @@ export class EmergenceDetector {
         const stageMap: Record<string, number> = {
             "novice": 0.3,
             "intermediate": 0.6,
-            "expert": 0.9
+            "expert": 0.9,
         };
         return stageMap[stage] || 0.5;
     }
@@ -623,7 +623,7 @@ export class EmergenceDetector {
             "coordination": "task_delegation",
             "task_delegation": "task_delegation",
             "synthetic_reasoning": "collective_intelligence",
-            "tool_orchestration": "collective_intelligence"
+            "tool_orchestration": "collective_intelligence",
         };
         return mapping[patternType];
     }
@@ -636,7 +636,7 @@ export class EmergenceDetector {
     private determineEmergenceType(
         capability: string,
         patterns: Pattern[],
-        interaction: MockInteraction
+        interaction: MockInteraction,
     ): "gradual" | "sudden" | "compound" | "synergistic" {
         if (patterns.length === 1) return "sudden";
         if (patterns.length > 3) return "synergistic";
@@ -717,7 +717,7 @@ export class EmergenceDetector {
     
     private buildLearningCurve(
         interactions: MockInteraction[],
-        evidence: EmergenceEvidence[]
+        evidence: EmergenceEvidence[],
     ): Array<{ time: number; capability: string; strength: number }> {
         const curve: Array<{ time: number; capability: string; strength: number }> = [];
         
@@ -725,7 +725,7 @@ export class EmergenceDetector {
             curve.push({
                 time: e.timestamp.getTime(),
                 capability: e.capability,
-                strength: e.confidence
+                strength: e.confidence,
             });
         }
         
@@ -751,7 +751,7 @@ export class EmergenceDetector {
 class PatternMatcher {
     constructor(
         private keywords: string[],
-        private threshold: number
+        private threshold: number,
     ) {}
     
     matches(text: string): boolean {

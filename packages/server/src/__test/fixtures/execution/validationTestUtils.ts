@@ -27,7 +27,7 @@ import type {
     BaseConfigObject,
     ChatConfigObject,
     RoutineConfigObject,
-    RunConfigObject
+    RunConfigObject,
 } from "@vrooli/shared";
 import { 
     ChatConfig,
@@ -36,7 +36,7 @@ import {
     chatConfigFixtures, 
     routineConfigFixtures, 
     runConfigFixtures,
-    isValidEventPattern
+    isValidEventPattern,
 } from "@vrooli/shared";
 import type { 
     ExecutionFixture,
@@ -46,7 +46,7 @@ import type {
     EmergenceDefinition,
     IntegrationDefinition,
     ValidationResult,
-    ExecutionErrorScenario
+    ExecutionErrorScenario,
 } from "./types.js";
 
 // ================================================================================================
@@ -58,7 +58,7 @@ import type {
  */
 export async function validateFixtureConfig<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
-    configType: "chat" | "routine" | "run"
+    configType: "chat" | "routine" | "run",
 ): Promise<ValidationResult> {
     try {
         let configInstance: any;
@@ -90,13 +90,13 @@ export async function validateFixtureConfig<T extends BaseConfigObject>(
         return { 
             pass: true, 
             message: "Config validation passed",
-            data: configInstance 
+            data: configInstance, 
         };
     } catch (error) {
         return { 
             pass: false, 
             message: "Config validation failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -151,7 +151,7 @@ export function validateEmergence(emergence: EmergenceDefinition): ValidationRes
         pass: errors.length === 0,
         message: errors.length > 0 ? "Emergence validation failed" : "Emergence validation passed",
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -205,7 +205,7 @@ export function validateIntegration(integration: IntegrationDefinition): Validat
         pass: errors.length === 0,
         message: errors.length > 0 ? "Integration validation failed" : "Integration validation passed",
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -213,7 +213,7 @@ export function validateIntegration(integration: IntegrationDefinition): Validat
  * Validates event flow consistency
  */
 export function validateEventFlow<T extends BaseConfigObject>(
-    fixture: ExecutionFixture<T>
+    fixture: ExecutionFixture<T>,
 ): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -225,7 +225,7 @@ export function validateEventFlow<T extends BaseConfigObject>(
         
         consumed.forEach(event => {
             const matchesPattern = patterns.some(pattern => 
-                eventMatchesPattern(event, pattern)
+                eventMatchesPattern(event, pattern),
             );
             
             if (!matchesPattern) {
@@ -248,7 +248,7 @@ export function validateEventFlow<T extends BaseConfigObject>(
         pass: errors.length === 0,
         message: "Event flow validation " + (errors.length > 0 ? "failed" : "passed"),
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -256,7 +256,7 @@ export function validateEventFlow<T extends BaseConfigObject>(
  * Validates evolution pathways for fixtures that support evolution
  */
 export function validateEvolutionPathways<T extends BaseConfigObject>(
-    fixture: ExecutionFixture<T>
+    fixture: ExecutionFixture<T>,
 ): ValidationResult {
     const warnings: string[] = [];
     
@@ -271,7 +271,7 @@ export function validateEvolutionPathways<T extends BaseConfigObject>(
                 return {
                     pass: false,
                     message: "Invalid evolution stage",
-                    errors: [`Invalid current stage: ${routineFixture.evolutionStage.current}`]
+                    errors: [`Invalid current stage: ${routineFixture.evolutionStage.current}`],
                 };
             }
             
@@ -297,7 +297,7 @@ export function validateEvolutionPathways<T extends BaseConfigObject>(
     return {
         pass: true,
         message: "Evolution pathway validation passed",
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -305,7 +305,7 @@ export function validateEvolutionPathways<T extends BaseConfigObject>(
  * Validates error scenarios for resilience testing
  */
 export function validateErrorScenarios(
-    scenarios: ExecutionErrorScenario[]
+    scenarios: ExecutionErrorScenario[],
 ): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -338,7 +338,7 @@ export function validateErrorScenarios(
         pass: errors.length === 0,
         message: "Error scenario validation " + (errors.length > 0 ? "failed" : "passed"),
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -353,7 +353,7 @@ export function validateErrorScenarios(
 export function runComprehensiveExecutionTests<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
     configType: "chat" | "routine" | "run",
-    fixtureName: string
+    fixtureName: string,
 ): void {
     describe(`${fixtureName} execution fixture validation`, () => {
         describe("Configuration validation", () => {
@@ -513,7 +513,7 @@ function getConfigClass(configType: "chat" | "routine" | "run") {
 function describeTierSpecificTests<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
     configType: string,
-    fixtureName: string
+    fixtureName: string,
 ): void {
     switch (fixture.integration.tier) {
         case "tier1":
@@ -525,7 +525,7 @@ function describeTierSpecificTests<T extends BaseConfigObject>(
                             expect(swarmFixture.swarmMetadata.expectedAgentCount).toBeGreaterThan(0);
                             expect(swarmFixture.swarmMetadata.minViableAgents).toBeGreaterThan(0);
                             expect(swarmFixture.swarmMetadata.minViableAgents).toBeLessThanOrEqual(
-                                swarmFixture.swarmMetadata.expectedAgentCount
+                                swarmFixture.swarmMetadata.expectedAgentCount,
                             );
                         }
                     }
@@ -579,7 +579,7 @@ function describeTierSpecificTests<T extends BaseConfigObject>(
  */
 export async function validateConfigWithSharedFixtures<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
-    configType: "chat" | "routine" | "run"
+    configType: "chat" | "routine" | "run",
 ): Promise<ValidationResult> {
     const warnings: string[] = [];
     const sharedFixtures = getSharedFixtures(configType);
@@ -594,7 +594,7 @@ export async function validateConfigWithSharedFixtures<T extends BaseConfigObjec
             const merged = {
                 ...variantConfig,
                 ...fixture.config,
-                __version: fixture.config.__version
+                __version: fixture.config.__version,
             };
             
             // Validate the merged config
@@ -609,7 +609,7 @@ export async function validateConfigWithSharedFixtures<T extends BaseConfigObjec
         message: warnings.length > 0 
             ? `Config has compatibility issues with ${warnings.length} shared variants`
             : "Config is compatible with all shared variants",
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -637,7 +637,7 @@ export function combineValidationResults(results: ValidationResult[]): Validatio
         pass: allPass,
         message: allPass ? "All validations passed" : "Some validations failed",
         errors: allErrors.length > 0 ? allErrors : undefined,
-        warnings: allWarnings.length > 0 ? allWarnings : undefined
+        warnings: allWarnings.length > 0 ? allWarnings : undefined,
     };
 }
 
@@ -650,7 +650,7 @@ export function combineValidationResults(results: ValidationResult[]): Validatio
  */
 export function createMinimalEmergence(capability: string): EmergenceDefinition {
     return {
-        capabilities: [capability]
+        capabilities: [capability],
     };
 }
 
@@ -671,7 +671,7 @@ export class FixtureCreationUtils {
     static createCompleteFixture<T extends BaseConfigObject>(
         sharedConfig: T,
         configType: "chat" | "routine" | "run",
-        overrides: Partial<ExecutionFixture<T>> = {}
+        overrides: Partial<ExecutionFixture<T>> = {},
     ): ExecutionFixture<T> {
         const baseFixture: ExecutionFixture<T> = {
             config: sharedConfig,
@@ -682,13 +682,13 @@ export class FixtureCreationUtils {
                 domain: "general",
                 complexity: "simple",
                 maintainer: "test",
-                lastUpdated: new Date().toISOString().split("T")[0]
-            }
+                lastUpdated: new Date().toISOString().split("T")[0],
+            },
         };
         
         return {
             ...baseFixture,
-            ...overrides
+            ...overrides,
         };
     }
     
@@ -698,22 +698,22 @@ export class FixtureCreationUtils {
     static createEvolutionSequence(
         baseRoutineConfig: RoutineConfigObject,
         configType: "routine",
-        stages: Array<"conversational" | "reasoning" | "deterministic" | "routing">
+        stages: Array<"conversational" | "reasoning" | "deterministic" | "routing">,
     ): RoutineFixture[] {
         return stages.map((stage, index) => ({
             config: {
                 ...baseRoutineConfig,
                 // Modify config based on evolution stage
                 __typename: "RoutineConfig" as const,
-                __version: baseRoutineConfig.__version
+                __version: baseRoutineConfig.__version,
             },
             emergence: {
                 capabilities: [`${stage}_execution`, "self_optimization"],
-                evolutionPath: stages.slice(0, index + 1).join(" → ")
+                evolutionPath: stages.slice(0, index + 1).join(" → "),
             },
             integration: {
                 tier: "tier2",
-                producedEvents: [`tier2.routine.${stage}.executed`]
+                producedEvents: [`tier2.routine.${stage}.executed`],
             },
             evolutionStage: {
                 current: stage,
@@ -722,9 +722,9 @@ export class FixtureCreationUtils {
                 performanceMetrics: {
                     averageExecutionTime: 1000 - (index * 200), // Gets faster
                     successRate: 0.7 + (index * 0.1), // Gets more reliable
-                    costPerExecution: 0.1 - (index * 0.02) // Gets cheaper
-                }
-            }
+                    costPerExecution: 0.1 - (index * 0.02), // Gets cheaper
+                },
+            },
         }));
     }
 }
@@ -733,5 +733,5 @@ export class FixtureCreationUtils {
 export {
     createMinimalEmergence,
     createMinimalIntegration,
-    FixtureCreationUtils
+    FixtureCreationUtils,
 };

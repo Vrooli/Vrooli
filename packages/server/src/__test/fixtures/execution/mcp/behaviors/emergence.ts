@@ -1,5 +1,5 @@
-import { EmergentAgent } from "../../../../services/execution/cross-cutting/agents/emergentAgent.js";
-import { EventPublisher } from "../../../../services/execution/shared/EventPublisher.js";
+import { type EmergentAgent } from "../../../../services/execution/cross-cutting/agents/emergentAgent.js";
+import { type EventPublisher } from "../../../../services/execution/shared/EventPublisher.js";
 import { logger } from "../../../../services/logger.js";
 
 export interface EmergenceResult {

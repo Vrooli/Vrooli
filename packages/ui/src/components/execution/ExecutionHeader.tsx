@@ -1,4 +1,5 @@
-import { Box, IconButton, LinearProgress, Typography, useTheme } from "@mui/material";
+import { Box, LinearProgress, Typography, useTheme } from "@mui/material";
+import { IconButton } from "../buttons/IconButton.js";
 import { useCallback, useEffect, useState } from "react";
 import { IconCommon } from "../../icons/Icons.js";
 import { OrbitalSpinner, CircularProgress } from "../indicators/CircularProgress.js";
@@ -82,7 +83,8 @@ export function ExecutionHeader({
             >
                 <Box sx={{ display: "flex", alignItems: "center" }}>
                     <IconButton 
-                        size="small" 
+                        variant="transparent"
+                        size="sm" 
                         onClick={(e) => {
                             e.stopPropagation(); // Prevent double-click when clicking the icon directly
                             handleToggleCollapse(e);
@@ -154,7 +156,8 @@ export function ExecutionHeader({
                         {/* Pause button for active runs */}
                         {(runStatus === "InProgress" || runStatus === "Running") && onPause && (
                             <IconButton 
-                                size="small" 
+                                variant="transparent"
+                                size="sm" 
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onPause();
@@ -168,7 +171,8 @@ export function ExecutionHeader({
                         {/* Play button for paused/scheduled runs */}
                         {(runStatus === "Scheduled" || runStatus === "Paused") && onResume && (
                             <IconButton 
-                                size="small" 
+                                variant="transparent"
+                                size="sm" 
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onResume();
@@ -182,7 +186,8 @@ export function ExecutionHeader({
                         {/* Retry button for failed runs */}
                         {runStatus === "Failed" && onRetry && (
                             <IconButton 
-                                size="small" 
+                                variant="transparent"
+                                size="sm" 
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onRetry();
@@ -198,7 +203,8 @@ export function ExecutionHeader({
                 )}
                 {!chatMode && (
                     <IconButton 
-                        size="small" 
+                        variant="transparent"
+                        size="sm" 
                         onClick={(e) => {
                             e.stopPropagation(); // Prevent triggering collapse when clicking close
                             handleClose(e);

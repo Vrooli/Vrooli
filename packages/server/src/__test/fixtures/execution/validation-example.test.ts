@@ -12,14 +12,14 @@ import {
     validateConfigWithSharedFixtures,
     validateComprehensiveRoundTrip,
     FixtureCreationUtils,
-    combineValidationResults
+    combineValidationResults,
 } from "./executionValidationUtils.js";
 import {
     customerSupportSwarmFixture,
     customerInquiryRoutineFixture, 
     highPerformanceExecutionFixture,
     completeCustomerSupportScenario,
-    customerSupportExampleFixtures
+    customerSupportExampleFixtures,
 } from "./examples/customerSupportExample.js";
 
 describe("Execution Fixture Validation System", () => {
@@ -31,7 +31,7 @@ describe("Execution Fixture Validation System", () => {
             runComprehensiveExecutionTests(
                 customerSupportSwarmFixture,
                 "chat", 
-                "customer-support-swarm"
+                "customer-support-swarm",
             );
             
             // Additional custom validation
@@ -56,7 +56,7 @@ describe("Execution Fixture Validation System", () => {
             runComprehensiveExecutionTests(
                 customerInquiryRoutineFixture,
                 "routine",
-                "customer-inquiry-routine"
+                "customer-inquiry-routine",
             );
             
             // Additional custom validation
@@ -80,7 +80,7 @@ describe("Execution Fixture Validation System", () => {
             runComprehensiveExecutionTests(
                 highPerformanceExecutionFixture,
                 "run",
-                "high-performance-execution"
+                "high-performance-execution",
             );
             
             // Additional custom validation
@@ -105,21 +105,21 @@ describe("Execution Fixture Validation System", () => {
             // Test swarm config compatibility
             const swarmResult = await validateConfigWithSharedFixtures(
                 customerSupportSwarmFixture as any,
-                "chat"
+                "chat",
             );
             expect(swarmResult.pass).toBe(true);
             
             // Test routine config compatibility  
             const routineResult = await validateConfigWithSharedFixtures(
                 customerInquiryRoutineFixture as any,
-                "routine"
+                "routine",
             );
             expect(routineResult.pass).toBe(true);
             
             // Test execution config compatibility
             const executionResult = await validateConfigWithSharedFixtures(
                 highPerformanceExecutionFixture as any, 
-                "run"
+                "run",
             );
             expect(executionResult.pass).toBe(true);
         });
@@ -128,21 +128,21 @@ describe("Execution Fixture Validation System", () => {
             // Test comprehensive round-trip for all fixtures
             const swarmRoundTrip = await validateComprehensiveRoundTrip(
                 customerSupportSwarmFixture,
-                "chat"
+                "chat",
             );
             expect(swarmRoundTrip.pass).toBe(true);
             expect(swarmRoundTrip.data?.totalTests).toBe(6);
             
             const routineRoundTrip = await validateComprehensiveRoundTrip(
                 customerInquiryRoutineFixture,
-                "routine" 
+                "routine", 
             );
             expect(routineRoundTrip.pass).toBe(true);
             expect(routineRoundTrip.data?.totalTests).toBe(6);
             
             const executionRoundTrip = await validateComprehensiveRoundTrip(
                 highPerformanceExecutionFixture,
-                "run"
+                "run",
             );
             expect(executionRoundTrip.pass).toBe(true);
             expect(executionRoundTrip.data?.totalTests).toBe(6);

@@ -27,7 +27,7 @@ export {
     createAIMockResponse,
     createStreamingMock,
     createToolCallResponse,
-    createErrorResponse 
+    createErrorResponse, 
 } from "./factories/index.js";
 
 export {
@@ -35,13 +35,13 @@ export {
     aiErrorFixtures,
     aiStreamingFixtures,
     aiToolCallFixtures,
-    aiReasoningFixtures
+    aiReasoningFixtures,
 } from "./fixtures/index.js";
 
 export {
     withAIMocks,
     registerMockBehavior,
-    createEmergentMockBehavior
+    createEmergentMockBehavior,
 } from "./integration/index.js";
 
 /**
@@ -59,12 +59,12 @@ export const setupAIMocks = () => {
     // Register common patterns
     registry.register("greeting", {
         pattern: /hello|hi|hey/i,
-        response: aiSuccessFixtures.greeting()
+        response: aiSuccessFixtures.greeting(),
     });
     
     registry.register("help", {
         pattern: /help|assist|support/i,
-        response: aiSuccessFixtures.helpfulResponse()
+        response: aiSuccessFixtures.helpfulResponse(),
     });
     
     registry.register("error", {
@@ -72,9 +72,9 @@ export const setupAIMocks = () => {
         response: {
             error: {
                 type: "INTERNAL_ERROR",
-                message: "Simulated error for testing"
-            }
-        }
+                message: "Simulated error for testing",
+            },
+        },
     });
     
     return registry;

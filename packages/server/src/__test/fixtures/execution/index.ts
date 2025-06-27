@@ -22,6 +22,7 @@ export * from "./executionFactories.js";
 export * from "./executionTestUtils.js";
 export * from "./integrationScenarios.js";
 export * from "./types.js";
+export * from "./emergentCapabilityHelpers.js";
 
 // Production fixtures with defensive security focus
 export * from "./fixtures.js";
@@ -46,6 +47,12 @@ export * from "./tier3-execution/index.js";
 
 // Emergent Capabilities
 export * from "./emergent-capabilities/index.js";
+
+// Cross-cutting Concerns
+export * from "./cross-cutting/index.js";
+
+// Shared Components
+export * from "./shared/contextAdapterFixtures.js";
 
 // Integration Scenarios
 export * from "./integration-scenarios/index.js";
@@ -182,7 +189,7 @@ import {
     highPerformanceAnalyticsContext,
     securityResponseIntegration,
     complianceMonitoringIntegration,
-    executionFixtures
+    executionFixtures,
 } from "./fixtures.js";
 
 export const productionFixtures = {
@@ -203,7 +210,7 @@ export const productionFixtures = {
     complianceMonitoringIntegration,
     
     // Complete collection
-    all: executionFixtures
+    all: executionFixtures,
 };
 
 // Get all swarm configurations

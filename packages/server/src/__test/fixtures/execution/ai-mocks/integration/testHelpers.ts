@@ -11,7 +11,7 @@ import type {
     EmergentMockBehavior,
     MockScenario,
     MockCostTracking,
-    AIMockConfig
+    AIMockConfig,
 } from "../types.js";
 import { MockRegistry } from "./mockRegistry.js";
 import { LLMIntegrationService } from "../../../../../services/execution/integration/llmIntegrationService.js";
@@ -22,7 +22,7 @@ import { createLogger } from "winston";
  */
 export async function withAIMocks<T>(
     testFn: (mockService: AIMockService) => Promise<T>,
-    options?: MockTestOptions
+    options?: MockTestOptions,
 ): Promise<T> {
     const registry = MockRegistry.getInstance();
     
@@ -77,8 +77,8 @@ export function createMockLLMService(options?: {
                 tokens: mockResult.usage?.totalTokens || 0,
                 apiCalls: 1,
                 computeTime: 50,
-                cost: mockResult.usage?.cost || 0
-            }
+                cost: mockResult.usage?.cost || 0,
+            },
         };
     };
     
@@ -124,8 +124,8 @@ export function createEmergentMockBehavior(config: EmergentMockBehavior): {
         response: (request) => getCurrentBehavior(currentIteration),
         metadata: {
             name: `Emergent: ${config.capability}`,
-            description: "Evolving behavior based on iterations"
-        }
+            description: "Evolving behavior based on iterations",
+        },
     });
     
     return { getCurrentBehavior, evolve };
@@ -136,7 +136,7 @@ export function createEmergentMockBehavior(config: EmergentMockBehavior): {
  */
 export async function runMockScenario(
     scenario: MockScenario,
-    options?: MockTestOptions
+    options?: MockTestOptions,
 ): Promise<{
     success: boolean;
     results: Array<{ step: string; passed: boolean; error?: string }>;
@@ -148,14 +148,14 @@ export async function runMockScenario(
             try {
                 // Register the mock for this step
                 mockService.registerBehavior(`${scenario.name}-step-${scenario.steps.indexOf(step)}`, {
-                    response: step.mockConfig
+                    response: step.mockConfig,
                 });
                 
                 // Create request
                 const request: LLMRequest = {
                     model: step.input.model || "gpt-4o-mini",
                     messages: step.input.messages || [],
-                    ...step.input
+                    ...step.input,
                 };
                 
                 // Execute
@@ -168,13 +168,13 @@ export async function runMockScenario(
                 
                 results.push({
                     step: step.expectedBehavior,
-                    passed: true
+                    passed: true,
                 });
             } catch (error) {
                 results.push({
                     step: step.expectedBehavior,
                     passed: false,
-                    error: error instanceof Error ? error.message : String(error)
+                    error: error instanceof Error ? error.message : String(error),
                 });
             }
         }
@@ -195,7 +195,7 @@ export function enableAIMockDebug(enabled = true): void {
  * Cost tracking wrapper
  */
 export async function withCostTracking<T>(
-    testFn: (tracker: CostTracker) => Promise<T>
+    testFn: (tracker: CostTracker) => Promise<T>,
 ): Promise<T> {
     const tracker = new CostTracker();
     const registry = MockRegistry.getInstance();
@@ -225,7 +225,7 @@ class CostTracker {
         inputTokens: 0,
         outputTokens: 0,
         requests: 0,
-        breakdown: []
+        breakdown: [],
     };
     
     addUsage(result: any): void {
@@ -242,7 +242,7 @@ class CostTracker {
             inputTokens: usage.promptTokens || 0,
             outputTokens: usage.completionTokens || 0,
             cost: usage.cost || 0,
-            timestamp: new Date()
+            timestamp: new Date(),
         });
     }
     
@@ -259,7 +259,7 @@ class CostTracker {
             totalCost: this.tracking.totalCost,
             inputTokens: this.tracking.inputTokens,
             outputTokens: this.tracking.outputTokens,
-            requests: this.tracking.requests
+            requests: this.tracking.requests,
         };
     }
     
@@ -269,7 +269,7 @@ class CostTracker {
             inputTokens: 0,
             outputTokens: 0,
             requests: 0,
-            breakdown: []
+            breakdown: [],
         };
     }
 }
@@ -281,9 +281,9 @@ export function createTestRequest(overrides?: Partial<LLMRequest>): LLMRequest {
     return {
         model: "gpt-4o-mini",
         messages: [
-            { role: "user", content: "Test message" }
+            { role: "user", content: "Test message" },
         ],
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -322,7 +322,7 @@ export function clearMockInteractionHistory(): void {
 export async function waitForMockCondition(
     condition: () => boolean,
     timeout = 5000,
-    interval = 100
+    interval = 100,
 ): Promise<void> {
     const startTime = Date.now();
     

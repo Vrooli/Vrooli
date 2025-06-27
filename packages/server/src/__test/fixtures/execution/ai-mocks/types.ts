@@ -5,6 +5,8 @@
  * These types ensure type safety and consistency across all mock implementations.
  */
 
+import {
+    LLMErrorType} from "@vrooli/shared";
 import type { 
     LLMRequest, 
     LLMResponse, 
@@ -12,9 +14,8 @@ import type {
     LLMToolCall,
     LLMStreamEvent,
     LLMError,
-    LLMErrorType,
     LLMUsage,
-    LLMModelCapabilities
+    LLMModelCapabilities,
 } from "@vrooli/shared";
 import type { ToolCallResult } from "../../../../services/execution/integration/llmIntegrationService.js";
 
@@ -297,7 +298,7 @@ export const MOCK_MODELS: LLMModelCapabilities[] = [
         outputCostPer1kTokens: 0.01,
         contextWindow: 128000,
         languages: ["en", "es", "fr", "de", "ja", "zh"],
-        features: ["reasoning", "tool-use", "vision"]
+        features: ["reasoning", "tool-use", "vision"],
     },
     {
         name: "gpt-4o-mini",
@@ -310,7 +311,7 @@ export const MOCK_MODELS: LLMModelCapabilities[] = [
         outputCostPer1kTokens: 0.0006,
         contextWindow: 128000,
         languages: ["en", "es", "fr", "de", "ja", "zh"],
-        features: ["reasoning", "tool-use"]
+        features: ["reasoning", "tool-use"],
     },
     {
         name: "o1-mini",
@@ -323,6 +324,6 @@ export const MOCK_MODELS: LLMModelCapabilities[] = [
         outputCostPer1kTokens: 0.012,
         contextWindow: 128000,
         languages: ["en"],
-        features: ["deep-reasoning", "math", "coding"]
-    }
+        features: ["deep-reasoning", "math", "coding"],
+    },
 ];

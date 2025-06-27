@@ -12,14 +12,14 @@ import type {
     SwarmFixture, 
     RoutineFixture, 
     ExecutionContextFixture,
-    ExecutionErrorScenario 
+    ExecutionErrorScenario, 
 } from "../types.js";
 import { 
     runComprehensiveExecutionTests,
     validateConfigWithSharedFixtures,
     FixtureCreationUtils,
     createMinimalEmergence,
-    createMinimalIntegration
+    createMinimalIntegration,
 } from "../validationTestUtils.js";
 
 // ================================================================================================
@@ -39,36 +39,36 @@ export const customerSupportSwarmFixture: SwarmFixture = {
             {
                 description: "Understand customer issue",
                 agentRole: "listener",
-                priority: 1
+                priority: 1,
             },
             {
                 description: "Provide solution or escalate",
                 agentRole: "resolver", 
-                priority: 2
+                priority: 2,
             },
             {
                 description: "Ensure customer satisfaction",
                 agentRole: "validator",
-                priority: 3
-            }
+                priority: 3,
+            },
         ],
         eventSubscriptions: {
             "support.request.received": true,
             "support.escalation.needed": true,
-            "customer.feedback.received": true
+            "customer.feedback.received": true,
         },
         blackboard: [
             {
                 key: "customer_sentiment",
                 value: "neutral",
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             },
             {
                 key: "issue_complexity",
                 value: "unknown",
-                timestamp: new Date().toISOString()
-            }
-        ]
+                timestamp: new Date().toISOString(),
+            },
+        ],
     },
     
     // Define emergent capabilities
@@ -77,24 +77,24 @@ export const customerSupportSwarmFixture: SwarmFixture = {
             "empathetic_response",
             "issue_pattern_recognition", 
             "proactive_solution_suggestion",
-            "satisfaction_optimization"
+            "satisfaction_optimization",
         ],
         eventPatterns: [
             "support.*",
             "customer.feedback.*",
-            "tier3.execution.completed"
+            "tier3.execution.completed",
         ],
         evolutionPath: "reactive → proactive → predictive → autonomous",
         emergenceConditions: {
             minAgents: 3,
             requiredResources: ["knowledge_base", "sentiment_analyzer", "solution_database"],
-            environmentalFactors: ["high_volume_period", "complex_issue_type"]
+            environmentalFactors: ["high_volume_period", "complex_issue_type"],
         },
         learningMetrics: {
             performanceImprovement: "20% faster resolution time after 100 interactions",
             adaptationTime: "5-10 interactions to recognize new issue patterns",
-            innovationRate: "1 new solution approach per 50 interactions"
-        }
+            innovationRate: "1 new solution approach per 50 interactions",
+        },
     },
     
     // Integration with execution architecture
@@ -104,23 +104,23 @@ export const customerSupportSwarmFixture: SwarmFixture = {
             "tier1.swarm.support.initialized",
             "tier1.swarm.support.task_assigned",
             "tier1.swarm.support.solution_found",
-            "tier1.swarm.support.escalation_required"
+            "tier1.swarm.support.escalation_required",
         ],
         consumedEvents: [
             "support.request.received",
             "tier2.routine.solution_completed",
-            "tier3.execution.customer_response"
+            "tier3.execution.customer_response",
         ],
         sharedResources: [
             "customer_history_db",
             "solution_knowledge_base",
-            "sentiment_analysis_service"
+            "sentiment_analysis_service",
         ],
         crossTierDependencies: {
             dependsOn: ["tier2.solution_routine", "tier3.communication_executor"],
-            provides: ["coordinated_support", "issue_categorization"]
+            provides: ["coordinated_support", "issue_categorization"],
         },
-        mcpTools: ["SendMessage", "ResourceManage", "RunRoutine"]
+        mcpTools: ["SendMessage", "ResourceManage", "RunRoutine"],
     },
     
     // Swarm-specific metadata
@@ -133,8 +133,8 @@ export const customerSupportSwarmFixture: SwarmFixture = {
             { role: "coordinator", count: 1 },
             { role: "listener", count: 1 },
             { role: "resolver", count: 2 },
-            { role: "validator", count: 1 }
-        ]
+            { role: "validator", count: 1 },
+        ],
     },
     
     // Validation configuration
@@ -142,16 +142,16 @@ export const customerSupportSwarmFixture: SwarmFixture = {
         emergenceTests: [
             "should_detect_customer_sentiment",
             "should_recognize_issue_patterns",
-            "should_suggest_proactive_solutions"
+            "should_suggest_proactive_solutions",
         ],
         integrationTests: [
             "should_coordinate_with_tier2_routines",
-            "should_handle_tier3_responses"
+            "should_handle_tier3_responses",
         ],
         evolutionTests: [
             "should_improve_resolution_time",
-            "should_learn_new_patterns"
-        ]
+            "should_learn_new_patterns",
+        ],
     },
     
     // Metadata
@@ -159,8 +159,8 @@ export const customerSupportSwarmFixture: SwarmFixture = {
         domain: "customer_service",
         complexity: "medium",
         maintainer: "support-team",
-        lastUpdated: "2024-01-15"
-    }
+        lastUpdated: "2024-01-15",
+    },
 };
 
 // ================================================================================================
@@ -181,30 +181,30 @@ export const inquiryResolutionRoutineFixture: RoutineFixture = {
                 type: "action",
                 data: { 
                     action: "parse_customer_input",
-                    parameters: { extractIntent: true, extractEntities: true }
-                }
+                    parameters: { extractIntent: true, extractEntities: true },
+                },
             },
             {
                 id: "search_solutions",
                 type: "action",
                 data: {
                     action: "search_knowledge_base",
-                    parameters: { maxResults: 5, includeConfidence: true }
-                }
+                    parameters: { maxResults: 5, includeConfidence: true },
+                },
             },
             {
                 id: "format_response",
                 type: "action",
                 data: {
                     action: "format_customer_response",
-                    parameters: { style: "friendly", includeNextSteps: true }
-                }
-            }
+                    parameters: { style: "friendly", includeNextSteps: true },
+                },
+            },
         ],
         edges: [
             { source: "parse_inquiry", target: "search_solutions" },
-            { source: "search_solutions", target: "format_response" }
-        ]
+            { source: "search_solutions", target: "format_response" },
+        ],
     },
     
     // Emergent capabilities for this routine
@@ -213,13 +213,13 @@ export const inquiryResolutionRoutineFixture: RoutineFixture = {
             "intent_recognition",
             "solution_matching",
             "response_personalization",
-            "feedback_learning"
+            "feedback_learning",
         ],
         eventPatterns: [
             "tier2.routine.*",
-            "customer.inquiry.*"
+            "customer.inquiry.*",
         ],
-        evolutionPath: "conversational → reasoning → deterministic"
+        evolutionPath: "conversational → reasoning → deterministic",
     },
     
     // Tier 2 integration
@@ -229,13 +229,13 @@ export const inquiryResolutionRoutineFixture: RoutineFixture = {
             "tier2.routine.inquiry.started",
             "tier2.routine.inquiry.intent_recognized",
             "tier2.routine.inquiry.solution_found",
-            "tier2.routine.inquiry.completed"
+            "tier2.routine.inquiry.completed",
         ],
         consumedEvents: [
             "tier1.swarm.support.task_assigned",
-            "tier3.execution.search_completed"
+            "tier3.execution.search_completed",
         ],
-        mcpTools: ["ResourceManage", "RunRoutine"]
+        mcpTools: ["ResourceManage", "RunRoutine"],
     },
     
     // Evolution stage information
@@ -245,13 +245,13 @@ export const inquiryResolutionRoutineFixture: RoutineFixture = {
         evolutionTriggers: [
             "success_rate > 0.85",
             "average_execution_time < 500ms",
-            "total_executions > 1000"
+            "total_executions > 1000",
         ],
         performanceMetrics: {
             averageExecutionTime: 750,
             successRate: 0.78,
-            costPerExecution: 0.05
-        }
+            costPerExecution: 0.05,
+        },
     },
     
     // Error scenarios this routine should handle
@@ -261,7 +261,7 @@ export const inquiryResolutionRoutineFixture: RoutineFixture = {
             context: {
                 tier: "tier2",
                 operation: "search_knowledge_base",
-                step: 1
+                step: 1,
             },
             expectedError: {
                 code: "RESOURCE_LIMIT_EXCEEDED",
@@ -273,32 +273,32 @@ export const inquiryResolutionRoutineFixture: RoutineFixture = {
                     tier: "tier2",
                     component: "routine_executor",
                     operation: "search_knowledge_base",
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
                 },
                 executionImpact: {
                     tierAffected: ["tier2"],
                     resourcesAffected: ["knowledge_base_api"],
                     cascadingEffects: false,
-                    recoverability: "automatic"
-                }
+                    recoverability: "automatic",
+                },
             },
             recovery: {
                 strategy: "fallback",
-                fallbackBehavior: "use_cached_results"
+                fallbackBehavior: "use_cached_results",
             },
             validation: {
                 shouldRecover: true,
-                expectedFinalState: "completed_with_cached_data"
-            }
-        }
+                expectedFinalState: "completed_with_cached_data",
+            },
+        },
     ],
     
     metadata: {
         domain: "customer_service",
         complexity: "simple",
         maintainer: "routine-optimization-team",
-        lastUpdated: "2024-01-15"
-    }
+        lastUpdated: "2024-01-15",
+    },
 };
 
 // ================================================================================================
@@ -320,28 +320,28 @@ export const highPerfExecutionContextFixture: ExecutionContextFixture = {
                 config: {
                     maxRetries: 3,
                     timeout: 5000,
-                    rateLimit: { requests: 100, window: 60000 }
-                }
+                    rateLimit: { requests: 100, window: 60000 },
+                },
             },
             {
                 name: "ResourceManage",
                 config: {
                     cacheEnabled: true,
                     cacheTTL: 300000,
-                    batchSize: 50
-                }
-            }
+                    batchSize: 50,
+                },
+            },
         ],
         resourceLimits: {
             maxMemoryMB: 512,
             maxCPUPercent: 80,
-            maxExecutionTimeMs: 10000
+            maxExecutionTimeMs: 10000,
         },
         securityContext: {
             allowedOperations: ["read", "write", "search"],
             deniedResources: ["payment_data", "private_notes"],
-            auditingEnabled: true
-        }
+            auditingEnabled: true,
+        },
     },
     
     // Execution-level emergence
@@ -349,9 +349,9 @@ export const highPerfExecutionContextFixture: ExecutionContextFixture = {
         capabilities: [
             "adaptive_performance_tuning",
             "intelligent_caching",
-            "predictive_resource_allocation"
+            "predictive_resource_allocation",
         ],
-        evolutionPath: "baseline → optimized → adaptive → self_tuning"
+        evolutionPath: "baseline → optimized → adaptive → self_tuning",
     },
     
     // Tier 3 integration
@@ -361,13 +361,13 @@ export const highPerfExecutionContextFixture: ExecutionContextFixture = {
             "tier3.execution.started",
             "tier3.execution.resource_allocated",
             "tier3.execution.completed",
-            "tier3.execution.metrics_reported"
+            "tier3.execution.metrics_reported",
         ],
         consumedEvents: [
             "tier2.routine.task_ready",
-            "tier1.swarm.priority_update"
+            "tier1.swarm.priority_update",
         ],
-        mcpTools: ["SendMessage", "ResourceManage"]
+        mcpTools: ["SendMessage", "ResourceManage"],
     },
     
     // Execution metadata
@@ -377,8 +377,8 @@ export const highPerfExecutionContextFixture: ExecutionContextFixture = {
         performanceCharacteristics: {
             latency: "p50: 100ms, p95: 200ms, p99: 500ms",
             throughput: "1000 requests/second",
-            resourceUsage: "CPU: 50-80%, Memory: 200-512MB"
-        }
+            resourceUsage: "CPU: 50-80%, Memory: 200-512MB",
+        },
     },
     
     // Error scenarios for resilience testing
@@ -388,7 +388,7 @@ export const highPerfExecutionContextFixture: ExecutionContextFixture = {
             context: {
                 tier: "tier3",
                 operation: "send_customer_message",
-                agent: "communication_executor"
+                agent: "communication_executor",
             },
             expectedError: {
                 code: "EXECUTION_TIMEOUT",
@@ -400,33 +400,33 @@ export const highPerfExecutionContextFixture: ExecutionContextFixture = {
                     tier: "tier3",
                     component: "message_sender",
                     operation: "send_customer_message",
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
                 },
                 executionImpact: {
                     tierAffected: ["tier3"],
                     resourcesAffected: ["message_queue"],
                     cascadingEffects: false,
-                    recoverability: "automatic"
-                }
+                    recoverability: "automatic",
+                },
             },
             recovery: {
                 strategy: "retry",
-                maxAttempts: 3
+                maxAttempts: 3,
             },
             validation: {
                 shouldRecover: true,
                 timeoutMs: 15000,
-                expectedFinalState: "message_sent"
-            }
-        }
+                expectedFinalState: "message_sent",
+            },
+        },
     ],
     
     metadata: {
         domain: "infrastructure",
         complexity: "complex",
         maintainer: "platform-team",
-        lastUpdated: "2024-01-15"
-    }
+        lastUpdated: "2024-01-15",
+    },
 };
 
 // ================================================================================================
@@ -446,14 +446,14 @@ export const crossTierCustomerServiceFixture = {
         "Tier 1: Swarm coordinates response strategy",
         "Tier 2: Routine processes inquiry and finds solution",
         "Tier 3: Executor delivers personalized response",
-        "Tier 1: Swarm validates customer satisfaction"
+        "Tier 1: Swarm validates customer satisfaction",
     ],
     
     expectedEmergence: [
         "end_to_end_optimization",
         "cross_tier_learning",
-        "unified_customer_experience"
-    ]
+        "unified_customer_experience",
+    ],
 };
 
 // ================================================================================================
@@ -466,14 +466,14 @@ describe("Customer Service Execution Fixtures", () => {
         runComprehensiveExecutionTests(
             customerSupportSwarmFixture,
             "chat",
-            "customer-support-swarm"
+            "customer-support-swarm",
         );
         
         // Additional custom tests
         it("should be compatible with all chat config variants", async () => {
             const result = await validateConfigWithSharedFixtures(
                 customerSupportSwarmFixture,
-                "chat"
+                "chat",
             );
             expect(result.pass).toBe(true);
         });
@@ -484,7 +484,7 @@ describe("Customer Service Execution Fixtures", () => {
         runComprehensiveExecutionTests(
             inquiryResolutionRoutineFixture,
             "routine",
-            "inquiry-resolution-routine"
+            "inquiry-resolution-routine",
         );
         
         // Test evolution progression
@@ -500,7 +500,7 @@ describe("Customer Service Execution Fixtures", () => {
         runComprehensiveExecutionTests(
             highPerfExecutionContextFixture,
             "run",
-            "high-performance-execution"
+            "high-performance-execution",
         );
         
         // Test performance characteristics
@@ -520,7 +520,7 @@ describe("Customer Service Execution Fixtures", () => {
             
             // Verify tier 1 events are consumed by tier 2
             const hasConnection = tier2Consumed.some(event => 
-                event.includes("tier1") || event.includes("swarm")
+                event.includes("tier1") || event.includes("swarm"),
             );
             expect(hasConnection).toBe(true);
         });
@@ -542,7 +542,7 @@ describe("Customer Service Execution Fixtures", () => {
 export const inquiryEvolutionSequence = FixtureCreationUtils.createEvolutionSequence(
     routineConfigFixtures.action.simple,
     "routine",
-    ["conversational", "reasoning", "deterministic"]
+    ["conversational", "reasoning", "deterministic"],
 );
 
 describe("Routine Evolution Sequence", () => {
@@ -551,7 +551,7 @@ describe("Routine Evolution Sequence", () => {
             runComprehensiveExecutionTests(
                 fixture,
                 "routine",
-                `inquiry-evolution-stage-${index + 1}`
+                `inquiry-evolution-stage-${index + 1}`,
             );
         });
     });
@@ -582,7 +582,7 @@ describe("Complete Customer Support Testing (Enhanced Phase 1-4)", () => {
         // Phase 1: Enhanced Config Integration
         const configValidation = await validateConfigWithSharedFixtures(
             customerSupportSwarmFixture, 
-            "chat"
+            "chat",
         );
         expect(configValidation.pass).toBe(true);
         console.log("✅ Phase 1: Config validation passed");
@@ -593,14 +593,14 @@ describe("Complete Customer Support Testing (Enhanced Phase 1-4)", () => {
                 name: "basic_customer_inquiry",
                 input: { inquiry: "How do I reset my password?" },
                 expectedEmergence: ["intent_recognition", "solution_matching"],
-                timeout: 15000
+                timeout: 15000,
             },
             {
                 name: "complex_technical_issue", 
                 input: { inquiry: "API integration failing intermittently" },
                 expectedEmergence: ["multi_agent_collaboration", "technical_analysis"],
-                timeout: 30000
-            }
+                timeout: 30000,
+            },
         ];
         
         expect(runtimeScenarios.length).toBe(2);
@@ -609,7 +609,7 @@ describe("Complete Customer Support Testing (Enhanced Phase 1-4)", () => {
         // Phase 3: Error Scenario Testing
         const errorScenarios = {
             resource_exhaustion: inquiryResolutionRoutineFixture.errorScenarios![0],
-            timeout_error: highPerfExecutionContextFixture.errorScenarios![0]
+            timeout_error: highPerfExecutionContextFixture.errorScenarios![0],
         };
         
         Object.values(errorScenarios).forEach(scenario => {
@@ -623,14 +623,14 @@ describe("Complete Customer Support Testing (Enhanced Phase 1-4)", () => {
             maxLatencyMs: 2000,
             minAccuracy: 0.90,
             maxCost: 0.05,
-            minAvailability: 0.95
+            minAvailability: 0.95,
         };
         
         const simulatedResults = {
             latency: 750,
             accuracy: 0.92,
             cost: 0.04,
-            availability: 0.98
+            availability: 0.98,
         };
         
         expect(simulatedResults.latency).toBeLessThan(performanceTargets.maxLatencyMs);
@@ -646,23 +646,23 @@ describe("Complete Customer Support Testing (Enhanced Phase 1-4)", () => {
                 configValidation: { status: "PASSED", warnings: 0 },
                 runtimeTesting: { status: "PASSED", scenariosExecuted: 2 },
                 errorResilience: { status: "PASSED", resilienceScore: 0.90 },
-                performanceBenchmarks: { status: "PASSED", targetsMetLevel: "100%" }
+                performanceBenchmarks: { status: "PASSED", targetsMetLevel: "100%" },
             },
             emergence: {
                 detectedCapabilities: [
                     "empathetic_response", 
                     "issue_pattern_recognition",
-                    "proactive_solution_suggestion"
+                    "proactive_solution_suggestion",
                 ],
                 evolutionReadiness: true,
-                crossTierCoordination: "optimal"
+                crossTierCoordination: "optimal",
             },
             recommendations: [
                 "Deploy to production with gradual rollout",
                 "Enable automated evolution tracking",
                 "Implement real-time performance monitoring",
-                "Add domain-specific security agents"
-            ]
+                "Add domain-specific security agents",
+            ],
         };
 
         expect(testReport.phases.configValidation.status).toBe("PASSED");
@@ -707,7 +707,7 @@ describe("Complete Customer Support Testing (Enhanced Phase 1-4)", () => {
         const improvementMetrics = {
             latencyImprovement: ((firstStage.averageExecutionTime - lastStage.averageExecutionTime) / firstStage.averageExecutionTime * 100).toFixed(1),
             costReduction: ((firstStage.costPerExecution - lastStage.costPerExecution) / firstStage.costPerExecution * 100).toFixed(1),
-            reliabilityGain: ((lastStage.successRate - firstStage.successRate) * 100).toFixed(1)
+            reliabilityGain: ((lastStage.successRate - firstStage.successRate) * 100).toFixed(1),
         };
 
         expect(parseFloat(improvementMetrics.latencyImprovement)).toBeGreaterThan(0);
@@ -727,5 +727,5 @@ export {
     inquiryResolutionRoutineFixture,
     highPerfExecutionContextFixture,
     crossTierCustomerServiceFixture,
-    inquiryEvolutionSequence
+    inquiryEvolutionSequence,
 };

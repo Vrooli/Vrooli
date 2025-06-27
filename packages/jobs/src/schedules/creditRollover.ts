@@ -14,8 +14,6 @@ export async function creditRollover(): Promise<void> {
     const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`; // "YYYY-MM"
     
     // Check if this month has already been processed (idempotency protection)
-    const { DbProvider } = await import("@vrooli/server");
-    const prisma = DbProvider.get();
     const redis = await CacheService.get().raw();
     
     let processedUsers = 0;
@@ -62,9 +60,7 @@ export async function creditRollover(): Promise<void> {
                 creditAccount: {
                     isNot: null,
                 },
-                creditSettings: {
-                    not: null,
-                },
+                // Remove credit settings filter - we'll check it in processBatch
             },
         });
         
@@ -354,7 +350,7 @@ async function updateCreditSettingsProcessedMonth(
         while (retryCount < maxRetries) {
             try {
                 // Use a transaction to ensure atomic read-modify-write
-                const result = await DbProvider.get().$transaction(async (tx) => {
+                await DbProvider.get().$transaction(async (tx) => {
                     const user = await tx.user.findUnique({
                         where: { id: userId },
                         select: { creditSettings: true },
@@ -375,7 +371,7 @@ async function updateCreditSettingsProcessedMonth(
                     return await tx.user.update({
                         where: { id: userId },
                         data: {
-                            creditSettings: creditConfig.toObject(),
+                            creditSettings: creditConfig.toObject() as unknown as Prisma.InputJsonValue,
                         },
                     });
                 });

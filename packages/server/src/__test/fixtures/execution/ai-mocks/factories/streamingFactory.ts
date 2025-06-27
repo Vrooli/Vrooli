@@ -9,7 +9,7 @@ import type {
     StreamingConfig, 
     StreamChunk,
     ErrorConfig,
-    MockFactoryResult 
+    MockFactoryResult, 
 } from "../types.js";
 import { createAIMockResponse } from "./responseFactory.js";
 import { createErrorFromConfig } from "./errorFactory.js";
@@ -18,15 +18,15 @@ import { createErrorFromConfig } from "./errorFactory.js";
  * Create a streaming mock response
  */
 export async function* createStreamingMock(
-    config: StreamingConfig
+    config: StreamingConfig,
 ): AsyncGenerator<LLMStreamEvent> {
     // Start event
     yield {
         type: "start",
         metadata: {
             model: "gpt-4o-mini",
-            timestamp: new Date().toISOString()
-        }
+            timestamp: new Date().toISOString(),
+        },
     };
     
     const chunks = normalizeChunks(config.chunks);
@@ -55,7 +55,7 @@ export async function* createStreamingMock(
                 const error = createErrorFromConfig(config.error);
                 yield {
                     type: "error",
-                    error: error.message
+                    error: error.message,
                 };
                 return;
             }
@@ -65,7 +65,7 @@ export async function* createStreamingMock(
                 totalText += chunk;
                 yield {
                     type: "text",
-                    text: chunk
+                    text: chunk,
                 };
             } else {
                 switch (chunk.type) {
@@ -73,7 +73,7 @@ export async function* createStreamingMock(
                         totalText += chunk.content;
                         yield {
                             type: "text",
-                            text: chunk.content
+                            text: chunk.content,
                         };
                         break;
                         
@@ -81,7 +81,7 @@ export async function* createStreamingMock(
                         totalReasoning += chunk.content;
                         yield {
                             type: "reasoning",
-                            reasoning: chunk.content
+                            reasoning: chunk.content,
                         };
                         break;
                         
@@ -94,9 +94,9 @@ export async function* createStreamingMock(
                                 type: "function",
                                 function: {
                                     name: toolCall.name,
-                                    arguments: JSON.stringify(toolCall.arguments)
-                                }
-                            }
+                                    arguments: JSON.stringify(toolCall.arguments),
+                                },
+                            },
                         };
                         break;
                 }
@@ -110,7 +110,7 @@ export async function* createStreamingMock(
                 totalReasoning += reasoningChunk;
                 yield {
                     type: "reasoning",
-                    reasoning: reasoningChunk
+                    reasoning: reasoningChunk,
                 };
             }
         }
@@ -120,7 +120,7 @@ export async function* createStreamingMock(
             promptTokens: 50, // Mock value
             completionTokens: Math.ceil((totalText.length + totalReasoning.length) / 4),
             totalTokens: 0,
-            cost: 0
+            cost: 0,
         };
         usage.totalTokens = usage.promptTokens + usage.completionTokens;
         usage.cost = (usage.totalTokens / 1000) * 0.0006; // Mock pricing
@@ -129,13 +129,13 @@ export async function* createStreamingMock(
         yield {
             type: "done",
             usage,
-            finishReason: "stop"
+            finishReason: "stop",
         };
         
     } catch (error) {
         yield {
             type: "error",
-            error: error instanceof Error ? error.message : "Unknown streaming error"
+            error: error instanceof Error ? error.message : "Unknown streaming error",
         };
     }
 }
@@ -145,7 +145,7 @@ export async function* createStreamingMock(
  */
 export async function* createTypingStream(
     text: string,
-    wordsPerMinute = 150
+    wordsPerMinute = 150,
 ): AsyncGenerator<LLMStreamEvent> {
     yield { type: "start", metadata: {} };
     
@@ -179,7 +179,7 @@ export async function* createTypingStream(
         promptTokens: 20,
         completionTokens: Math.ceil(accumulated.length / 4),
         totalTokens: 0,
-        cost: 0
+        cost: 0,
     };
     usage.totalTokens = usage.promptTokens + usage.completionTokens;
     
@@ -192,7 +192,7 @@ export async function* createTypingStream(
 export async function* createToolCallStream(
     preText: string,
     toolCalls: Array<{ name: string; arguments: any; result?: any }>,
-    postText: string
+    postText: string,
 ): AsyncGenerator<LLMStreamEvent> {
     yield { type: "start", metadata: {} };
     
@@ -211,9 +211,9 @@ export async function* createToolCallStream(
                 type: "function",
                 function: {
                     name: toolCall.name,
-                    arguments: JSON.stringify(toolCall.arguments)
-                }
-            }
+                    arguments: JSON.stringify(toolCall.arguments),
+                },
+            },
         };
         await sleep(100);
         
@@ -222,7 +222,7 @@ export async function* createToolCallStream(
             yield {
                 type: "tool_result",
                 toolCallId: `call_${Date.now()}`,
-                result: toolCall.result
+                result: toolCall.result,
             };
             await sleep(100);
         }
@@ -240,9 +240,9 @@ export async function* createToolCallStream(
             promptTokens: 30,
             completionTokens: Math.ceil((preText.length + postText.length) / 4) + toolCalls.length * 20,
             totalTokens: 0,
-            cost: 0
+            cost: 0,
         },
-        finishReason: "stop"
+        finishReason: "stop",
     };
 }
 
@@ -251,7 +251,7 @@ export async function* createToolCallStream(
  */
 export async function* streamFromResponse(
     mockResult: MockFactoryResult,
-    chunkSize = 5
+    chunkSize = 5,
 ): AsyncGenerator<LLMStreamEvent> {
     yield { type: "start", metadata: { model: mockResult.response.model } };
     
@@ -285,9 +285,9 @@ export async function* streamFromResponse(
             promptTokens: 0,
             completionTokens: mockResult.response.tokensUsed,
             totalTokens: mockResult.response.tokensUsed,
-            cost: 0
+            cost: 0,
         },
-        finishReason: mockResult.response.finishReason
+        finishReason: mockResult.response.finishReason,
     };
 }
 
@@ -300,7 +300,7 @@ function normalizeChunks(chunks: string[] | StreamChunk[]): StreamChunk[] {
     if (typeof chunks[0] === "string") {
         return (chunks as string[]).map(c => ({
             type: "text",
-            content: c
+            content: c,
         }));
     }
     
@@ -309,7 +309,7 @@ function normalizeChunks(chunks: string[] | StreamChunk[]): StreamChunk[] {
 
 function normalizeDelays(
     delay: number | number[] | undefined,
-    chunkCount: number
+    chunkCount: number,
 ): number[] {
     if (!delay) return new Array(chunkCount).fill(0);
     

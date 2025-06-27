@@ -1,8 +1,44 @@
 /**
- * Tier-specific adapters for the unified ResourceManager
+ * Tier-Specific Resource Adapters - Hierarchical Resource Management
  * 
- * These adapters add tier-specific behavior without duplicating core functionality.
- * Complex optimization emerges from resource agents analyzing events.
+ * These adapters implement the adapter pattern to add tier-specific behavior to the
+ * unified ResourceManager without duplicating core allocation and tracking logic.
+ * Each adapter focuses on the unique resource management needs of its tier while
+ * maintaining consistency with the overall resource management philosophy.
+ * 
+ * ## Adapter Pattern Benefits
+ * 
+ * - **Single Responsibility**: Each adapter handles only its tier's specific needs
+ * - **Code Reuse**: Core allocation logic remains in the unified manager
+ * - **Consistent Events**: All adapters emit the same resource event types
+ * - **Easy Testing**: Tier-specific behavior can be tested in isolation
+ * - **Emergent Intelligence**: All adapters feed into the same event stream for AI analysis
+ * 
+ * ## Hierarchical Resource Flow
+ * 
+ * ```
+ * SwarmResourceAdapter (Tier 1)
+ *   ├── Swarm-level budgets and strategic allocation
+ *   └── Team-level resource distribution
+ *       ↓
+ * RunResourceAdapter (Tier 2)  
+ *   ├── Run-level execution resources
+ *   └── Step-level resource distribution
+ *       ↓
+ * StepResourceAdapter (Tier 3)
+ *   ├── User-specific tracking and limits
+ *   └── Burst capacity management
+ * ```
+ * 
+ * ## Emergent Optimization Philosophy
+ * 
+ * These adapters provide basic allocation strategies (equal distribution, simple budgeting)
+ * while complex optimization emerges from AI agents analyzing the resource events.
+ * Agents can propose improvements like:
+ * - Dynamic resource reallocation based on step complexity
+ * - Predictive burst capacity allocation
+ * - Cost-optimized team composition strategies
+ * - Performance-driven step resource tuning
  */
 
 import { type ResourceManager, type ResourceAllocation, type ResourceAmount } from "./resourceManager.js";

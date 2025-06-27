@@ -22,21 +22,21 @@ export const TECHNICAL_SUPPORT_SPECIALIST_V3: RoutineConfigObject = {
             name: "Analyze Technical Issue",
             type: "conversational",
             inputs: ["user_query", "system_context"],
-            outputs: ["issue_analysis", "complexity_assessment"]
+            outputs: ["issue_analysis", "complexity_assessment"],
         },
         {
             id: "provide_solution", 
             name: "Provide Solution",
             type: "conversational",
             inputs: ["issue_analysis", "knowledge_base"],
-            outputs: ["solution_steps", "confidence_score"]
-        }
+            outputs: ["solution_steps", "confidence_score"],
+        },
     ],
     emergenceConfig: {
         capabilities: ["technical_diagnosis", "solution_generation", "customer_communication"],
         learningEnabled: true,
-        adaptationThreshold: 0.8
-    }
+        adaptationThreshold: 0.8,
+    },
 };
 
 /**
@@ -54,21 +54,21 @@ export const BILLING_SPECIALIST_V3: RoutineConfigObject = {
             name: "Analyze Billing Query",
             type: "reasoning",
             inputs: ["billing_query", "account_data"],
-            outputs: ["query_classification", "required_actions"]
+            outputs: ["query_classification", "required_actions"],
         },
         {
             id: "resolve_billing_issue",
             name: "Resolve Billing Issue", 
             type: "reasoning",
             inputs: ["query_classification", "billing_rules"],
-            outputs: ["resolution_plan", "estimated_time"]
-        }
+            outputs: ["resolution_plan", "estimated_time"],
+        },
     ],
     emergenceConfig: {
         capabilities: ["billing_analysis", "policy_reasoning", "resolution_planning"],
         learningEnabled: true,
-        adaptationThreshold: 0.85
-    }
+        adaptationThreshold: 0.85,
+    },
 };
 
 /**
@@ -86,21 +86,21 @@ export const ACCOUNT_SPECIALIST_V3: RoutineConfigObject = {
             name: "Validate Account",
             type: "deterministic",
             inputs: ["account_id", "verification_data"],
-            outputs: ["validation_result", "account_status"]
+            outputs: ["validation_result", "account_status"],
         },
         {
             id: "process_account_request",
             name: "Process Account Request",
             type: "deterministic", 
             inputs: ["validation_result", "request_type"],
-            outputs: ["processing_result", "next_steps"]
-        }
+            outputs: ["processing_result", "next_steps"],
+        },
     ],
     emergenceConfig: {
         capabilities: ["account_validation", "request_processing", "workflow_optimization"],
         learningEnabled: false, // Deterministic stage
-        adaptationThreshold: 0.95
-    }
+        adaptationThreshold: 0.95,
+    },
 };
 
 /**
@@ -118,21 +118,21 @@ export const ESCALATION_HANDLER_V2: RoutineConfigObject = {
             name: "Assess Escalation",
             type: "reasoning",
             inputs: ["escalation_data", "priority_matrix"],
-            outputs: ["urgency_level", "routing_decision"]
+            outputs: ["urgency_level", "routing_decision"],
         },
         {
             id: "route_escalation",
             name: "Route Escalation",
             type: "reasoning",
             inputs: ["urgency_level", "available_agents"],
-            outputs: ["assigned_agent", "estimated_resolution"]
-        }
+            outputs: ["assigned_agent", "estimated_resolution"],
+        },
     ],
     emergenceConfig: {
         capabilities: ["escalation_assessment", "intelligent_routing", "priority_management"],
         learningEnabled: true,
-        adaptationThreshold: 0.9
-    }
+        adaptationThreshold: 0.9,
+    },
 };
 
 /**
@@ -150,19 +150,19 @@ export const RESPONSE_SYNTHESIZER_V1: RoutineConfigObject = {
             name: "Collect Responses",
             type: "routing",
             inputs: ["source_responses", "context_data"],
-            outputs: ["response_collection", "quality_scores"]
+            outputs: ["response_collection", "quality_scores"],
         },
         {
             id: "synthesize_final_response",
             name: "Synthesize Final Response",
             type: "routing",
             inputs: ["response_collection", "synthesis_rules"],
-            outputs: ["final_response", "confidence_level"]
-        }
+            outputs: ["final_response", "confidence_level"],
+        },
     ],
     emergenceConfig: {
         capabilities: ["response_collection", "intelligent_synthesis", "quality_assessment"],
         learningEnabled: true,
-        adaptationThreshold: 0.75
-    }
+        adaptationThreshold: 0.75,
+    },
 };

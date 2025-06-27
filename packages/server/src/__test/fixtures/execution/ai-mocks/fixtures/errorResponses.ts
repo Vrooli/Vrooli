@@ -17,10 +17,10 @@ export const rateLimit = (retryAfter = 60): ErrorConfig => ({
     details: {
         limit: 100,
         used: 100,
-        resetTime: new Date(Date.now() + retryAfter * 1000).toISOString()
+        resetTime: new Date(Date.now() + retryAfter * 1000).toISOString(),
     },
     retryable: true,
-    retryAfter
+    retryAfter,
 });
 
 /**
@@ -32,9 +32,9 @@ export const authenticationError = (): ErrorConfig => ({
     code: "invalid_api_key",
     details: {
         provided: "sk-...****",
-        hint: "Check your API key configuration"
+        hint: "Check your API key configuration",
     },
-    retryable: false
+    retryable: false,
 });
 
 /**
@@ -48,9 +48,9 @@ export const quotaExceeded = (): ErrorConfig => ({
         quotaType: "monthly",
         limit: 1000000,
         used: 1000000,
-        resetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        resetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     },
-    retryable: false
+    retryable: false,
 });
 
 /**
@@ -62,9 +62,9 @@ export const modelNotFound = (modelName = "gpt-5"): ErrorConfig => ({
     code: "model_not_found",
     details: {
         requestedModel: modelName,
-        availableModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+        availableModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
     },
-    retryable: false
+    retryable: false,
 });
 
 /**
@@ -77,9 +77,9 @@ export const invalidRequest = (field = "messages"): ErrorConfig => ({
     details: {
         field,
         reason: "Value must not be empty",
-        example: field === "messages" ? [{ role: "user", content: "Hello" }] : undefined
+        example: field === "messages" ? [{ role: "user", content: "Hello" }] : undefined,
     },
-    retryable: false
+    retryable: false,
 });
 
 /**
@@ -91,9 +91,9 @@ export const contentFilter = (): ErrorConfig => ({
     code: "content_policy_violation",
     details: {
         categories: ["violence", "harmful_content"],
-        severity: "high"
+        severity: "high",
     },
-    retryable: false
+    retryable: false,
 });
 
 /**
@@ -105,9 +105,9 @@ export const timeout = (duration = 30000): ErrorConfig => ({
     code: "request_timeout",
     details: {
         timeoutMs: duration,
-        elapsed: duration + Math.floor(Math.random() * 1000)
+        elapsed: duration + Math.floor(Math.random() * 1000),
     },
-    retryable: true
+    retryable: true,
 });
 
 /**
@@ -121,9 +121,9 @@ export const networkError = (): ErrorConfig => ({
         errno: -111,
         syscall: "connect",
         address: "api.openai.com",
-        port: 443
+        port: 443,
     },
-    retryable: true
+    retryable: true,
 });
 
 /**
@@ -135,9 +135,9 @@ export const internalError = (): ErrorConfig => ({
     code: "internal_server_error",
     details: {
         requestId: `req_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
     },
-    retryable: true
+    retryable: true,
 });
 
 /**
@@ -150,9 +150,9 @@ export const contextLengthExceeded = (limit = 128000): ErrorConfig => ({
     details: {
         requestedTokens: limit + 1000,
         maxTokens: limit,
-        suggestion: "Reduce the size of your messages or use a model with a larger context window."
+        suggestion: "Reduce the size of your messages or use a model with a larger context window.",
     },
-    retryable: false
+    retryable: false,
 });
 
 /**
@@ -165,10 +165,10 @@ export const serviceUnavailable = (): ErrorConfig => ({
     details: {
         status: 503,
         retryAfter: 300,
-        maintenanceWindow: false
+        maintenanceWindow: false,
     },
     retryable: true,
-    retryAfter: 300
+    retryAfter: 300,
 });
 
 /**
@@ -180,9 +180,9 @@ export const malformedResponse = (): ErrorConfig => ({
     code: "malformed_response",
     details: {
         parseError: "Unexpected token in JSON",
-        rawResponse: '{"content": "Hello", "tool_calls": [{'
+        rawResponse: "{\"content\": \"Hello\", \"tool_calls\": [{",
     },
-    retryable: true
+    retryable: true,
 });
 
 /**
@@ -195,9 +195,9 @@ export const toolExecutionError = (toolName = "search"): ErrorConfig => ({
     details: {
         toolName,
         error: "Tool not found in registry",
-        availableTools: ["calculate", "fetch", "process"]
+        availableTools: ["calculate", "fetch", "process"],
     },
-    retryable: false
+    retryable: false,
 });
 
 /**
@@ -210,9 +210,9 @@ export const partialFailure = (): ErrorConfig => ({
     details: {
         successful: ["text_generation"],
         failed: ["tool_execution", "reasoning"],
-        successRate: 0.33
+        successRate: 0.33,
     },
-    retryable: true
+    retryable: true,
 });
 
 /**
@@ -222,7 +222,7 @@ export const errorChain = (): ErrorConfig[] => [
     networkError(),
     timeout(5000),
     internalError(),
-    serviceUnavailable()
+    serviceUnavailable(),
 ];
 
 /**
@@ -238,7 +238,7 @@ export const randomError = (): ErrorConfig => {
         contentFilter(),
         timeout(),
         networkError(),
-        internalError()
+        internalError(),
     ];
     
     return errors[Math.floor(Math.random() * errors.length)];

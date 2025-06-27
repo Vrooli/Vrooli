@@ -1,7 +1,7 @@
-import { BaseToolFixture, ToolTestCase } from "./base.js";
-import { MCPTool } from "../../../../services/mcp/tools.js";
-import { EmergentAgent } from "../../../../services/execution/cross-cutting/agents/emergentAgent.js";
-import { EventPublisher } from "../../../../services/execution/shared/EventPublisher.js";
+import { BaseToolFixture, type ToolTestCase } from "./base.js";
+import { type MCPTool } from "../../../../services/mcp/tools.js";
+import { type EmergentAgent } from "../../../../services/execution/cross-cutting/agents/emergentAgent.js";
+import { type EventPublisher } from "../../../../services/execution/shared/EventPublisher.js";
 
 export class MonitoringToolFixture extends BaseToolFixture {
     private metricsHistory: MetricSnapshot[] = [];
@@ -251,7 +251,7 @@ export class MonitoringToolFixture extends BaseToolFixture {
 
     private calculateFalsePositives(normalData: MetricData[]): number {
         // Test normal data for false positives
-        let falsePositives = 0;
+        const falsePositives = 0;
         // Simplified calculation
         return falsePositives;
     }

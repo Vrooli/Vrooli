@@ -14,7 +14,8 @@ import { PageContainer } from "../../../components/Page/Page.js";
 import { AutoFillButton } from "../../../components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import Dialog from "@mui/material/Dialog";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
 import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { detailsInputFeatures, nameInputFeatures, summaryInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { CodeInput } from "../../../components/inputs/CodeInput/CodeInput.js";
@@ -481,6 +482,7 @@ function ApiForm({
     const theme = useTheme();
     const { dimensions, ref } = useDimensions<HTMLDivElement>();
     const isStacked = dimensions.width < theme.breakpoints.values.lg;
+    const isMobile = useIsMobile();
 
     // Handle translations
     const {
@@ -594,13 +596,8 @@ function ApiForm({
         }
     }
 
-    return (
-        <MaybeLargeDialog
-            display={display}
-            id="api-upsert-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-        >
+    const dialogContent = (
+        <>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -733,9 +730,9 @@ function ApiForm({
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                errors={translationErrors}
                 isCreate={isCreate}
-                loading={isLoading}
+                loading={combinedIsLoading}
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
@@ -744,7 +741,28 @@ function ApiForm({
                     isAutoFillLoading={isAutoFillLoading}
                 />}
             />
-        </MaybeLargeDialog>
+        </>
+    );
+
+    return isMobile ? (
+        <Dialog
+            id="api-upsert-dialog"
+            open={isOpen}
+            onClose={onClose}
+            fullScreen
+        >
+            {dialogContent}
+        </Dialog>
+    ) : (
+        <Dialog
+            id="api-upsert-dialog"
+            open={isOpen}
+            onClose={onClose}
+            maxWidth="lg"
+            fullWidth
+        >
+            {dialogContent}
+        </Dialog>
     );
 }
 
@@ -766,9 +784,22 @@ export function ApiUpsert({
         transform: (data) => apiInitialValues(session, data),
     });
 
-    async function validateValues(values: ResourceVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformResourceVersionValues, resourceVersionValidation);
-    }
+    // Validation for the wrapper Formik
+    const validateValues = useCallback(async (values: ResourceVersionShape) => {
+        try {
+            const schema = isCreate ? resourceVersionValidation.create({ env: process.env.NODE_ENV }) : resourceVersionValidation.update({ env: process.env.NODE_ENV });
+            await schema.validate(values, { abortEarly: false });
+            return {};
+        } catch (error: any) {
+            const errors: Record<string, string> = {};
+            if (error.inner) {
+                error.inner.forEach((err: any) => {
+                    if (err.path) errors[err.path] = err.message;
+                });
+            }
+            return errors;
+        }
+    }, [isCreate]);
 
     const versions = useMemo(function versionsMemo() {
         return (existing?.root as ResourceShape)?.versions?.map(v => v.versionLabel) ?? [];

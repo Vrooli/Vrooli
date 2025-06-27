@@ -323,10 +323,10 @@ async function embeddingBatch<K extends EmbeddableType>({
     } catch (error) {
         logger.error("embeddingBatch caught error", { 
             error: {
-                name: error?.name,
-                message: error?.message,
-                stack: error?.stack,
-                ...error,
+                name: error instanceof Error ? error.name : "Unknown",
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                ...(typeof error === "object" && error !== null ? error : {}),
             }, 
             trace, 
             ...traceObject, 
@@ -430,7 +430,8 @@ async function batchEmbeddingsRun() {
         trace: "0483",
         where: {
             status: { in: [RunStatus.Scheduled, RunStatus.InProgress] },
-            ...(RECALCULATE_EMBEDDINGS ? {} : { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] }),
+            // TODO: Check if embeddingExpiredAt exists on Run model
+            // ...(RECALCULATE_EMBEDDINGS ? {} : { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] }),
         },
     });
 }

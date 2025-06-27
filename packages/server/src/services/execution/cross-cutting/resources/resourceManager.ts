@@ -1,20 +1,98 @@
 /**
- * Unified Resource Manager - Shared resource management across all tiers
+ * Unified Resource Manager - Core Resource Infrastructure
  * 
- * This component provides core resource management functionality that can be
- * adapted for different tiers through configuration and adapters.
+ * This component serves as the foundational layer for all resource management across
+ * Vrooli's three-tier execution architecture. It provides deterministic resource
+ * allocation, tracking, and lifecycle management while remaining agnostic to
+ * optimization strategies that emerge from AI agents.
  * 
- * Complex optimization and prediction capabilities emerge from resource agents
- * analyzing the events emitted by this manager.
+ * ## Architecture Role
+ * 
+ * The Unified Resource Manager implements the **"Reserve → Execute → Return"** pattern:
+ * 1. **Reserve**: Allocate resources upfront with clear limits
+ * 2. **Execute**: Track actual consumption during operations  
+ * 3. **Return**: Clean up and return unused resources to parent tier
+ * 
+ * This pattern ensures:
+ * - Predictable resource consumption across all operations
+ * - Simplified conflict resolution and resource contention handling
+ * - Clear audit trail for resource usage and cost tracking
+ * - Automatic cleanup of expired or abandoned allocations
+ * 
+ * ## Event-Driven Intelligence Architecture
+ * 
+ * The manager emits comprehensive resource events that AI agents analyze to provide
+ * emergent optimization capabilities:
+ * 
+ * ### Core Resource Events:
+ * - `RESOURCE_ALLOCATED`: New allocation with entity context and limits
+ * - `RESOURCE_USAGE`: Real-time usage tracking with cumulative totals
+ * - `RESOURCE_RELEASED`: Allocation cleanup and resource return events
+ * - `RESOURCE_EXHAUSTED`: Resource limit violations and constraint events
+ * 
+ * ### Emergent Intelligence from Events:
+ * AI agents analyze these events to provide:
+ * - **Pattern Recognition**: Usage patterns across entities and time
+ * - **Predictive Allocation**: Pre-allocate based on learned patterns
+ * - **Cost Optimization**: Identify over-allocation and waste
+ * - **Performance Analysis**: Detect bottlenecks and scaling needs
+ * - **Anomaly Detection**: Unusual resource usage requiring attention
+ * 
+ * ## Resource Types and Semantics
+ * 
+ * ### Computational Resources:
+ * - **Credits**: Primary cost tracking (monetary value in cents/credits)
+ * - **Time**: Execution duration limits (milliseconds)
+ * - **Memory**: Peak memory usage tracking (bytes)  
+ * - **Tokens**: LLM token consumption (input/output tokens)
+ * - **API Calls**: External service rate limiting (calls/period)
+ * 
+ * ### Resource Allocation Semantics:
+ * - **Credits**: Cumulative consumption (depleted over time)
+ * - **Time**: Maximum execution duration (hard timeout limit)
+ * - **Memory**: Peak usage tracking (highest point reached)
+ * - **Tokens**: Cumulative consumption (input + output tokens)
+ * - **API Calls**: Rate-limited consumption (sliding window)
+ * 
+ * ## Tier Integration Strategy
+ * 
+ * The unified manager adapts to different tiers through configuration:
+ * 
+ * ```
+ * Tier 1 (Swarm): 100k credits, 1 hour, 1GB memory - Strategic coordination
+ * Tier 2 (Run):    10k credits, 5 min, 512MB       - Routine execution  
+ * Tier 3 (Step):   1k credits,  1 min, 256MB       - Individual steps
+ * ```
+ * 
+ * This hierarchical approach ensures:
+ * - Clear resource boundaries between tiers
+ * - Automatic resource distribution and inheritance
+ * - Simplified debugging and performance analysis
+ * - Consistent resource accounting across all operations
+ * 
+ * ## Philosophy: Infrastructure without Intelligence
+ * 
+ * This manager intentionally avoids complex optimization logic, instead providing:
+ * - **Reliable Infrastructure**: Deterministic allocation and tracking
+ * - **Rich Event Streams**: Comprehensive data for AI agent analysis
+ * - **Extensible Design**: Easy integration of new resource types
+ * - **Performance Focus**: Fast allocation/deallocation operations
+ * 
+ * Complex optimization strategies emerge from AI agents that analyze the event
+ * streams and propose improvements through routine execution, ensuring the system
+ * can evolve and improve without requiring changes to core infrastructure.
  */
 
 import { logger } from "../../../../events/logger.js";
-import { RedisEventBus } from "../events/eventBus.js";
-import { EventPublisher } from "../../shared/EventPublisher.js";
-import { ErrorHandler, ComponentErrorHandler } from "../../shared/ErrorHandler.js";
-import { RateLimiter } from "./rateLimiter.js";
-import { ResourcePool, ResourcePoolManager } from "./resourcePool.js";
-import { UsageTracker } from "./usageTracker.js";
+import { 
+    type IEventBus,
+    EventTypes,
+    EventUtils,
+} from "../../../events/index.js";
+import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
+import { type RateLimiter } from "./rateLimiter.js";
+import { type ResourcePoolManager } from "./resourcePool.js";
+import { type UsageTracker } from "./usageTracker.js";
 
 /**
  * Resource allocation
@@ -57,8 +135,7 @@ export interface ResourceManagerConfig {
  * Tier-specific behavior is added through adapters.
  */
 export class ResourceManager {
-    private readonly eventBus: RedisEventBus;
-    private readonly eventPublisher: EventPublisher;
+    private readonly eventBus: IEventBus;
     private readonly errorHandler: ComponentErrorHandler;
     private readonly config: ResourceManagerConfig;
     private readonly allocations = new Map<string, ResourceAllocation>();
@@ -71,7 +148,7 @@ export class ResourceManager {
     private usageTracker?: UsageTracker;
 
     constructor(
-        eventBus: RedisEventBus,
+        eventBus: IEventBus,
         config: ResourceManagerConfig,
         components?: {
             rateLimiter?: RateLimiter;
@@ -81,8 +158,8 @@ export class ResourceManager {
     ) {
         this.eventBus = eventBus;
         this.config = config;
-        this.eventPublisher = new EventPublisher(eventBus, logger, `ResourceManager-Tier${config.tier}`);
-        this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler(`ResourceManager-Tier${config.tier}`);
+        // Create ErrorHandler without EventPublisher (will use unified event system directly)
+        this.errorHandler = new ErrorHandler(logger).createComponentHandler(`ResourceManager-Tier${config.tier}`);
         this.rateLimiter = components?.rateLimiter;
         this.poolManager = components?.poolManager;
         this.usageTracker = components?.usageTracker;
@@ -133,10 +210,19 @@ export class ResourceManager {
             });
         }
 
-        // Emit allocation event
-        await this.emitResourceEvent("RESOURCE_ALLOCATED", {
-            allocation,
-            tier: this.config.tier,
+        // Emit allocation event using unified event system
+        await this.eventBus.publish({
+            ...EventUtils.createBaseEvent(
+                EventTypes.RESOURCE_ALLOCATED,
+                {
+                    allocation,
+                    tier: this.config.tier,
+                },
+                EventUtils.createEventSource("cross-cutting", "resource-manager"),
+                EventUtils.createEventMetadata("reliable", "medium", {
+                    tags: ["resource", "allocation"],
+                }),
+            ),
         });
 
         return allocation;
@@ -167,12 +253,21 @@ export class ResourceManager {
             await this.usageTracker.track(entityId, used);
         }
 
-        // Emit usage event
-        await this.emitResourceEvent("RESOURCE_USAGE", {
-            entityId,
-            used,
-            total: updatedUsage,
-            tier: this.config.tier,
+        // Emit usage event using unified event system with fire-and-forget for performance
+        await this.eventBus.publish({
+            ...EventUtils.createBaseEvent(
+                EventTypes.RESOURCE_USAGE,
+                {
+                    entityId,
+                    used,
+                    total: updatedUsage,
+                    tier: this.config.tier,
+                },
+                EventUtils.createEventSource("cross-cutting", "resource-manager"),
+                EventUtils.createEventMetadata("fire-and-forget", "low", {
+                    tags: ["resource", "usage", "metrics"],
+                }),
+            ),
         });
     }
 
@@ -191,10 +286,19 @@ export class ResourceManager {
         // Remove allocation
         this.allocations.delete(allocationId);
 
-        // Emit release event
-        await this.emitResourceEvent("RESOURCE_RELEASED", {
-            allocation,
-            tier: this.config.tier,
+        // Emit release event using unified event system
+        await this.eventBus.publish({
+            ...EventUtils.createBaseEvent(
+                EventTypes.RESOURCE_RELEASED,
+                {
+                    allocation,
+                    tier: this.config.tier,
+                },
+                EventUtils.createEventSource("cross-cutting", "resource-manager"),
+                EventUtils.createEventMetadata("reliable", "medium", {
+                    tags: ["resource", "release"],
+                }),
+            ),
         });
     }
 
@@ -232,12 +336,48 @@ export class ResourceManager {
             
             if (requested.credits && allocated.credits) {
                 if ((usage.credits || 0) + requested.credits > allocated.credits) {
+                    // Emit resource exhausted event
+                    await this.eventBus.publish({
+                        ...EventUtils.createBaseEvent(
+                            EventTypes.RESOURCE_EXHAUSTED,
+                            {
+                                entityId,
+                                resourceType: "credits",
+                                requested: requested.credits,
+                                used: usage.credits || 0,
+                                allocated: allocated.credits,
+                                tier: this.config.tier,
+                            },
+                            EventUtils.createEventSource("cross-cutting", "resource-manager"),
+                            EventUtils.createEventMetadata("reliable", "high", {
+                                tags: ["resource", "exhausted", "credits"],
+                            }),
+                        ),
+                    });
                     return false;
                 }
             }
             
             if (requested.tokens && allocated.tokens) {
                 if ((usage.tokens || 0) + requested.tokens > allocated.tokens) {
+                    // Emit resource exhausted event
+                    await this.eventBus.publish({
+                        ...EventUtils.createBaseEvent(
+                            EventTypes.RESOURCE_EXHAUSTED,
+                            {
+                                entityId,
+                                resourceType: "tokens",
+                                requested: requested.tokens,
+                                used: usage.tokens || 0,
+                                allocated: allocated.tokens,
+                                tier: this.config.tier,
+                            },
+                            EventUtils.createEventSource("cross-cutting", "resource-manager"),
+                            EventUtils.createEventMetadata("reliable", "high", {
+                                tags: ["resource", "exhausted", "tokens"],
+                            }),
+                        ),
+                    });
                     return false;
                 }
             }
@@ -275,12 +415,6 @@ export class ResourceManager {
         };
     }
 
-    private async emitResourceEvent(type: string, data: any): Promise<void> {
-        await this.eventPublisher.publish(`resource.${type.toLowerCase()}`, {
-            tier: this.config.tier,
-            ...data,
-        });
-    }
 
     private startCleanupTimer(): void {
         this.cleanupTimer = setInterval(async () => {

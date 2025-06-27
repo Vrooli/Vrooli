@@ -21,7 +21,7 @@ export function createToolCallResponse(config: {
     const mockConfig: AIMockConfig = {
         content: config.content || "I'll help you with that using the following tools:",
         model: config.model,
-        toolCalls: config.toolCalls
+        toolCalls: config.toolCalls,
     };
     
     const result = createAIMockResponse(mockConfig);
@@ -29,12 +29,12 @@ export function createToolCallResponse(config: {
     // Add tool results if requested
     if (config.includeResults) {
         const toolResults = config.toolCalls.map(tc => 
-            createToolResult(tc)
+            createToolResult(tc),
         );
         
         result.response.metadata = {
             ...result.response.metadata,
-            toolResults
+            toolResults,
         };
     }
     
@@ -56,8 +56,8 @@ export function createMultiStepToolResponse(steps: Array<{
             metadata: {
                 step: index + 1,
                 totalSteps: steps.length,
-                isComplete: isLast
-            }
+                isComplete: isLast,
+            },
         };
         
         return createAIMockResponse(mockConfig);
@@ -69,7 +69,7 @@ export function createMultiStepToolResponse(steps: Array<{
  */
 export function createToolDiscoveryResponse(
     availableTools: string[],
-    query: string
+    query: string,
 ): MockFactoryResult {
     const selectedTools = selectRelevantTools(availableTools, query);
     const content = `Based on your query, I'll use the following tools: ${selectedTools.join(", ")}`;
@@ -79,8 +79,8 @@ export function createToolDiscoveryResponse(
         metadata: {
             availableTools,
             selectedTools,
-            query
-        }
+            query,
+        },
     });
 }
 
@@ -90,24 +90,24 @@ export function createToolDiscoveryResponse(
 export function createToolValidationResponse(
     toolName: string,
     args: Record<string, unknown>,
-    validationResult: { valid: boolean; errors?: string[] }
+    validationResult: { valid: boolean; errors?: string[] },
 ): MockFactoryResult {
     if (validationResult.valid) {
         return createAIMockResponse({
             content: `The ${toolName} tool call is valid and ready to execute.`,
             toolCalls: [{
                 name: toolName,
-                arguments: args
+                arguments: args,
             }],
-            confidence: 0.95
+            confidence: 0.95,
         });
     } else {
         return createAIMockResponse({
             content: `The ${toolName} tool call has validation errors: ${validationResult.errors?.join(", ")}`,
             confidence: 0.7,
             metadata: {
-                validationErrors: validationResult.errors
-            }
+                validationErrors: validationResult.errors,
+            },
         });
     }
 }
@@ -116,7 +116,7 @@ export function createToolValidationResponse(
  * Create parallel tool calls
  */
 export function createParallelToolCalls(
-    tools: Array<{ name: string; arguments: any; description?: string }>
+    tools: Array<{ name: string; arguments: any; description?: string }>,
 ): MockFactoryResult {
     const descriptions = tools
         .filter(t => t.description)
@@ -130,12 +130,12 @@ export function createParallelToolCalls(
         content,
         toolCalls: tools.map(t => ({
             name: t.name,
-            arguments: t.arguments
+            arguments: t.arguments,
         })),
         metadata: {
             executionMode: "parallel",
-            toolCount: tools.length
-        }
+            toolCount: tools.length,
+        },
     });
 }
 
@@ -147,7 +147,7 @@ export function createSequentialToolCalls(
         tool: AIMockToolCall;
         dependsOn?: string;
         processResult?: (previousResults: any[]) => any;
-    }>
+    }>,
 ): MockFactoryResult[] {
     const results: MockFactoryResult[] = [];
     const accumulatedResults: any[] = [];
@@ -166,13 +166,13 @@ export function createSequentialToolCalls(
             content,
             toolCalls: [{
                 ...step.tool,
-                arguments: processedArgs
+                arguments: processedArgs,
             }],
             metadata: {
                 sequenceStep: i + 1,
                 totalSteps: sequence.length,
-                dependsOn: step.dependsOn
-            }
+                dependsOn: step.dependsOn,
+            },
         });
         
         results.push(mockResult);
@@ -189,7 +189,7 @@ export function createToolRetryResponse(
     toolName: string,
     originalArgs: any,
     error: string,
-    correctedArgs: any
+    correctedArgs: any,
 ): MockFactoryResult[] {
     // First attempt - fails
     const firstAttempt = createAIMockResponse({
@@ -197,12 +197,12 @@ export function createToolRetryResponse(
         toolCalls: [{
             name: toolName,
             arguments: originalArgs,
-            error
+            error,
         }],
         metadata: {
             attempt: 1,
-            success: false
-        }
+            success: false,
+        },
     });
     
     // Retry with correction
@@ -210,13 +210,13 @@ export function createToolRetryResponse(
         content: `The previous call failed with: ${error}. Retrying with corrected parameters...`,
         toolCalls: [{
             name: toolName,
-            arguments: correctedArgs
+            arguments: correctedArgs,
         }],
         metadata: {
             attempt: 2,
             success: true,
-            correction: "Applied parameter validation and type conversion"
-        }
+            correction: "Applied parameter validation and type conversion",
+        },
     });
     
     return [firstAttempt, retry];
@@ -231,7 +231,7 @@ function createToolResult(toolCall: AIMockToolCall): ToolCallResult {
         input: toolCall.arguments,
         output: toolCall.result || {},
         success: !toolCall.error,
-        error: toolCall.error
+        error: toolCall.error,
     };
 }
 
@@ -243,7 +243,7 @@ function selectRelevantTools(availableTools: string[], query: string): string[] 
         calculate: ["calculate", "compute", "math", "sum", "average"],
         create: ["create", "make", "generate", "build"],
         update: ["update", "modify", "change", "edit"],
-        delete: ["delete", "remove", "clear", "erase"]
+        delete: ["delete", "remove", "clear", "erase"],
     };
     
     const selected: string[] = [];
@@ -278,12 +278,12 @@ export function createToolOrchestrationScenario(config: {
     // Planning phase
     const planning = createAIMockResponse({
         content: `To achieve "${config.goal}", I'll need to coordinate multiple tools.`,
-        reasoning: `Analyzing available tools and constraints to create an execution plan...`,
+        reasoning: "Analyzing available tools and constraints to create an execution plan...",
         metadata: {
             phase: "planning",
             availableTools: config.availableTools,
-            constraints: config.constraints
-        }
+            constraints: config.constraints,
+        },
     });
     
     // Execution phase (simplified for demo)
@@ -292,16 +292,16 @@ export function createToolOrchestrationScenario(config: {
             content: "Gathering initial data...",
             toolCalls: [{
                 name: config.availableTools[0],
-                arguments: { query: config.goal }
-            }]
+                arguments: { query: config.goal },
+            }],
         }),
         createToolCallResponse({
             content: "Processing results...",
             toolCalls: [{
                 name: config.availableTools[1] || "process",
-                arguments: { data: "mock-data" }
-            }]
-        })
+                arguments: { data: "mock-data" },
+            }],
+        }),
     ];
     
     // Summary phase
@@ -310,8 +310,8 @@ export function createToolOrchestrationScenario(config: {
         metadata: {
             phase: "summary",
             toolsUsed: execution.length,
-            success: true
-        }
+            success: true,
+        },
     });
     
     return { planning, execution, summary };

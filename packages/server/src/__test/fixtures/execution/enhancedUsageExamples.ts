@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { 
     chatConfigFixtures, 
     routineConfigFixtures, 
-    runConfigFixtures 
+    runConfigFixtures, 
 } from "@vrooli/shared";
 import {
     // Phase 1: Enhanced Config Integration
@@ -30,10 +30,10 @@ import {
     PerformanceBenchmarker,
     
     // Core Types
-    ExecutionFixture,
+    type ExecutionFixture,
     SwarmFixture,
     RoutineFixture,
-    ValidationResult
+    ValidationResult,
 } from "./index.js";
 
 // ================================================================================================
@@ -60,36 +60,36 @@ export async function demonstrateCompleteCustomerSupportTesting() {
                     "customer_issue_classification",
                     "solution_recommendation", 
                     "escalation_detection",
-                    "satisfaction_optimization"
+                    "satisfaction_optimization",
                 ],
                 evolutionPath: "reactive → proactive → predictive",
                 emergenceConditions: {
                     minAgents: 2,
                     requiredResources: ["nlp_model", "knowledge_base"],
-                    environmentalFactors: ["customer_context", "historical_data"]
-                }
+                    environmentalFactors: ["customer_context", "historical_data"],
+                },
             },
             metadata: {
                 domain: "customer_support",
                 complexity: "complex",
                 maintainer: "support_team",
-                lastUpdated: new Date().toISOString()
-            }
-        }
+                lastUpdated: new Date().toISOString(),
+            },
+        },
     );
 
     // Create evolution sequence for customer inquiry handling
     const inquiryEvolutionStages = FixtureCreationUtils.createEvolutionSequence(
         routineConfigFixtures.action.simple,
         "routine",
-        ["conversational", "reasoning", "deterministic"]
+        ["conversational", "reasoning", "deterministic"],
     );
 
     // Phase 1: Validate config integration with shared fixtures
     console.log("📋 Phase 1: Enhanced Config Validation");
     const configValidation = await validateConfigWithSharedFixtures(
         supportSwarmFixture,
-        "chat"
+        "chat",
     );
     
     if (!configValidation.pass) {
@@ -109,16 +109,16 @@ export async function demonstrateCompleteCustomerSupportTesting() {
         const result = await runtimeRunner.executeScenario(
             supportSwarmFixture,
             scenario.input,
-            { timeout: scenario.timeout, validateEmergence: true }
+            { timeout: scenario.timeout, validateEmergence: true },
         );
         runtimeResults.push({ scenario: scenario.name, result });
-        console.log(`  ✅ ${scenario.name}: ${result.success ? 'PASSED' : 'FAILED'}`);
+        console.log(`  ✅ ${scenario.name}: ${result.success ? "PASSED" : "FAILED"}`);
     }
 
     // Test evolution sequence runtime behavior
     const evolutionResult = await runtimeRunner.executeEvolutionSequence(
         inquiryEvolutionStages,
-        { inquiry: "How do I reset my password?", urgency: "medium" }
+        { inquiry: "How do I reset my password?", urgency: "medium" },
     );
     console.log(`  📈 Evolution validated: ${evolutionResult.validated}`);
 
@@ -129,7 +129,7 @@ export async function demonstrateCompleteCustomerSupportTesting() {
     const errorScenarios = createStandardErrorScenarios(supportSwarmFixture);
     const errorSuiteResult = await errorRunner.executeErrorScenarioSuite(
         errorScenarios,
-        { inquiry: "Test error handling", simulateError: true }
+        { inquiry: "Test error handling", simulateError: true },
     );
 
     console.log(`  🛡️  Resilience Score: ${errorSuiteResult.overallResilience.overallResilienceScore.toFixed(2)}`);
@@ -144,13 +144,13 @@ export async function demonstrateCompleteCustomerSupportTesting() {
         minAccuracy: 0.90,
         maxCost: 0.08,
         maxMemoryMB: 1500,
-        minAvailability: 0.95
+        minAvailability: 0.95,
     });
 
     // Benchmark individual fixture
     const benchmarkResult = await performanceBenchmarker.benchmarkFixture(
         supportSwarmFixture,
-        benchmarkConfig
+        benchmarkConfig,
     );
 
     console.log(`  ⚡ Average Latency: ${benchmarkResult.metrics.latency.mean.toFixed(0)}ms`);
@@ -161,7 +161,7 @@ export async function demonstrateCompleteCustomerSupportTesting() {
     // Benchmark evolution pathway
     const evolutionBenchmark = await performanceBenchmarker.benchmarkEvolutionSequence(
         inquiryEvolutionStages,
-        benchmarkConfig
+        benchmarkConfig,
     );
 
     console.log(`  📈 Evolution Improvement Detected: ${evolutionBenchmark.evolutionValidation.improvementDetected}`);
@@ -175,7 +175,7 @@ export async function demonstrateCompleteCustomerSupportTesting() {
         configValidation: {
             passed: configValidation.pass,
             sharedFixtureCompatibility: true,
-            warnings: configValidation.warnings?.length || 0
+            warnings: configValidation.warnings?.length || 0,
         },
         
         runtimeTesting: {
@@ -183,14 +183,14 @@ export async function demonstrateCompleteCustomerSupportTesting() {
             totalScenarios: runtimeResults.length,
             evolutionValidated: evolutionResult.validated,
             avgEmergentCapabilities: runtimeResults.reduce((sum, r) => 
-                sum + r.result.detectedCapabilities.length, 0) / runtimeResults.length
+                sum + r.result.detectedCapabilities.length, 0) / runtimeResults.length,
         },
         
         errorResilience: {
             resilienceScore: errorSuiteResult.overallResilience.overallResilienceScore,
             recoveryEffectiveness: errorSuiteResult.overallResilience.recoveryEffectiveness,
             errorHandlingRate: errorSuiteResult.summary.errorHandlingRate,
-            gracefulDegradations: errorSuiteResult.summary.gracefulDegradations
+            gracefulDegradations: errorSuiteResult.summary.gracefulDegradations,
         },
         
         performance: {
@@ -199,21 +199,21 @@ export async function demonstrateCompleteCustomerSupportTesting() {
             cost: benchmarkResult.metrics.cost.mean,
             availability: benchmarkResult.metrics.availability,
             targetsMetallTargetsMet: benchmarkResult.targetsValidation.allTargetsMet,
-            evolutionImprovementFactor: evolutionBenchmark.compoundImprovements.overallImprovementFactor
+            evolutionImprovementFactor: evolutionBenchmark.compoundImprovements.overallImprovementFactor,
         },
         
         recommendations: [
             ...benchmarkResult.recommendations.map(r => ({
                 category: r.category,
                 priority: r.priority,
-                description: r.description
+                description: r.description,
             })),
             ...evolutionBenchmark.evolutionValidation.nextEvolutionSteps.map(step => ({
                 category: "evolution",
                 priority: "medium" as const,
-                description: step
-            }))
-        ]
+                description: step,
+            })),
+        ],
     };
 
     console.log("\n📋 COMPREHENSIVE TEST REPORT");
@@ -249,7 +249,7 @@ describe("Complete Enhanced Execution Fixture Integration", () => {
         const evolutionStages = FixtureCreationUtils.createEvolutionSequence(
             routineConfigFixtures.action.simple,
             "routine",
-            ["conversational", "reasoning", "deterministic", "optimized"]
+            ["conversational", "reasoning", "deterministic", "optimized"],
         );
 
         const benchmarker = new PerformanceBenchmarker();
@@ -257,7 +257,7 @@ describe("Complete Enhanced Execution Fixture Integration", () => {
 
         const evolutionResult = await benchmarker.benchmarkEvolutionSequence(
             evolutionStages,
-            benchmarkConfig
+            benchmarkConfig,
         );
 
         // Validate that improvements are statistically significant
@@ -283,11 +283,11 @@ describe("Complete Enhanced Execution Fixture Integration", () => {
                         "advanced_reasoning",
                         "context_retention", 
                         "error_recovery",
-                        "graceful_degradation"
+                        "graceful_degradation",
                     ],
-                    evolutionPath: "basic → resilient → self-healing"
-                }
-            }
+                    evolutionPath: "basic → resilient → self-healing",
+                },
+            },
         );
 
         const errorRunner = new ErrorScenarioRunner();
@@ -302,25 +302,25 @@ describe("Complete Enhanced Execution Fixture Integration", () => {
                     type: "ai_model_error" as const,
                     description: "Primary AI model completely unavailable",
                     injectionPoint: "execution" as const,
-                    parameters: { modelErrorType: "unavailable" }
+                    parameters: { modelErrorType: "unavailable" },
                 },
                 expectedBehavior: {
                     shouldFail: false,
                     gracefulDegradation: ["basic_response", "template_response"],
                     fallbackBehaviors: ["use_fallback_model", "use_cached_responses"],
-                    shouldAttemptRecovery: true
+                    shouldAttemptRecovery: true,
                 },
                 metadata: {
                     severity: "critical" as const,
                     category: "ai_model" as const,
-                    description: "Tests complete AI model failure recovery"
-                }
-            }
+                    description: "Tests complete AI model failure recovery",
+                },
+            },
         ];
 
         const suiteResult = await errorRunner.executeErrorScenarioSuite(
             customErrorScenarios,
-            { query: "Complex error handling test" }
+            { query: "Complex error handling test" },
         );
 
         // Validate high resilience even under severe conditions
@@ -341,7 +341,7 @@ describe("Complete Enhanced Execution Fixture Integration", () => {
  */
 export async function quickFixtureValidation<T extends any>(
     fixture: ExecutionFixture<T>,
-    configType: "chat" | "routine" | "run"
+    configType: "chat" | "routine" | "run",
 ) {
     console.log(`🔍 Quick validation of ${configType} fixture`);
 
@@ -356,14 +356,14 @@ export async function quickFixtureValidation<T extends any>(
     const runtimeResult = await runner.executeScenario(
         fixture,
         { query: "validation test" },
-        { timeout: 5000, validateEmergence: true }
+        { timeout: 5000, validateEmergence: true },
     );
 
     if (!runtimeResult.success) {
         throw new Error(`Runtime test failed: ${runtimeResult.error}`);
     }
 
-    console.log(`✅ Fixture validated successfully`);
+    console.log("✅ Fixture validated successfully");
     console.log(`  📊 Detected capabilities: ${runtimeResult.detectedCapabilities.join(", ")}`);
     console.log(`  ⚡ Latency: ${runtimeResult.performanceMetrics.latency}ms`);
 
@@ -371,7 +371,7 @@ export async function quickFixtureValidation<T extends any>(
         configValid: configValidation.pass,
         runtimeSuccessful: runtimeResult.success,
         detectedCapabilities: runtimeResult.detectedCapabilities,
-        latency: runtimeResult.performanceMetrics.latency
+        latency: runtimeResult.performanceMetrics.latency,
     };
 }
 
@@ -380,7 +380,7 @@ export async function quickFixtureValidation<T extends any>(
  */
 export async function compareFixtures<T extends any>(
     fixtures: Array<{ name: string; fixture: ExecutionFixture<T> }>,
-    benchmarkConfig?: any
+    benchmarkConfig?: any,
 ) {
     console.log(`🏁 Comparing ${fixtures.length} fixtures`);
 
@@ -389,7 +389,7 @@ export async function compareFixtures<T extends any>(
 
     const competitiveResult = await benchmarker.runCompetitiveBenchmark(
         fixtures,
-        config
+        config,
     );
 
     console.log("🏆 Performance Ranking:");
@@ -411,14 +411,14 @@ export async function compareFixtures<T extends any>(
 export async function optimizeEvolutionPathway(
     baseConfig: any,
     configType: "routine",
-    currentStages: string[]
+    currentStages: string[],
 ) {
     console.log(`🔄 Optimizing evolution pathway: ${currentStages.join(" → ")}`);
 
     const stages = FixtureCreationUtils.createEvolutionSequence(
         baseConfig,
         configType,
-        currentStages
+        currentStages,
     );
 
     const benchmarker = new PerformanceBenchmarker();
@@ -426,7 +426,7 @@ export async function optimizeEvolutionPathway(
 
     const evolutionResult = await benchmarker.benchmarkEvolutionSequence(
         stages,
-        benchmarkConfig
+        benchmarkConfig,
     );
 
     console.log(`📈 Improvement detected: ${evolutionResult.evolutionValidation.improvementDetected}`);
@@ -444,6 +444,6 @@ export async function optimizeEvolutionPathway(
         improvementDetected: evolutionResult.evolutionValidation.improvementDetected,
         overallImprovementFactor: evolutionResult.compoundImprovements.overallImprovementFactor,
         nextSteps: evolutionResult.evolutionValidation.nextEvolutionSteps,
-        diminishingReturns: evolutionResult.learningCurve.diminishingReturns
+        diminishingReturns: evolutionResult.learningCurve.diminishingReturns,
     };
 }

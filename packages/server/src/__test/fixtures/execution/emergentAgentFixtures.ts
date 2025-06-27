@@ -29,16 +29,16 @@ export const TECHNICAL_SUPPORT_AGENT: EmergentAgent = {
     subscriptions: [
         "user.query.technical",
         "system.error.detected", 
-        "support.ticket.created"
+        "support.ticket.created",
     ],
     capabilities: [
         "technical_diagnosis",
         "solution_generation",
         "knowledge_retrieval",
-        "customer_communication"
+        "customer_communication",
     ],
     tier: "tier2",
-    emergenceLevel: "advanced"
+    emergenceLevel: "advanced",
 };
 
 /**
@@ -52,16 +52,16 @@ export const SECURITY_MONITORING_AGENT: EmergentAgent = {
     subscriptions: [
         "security.threat.detected",
         "system.anomaly.identified",
-        "access.violation.flagged"
+        "access.violation.flagged",
     ],
     capabilities: [
         "threat_detection",
         "anomaly_analysis", 
         "risk_assessment",
-        "automated_response"
+        "automated_response",
     ],
     tier: "tier1",
-    emergenceLevel: "advanced"
+    emergenceLevel: "advanced",
 };
 
 /**
@@ -75,16 +75,16 @@ export const PERFORMANCE_OPTIMIZATION_AGENT: EmergentAgent = {
     subscriptions: [
         "performance.metrics.updated",
         "resource.utilization.high",
-        "execution.latency.increased"
+        "execution.latency.increased",
     ],
     capabilities: [
         "performance_monitoring",
         "bottleneck_identification",
         "optimization_recommendations",
-        "resource_reallocation"
+        "resource_reallocation",
     ],
     tier: "cross-tier",
-    emergenceLevel: "intermediate"
+    emergenceLevel: "intermediate",
 };
 
 /**
@@ -98,16 +98,16 @@ export const QUALITY_ASSURANCE_AGENT: EmergentAgent = {
     subscriptions: [
         "output.generated",
         "quality.check.requested",
-        "validation.required"
+        "validation.required",
     ],
     capabilities: [
         "quality_assessment",
         "bias_detection",
         "accuracy_validation",
-        "improvement_suggestions"
+        "improvement_suggestions",
     ],
     tier: "tier3",
-    emergenceLevel: "intermediate"
+    emergenceLevel: "intermediate",
 };
 
 /**
@@ -121,16 +121,16 @@ export const COORDINATION_AGENT: EmergentAgent = {
     subscriptions: [
         "swarm.task.assigned",
         "agent.capacity.updated", 
-        "coordination.required"
+        "coordination.required",
     ],
     capabilities: [
         "task_decomposition",
         "resource_allocation",
         "agent_coordination",
-        "conflict_resolution"
+        "conflict_resolution",
     ],
     tier: "tier1",
-    emergenceLevel: "advanced"
+    emergenceLevel: "advanced",
 };
 
 /**
@@ -144,16 +144,16 @@ export const LEARNING_AGENT: EmergentAgent = {
     subscriptions: [
         "interaction.completed",
         "pattern.detected",
-        "learning.opportunity.identified"
+        "learning.opportunity.identified",
     ],
     capabilities: [
         "pattern_recognition", 
         "learning_synthesis",
         "adaptation_recommendations",
-        "knowledge_integration"
+        "knowledge_integration",
     ],
     tier: "cross-tier",
-    emergenceLevel: "advanced"
+    emergenceLevel: "advanced",
 };
 
 /**
@@ -166,7 +166,7 @@ export function getAllAgents(): EmergentAgent[] {
         PERFORMANCE_OPTIMIZATION_AGENT,
         QUALITY_ASSURANCE_AGENT,
         COORDINATION_AGENT,
-        LEARNING_AGENT
+        LEARNING_AGENT,
     ];
 }
 

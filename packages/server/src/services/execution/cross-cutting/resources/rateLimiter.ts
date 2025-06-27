@@ -87,7 +87,7 @@ export class RateLimiter {
      */
     async check(
         resource: string,
-        count: number = 1,
+        count = 1,
         identifier?: string,
     ): Promise<RateLimitResult> {
         const state = this.limits.get(resource);
@@ -145,7 +145,7 @@ export class RateLimiter {
         // Emit violation event
         if (this.eventBus) {
             await this.eventBus.emit({
-                type: 'rate_limit.violated',
+                type: "rate_limit.violated",
                 timestamp: new Date(),
                 data: {
                     resource,
@@ -230,7 +230,7 @@ export class DistributedRateLimiter extends RateLimiter {
         logger: Logger,
         eventBus?: EventBus,
         redis?: any,
-        keyPrefix: string = "rate_limit:",
+        keyPrefix = "rate_limit:",
     ) {
         super(logger, eventBus);
         this.redis = redis;
@@ -242,7 +242,7 @@ export class DistributedRateLimiter extends RateLimiter {
      */
     async check(
         resource: string,
-        count: number = 1,
+        count = 1,
         identifier?: string,
     ): Promise<RateLimitResult> {
         if (!this.redis) {
@@ -250,7 +250,7 @@ export class DistributedRateLimiter extends RateLimiter {
             return super.check(resource, count, identifier);
         }
         
-        const key = `${this.keyPrefix}${resource}:${identifier || 'global'}`;
+        const key = `${this.keyPrefix}${resource}:${identifier || "global"}`;
         const config = this.limits.get(resource);
         
         if (!config) {
@@ -317,7 +317,7 @@ export class DistributedRateLimiter extends RateLimiter {
         super.reset(resource);
         
         if (this.redis) {
-            const key = `${this.keyPrefix}${resource}:${identifier || 'global'}`;
+            const key = `${this.keyPrefix}${resource}:${identifier || "global"}`;
             const burstKey = `${key}:burst`;
             
             try {

@@ -14,7 +14,7 @@ import {
     validateConfigAgainstSchema,
     validateEmergence,
     validateIntegration,
-    combineValidationResults
+    combineValidationResults,
 } from "../executionValidationUtils.js";
 
 describe("Execution Fixture Validation System", () => {
@@ -92,8 +92,8 @@ describe("Execution Fixture Validation System", () => {
                 evolutionPath: "reactive → proactive → predictive",
                 emergenceConditions: {
                     minAgents: 2,
-                    requiredResources: ["llm_access", "event_bus"]
-                }
+                    requiredResources: ["llm_access", "event_bus"],
+                },
             };
 
             const result = validateEmergence(emergence);
@@ -106,7 +106,7 @@ describe("Execution Fixture Validation System", () => {
                 tier: "tier1" as const,
                 producedEvents: ["tier1.swarm.initialized", "tier1.coordination.started"],
                 consumedEvents: ["tier2.routine.completed"],
-                mcpTools: ["swarm_coordinator", "resource_manager"]
+                mcpTools: ["swarm_coordinator", "resource_manager"],
             };
 
             const result = validateIntegration(integration);
@@ -117,7 +117,7 @@ describe("Execution Fixture Validation System", () => {
             const results = [
                 { pass: true, message: "Test 1 passed" },
                 { pass: true, message: "Test 2 passed" },
-                { pass: false, message: "Test 3 failed", errors: ["Error 1"] }
+                { pass: false, message: "Test 3 failed", errors: ["Error 1"] },
             ];
 
             const combined = combineValidationResults(results);
@@ -134,26 +134,26 @@ describe("Execution Fixture Validation System", () => {
                 factory.createVariant("customerInquiry", {
                     evolutionStage: { 
                         current: "conversational",
-                        performanceMetrics: { averageExecutionTime: 15000, successRate: 0.7, costPerExecution: 25 }
-                    }
+                        performanceMetrics: { averageExecutionTime: 15000, successRate: 0.7, costPerExecution: 25 },
+                    },
                 }),
                 factory.createVariant("customerInquiry", {
                     evolutionStage: { 
                         current: "reasoning",
-                        performanceMetrics: { averageExecutionTime: 8000, successRate: 0.85, costPerExecution: 15 }
-                    }
+                        performanceMetrics: { averageExecutionTime: 8000, successRate: 0.85, costPerExecution: 15 },
+                    },
                 }),
                 factory.createVariant("customerInquiry", {
                     evolutionStage: { 
                         current: "deterministic",
-                        performanceMetrics: { averageExecutionTime: 2000, successRate: 0.95, costPerExecution: 5 }
-                    }
-                })
+                        performanceMetrics: { averageExecutionTime: 2000, successRate: 0.95, costPerExecution: 5 },
+                    },
+                }),
             ];
 
             // Verify improvement across stages
             for (let i = 1; i < stages.length; i++) {
-                const prev = stages[i-1].evolutionStage!.performanceMetrics;
+                const prev = stages[i - 1].evolutionStage!.performanceMetrics;
                 const curr = stages[i].evolutionStage!.performanceMetrics;
                 
                 expect(curr.averageExecutionTime).toBeLessThan(prev.averageExecutionTime);
@@ -167,7 +167,7 @@ describe("Execution Fixture Validation System", () => {
         it("should handle invalid emergence capabilities", () => {
             const invalidEmergence = {
                 capabilities: [], // Empty capabilities should fail
-                evolutionPath: "invalid_path"
+                evolutionPath: "invalid_path",
             };
 
             const result = validateEmergence(invalidEmergence);
@@ -178,7 +178,7 @@ describe("Execution Fixture Validation System", () => {
         it("should handle invalid tier assignments", () => {
             const invalidIntegration = {
                 tier: "invalid_tier" as any,
-                producedEvents: ["invalid.event.name.format"]
+                producedEvents: ["invalid.event.name.format"],
             };
 
             const result = validateIntegration(invalidIntegration);

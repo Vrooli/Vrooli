@@ -4,6 +4,7 @@
 import { CodeLanguage, DUMMY_ID, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type ApiVersion, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockUrl, getMockEndpoint, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { type ViewDisplayType } from "../../../types.js";
 import { ApiUpsert } from "./ApiUpsert.js";
 
@@ -109,13 +110,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResourceVersion.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsResource.findApiVersion), () => {
                 return HttpResponse.json({ data: mockApiVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockApiVersionData),
     },
 };
 
@@ -129,7 +130,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.endpoint}`, async () => {
+            http.get(getMockUrl(endpointsResource.findApiVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockApiVersionData });
@@ -137,7 +138,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockApiVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockApiVersionData),
     },
 };
 

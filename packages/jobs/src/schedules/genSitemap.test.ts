@@ -142,7 +142,7 @@ describe("genSitemap integration tests", () => {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Public User",
-                    handle: "publicuser1",
+                    handle: `publicuser1_${Date.now()}`,
                     isBot: false,
                     isPrivate: false,
                 },
@@ -178,7 +178,7 @@ describe("genSitemap integration tests", () => {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Test User",
-                    handle: "testuser",
+                    handle: `testuser_${Date.now()}`,
                     isBot: false,
                     isPrivate: false,
                 },
@@ -214,7 +214,7 @@ describe("genSitemap integration tests", () => {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Team Owner",
-                    handle: "teamowner",
+                    handle: `teamowner_${Date.now()}`,
                     isBot: false,
                 },
             });
@@ -225,7 +225,7 @@ describe("genSitemap integration tests", () => {
                 data: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    handle: "publicteam",
+                    handle: `publicteam_${Date.now()}`,
                     createdBy: {
                         connect: { id: owner.id },
                     },
@@ -263,7 +263,7 @@ describe("genSitemap integration tests", () => {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Resource Owner",
-                    handle: "resourceowner",
+                    handle: `resourceowner_${Date.now()}`,
                     isBot: false,
                 },
             });
@@ -329,12 +329,13 @@ describe("genSitemap integration tests", () => {
                 fs.mkdirSync(testSitemapDir, { recursive: true });
             }
             
+            const uniqueId = Date.now();
             const owner = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Owner",
-                    handle: "owner",
+                    handle: `owner_${uniqueId}`,
                     isBot: false,
                 },
             });
@@ -347,7 +348,7 @@ describe("genSitemap integration tests", () => {
                     data: {
                         id: generatePK(),
                         publicId: generatePublicId(),
-                        handle: `team${i}`,
+                        handle: `team${i}_${Date.now()}`,
                         createdBy: {
                             connect: { id: owner.id },
                         },
@@ -390,7 +391,7 @@ describe("genSitemap integration tests", () => {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Public User",
-                    handle: "publicuser",
+                    handle: `publicuser_${Date.now()}`,
                     isBot: false,
                     isPrivate: false,
                 },
@@ -402,7 +403,7 @@ describe("genSitemap integration tests", () => {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Private User",
-                    handle: "privateuser",
+                    handle: `privateuser_${Date.now()}`,
                     isBot: false,
                     isPrivate: true,
                 },
@@ -441,7 +442,7 @@ describe("genSitemap integration tests", () => {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Regular User",
-                    handle: "regularuser",
+                    handle: `regularuser_${Date.now()}`,
                     isBot: false,
                     isPrivate: false,
                 },
@@ -453,7 +454,7 @@ describe("genSitemap integration tests", () => {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Bot User",
-                    handle: "botuser",
+                    handle: `botuser_${Date.now()}`,
                     isBot: true,
                     isPrivate: false,
                 },

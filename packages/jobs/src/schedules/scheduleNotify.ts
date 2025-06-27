@@ -65,6 +65,7 @@ const scheduleSelect = {
             dayOfMonth: true,
             month: true,
             endDate: true,
+            duration: true,
         },
     },
 } as const;
@@ -265,36 +266,48 @@ export async function scheduleNotify(): Promise<void> {
                 await Promise.all(batchResult.map(async (scheduleData) => {
                     const scheduleIdStr = scheduleData.id.toString();
 
-                    // Validate and map exceptions with proper type safety
-                    const exceptions: Schedule["exceptions"] = scheduleData.exceptions
+                    // Create typed schedule object with __typename
+                    const typedSchedule = {
+                        ...scheduleData,
+                        __typename: "Schedule" as const,
+                    };
+
+                    // Validate and map exceptions with proper type safety - dates as ISO strings
+                    const exceptions = scheduleData.exceptions
                         .filter(ex => ex && typeof ex.id !== "undefined" && ex.originalStartTime)
                         .map(ex => ({
-                            id: ex.id.toString(),
                             __typename: "ScheduleException" as const,
-                            originalStartTime: new Date(ex.originalStartTime),
-                            newStartTime: ex.newStartTime ? new Date(ex.newStartTime) : null,
-                            newEndTime: ex.newEndTime ? new Date(ex.newEndTime) : null,
+                            id: ex.id.toString(),
+                            originalStartTime: typeof ex.originalStartTime === "string" ? ex.originalStartTime : ex.originalStartTime.toISOString(),
+                            newStartTime: ex.newStartTime ? (typeof ex.newStartTime === "string" ? ex.newStartTime : ex.newStartTime.toISOString()) : null,
+                            newEndTime: ex.newEndTime ? (typeof ex.newEndTime === "string" ? ex.newEndTime : ex.newEndTime.toISOString()) : null,
+                            schedule: typedSchedule,
                         }));
 
-                    // Validate and map recurrences with proper type safety
-                    const recurrences: Schedule["recurrences"] = scheduleData.recurrences
+                    // Validate and map recurrences with proper type safety - dates as ISO strings
+                    const recurrences = scheduleData.recurrences
                         .filter(rec => rec && typeof rec.id !== "undefined" && rec.recurrenceType)
                         .map(rec => ({
-                            id: rec.id.toString(),
                             __typename: "ScheduleRecurrence" as const,
-                            recurrenceType: rec.recurrenceType,
+                            id: rec.id.toString(),
+                            recurrenceType: rec.recurrenceType as any, // Cast to handle enum type mismatch
                             interval: rec.interval,
                             dayOfWeek: rec.dayOfWeek,
                             dayOfMonth: rec.dayOfMonth,
                             month: rec.month,
-                            endDate: rec.endDate ? new Date(rec.endDate) : null,
-                            // duration: rec.duration, // Only include if 'duration' is in ScheduleRecurrencePayload and ScheduleRecurrence type
+                            endDate: rec.endDate ? (typeof rec.endDate === "string" ? rec.endDate : rec.endDate.toISOString()) : null,
+                            duration: rec.duration,
+                            schedule: typedSchedule,
                         }));
 
                     // Find all occurrences of the schedule within the next 25 hours
+                    // Convert to string format if needed for calculateOccurrences
+                    const startTimeStr = scheduleData.startTime instanceof Date ? scheduleData.startTime.toISOString() : scheduleData.startTime;
+                    const endTimeStr = scheduleData.endTime instanceof Date ? scheduleData.endTime.toISOString() : scheduleData.endTime;
+                    
                     const occurrences = await calculateOccurrences({
-                        startTime: new Date(scheduleData.startTime),
-                        endTime: new Date(scheduleData.endTime),
+                        startTime: startTimeStr,
+                        endTime: endTimeStr,
                         exceptions,
                         recurrences,
                         timezone: scheduleData.timezone,

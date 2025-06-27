@@ -43,7 +43,7 @@ export function validateLLMRequestContract(request: unknown): request is LLMRequ
         r.messages.every((m: any) => 
             typeof m === "object" &&
             ["system", "user", "assistant", "tool"].includes(m.role) &&
-            typeof m.content === "string"
+            typeof m.content === "string",
         ) &&
         (r.systemMessage === undefined || typeof r.systemMessage === "string") &&
         (r.tools === undefined || Array.isArray(r.tools)) &&
@@ -76,7 +76,7 @@ export function validateStreamOptionsContract(options: unknown): options is Part
  */
 export function validateServiceCompatibility(
     mockResponse: unknown,
-    realServiceInterface: "LLMResponse" | "StreamEvent"
+    realServiceInterface: "LLMResponse" | "StreamEvent",
 ): MockValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -112,7 +112,7 @@ export function validateServiceCompatibility(
         valid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
         warnings: warnings.length > 0 ? warnings : undefined,
-        suggestions: suggestions.length > 0 ? suggestions : undefined
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
     };
 }
 
@@ -232,7 +232,7 @@ export function validateBehaviorContract(config: {
         valid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
         warnings: warnings.length > 0 ? warnings : undefined,
-        suggestions: suggestions.length > 0 ? suggestions : undefined
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
     };
 }
 
@@ -278,7 +278,7 @@ export function validateFullContract(mock: {
     if (mock.behavior !== undefined && mock.serviceType) {
         const behaviorValidation = validateBehaviorContract({
             mockBehavior: mock.behavior,
-            serviceType: mock.serviceType
+            serviceType: mock.serviceType,
         });
         if (behaviorValidation.errors) allErrors.push(...behaviorValidation.errors);
         if (behaviorValidation.warnings) allWarnings.push(...behaviorValidation.warnings);
@@ -289,6 +289,6 @@ export function validateFullContract(mock: {
         valid: allErrors.length === 0,
         errors: allErrors.length > 0 ? allErrors : undefined,
         warnings: allWarnings.length > 0 ? allWarnings : undefined,
-        suggestions: allSuggestions.length > 0 ? allSuggestions : undefined
+        suggestions: allSuggestions.length > 0 ? allSuggestions : undefined,
     };
 }

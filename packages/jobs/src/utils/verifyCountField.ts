@@ -43,9 +43,9 @@ interface CountVerificationConfig<TSelect> {
  * Compares cached count fields with actual relation counts and updates mismatches
  */
 export async function verifyCountField<
-    TFindManyArgs extends Record<string, unknown>,
+    TFindManyArgs extends { select?: unknown },
     TPayload extends CountPayload,
-    TSelect
+    TSelect extends TFindManyArgs["select"]
 >(config: CountVerificationConfig<TSelect>): Promise<void> {
     const { tableNames, countField, relationName, select, traceId } = config;
 
@@ -133,7 +133,7 @@ export async function verifyCountField<
                         }
                     }
                 },
-                select,
+                select: select as TFindManyArgs["select"],
             });
         } catch (error) {
             logger.error(`verifyCountField processTableInBatches caught error for ${tableName}`, { 

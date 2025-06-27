@@ -13,19 +13,19 @@ import type {
     BaseConfigObject,
     ChatConfigObject,
     RoutineConfigObject,
-    RunConfigObject
+    RunConfigObject,
 } from "@vrooli/shared";
 import type { 
     ExecutionFixture,
     SwarmFixture,
     RoutineFixture,
     ExecutionContextFixture,
-    ValidationResult
+    ValidationResult,
 } from "./executionValidationUtils.js";
 import type { 
     ExecutionResult,
     ExecutionOptions,
-    EvolutionExecutionResult
+    EvolutionExecutionResult,
 } from "./executionRunner.js";
 import { ExecutionFixtureRunner } from "./executionRunner.js";
 
@@ -209,7 +209,7 @@ export class PerformanceBenchmarker {
      */
     async benchmarkFixture<T extends BaseConfigObject>(
         fixture: ExecutionFixture<T>,
-        config: BenchmarkConfig
+        config: BenchmarkConfig,
     ): Promise<BenchmarkResult> {
         // Warmup iterations
         if (config.environment?.warmupIterations) {
@@ -230,15 +230,15 @@ export class PerformanceBenchmarker {
                     {
                         timeout: config.targets?.maxLatencyMs || 30000,
                         validateEmergence: true,
-                        resourceLimits: config.environment?.resourceLimits
-                    }
+                        resourceLimits: config.environment?.resourceLimits,
+                    },
                 );
 
                 iterations.push({
                     iteration: i,
                     executionResult,
                     timestamp: iterationStart,
-                    success: executionResult.success
+                    success: executionResult.success,
                 });
 
                 // Cooldown between iterations
@@ -254,11 +254,11 @@ export class PerformanceBenchmarker {
                         detectedCapabilities: [],
                         performanceMetrics: {
                             latency: Date.now() - iterationStart,
-                            resourceUsage: { memory: 0, cpu: 0, tokens: 0 }
-                        }
+                            resourceUsage: { memory: 0, cpu: 0, tokens: 0 },
+                        },
                     },
                     timestamp: iterationStart,
-                    success: false
+                    success: false,
                 });
             }
         }
@@ -277,7 +277,7 @@ export class PerformanceBenchmarker {
             iterations,
             targetsValidation,
             characteristics,
-            recommendations
+            recommendations,
         };
     }
 
@@ -286,13 +286,13 @@ export class PerformanceBenchmarker {
      */
     async benchmarkEvolutionSequence(
         evolutionStages: RoutineFixture[],
-        config: BenchmarkConfig
+        config: BenchmarkConfig,
     ): Promise<EvolutionBenchmarkResult> {
         const stageResults: BenchmarkResult[] = [];
 
         // Benchmark each evolution stage
         for (const [index, stage] of evolutionStages.entries()) {
-            console.log(`Benchmarking evolution stage ${index + 1}: ${stage.evolutionStage?.current || 'unknown'}`);
+            console.log(`Benchmarking evolution stage ${index + 1}: ${stage.evolutionStage?.current || "unknown"}`);
             
             const stageResult = await this.benchmarkFixture(stage, config);
             stageResults.push(stageResult);
@@ -307,7 +307,7 @@ export class PerformanceBenchmarker {
             stageResults,
             evolutionValidation,
             learningCurve,
-            compoundImprovements
+            compoundImprovements,
         };
     }
 
@@ -316,7 +316,7 @@ export class PerformanceBenchmarker {
      */
     async runCompetitiveBenchmark<T extends BaseConfigObject>(
         fixtures: Array<{ name: string; fixture: ExecutionFixture<T> }>,
-        config: BenchmarkConfig
+        config: BenchmarkConfig,
     ): Promise<CompetitiveBenchmarkResult> {
         const results: Array<{ name: string; result: BenchmarkResult }> = [];
 
@@ -332,7 +332,7 @@ export class PerformanceBenchmarker {
         return {
             results,
             ranking,
-            comparativeAnalysis
+            comparativeAnalysis,
         };
     }
 
@@ -342,7 +342,7 @@ export class PerformanceBenchmarker {
 
     private async runWarmupIterations<T extends BaseConfigObject>(
         fixture: ExecutionFixture<T>,
-        config: BenchmarkConfig
+        config: BenchmarkConfig,
     ): Promise<void> {
         const warmupCount = config.environment?.warmupIterations || 3;
         
@@ -350,7 +350,7 @@ export class PerformanceBenchmarker {
             try {
                 await this.executionRunner.executeScenario(fixture, config.input, {
                     timeout: 10000,
-                    validateEmergence: false
+                    validateEmergence: false,
                 });
             } catch {
                 // Ignore warmup errors
@@ -360,7 +360,7 @@ export class PerformanceBenchmarker {
 
     private calculatePerformanceMetrics(
         iterations: IterationResult[],
-        totalTimeMs: number
+        totalTimeMs: number,
     ): PerformanceMetrics {
         const successfulIterations = iterations.filter(i => i.success);
         const latencies = successfulIterations.map(i => i.executionResult.performanceMetrics.latency);
@@ -379,7 +379,7 @@ export class PerformanceBenchmarker {
             tokenUsage: this.calculateStatistics(tokenUsages),
             throughput: (successfulIterations.length / totalTimeMs) * 1000, // per second
             availability: successfulIterations.length / iterations.length,
-            reliability: this.calculateReliability(latencies)
+            reliability: this.calculateReliability(latencies),
         };
     }
 
@@ -387,7 +387,7 @@ export class PerformanceBenchmarker {
         if (values.length === 0) {
             return {
                 mean: 0, median: 0, p95: 0, p99: 0,
-                min: 0, max: 0, stdDev: 0
+                min: 0, max: 0, stdDev: 0,
             };
         }
 
@@ -402,7 +402,7 @@ export class PerformanceBenchmarker {
             p99: this.percentile(sorted, 0.99),
             min: sorted[0],
             max: sorted[sorted.length - 1],
-            stdDev: Math.sqrt(variance)
+            stdDev: Math.sqrt(variance),
         };
     }
 
@@ -431,13 +431,13 @@ export class PerformanceBenchmarker {
 
     private validateTargets(
         metrics: PerformanceMetrics,
-        targets?: PerformanceTargets
+        targets?: PerformanceTargets,
     ): TargetsValidationResult {
         if (!targets) {
             return {
                 allTargetsMet: true,
                 failedTargets: [],
-                marginsByTarget: {}
+                marginsByTarget: {},
             };
         }
 
@@ -478,7 +478,7 @@ export class PerformanceBenchmarker {
         return {
             allTargetsMet: failedTargets.length === 0,
             failedTargets,
-            marginsByTarget
+            marginsByTarget,
         };
     }
 
@@ -496,11 +496,11 @@ export class PerformanceBenchmarker {
             scalabilityPattern,
             performanceStability,
             resourceEfficiency,
-            errorHandlingImpact
+            errorHandlingImpact,
         };
     }
 
-    private determineScalabilityPattern(latencies: number[]): PerformanceCharacteristics['scalabilityPattern'] {
+    private determineScalabilityPattern(latencies: number[]): PerformanceCharacteristics["scalabilityPattern"] {
         if (latencies.length < 3) return "constant";
         
         // Simple trend analysis
@@ -517,7 +517,7 @@ export class PerformanceBenchmarker {
         return "constant";
     }
 
-    private determineStabilityPattern(latencies: number[]): PerformanceCharacteristics['performanceStability'] {
+    private determineStabilityPattern(latencies: number[]): PerformanceCharacteristics["performanceStability"] {
         const stats = this.calculateStatistics(latencies);
         const coefficientOfVariation = stats.stdDev / stats.mean;
         
@@ -526,7 +526,7 @@ export class PerformanceBenchmarker {
         return "degrading";
     }
 
-    private determineResourceEfficiency(iterations: IterationResult[]): PerformanceCharacteristics['resourceEfficiency'] {
+    private determineResourceEfficiency(iterations: IterationResult[]): PerformanceCharacteristics["resourceEfficiency"] {
         const avgMemory = iterations.reduce((sum, i) => 
             sum + i.executionResult.performanceMetrics.resourceUsage.memory, 0) / iterations.length;
         
@@ -535,7 +535,7 @@ export class PerformanceBenchmarker {
         return "inefficient";
     }
 
-    private determineErrorHandlingImpact(iterations: IterationResult[]): PerformanceCharacteristics['errorHandlingImpact'] {
+    private determineErrorHandlingImpact(iterations: IterationResult[]): PerformanceCharacteristics["errorHandlingImpact"] {
         const errorRate = 1 - (iterations.filter(i => i.success).length / iterations.length);
         
         if (errorRate < 0.05) return "minimal";
@@ -546,7 +546,7 @@ export class PerformanceBenchmarker {
     private generateRecommendations(
         metrics: PerformanceMetrics,
         characteristics: PerformanceCharacteristics,
-        targets?: PerformanceTargets
+        targets?: PerformanceTargets,
     ): PerformanceRecommendation[] {
         const recommendations: PerformanceRecommendation[] = [];
 
@@ -557,7 +557,7 @@ export class PerformanceBenchmarker {
                 priority: "high",
                 description: "High latency detected in 95th percentile",
                 potentialImprovement: "Optimize critical path and reduce computational complexity",
-                implementationComplexity: "medium"
+                implementationComplexity: "medium",
             });
         }
 
@@ -568,7 +568,7 @@ export class PerformanceBenchmarker {
                 priority: "critical",
                 description: "Accuracy below target threshold",
                 potentialImprovement: "Improve model training or add validation layers",
-                implementationComplexity: "high"
+                implementationComplexity: "high",
             });
         }
 
@@ -579,7 +579,7 @@ export class PerformanceBenchmarker {
                 priority: "medium",
                 description: "High memory usage detected",
                 potentialImprovement: "Implement memory optimization and garbage collection",
-                implementationComplexity: "medium"
+                implementationComplexity: "medium",
             });
         }
 
@@ -594,10 +594,10 @@ export class PerformanceBenchmarker {
                     latency: { improved: false, improvementPercent: 0, statisticalSignificance: 1, trendDirection: "stable" },
                     accuracy: { improved: false, improvementPercent: 0, statisticalSignificance: 1, trendDirection: "stable" },
                     cost: { improved: false, improvementPercent: 0, statisticalSignificance: 1, trendDirection: "stable" },
-                    efficiency: { improved: false, improvementPercent: 0, statisticalSignificance: 1, trendDirection: "stable" }
+                    efficiency: { improved: false, improvementPercent: 0, statisticalSignificance: 1, trendDirection: "stable" },
                 },
                 pathwayEffectiveness: 0,
-                nextEvolutionSteps: []
+                nextEvolutionSteps: [],
             };
         }
 
@@ -608,32 +608,32 @@ export class PerformanceBenchmarker {
         const latencyImprovement = this.calculateImprovement(
             first.metrics.latency.mean,
             last.metrics.latency.mean,
-            "lower_is_better"
+            "lower_is_better",
         );
 
         const accuracyImprovement = this.calculateImprovement(
             first.metrics.accuracy.mean,
             last.metrics.accuracy.mean,
-            "higher_is_better"
+            "higher_is_better",
         );
 
         const costImprovement = this.calculateImprovement(
             first.metrics.cost.mean,
             last.metrics.cost.mean,
-            "lower_is_better"
+            "lower_is_better",
         );
 
         const efficiencyImprovement = this.calculateImprovement(
             first.metrics.throughput,
             last.metrics.throughput,
-            "higher_is_better"
+            "higher_is_better",
         );
 
         const overallImprovement = [
             latencyImprovement.improved,
             accuracyImprovement.improved,
             costImprovement.improved,
-            efficiencyImprovement.improved
+            efficiencyImprovement.improved,
         ].filter(Boolean).length > 2;
 
         return {
@@ -642,17 +642,17 @@ export class PerformanceBenchmarker {
                 latency: latencyImprovement,
                 accuracy: accuracyImprovement,
                 cost: costImprovement,
-                efficiency: efficiencyImprovement
+                efficiency: efficiencyImprovement,
             },
             pathwayEffectiveness: this.calculatePathwayEffectiveness(stageResults),
-            nextEvolutionSteps: this.suggestNextEvolutionSteps(stageResults)
+            nextEvolutionSteps: this.suggestNextEvolutionSteps(stageResults),
         };
     }
 
     private calculateImprovement(
         baseline: number,
         current: number,
-        direction: "higher_is_better" | "lower_is_better"
+        direction: "higher_is_better" | "lower_is_better",
     ): ImprovementMetric {
         const improvementPercent = direction === "higher_is_better"
             ? ((current - baseline) / baseline) * 100
@@ -664,7 +664,7 @@ export class PerformanceBenchmarker {
             improved,
             improvementPercent,
             statisticalSignificance: this.calculateStatisticalSignificance(baseline, current),
-            trendDirection: improved ? "improving" : improvementPercent < -5 ? "degrading" : "stable"
+            trendDirection: improved ? "improving" : improvementPercent < -5 ? "degrading" : "stable",
         };
     }
 
@@ -746,15 +746,15 @@ export class PerformanceBenchmarker {
             ...latest.metrics,
             latency: {
                 ...latest.metrics.latency,
-                mean: latest.metrics.latency.mean * (1 - avgImprovementRate)
-            }
+                mean: latest.metrics.latency.mean * (1 - avgImprovementRate),
+            },
         };
 
         return {
             improvementRate: avgImprovementRate,
             accelerating,
             predictedNextStagePerformance,
-            diminishingReturns: avgImprovementRate < 0.05
+            diminishingReturns: avgImprovementRate < 0.05,
         };
     }
 
@@ -764,7 +764,7 @@ export class PerformanceBenchmarker {
                 overallImprovementFactor: 1,
                 keyImprovementAreas: [],
                 evolutionROI: 0,
-                emergentBenefits: []
+                emergentBenefits: [],
             };
         }
 
@@ -781,7 +781,7 @@ export class PerformanceBenchmarker {
             overallImprovementFactor,
             keyImprovementAreas: this.identifyKeyImprovementAreas(first, last),
             evolutionROI: this.calculateEvolutionROI(stageResults),
-            emergentBenefits: this.identifyEmergentBenefits(stageResults)
+            emergentBenefits: this.identifyEmergentBenefits(stageResults),
         };
     }
 
@@ -836,13 +836,13 @@ export class PerformanceBenchmarker {
     }
 
     private rankFixtures(
-        results: Array<{ name: string; result: BenchmarkResult }>
+        results: Array<{ name: string; result: BenchmarkResult }>,
     ): FixtureRanking[] {
         return results
             .map(({ name, result }) => ({
                 name,
                 overallScore: this.calculateOverallScore(result),
-                result
+                result,
             }))
             .sort((a, b) => b.overallScore - a.overallScore);
     }
@@ -854,7 +854,7 @@ export class PerformanceBenchmarker {
             accuracy: 0.3,
             availability: 0.2,
             cost: 0.1,
-            reliability: 0.1
+            reliability: 0.1,
         };
 
         // Normalize metrics to 0-1 scale (simplified)
@@ -874,7 +874,7 @@ export class PerformanceBenchmarker {
     }
 
     private analyzeComparativePerformance(
-        results: Array<{ name: string; result: BenchmarkResult }>
+        results: Array<{ name: string; result: BenchmarkResult }>,
     ): ComparativeAnalysis {
         // Analyze performance differences between fixtures
         const performanceGaps = new Map<string, number>();
@@ -895,12 +895,12 @@ export class PerformanceBenchmarker {
         return {
             performanceGaps,
             strengthsByFixture,
-            recommendedUseCases: this.generateUseCaseRecommendations(results)
+            recommendedUseCases: this.generateUseCaseRecommendations(results),
         };
     }
 
     private generateUseCaseRecommendations(
-        results: Array<{ name: string; result: BenchmarkResult }>
+        results: Array<{ name: string; result: BenchmarkResult }>,
     ): Record<string, string[]> {
         const recommendations: Record<string, string[]> = {};
 
@@ -963,7 +963,7 @@ export interface ComparativeAnalysis {
 export function runPerformanceBenchmarkTests<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
     benchmarkConfig: BenchmarkConfig,
-    fixtureName: string
+    fixtureName: string,
 ): void {
     describe(`${fixtureName} performance benchmarks`, () => {
         const benchmarker = new PerformanceBenchmarker();
@@ -1017,7 +1017,7 @@ export function runPerformanceBenchmarkTests<T extends BaseConfigObject>(
 export function runEvolutionBenchmarkTests(
     evolutionStages: RoutineFixture[],
     benchmarkConfig: BenchmarkConfig,
-    fixtureName: string
+    fixtureName: string,
 ): void {
     describe(`${fixtureName} evolution benchmarks`, () => {
         const benchmarker = new PerformanceBenchmarker();
@@ -1033,7 +1033,7 @@ export function runEvolutionBenchmarkTests(
                 improvements.latency.improved,
                 improvements.accuracy.improved,
                 improvements.cost.improved,
-                improvements.efficiency.improved
+                improvements.efficiency.improved,
             ].filter(Boolean).length;
             
             expect(improvedMetrics).toBeGreaterThan(0);

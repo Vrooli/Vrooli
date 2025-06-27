@@ -4,6 +4,7 @@
 import { CodeLanguage, DUMMY_ID, ResourceSubType, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type CodeVersion, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { DataConverterUpsert } from "./DataConverterUpsert.js";
 
 // Create simplified mock data for DataConverter responses
@@ -150,13 +151,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findDataConverterVersion), () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockDataConverterVersionData),
     },
 };
 
@@ -178,13 +179,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findDataConverterVersion), () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockDataConverterVersionData),
     },
 };
 
@@ -198,7 +199,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findDataConverterVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockDataConverterVersionData });
@@ -206,7 +207,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockDataConverterVersionData)}/edit`,
+        path: getStoryRouteEditPath(mockDataConverterVersionData),
     },
 };
 

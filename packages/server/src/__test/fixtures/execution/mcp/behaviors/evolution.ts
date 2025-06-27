@@ -1,4 +1,4 @@
-import { EmergentAgent } from "../../../../services/execution/cross-cutting/agents/emergentAgent.js";
+import { type EmergentAgent } from "../../../../services/execution/cross-cutting/agents/emergentAgent.js";
 import { logger } from "../../../../services/logger.js";
 
 export type EvolutionStage = "reactive" | "proactive" | "predictive" | "autonomous";

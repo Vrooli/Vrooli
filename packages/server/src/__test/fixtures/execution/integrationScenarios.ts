@@ -25,7 +25,6 @@ import type {
     EventContract,
     EnhancedIntegrationDefinition,
 } from "./types.js";
-
 import {
     SwarmFixtureFactory,
     RoutineFixtureFactory,
@@ -36,11 +35,10 @@ import {
     createMeasurableCapability,
     createEnhancedEmergence,
 } from "./executionFactories.js";
-
 import {
     validateIntegration,
     validateEventFlow,
-    combineValidationResults
+    combineValidationResults,
 } from "./executionValidationUtils.js";
 
 // ================================================================================================
@@ -91,7 +89,7 @@ export class IntegrationScenarioTester {
             tierValidations: {
                 tier1: tierValidations[0],
                 tier2: tierValidations[1],
-                tier3: tierValidations[2]
+                tier3: tierValidations[2],
             },
             eventFlowValid: eventFlowResult.pass,
             emergentCapabilitiesDetected: this.detectEmergentCapabilities(scenario),
@@ -99,7 +97,7 @@ export class IntegrationScenarioTester {
             testScenarioResults: scenarioResults,
             metrics: this.calculateIntegrationMetrics(scenario),
             errors: combinedResult.errors,
-            warnings: [...(combinedResult.warnings || []), ...warnings]
+            warnings: [...(combinedResult.warnings || []), ...warnings],
         };
     }
 
@@ -118,7 +116,7 @@ export class IntegrationScenarioTester {
             const result = await this.swarmFactory.validateFixture(fixture);
             results.push({
                 ...result,
-                message: `Tier 1 validation: ${result.message}`
+                message: `Tier 1 validation: ${result.message}`,
             });
         }
 
@@ -127,7 +125,7 @@ export class IntegrationScenarioTester {
             const result = await this.routineFactory.validateFixture(fixture);
             results.push({
                 ...result,
-                message: `Tier 2 validation: ${result.message}`
+                message: `Tier 2 validation: ${result.message}`,
             });
         }
 
@@ -136,7 +134,7 @@ export class IntegrationScenarioTester {
             const result = await this.executionFactory.validateFixture(fixture);
             results.push({
                 ...result,
-                message: `Tier 3 validation: ${result.message}`
+                message: `Tier 3 validation: ${result.message}`,
             });
         }
 
@@ -191,7 +189,7 @@ export class IntegrationScenarioTester {
             pass: errors.length === 0,
             message: errors.length === 0 ? "Event flow validation passed" : "Event flow validation failed",
             errors: errors.length > 0 ? errors : undefined,
-            warnings: warnings.length > 0 ? warnings : undefined
+            warnings: warnings.length > 0 ? warnings : undefined,
         };
     }
 
@@ -213,7 +211,7 @@ export class IntegrationScenarioTester {
         return {
             pass: errors.length === 0,
             message: errors.length === 0 ? "Emergent capabilities validation passed" : "Emergent capabilities validation failed",
-            errors: errors.length > 0 ? errors : undefined
+            errors: errors.length > 0 ? errors : undefined,
         };
     }
 
@@ -251,7 +249,7 @@ export class IntegrationScenarioTester {
         return {
             pass: errors.length === 0,
             message: errors.length === 0 ? "Cross-tier dependencies validation passed" : "Cross-tier dependencies validation failed",
-            errors: errors.length > 0 ? errors : undefined
+            errors: errors.length > 0 ? errors : undefined,
         };
     }
 
@@ -260,7 +258,7 @@ export class IntegrationScenarioTester {
      */
     private async runTestScenarios(
         testScenarios: TestScenario[], 
-        integrationScenario: IntegrationScenario
+        integrationScenario: IntegrationScenario,
     ): Promise<TestScenarioResult[]> {
         const results: TestScenarioResult[] = [];
 
@@ -277,7 +275,7 @@ export class IntegrationScenarioTester {
      */
     private async runSingleTestScenario(
         testScenario: TestScenario,
-        integrationScenario: IntegrationScenario
+        integrationScenario: IntegrationScenario,
     ): Promise<TestScenarioResult> {
         const errors: string[] = [];
         const passedCriteria: string[] = [];
@@ -308,7 +306,7 @@ export class IntegrationScenarioTester {
             success: errors.length === 0,
             passedCriteria,
             failedCriteria,
-            errors: errors.length > 0 ? errors : undefined
+            errors: errors.length > 0 ? errors : undefined,
         };
     }
 
@@ -377,13 +375,13 @@ export class IntegrationScenarioTester {
 
     private isDependencyAvailable(dependency: string, fixtures: ExecutionFixture<BaseConfigObject>[]): boolean {
         return fixtures.some(fixture => 
-            fixture.integration.crossTierDependencies?.provides?.includes(dependency)
+            fixture.integration.crossTierDependencies?.provides?.includes(dependency),
         );
     }
 
     private isCapabilityRequired(capability: string, fixtures: ExecutionFixture<BaseConfigObject>[]): boolean {
         return fixtures.some(fixture => 
-            fixture.integration.crossTierDependencies?.dependsOn?.includes(capability)
+            fixture.integration.crossTierDependencies?.dependsOn?.includes(capability),
         );
     }
 
@@ -407,28 +405,28 @@ export class IntegrationScenarioTester {
         }> = [
             {
                 required: ["swarm_coordination", "process_intelligence"],
-                emergent: "intelligent_process_coordination"
+                emergent: "intelligent_process_coordination",
             },
             {
                 required: ["security_monitoring", "adaptive_response"],
-                emergent: "proactive_security_defense"
+                emergent: "proactive_security_defense",
             },
             {
                 required: ["customer_satisfaction", "issue_resolution", "automated_response"],
-                emergent: "end_to_end_customer_support"
+                emergent: "end_to_end_customer_support",
             },
             {
                 required: ["threat_detection", "automated_response", "system_hardening"],
-                emergent: "autonomous_security_system"
+                emergent: "autonomous_security_system",
             },
             {
                 required: ["data_processing", "pattern_recognition", "predictive_analysis"],
-                emergent: "intelligent_data_insights"
+                emergent: "intelligent_data_insights",
             },
             {
                 required: ["resource_optimization", "adaptive_response", "performance_monitoring"],
-                emergent: "self_optimizing_system"
-            }
+                emergent: "self_optimizing_system",
+            },
         ];
 
         // Check which emergent capabilities should arise
@@ -447,7 +445,7 @@ export class IntegrationScenarioTester {
         const allFixtures = this.getAllFixtures(scenario);
         const totalCapabilities = allFixtures.reduce(
             (sum, fixture) => sum + fixture.emergence.capabilities.length, 
-            0
+            0,
         );
 
         return {
@@ -455,14 +453,14 @@ export class IntegrationScenarioTester {
             accuracy: Math.min(0.99, 0.85 + (totalCapabilities * 0.02)), // Higher capability count improves accuracy
             cost: totalCapabilities * 0.1, // Cost per capability
             reliability: Math.max(0.9, 1 - (totalCapabilities * 0.01)), // More components = lower reliability
-            scalability: Math.min(10, totalCapabilities / 2) // Scalability factor
+            scalability: Math.min(10, totalCapabilities / 2), // Scalability factor
         };
     }
 
     private evaluateSuccessCriteria(
         criteria: SuccessCriteria,
         testScenario: TestScenario,
-        integrationScenario: IntegrationScenario
+        integrationScenario: IntegrationScenario,
     ): boolean {
         // Mock evaluation based on scenario characteristics
         // In real implementation, this would execute the actual integration
@@ -474,7 +472,7 @@ export class IntegrationScenarioTester {
             "reliability": 0.98,
             "error_rate": 0.02,
             "success_rate": 0.98,
-            "throughput": 100
+            "throughput": 100,
         };
 
         const actualValue = mockMetrics[criteria.metric];
@@ -504,7 +502,7 @@ export class IntegrationScenarioTester {
     private checkFailureCondition(
         condition: string,
         testScenario: TestScenario,
-        integrationScenario: IntegrationScenario
+        integrationScenario: IntegrationScenario,
     ): boolean {
         // Mock failure condition checking
         // In real implementation, this would check actual system state
@@ -543,7 +541,7 @@ export class IntegrationScenarioFactory {
                 "tier3.tool.executed",
                 "tier3.execution.completed",
                 "tier2.routine.completed",
-                "tier1.task.completed"
+                "tier1.task.completed",
             ],
             emergence: {
                 capabilities: ["end_to_end_customer_support", "intelligent_process_coordination"],
@@ -551,8 +549,8 @@ export class IntegrationScenarioFactory {
                     latency: 200,
                     accuracy: 0.95,
                     cost: 0.8,
-                    reliability: 0.98
-                }
+                    reliability: 0.98,
+                },
             },
             testScenarios: [
                 {
@@ -561,10 +559,10 @@ export class IntegrationScenarioFactory {
                     successCriteria: [
                         { metric: "latency", operator: "<", value: 300 },
                         { metric: "accuracy", operator: ">=", value: 0.9 },
-                        { metric: "success_rate", operator: ">", value: 0.95 }
-                    ]
-                }
-            ]
+                        { metric: "success_rate", operator: ">", value: 0.95 },
+                    ],
+                },
+            ],
         };
     }
 
@@ -582,7 +580,7 @@ export class IntegrationScenarioFactory {
                 "tier1.swarm.threat.detected",
                 "tier2.routine.security.initiated",
                 "tier3.execution.security.validated",
-                "tier1.swarm.response.coordinated"
+                "tier1.swarm.response.coordinated",
             ],
             emergence: {
                 capabilities: ["proactive_security_defense", "autonomous_security_system"],
@@ -590,8 +588,8 @@ export class IntegrationScenarioFactory {
                     latency: 50, // Security requires low latency
                     accuracy: 0.99,
                     cost: 1.2,
-                    reliability: 0.995
-                }
+                    reliability: 0.995,
+                },
             },
             testScenarios: [
                 {
@@ -600,11 +598,11 @@ export class IntegrationScenarioFactory {
                     successCriteria: [
                         { metric: "latency", operator: "<", value: 100 },
                         { metric: "accuracy", operator: ">=", value: 0.98 },
-                        { metric: "error_rate", operator: "<", value: 0.01 }
+                        { metric: "error_rate", operator: "<", value: 0.01 },
                     ],
-                    failureConditions: ["false_positive_rate > 0.05"]
-                }
-            ]
+                    failureConditions: ["false_positive_rate > 0.05"],
+                },
+            ],
         };
     }
 
@@ -622,7 +620,7 @@ export class IntegrationScenarioFactory {
                 "tier1.swarm.data.received",
                 "tier2.routine.processing.started",
                 "tier3.execution.analysis.completed",
-                "tier1.swarm.insights.generated"
+                "tier1.swarm.insights.generated",
             ],
             emergence: {
                 capabilities: ["intelligent_data_insights", "self_optimizing_system"],
@@ -630,9 +628,9 @@ export class IntegrationScenarioFactory {
                     latency: 500, // Data processing can tolerate higher latency
                     accuracy: 0.92,
                     cost: 0.3,
-                    reliability: 0.96
-                }
-            }
+                    reliability: 0.96,
+                },
+            },
         };
     }
 }
@@ -675,7 +673,7 @@ export interface TestScenarioResult {
  */
 export async function runIntegrationScenarioTests(
     scenario: IntegrationScenario,
-    tester?: IntegrationScenarioTester
+    tester?: IntegrationScenarioTester,
 ): Promise<IntegrationTestResult> {
     const scenarioTester = tester || new IntegrationScenarioTester();
     return await scenarioTester.testScenario(scenario);
@@ -685,7 +683,7 @@ export async function runIntegrationScenarioTests(
  * Create and test multiple integration scenarios
  */
 export async function runMultipleIntegrationTests(
-    scenarios: IntegrationScenario[]
+    scenarios: IntegrationScenario[],
 ): Promise<IntegrationTestResult[]> {
     const tester = new IntegrationScenarioTester();
     const results: IntegrationTestResult[] = [];
@@ -730,7 +728,7 @@ export function validateIntegrationScenario(scenario: IntegrationScenario): Vali
     return {
         pass: errors.length === 0,
         message: errors.length === 0 ? "Integration scenario validation passed" : "Integration scenario validation failed",
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
     };
 }
 
@@ -801,7 +799,7 @@ export class ScenarioBuilder {
         return {
             ...this.scenario,
             expectedEvents: this.scenario.expectedEvents || [],
-            emergence: this.scenario.emergence || { capabilities: [] }
+            emergence: this.scenario.emergence || { capabilities: [] },
         } as IntegrationScenario;
     }
 }
@@ -814,7 +812,7 @@ export function createEventContract(
     producer: string,
     consumers: string[],
     payload: Record<string, any>,
-    guarantees: "at-least-once" | "exactly-once" | "best-effort" = "at-least-once"
+    guarantees: "at-least-once" | "exactly-once" | "best-effort" = "at-least-once",
 ): EventContract {
     return {
         eventName,
@@ -822,7 +820,7 @@ export function createEventContract(
         consumers,
         payload,
         guarantees,
-        description: `Event ${eventName} from ${producer} to ${consumers.join(", ")}`
+        description: `Event ${eventName} from ${producer} to ${consumers.join(", ")}`,
     };
 }
 
@@ -847,26 +845,26 @@ export const commonScenarios = {
                 "tier2.step.completed",
                 "tier3.execution.completed",
                 "tier2.routine.finished",
-                "tier1.coordination.optimized"
+                "tier1.coordination.optimized",
             )
             .expectCapabilities(
                 "end_to_end_customer_support",
                 "intelligent_process_coordination",
-                "empathetic_customer_support"
+                "empathetic_customer_support",
             )
             .withMetrics({
                 latency: 3000,
                 accuracy: 0.92,
                 cost: 150,
-                reliability: 0.95
+                reliability: 0.95,
             })
             .withTestScenarios({
                 name: "High Volume Support",
                 input: { volume: "high", complexity: "medium" },
                 successCriteria: [
                     { metric: "latency", operator: "<", value: 5000 },
-                    { metric: "accuracy", operator: ">", value: 0.9 }
-                ]
+                    { metric: "accuracy", operator: ">", value: 0.9 },
+                ],
             })
             .build();
     },
@@ -885,8 +883,8 @@ export const commonScenarios = {
                 "tier1.security-swarm",
                 ["tier2.security-routine", "tier3.security-executor"],
                 { threatLevel: "string", source: "string", timestamp: "number" },
-                "exactly-once"
-            )
+                "exactly-once",
+            ),
         ];
         
         return scenario;
@@ -900,19 +898,19 @@ export const commonScenarios = {
             .withTier1([
                 swarmFactory.createComplete({
                     config: { goal: "Coordinate data ingestion" },
-                    emergence: { capabilities: ["data_routing", "load_balancing"] }
+                    emergence: { capabilities: ["data_routing", "load_balancing"] },
                 }),
                 swarmFactory.createComplete({
                     config: { goal: "Analyze processed data" },
-                    emergence: { capabilities: ["pattern_recognition", "insight_generation"] }
-                })
+                    emergence: { capabilities: ["pattern_recognition", "insight_generation"] },
+                }),
             ])
             .withTier2([
                 routineFactory.createVariant("dataProcessing"),
                 routineFactory.createComplete({
                     config: { name: "Data Validation" },
-                    emergence: { capabilities: ["data_validation", "quality_assurance"] }
-                })
+                    emergence: { capabilities: ["data_validation", "quality_assurance"] },
+                }),
             ])
             .withTier3(executionFactory.createVariant("highPerformance"))
             .expectEvents(
@@ -921,22 +919,22 @@ export const commonScenarios = {
                 "tier2.routine.started",
                 "tier3.execution.started",
                 "data.processing.completed",
-                "insights.generated"
+                "insights.generated",
             )
             .expectCapabilities(
                 "intelligent_data_insights",
                 "optimal_resource_utilization",
-                "self_optimizing_system"
+                "self_optimizing_system",
             )
             .withMetrics({
                 latency: 2000,
                 accuracy: 0.96,
                 cost: 100,
                 scalability: 0.9,
-                throughput: 1000 // records per second
+                throughput: 1000, // records per second
             })
             .build();
-    }
+    },
 };
 
 /**
@@ -953,7 +951,7 @@ export function createCustomScenario(
         expectedEvents?: string[];
         performanceTargets?: Record<string, number>;
         eventContracts?: EventContract[];
-    }
+    },
 ): IntegrationScenario {
     const scenario = new ScenarioBuilder(id, name)
         .withTier1(swarmFactory.createComplete(config.tier1Config))
@@ -983,7 +981,7 @@ export async function runIntegrationScenarioWithValidation(
         measurePerformance?: boolean;
         checkEmergence?: boolean;
         timeout?: number;
-    }
+    },
 ): Promise<IntegrationTestResult> {
     const tester = new IntegrationScenarioTester();
     const result = await tester.testScenario(scenario);

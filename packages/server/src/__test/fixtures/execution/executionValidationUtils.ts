@@ -16,17 +16,38 @@ import { describe, it, expect } from "vitest";
 import type { 
     BaseConfigObject,
     ChatConfigObject,
-    RoutineConfigObject,
-    RunConfigObject
+    RunProgress,
 } from "@vrooli/shared";
 import { 
     ChatConfig,
-    RoutineConfig,
-    RunConfig,
-    chatConfigFixtures, 
-    routineConfigFixtures, 
-    runConfigFixtures 
+    RunProgressConfig,
+    type ChatConfigObject,
+    type RunProgress,
 } from "@vrooli/shared";
+
+// Local minimal fixtures for validation
+const chatConfigFixtures = {
+    minimal: {
+        __version: "1.0",
+        stats: {
+            totalToolCalls: 0,
+            totalCredits: "0",
+            startedAt: null,
+            lastProcessingCycleEndedAt: null,
+        },
+    } as ChatConfigObject,
+};
+
+const runConfigFixtures = {
+    minimal: {
+        __version: "1.0",
+        branches: [],
+        config: { botConfig: {} },
+        decisions: [],
+        metrics: { creditsSpent: "0" },
+        subcontexts: [],
+    } as RunProgress,
+};
 // Import the config test utilities - adjust path as needed
 // import { runComprehensiveConfigTests } from "@vrooli/shared";
 import { 
@@ -35,7 +56,7 @@ import {
     type ErrorFixture,
     type ErrorFixtureCollection,
     type ErrorFixtureValidationOptions,
-    BaseErrorFixture
+    BaseErrorFixture,
 } from "@vrooli/shared";
 
 // ================================================================================================
@@ -171,7 +192,7 @@ export interface SwarmFixture extends ExecutionFixture<ChatConfigObject> {
     };
 }
 
-export interface RoutineFixture extends ExecutionFixture<RoutineConfigObject> {
+export interface RoutineFixture extends ExecutionFixture<RunProgress> {
     evolutionStage?: {
         current: "conversational" | "reasoning" | "deterministic" | "routing";
         nextStage?: string;
@@ -186,7 +207,7 @@ export interface RoutineFixture extends ExecutionFixture<RoutineConfigObject> {
     errorScenarios?: ExecutionErrorScenario[];
 }
 
-export interface ExecutionContextFixture extends ExecutionFixture<RunConfigObject> {
+export interface ExecutionContextFixture extends ExecutionFixture<RunProgress> {
     executionMetadata?: {
         supportedStrategies: string[];
         toolDependencies: string[];
@@ -228,24 +249,24 @@ export interface ConfigIntegrationMap {
         configType: ChatConfigObject;
     };
     routine: {
-        configClass: typeof RoutineConfig;
-        fixtures: typeof routineConfigFixtures;
+        configClass: typeof RunProgressConfig;
+        fixtures: typeof runConfigFixtures;
         executionType: RoutineFixture;
-        configType: RoutineConfigObject;
+        configType: RunProgress;
     };
     run: {
-        configClass: typeof RunConfig;
+        configClass: typeof RunProgressConfig;
         fixtures: typeof runConfigFixtures;
         executionType: ExecutionContextFixture;
-        configType: RunConfigObject;
+        configType: RunProgress;
     };
 }
 
 // Map config types to their classes
 export const CONFIG_CLASS_REGISTRY = {
     chat: ChatConfig,
-    routine: RoutineConfig,
-    run: RunConfig
+    routine: RunProgressConfig,
+    run: RunProgressConfig,
 } as const;
 
 export type ConfigType = keyof typeof CONFIG_CLASS_REGISTRY;
@@ -253,8 +274,8 @@ export type ConfigType = keyof typeof CONFIG_CLASS_REGISTRY;
 // Map config types to their fixtures
 export const CONFIG_FIXTURE_REGISTRY = {
     chat: chatConfigFixtures,
-    routine: routineConfigFixtures,
-    run: runConfigFixtures
+    routine: runConfigFixtures,
+    run: runConfigFixtures,
 } as const;
 
 // Enhanced integration map with full type information
@@ -266,16 +287,16 @@ export const CONFIG_INTEGRATION_MAP: ConfigIntegrationMap = {
         configType: {} as ChatConfigObject, // Type placeholder
     },
     routine: {
-        configClass: RoutineConfig,
-        fixtures: routineConfigFixtures,
+        configClass: RunProgressConfig,
+        fixtures: runConfigFixtures,
         executionType: {} as RoutineFixture, // Type placeholder
-        configType: {} as RoutineConfigObject, // Type placeholder
+        configType: {} as RunProgress, // Type placeholder
     },
     run: {
-        configClass: RunConfig,
+        configClass: RunProgressConfig,
         fixtures: runConfigFixtures,
         executionType: {} as ExecutionContextFixture, // Type placeholder
-        configType: {} as RunConfigObject, // Type placeholder
+        configType: {} as RunProgress, // Type placeholder
     },
 };
 
@@ -290,7 +311,7 @@ export const CONFIG_INTEGRATION_MAP: ConfigIntegrationMap = {
  */
 export async function validateConfigWithSharedFixtures<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
-    configType: ConfigType
+    configType: ConfigType,
 ): Promise<ValidationResult> {
     const ConfigClass = CONFIG_CLASS_REGISTRY[configType];
     const errors: string[] = [];
@@ -323,15 +344,15 @@ export async function validateConfigWithSharedFixtures<T extends BaseConfigObjec
             warnings: warnings.length > 0 ? warnings : undefined,
             data: {
                 configType,
-                fixtureTier: fixture.integration.tier
-            }
+                fixtureTier: fixture.integration.tier,
+            },
         };
     } catch (error) {
         return {
             pass: false,
             message: "Config validation error",
             errors: [error instanceof Error ? error.message : String(error)],
-            data: { configType }
+            data: { configType },
         };
     }
 }
@@ -342,7 +363,7 @@ export async function validateConfigWithSharedFixtures<T extends BaseConfigObjec
 export async function validateConfigCompatibility<T extends BaseConfigObject>(
     executionConfig: T,
     sharedConfig: T,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     try {
         // Create instances from both configs
@@ -372,13 +393,13 @@ export async function validateConfigCompatibility<T extends BaseConfigObject>(
         return {
             pass: true, // Compatibility is about structure, not exact match
             message: "Config compatibility validated",
-            warnings: warnings.length > 0 ? warnings : undefined
+            warnings: warnings.length > 0 ? warnings : undefined,
         };
     } catch (error) {
         return {
             pass: false,
             message: "Config compatibility validation failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -390,7 +411,7 @@ export async function validateConfigCompatibility<T extends BaseConfigObject>(
 export async function validateStructuralCompatibility<T extends BaseConfigObject>(
     executionConfig: T,
     sharedConfig: T,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     try {
         // Test that both configs can be created without errors
@@ -412,7 +433,7 @@ export async function validateStructuralCompatibility<T extends BaseConfigObject
             return {
                 pass: false,
                 message: "Execution config failed round-trip consistency",
-                errors: ["Execution config exports differently after re-import"]
+                errors: ["Execution config exports differently after re-import"],
             };
         }
         
@@ -420,19 +441,19 @@ export async function validateStructuralCompatibility<T extends BaseConfigObject
             return {
                 pass: false,
                 message: "Shared config failed round-trip consistency", 
-                errors: ["Shared config exports differently after re-import"]
+                errors: ["Shared config exports differently after re-import"],
             };
         }
         
         return {
             pass: true,
-            message: "Structural compatibility validated"
+            message: "Structural compatibility validated",
         };
     } catch (error) {
         return {
             pass: false,
             message: "Structural compatibility validation failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -445,7 +466,7 @@ export async function testSharedConfigAsFoundation<T extends BaseConfigObject>(
     sharedConfig: T,
     emergence: EmergenceDefinition,
     integration: IntegrationDefinition,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     try {
         // Create a test execution fixture using shared config as foundation
@@ -454,7 +475,7 @@ export async function testSharedConfigAsFoundation<T extends BaseConfigObject>(
             // Add minimal execution-specific fields based on integration tier
             ...(integration.tier === "tier1" && { swarmTask: "Test task", swarmSubTasks: [] }),
             ...(integration.tier === "tier2" && { routineType: "conversational", steps: [] }),
-            ...(integration.tier === "tier3" && { executionStrategy: "conversational", toolConfiguration: [] })
+            ...(integration.tier === "tier3" && { executionStrategy: "conversational", toolConfiguration: [] }),
         };
         
         // Test that enhanced config can be instantiated
@@ -469,7 +490,7 @@ export async function testSharedConfigAsFoundation<T extends BaseConfigObject>(
             return {
                 pass: false,
                 message: "Enhanced config failed round-trip consistency",
-                errors: ["Config exports change after re-import when enhanced with execution fields"]
+                errors: ["Config exports change after re-import when enhanced with execution fields"],
             };
         }
         
@@ -479,19 +500,19 @@ export async function testSharedConfigAsFoundation<T extends BaseConfigObject>(
             return {
                 pass: false,
                 message: "No emergent capabilities defined",
-                warnings: ["Execution fixtures should define at least one emergent capability"]
+                warnings: ["Execution fixtures should define at least one emergent capability"],
             };
         }
         
         return {
             pass: true,
-            message: "Shared config can be used as execution foundation"
+            message: "Shared config can be used as execution foundation",
         };
     } catch (error) {
         return {
             pass: false,
             message: "Foundation test failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -503,7 +524,7 @@ export async function testSharedConfigAsFoundation<T extends BaseConfigObject>(
 export function validateConfigEnhancement<T extends BaseConfigObject>(
     executionConfig: T,
     sharedFixtures: any,
-    configType: keyof ConfigIntegrationMap
+    configType: keyof ConfigIntegrationMap,
 ): ValidationResult {
     const warnings: string[] = [];
     const errors: string[] = [];
@@ -513,21 +534,21 @@ export function validateConfigEnhancement<T extends BaseConfigObject>(
         switch (configType) {
             case "chat":
                 // Chat configs should have swarm-specific enhancements
-                if (!('swarmTask' in executionConfig) && !('chatSettings' in executionConfig)) {
+                if (!("swarmTask" in executionConfig) && !("chatSettings" in executionConfig)) {
                     warnings.push("Chat execution configs should include swarm-specific fields (swarmTask, chatSettings)");
                 }
                 break;
                 
             case "routine":
                 // Routine configs should have process-specific enhancements
-                if (!('routineType' in executionConfig) && !('steps' in executionConfig)) {
+                if (!("routineType" in executionConfig) && !("steps" in executionConfig)) {
                     warnings.push("Routine execution configs should include process-specific fields (routineType, steps)");
                 }
                 break;
                 
             case "run":
                 // Run configs should have execution-specific enhancements
-                if (!('executionStrategy' in executionConfig) && !('toolConfiguration' in executionConfig)) {
+                if (!("executionStrategy" in executionConfig) && !("toolConfiguration" in executionConfig)) {
                     warnings.push("Run execution configs should include execution-specific fields (executionStrategy, toolConfiguration)");
                 }
                 break;
@@ -541,7 +562,7 @@ export function validateConfigEnhancement<T extends BaseConfigObject>(
             // Look for potential conflicts where execution config overrides shared fields inappropriately
             const potentialConflicts = sharedKeys.filter(key => 
                 key in executionConfig && 
-                typeof executionConfig[key] !== typeof sharedFixtures.minimal[key]
+                typeof executionConfig[key] !== typeof sharedFixtures.minimal[key],
             );
             
             if (potentialConflicts.length > 0) {
@@ -553,13 +574,13 @@ export function validateConfigEnhancement<T extends BaseConfigObject>(
             pass: errors.length === 0,
             message: errors.length === 0 ? "Config enhancement validated" : "Config enhancement validation failed",
             errors: errors.length > 0 ? errors : undefined,
-            warnings: warnings.length > 0 ? warnings : undefined
+            warnings: warnings.length > 0 ? warnings : undefined,
         };
     } catch (error) {
         return {
             pass: false,
             message: "Config enhancement validation error",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -571,7 +592,7 @@ export function validateConfigEnhancement<T extends BaseConfigObject>(
 export async function validateCrossCompatibility<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
     sharedFixtures: any,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     const warnings: string[] = [];
     const errors: string[] = [];
@@ -616,13 +637,13 @@ export async function validateCrossCompatibility<T extends BaseConfigObject>(
             pass: errors.length === 0,
             message: errors.length === 0 ? "Cross-compatibility validated" : "Cross-compatibility validation failed",
             errors: errors.length > 0 ? errors : undefined,
-            warnings: warnings.length > 0 ? warnings : undefined
+            warnings: warnings.length > 0 ? warnings : undefined,
         };
     } catch (error) {
         return {
             pass: false,
             message: "Cross-compatibility validation error",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -633,17 +654,22 @@ export async function validateCrossCompatibility<T extends BaseConfigObject>(
  */
 export async function validateConfigAgainstSchema<T extends BaseConfigObject>(
     config: T,
-    configType: ConfigType
+    configType: ConfigType,
 ): Promise<ValidationResult> {
     try {
         const ConfigClass = CONFIG_CLASS_REGISTRY[configType];
         
         // Create actual config instance to validate
-        const configInstance = new ConfigClass({ config });
+        // RunProgressConfig takes data directly, others take { config }
+        const configInstance = configType === "run" 
+            ? new ConfigClass(config)
+            : new ConfigClass({ config });
         
         // Export and re-import to test round-trip consistency
         const exported = configInstance.export();
-        const reimported = new ConfigClass({ config: exported });
+        const reimported = configType === "run"
+            ? new ConfigClass(exported)
+            : new ConfigClass({ config: exported });
         const reexported = reimported.export();
         
         // Configs should be identical after round-trip
@@ -651,20 +677,20 @@ export async function validateConfigAgainstSchema<T extends BaseConfigObject>(
             return {
                 pass: false,
                 message: "Config failed round-trip consistency test",
-                errors: ["Exported config changes after re-import"]
+                errors: ["Exported config changes after re-import"],
             };
         }
         
         return {
             pass: true,
             message: "Config validation passed",
-            warnings: undefined
+            warnings: undefined,
         };
     } catch (error) {
         return {
             pass: false,
             message: "Config validation error",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -675,7 +701,7 @@ export async function validateConfigAgainstSchema<T extends BaseConfigObject>(
  */
 export async function validateComprehensiveRoundTrip<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
-    configType: ConfigType
+    configType: ConfigType,
 ): Promise<ValidationResult> {
     const ConfigClass = CONFIG_CLASS_REGISTRY[configType];
     const errors: string[] = [];
@@ -736,15 +762,15 @@ export async function validateComprehensiveRoundTrip<T extends BaseConfigObject>
                 testResults,
                 configType,
                 totalTests: 6,
-                passedTests: Object.values(testResults).filter((result: any) => result.pass).length
-            }
+                passedTests: Object.values(testResults).filter((result: any) => result.pass).length,
+            },
         };
     } catch (error) {
         return {
             pass: false,
             message: "Comprehensive round-trip validation error",
             errors: [error instanceof Error ? error.message : String(error)],
-            data: { testResults, configType }
+            data: { testResults, configType },
         };
     }
 }
@@ -754,7 +780,7 @@ export async function validateComprehensiveRoundTrip<T extends BaseConfigObject>
  */
 async function testBasicRoundTrip<T extends BaseConfigObject>(
     config: T,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     try {
         const instance1 = new ConfigClass({ config });
@@ -768,13 +794,13 @@ async function testBasicRoundTrip<T extends BaseConfigObject>(
         return {
             pass: isConsistent,
             message: isConsistent ? "Basic round-trip consistent" : "Basic round-trip inconsistent",
-            errors: isConsistent ? undefined : ["Config exports differ after single round-trip"]
+            errors: isConsistent ? undefined : ["Config exports differ after single round-trip"],
         };
     } catch (error) {
         return {
             pass: false,
             message: "Basic round-trip test failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -784,8 +810,8 @@ async function testBasicRoundTrip<T extends BaseConfigObject>(
  */
 async function testMultipleRoundTrips<T extends BaseConfigObject>(
     config: T,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig,
-    iterations: number = 5
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
+    iterations = 5,
 ): Promise<ValidationResult> {
     try {
         let currentConfig = config;
@@ -810,13 +836,13 @@ async function testMultipleRoundTrips<T extends BaseConfigObject>(
                 ? `Multiple round-trips consistent (${iterations} iterations)`
                 : `Multiple round-trips inconsistent after ${iterations} iterations`,
             errors: allConsistent ? undefined : ["Config continues to change across multiple round-trips"],
-            data: { iterations, snapshots: snapshots.length }
+            data: { iterations, snapshots: snapshots.length },
         };
     } catch (error) {
         return {
             pass: false,
             message: "Multiple round-trip test failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -826,7 +852,7 @@ async function testMultipleRoundTrips<T extends BaseConfigObject>(
  */
 async function testSerializationRoundTrip<T extends BaseConfigObject>(
     config: T,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     try {
         const instance1 = new ConfigClass({ config });
@@ -844,13 +870,13 @@ async function testSerializationRoundTrip<T extends BaseConfigObject>(
         return {
             pass: isConsistent,
             message: isConsistent ? "Serialization round-trip consistent" : "Serialization round-trip inconsistent",
-            errors: isConsistent ? undefined : ["Config differs after JSON serialization/deserialization"]
+            errors: isConsistent ? undefined : ["Config differs after JSON serialization/deserialization"],
         };
     } catch (error) {
         return {
             pass: false,
             message: "Serialization round-trip test failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -860,7 +886,7 @@ async function testSerializationRoundTrip<T extends BaseConfigObject>(
  */
 async function testDeepCloneRoundTrip<T extends BaseConfigObject>(
     config: T,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     try {
         const instance1 = new ConfigClass({ config });
@@ -877,13 +903,13 @@ async function testDeepCloneRoundTrip<T extends BaseConfigObject>(
         return {
             pass: isConsistent,
             message: isConsistent ? "Deep clone round-trip consistent" : "Deep clone round-trip inconsistent",
-            errors: isConsistent ? undefined : ["Config differs after deep cloning"]
+            errors: isConsistent ? undefined : ["Config differs after deep cloning"],
         };
     } catch (error) {
         return {
             pass: false,
             message: "Deep clone round-trip test failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -893,7 +919,7 @@ async function testDeepCloneRoundTrip<T extends BaseConfigObject>(
  */
 async function testCrossEnvironmentConsistency<T extends BaseConfigObject>(
     config: T,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     try {
         const instance1 = new ConfigClass({ config });
@@ -916,13 +942,13 @@ async function testCrossEnvironmentConsistency<T extends BaseConfigObject>(
         return {
             pass: allConsistent,
             message: allConsistent ? "Cross-environment consistent" : "Cross-environment inconsistent",
-            errors: allConsistent ? undefined : ["Config differs across environment simulations"]
+            errors: allConsistent ? undefined : ["Config differs across environment simulations"],
         };
     } catch (error) {
         return {
             pass: false,
             message: "Cross-environment test failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -932,7 +958,7 @@ async function testCrossEnvironmentConsistency<T extends BaseConfigObject>(
  */
 async function testExecutionFixtureRoundTrip<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     try {
         // Test config round-trip
@@ -953,13 +979,13 @@ async function testExecutionFixtureRoundTrip<T extends BaseConfigObject>(
             deserializedFixture.emergence &&
             deserializedFixture.integration &&
             Array.isArray(deserializedFixture.emergence.capabilities) &&
-            typeof deserializedFixture.integration.tier === 'string';
+            typeof deserializedFixture.integration.tier === "string";
         
         if (!configConsistent) {
             return {
                 pass: false,
                 message: "Config part of execution fixture failed round-trip",
-                errors: ["Config within execution fixture is not round-trip consistent"]
+                errors: ["Config within execution fixture is not round-trip consistent"],
             };
         }
         
@@ -967,19 +993,19 @@ async function testExecutionFixtureRoundTrip<T extends BaseConfigObject>(
             return {
                 pass: false,
                 message: "Execution fixture structure not preserved",
-                errors: ["Required execution fixture fields missing after serialization"]
+                errors: ["Required execution fixture fields missing after serialization"],
             };
         }
         
         return {
             pass: true,
-            message: "Execution fixture round-trip consistent"
+            message: "Execution fixture round-trip consistent",
         };
     } catch (error) {
         return {
             pass: false,
             message: "Execution fixture round-trip test failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -990,7 +1016,7 @@ async function testExecutionFixtureRoundTrip<T extends BaseConfigObject>(
  */
 export async function validateExecutionFixtureConfig<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
 ): Promise<ValidationResult> {
     try {
         // Create actual config instance to validate
@@ -1006,13 +1032,13 @@ export async function validateExecutionFixtureConfig<T extends BaseConfigObject>
         return { 
             pass: true, 
             message: "Config validation passed",
-            data: validatedConfig // Return validated config
+            data: validatedConfig, // Return validated config
         };
     } catch (error) {
         return { 
             pass: false, 
             message: "Config validation failed",
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }
@@ -1034,11 +1060,11 @@ export function validateEmergence(emergence: EmergenceDefinition): ValidationRes
             "natural_language_understanding", "pattern_recognition", "context_retention",
             "error_recovery", "performance_optimization", "adaptive_response",
             "threat_detection", "quality_assurance", "resource_optimization",
-            "decision_support", "workflow_automation", "collaborative_intelligence"
+            "decision_support", "workflow_automation", "collaborative_intelligence",
         ];
         
         const unmeasurable = emergence.capabilities.filter(cap => 
-            !measurableCapabilities.includes(cap)
+            !measurableCapabilities.includes(cap),
         );
         
         if (unmeasurable.length > 0) {
@@ -1072,7 +1098,7 @@ export function validateEmergence(emergence: EmergenceDefinition): ValidationRes
         pass: errors.length === 0,
         message: errors.length === 0 ? "Emergence validation passed" : "Emergence validation failed",
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -1129,7 +1155,7 @@ export function validateIntegration(integration: IntegrationDefinition): Validat
     return {
         pass: errors.length === 0,
         message: errors.length === 0 ? "Integration validation passed" : "Integration validation failed",
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
     };
 }
 
@@ -1138,7 +1164,7 @@ export function validateIntegration(integration: IntegrationDefinition): Validat
  * Ensures evolution stages are viable and measurable
  */
 export function validateEvolutionPathways<T extends BaseConfigObject>(
-    fixture: ExecutionFixture<T>
+    fixture: ExecutionFixture<T>,
 ): ValidationResult {
     const errors: string[] = [];
 
@@ -1153,11 +1179,11 @@ export function validateEvolutionPathways<T extends BaseConfigObject>(
             ["conversational", "reasoning", "deterministic"],
             ["reactive", "proactive", "predictive"],
             ["manual", "assisted", "automated"],
-            ["basic", "intermediate", "advanced"]
+            ["basic", "intermediate", "advanced"],
         ];
         
         const matchesPattern = validPatterns.some(pattern => 
-            stages.every(stage => pattern.includes(stage.trim()))
+            stages.every(stage => pattern.includes(stage.trim())),
         );
         
         if (!matchesPattern) {
@@ -1186,7 +1212,7 @@ export function validateEvolutionPathways<T extends BaseConfigObject>(
     return {
         pass: errors.length === 0,
         message: errors.length === 0 ? "Evolution validation passed" : "Evolution validation failed",
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
     };
 }
 
@@ -1195,7 +1221,7 @@ export function validateEvolutionPathways<T extends BaseConfigObject>(
  * Ensures produced events can be consumed and vice versa
  */
 export function validateEventFlow<T extends BaseConfigObject>(
-    fixture: ExecutionFixture<T>
+    fixture: ExecutionFixture<T>,
 ): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -1220,7 +1246,7 @@ export function validateEventFlow<T extends BaseConfigObject>(
         // Tier 1 should produce coordination events
         if (integration.producedEvents) {
             const hasCoordinationEvents = integration.producedEvents.some(event => 
-                event.startsWith("tier1.") || event.includes("swarm") || event.includes("coordination")
+                event.startsWith("tier1.") || event.includes("swarm") || event.includes("coordination"),
             );
             if (!hasCoordinationEvents) {
                 warnings.push("Tier 1 components should typically produce coordination-related events");
@@ -1232,7 +1258,7 @@ export function validateEventFlow<T extends BaseConfigObject>(
         pass: errors.length === 0,
         message: errors.length === 0 ? "Event flow validation passed" : "Event flow validation failed",
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -1248,7 +1274,7 @@ export function validateEventFlow<T extends BaseConfigObject>(
 export function runComprehensiveExecutionTests<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
     configType: ConfigType,
-    fixtureName: string
+    fixtureName: string,
 ): void {
     describe(`${fixtureName} execution fixture`, () => {
         const ConfigClass = CONFIG_CLASS_REGISTRY[configType];
@@ -1398,7 +1424,7 @@ export function runComprehensiveExecutionTests<T extends BaseConfigObject>(
 
 function runTierSpecificValidation<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T>,
-    tier: "tier1" | "tier2" | "tier3"
+    tier: "tier1" | "tier2" | "tier3",
 ): void {
     switch (tier) {
         case "tier1":
@@ -1430,7 +1456,7 @@ function validateTier1Patterns(fixture: SwarmFixture): void {
     // Should produce coordination events
     if (fixture.integration.producedEvents) {
         const hasCoordinationEvents = fixture.integration.producedEvents.some(event => 
-            event.includes("swarm") || event.includes("coordination") || event.startsWith("tier1.")
+            event.includes("swarm") || event.includes("coordination") || event.startsWith("tier1."),
         );
         expect(hasCoordinationEvents).toBe(true);
     }
@@ -1446,7 +1472,7 @@ function validateTier2Patterns(fixture: RoutineFixture): void {
     // Should produce process events
     if (fixture.integration.producedEvents) {
         const hasProcessEvents = fixture.integration.producedEvents.some(event => 
-            event.includes("routine") || event.includes("step") || event.startsWith("tier2.")
+            event.includes("routine") || event.includes("step") || event.startsWith("tier2."),
         );
         expect(hasProcessEvents).toBe(true);
     }
@@ -1462,7 +1488,7 @@ function validateTier3Patterns(fixture: ExecutionContextFixture): void {
     // Should produce execution events
     if (fixture.integration.producedEvents) {
         const hasExecutionEvents = fixture.integration.producedEvents.some(event => 
-            event.includes("execution") || event.includes("tool") || event.startsWith("tier3.")
+            event.includes("execution") || event.includes("tool") || event.startsWith("tier3."),
         );
         expect(hasExecutionEvents).toBe(true);
     }
@@ -1515,7 +1541,7 @@ export function runEnhancedComprehensiveExecutionTests<T extends BaseConfigObjec
         includePerformanceBenchmarks?: boolean;
         benchmarkConfig?: any; // Import from performanceBenchmarking.ts when needed
         errorScenarios?: any[]; // Import from errorScenarios.ts when needed
-    } = {}
+    } = {},
 ): void {
     // Run the standard comprehensive tests
     runComprehensiveExecutionTests(fixture, configType, fixtureName);
@@ -1586,7 +1612,7 @@ export function combineValidationResults(results: ValidationResult[]): Validatio
         pass: allPassed,
         message: allPassed ? "All validations passed" : "Some validations failed",
         errors: allErrors.length > 0 ? allErrors : undefined,
-        warnings: allWarnings.length > 0 ? allWarnings : undefined
+        warnings: allWarnings.length > 0 ? allWarnings : undefined,
     };
 }
 
@@ -1596,7 +1622,7 @@ export function combineValidationResults(results: ValidationResult[]): Validatio
 export function createMinimalEmergence(): EmergenceDefinition {
     return {
         capabilities: ["basic_operation"],
-        evolutionPath: "static → adaptive"
+        evolutionPath: "static → adaptive",
     };
 }
 
@@ -1607,7 +1633,7 @@ export function createMinimalIntegration(tier: "tier1" | "tier2" | "tier3"): Int
     return {
         tier,
         producedEvents: [`${tier}.component.initialized`],
-        consumedEvents: [`${tier}.system.ready`]
+        consumedEvents: [`${tier}.system.ready`],
     };
 }
 
@@ -1621,7 +1647,7 @@ export const FixtureCreationUtils = {
     createCompleteFixture<T extends BaseConfigObject>(
         config: T,
         configType: ConfigType,
-        overrides: Partial<ExecutionFixture<T>> = {}
+        overrides: Partial<ExecutionFixture<T>> = {},
     ): ExecutionFixture<T> {
         const baseFixture: ExecutionFixture<T> = {
             config,
@@ -1631,13 +1657,13 @@ export const FixtureCreationUtils = {
                 emergenceConditions: {
                     minAgents: 1,
                     requiredResources: ["compute", "memory"],
-                    environmentalFactors: ["stable_network"]
+                    environmentalFactors: ["stable_network"],
                 },
                 learningMetrics: {
                     performanceImprovement: "latency_reduction",
                     adaptationTime: "seconds",
-                    innovationRate: "moderate"
-                }
+                    innovationRate: "moderate",
+                },
             },
             integration: {
                 tier: configType === "chat" ? "tier1" : configType === "routine" ? "tier2" : "tier3",
@@ -1646,21 +1672,21 @@ export const FixtureCreationUtils = {
                 sharedResources: ["memory_pool", "compute_cluster"],
                 crossTierDependencies: {
                     dependsOn: ["event_bus", "resource_manager"],
-                    provides: ["execution_results", "performance_metrics"]
-                }
+                    provides: ["execution_results", "performance_metrics"],
+                },
             },
             validation: {
                 emergenceTests: ["capability_emergence", "adaptation_rate"],
                 integrationTests: ["event_flow", "resource_sharing"],
-                evolutionTests: ["performance_improvement", "complexity_reduction"]
+                evolutionTests: ["performance_improvement", "complexity_reduction"],
             },
             metadata: {
                 domain: "general",
                 complexity: "medium",
                 maintainer: "ai_test_framework",
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
             },
-            ...overrides
+            ...overrides,
         };
 
         return baseFixture;
@@ -1672,7 +1698,7 @@ export const FixtureCreationUtils = {
     createEvolutionSequence<T extends BaseConfigObject>(
         baseConfig: T,
         configType: ConfigType,
-        evolutionStages: string[]
+        evolutionStages: string[],
     ): ExecutionFixture<T>[] {
         return evolutionStages.map((stage, index) => {
             const baseFixture = this.createCompleteFixture(baseConfig, configType);
@@ -1680,7 +1706,7 @@ export const FixtureCreationUtils = {
             // Simulate performance improvements across stages
             const improvementFactor = (index + 1) / evolutionStages.length;
             
-            if ('evolutionStage' in baseFixture && configType === 'routine') {
+            if ("evolutionStage" in baseFixture && configType === "routine") {
                 (baseFixture as any).evolutionStage = {
                     current: stage,
                     nextStage: evolutionStages[index + 1] || undefined,
@@ -1688,8 +1714,8 @@ export const FixtureCreationUtils = {
                     performanceMetrics: {
                         averageExecutionTime: 1000 * (1 - improvementFactor * 0.5),
                         successRate: 0.8 + improvementFactor * 0.2,
-                        costPerExecution: 0.1 * (1 - improvementFactor * 0.3)
-                    }
+                        costPerExecution: 0.1 * (1 - improvementFactor * 0.3),
+                    },
                 };
             }
 
@@ -1704,7 +1730,7 @@ export const FixtureCreationUtils = {
      * Create error scenario fixtures for testing resilience
      */
     createErrorScenarioFixtures<T extends BaseConfigObject>(
-        baseFixture: ExecutionFixture<T>
+        baseFixture: ExecutionFixture<T>,
     ): any[] { // ErrorScenarioFixture[] when imported
         // This would create comprehensive error scenarios
         // Implementation deferred to avoid circular imports
@@ -1723,7 +1749,7 @@ export const FixtureCreationUtils = {
                 minAccuracy: 0.85,
                 maxCost: 0.05,
                 maxMemoryMB: 1000,
-                minAvailability: 0.95
+                minAvailability: 0.95,
             },
             environment: {
                 warmupIterations: 3,
@@ -1732,11 +1758,11 @@ export const FixtureCreationUtils = {
                 resourceLimits: {
                     maxMemoryMB: 2000,
                     maxCpuPercent: 80,
-                    maxTokens: 10000
-                }
-            }
+                    maxTokens: 10000,
+                },
+            },
         };
-    }
+    },
 };
 
 // ================================================================================================
@@ -1755,7 +1781,7 @@ export class ExecutionErrorFixtureFactory {
         errorType: ExecutionErrorScenario["errorType"],
         tier: "tier1" | "tier2" | "tier3" | "cross-tier",
         component: string,
-        operation: string
+        operation: string,
     ): ExecutionErrorFixture {
         const trace = this.generateExecutionTrace(tier, component, operation);
         const code = this.getErrorCodeForType(errorType);
@@ -1768,34 +1794,34 @@ export class ExecutionErrorFixtureFactory {
                 tier,
                 component,
                 operation,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             },
             executionContext: {
                 tier,
                 component,
                 operation,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             },
             executionImpact: {
                 tierAffected: [tier === "cross-tier" ? "tier1" : tier] as ("tier1" | "tier2" | "tier3")[],
                 resourcesAffected: this.getAffectedResources(tier, errorType),
                 cascadingEffects: errorType === "resource_exhaustion" || errorType === "network_error",
-                recoverability: this.getRecoverability(errorType)
+                recoverability: this.getRecoverability(errorType),
             },
             resilienceMetadata: {
                 errorClassification: `execution.${tier}.${errorType}`,
                 retryable: this.isRetryable(errorType),
                 circuitBreakerTriggered: errorType === "timeout" || errorType === "resource_exhaustion",
-                fallbackAvailable: this.hasFallback(tier, errorType)
+                fallbackAvailable: this.hasFallback(tier, errorType),
             },
-            toServerError: function() {
+            toServerError() {
                 return {
                     trace: this.trace,
                     code: this.code,
-                    data: this.data
+                    data: this.data,
                 };
             },
-            getSeverity: function() {
+            getSeverity() {
                 switch (errorType) {
                     case "timeout": return "Warning";
                     case "permission_denied": return "Error";
@@ -1806,7 +1832,7 @@ export class ExecutionErrorFixtureFactory {
                     case "invalid_state": return "Error";
                     default: return "Error";
                 }
-            }
+            },
         };
     }
 
@@ -1831,7 +1857,7 @@ export class ExecutionErrorFixtureFactory {
             "invalid_state": "invalid_state",
             "tool_failure": "tool_execution_failed",
             "network_error": "network_connection_failed",
-            "validation_error": "validation_failed"
+            "validation_error": "validation_failed",
         };
         return errorCodeMap[errorType] || "unknown_error";
     }
@@ -1844,7 +1870,7 @@ export class ExecutionErrorFixtureFactory {
             "tier1": ["agent_registry", "task_queue", "coordination_state"],
             "tier2": ["routine_state", "execution_context", "resource_pool"],
             "tier3": ["tool_registry", "execution_cache", "safety_monitors"],
-            "cross-tier": ["event_bus", "shared_memory", "metrics_collector"]
+            "cross-tier": ["event_bus", "shared_memory", "metrics_collector"],
         };
 
         const resources = baseResources[tier] || [];
@@ -1917,20 +1943,20 @@ export const executionErrorScenarios = {
         context: {
             tier: "tier1",
             operation: "swarm_coordination",
-            agent: "coordinator_agent"
+            agent: "coordinator_agent",
         },
         expectedError: ExecutionErrorFixtureFactory.createExecutionError("timeout", "tier1", "coordinator", "swarm_coordination"),
         recovery: {
             strategy: "retry",
             maxAttempts: 3,
-            fallbackBehavior: "delegate_to_backup_coordinator"
+            fallbackBehavior: "delegate_to_backup_coordinator",
         },
         validation: {
             shouldRecover: true,
             timeoutMs: 5000,
             expectedFinalState: "recovered_coordination",
-            preserveProgress: true
-        }
+            preserveProgress: true,
+        },
     }),
 
     /**
@@ -1941,20 +1967,20 @@ export const executionErrorScenarios = {
         context: {
             tier: "tier2",
             operation: "routine_execution",
-            resource: "memory_pool"
+            resource: "memory_pool",
         },
         expectedError: ExecutionErrorFixtureFactory.createExecutionError("resource_exhaustion", "tier2", "orchestrator", "routine_execution"),
         recovery: {
             strategy: "fallback",
             fallbackBehavior: "reduce_concurrent_routines",
-            escalationTarget: "tier1"
+            escalationTarget: "tier1",
         },
         validation: {
             shouldRecover: true,
             timeoutMs: 10000,
             expectedFinalState: "degraded_performance",
-            preserveProgress: false
-        }
+            preserveProgress: false,
+        },
     }),
 
     /**
@@ -1966,20 +1992,20 @@ export const executionErrorScenarios = {
             tier: "tier3",
             operation: "tool_execution",
             step: 5,
-            resource: "external_api"
+            resource: "external_api",
         },
         expectedError: ExecutionErrorFixtureFactory.createExecutionError("tool_failure", "tier3", "executor", "tool_execution"),
         recovery: {
             strategy: "fallback",
             maxAttempts: 2,
-            fallbackBehavior: "use_alternative_tool"
+            fallbackBehavior: "use_alternative_tool",
         },
         validation: {
             shouldRecover: true,
             timeoutMs: 3000,
             expectedFinalState: "alternative_execution",
-            preserveProgress: true
-        }
+            preserveProgress: true,
+        },
     }),
 
     /**
@@ -1989,21 +2015,21 @@ export const executionErrorScenarios = {
         errorType: "network_error",
         context: {
             tier: "cross-tier",
-            operation: "event_propagation"
+            operation: "event_propagation",
         },
         expectedError: ExecutionErrorFixtureFactory.createExecutionError("network_error", "cross-tier", "event_bus", "event_propagation"),
         recovery: {
             strategy: "retry",
             maxAttempts: 5,
-            escalationTarget: "user"
+            escalationTarget: "user",
         },
         validation: {
             shouldRecover: false,
             timeoutMs: 15000,
             expectedFinalState: "partial_failure",
-            preserveProgress: true
-        }
-    })
+            preserveProgress: true,
+        },
+    }),
 };
 
 /**
@@ -2012,7 +2038,7 @@ export const executionErrorScenarios = {
 export function runExecutionErrorScenarioTests(
     scenarios: Record<string, ExecutionErrorScenario>,
     scenarioName: string,
-    options: ErrorFixtureValidationOptions = {}
+    options: ErrorFixtureValidationOptions = {},
 ): void {
     // Extract error fixtures from scenarios
     const errorFixtures: ErrorFixtureCollection = {};
@@ -2035,8 +2061,8 @@ export function runExecutionErrorScenarioTests(
                 expect(execError.executionImpact, "Should have execution impact").toBeDefined();
                 expect(execError.executionContext.tier, "Should have valid tier").toMatch(/^(tier[123]|cross-tier)$/);
             },
-            ...(options.customValidations || [])
-        ]
+            ...(options.customValidations || []),
+        ],
     });
 
     // Additional execution scenario validation
@@ -2087,12 +2113,12 @@ export function runExecutionErrorScenarioTests(
  */
 export async function validateExecutionFixtureWithErrorScenarios<T extends BaseConfigObject>(
     fixture: ExecutionFixture<T> & { errorScenarios?: ExecutionErrorScenario[] },
-    ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig,
-    description: string
+    ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
+    description: string,
 ): Promise<ValidationResult> {
     const errors: string[] = [];
     const warnings: string[] = [];
-    let errorScenarioResults: Record<string, ValidationResult> = {};
+    const errorScenarioResults: Record<string, ValidationResult> = {};
 
     try {
         // Basic execution fixture validation
@@ -2130,12 +2156,12 @@ export async function validateExecutionFixtureWithErrorScenarios<T extends BaseC
 
                     errorScenarioResults[scenarioKey] = {
                         pass: true,
-                        message: `Scenario ${index} validated successfully`
+                        message: `Scenario ${index} validated successfully`,
                     };
                 } catch (error) {
                     errorScenarioResults[`scenario_${index}`] = {
                         pass: false,
-                        message: `Scenario ${index} validation failed: ${error instanceof Error ? error.message : String(error)}`
+                        message: `Scenario ${index} validation failed: ${error instanceof Error ? error.message : String(error)}`,
                     };
                     errors.push(`Error scenario ${index} validation failed`);
                 }
@@ -2153,14 +2179,14 @@ export async function validateExecutionFixtureWithErrorScenarios<T extends BaseC
                 description,
                 errorScenarioCount: fixture.errorScenarios?.length || 0,
                 errorScenarioResults,
-                hasErrorScenarios: !!fixture.errorScenarios?.length
-            }
+                hasErrorScenarios: !!fixture.errorScenarios?.length,
+            },
         };
     } catch (error) {
         return {
             pass: false,
             message: `Execution fixture error scenario validation failed for ${description}: ${error instanceof Error ? error.message : String(error)}`,
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
     }
 }

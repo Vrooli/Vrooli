@@ -12,19 +12,109 @@
 import type {
     BaseConfigObject,
     ChatConfigObject,
-    RoutineConfigObject,
-    RunConfigObject,
+    RunProgress,
     BotConfigObject,
 } from "@vrooli/shared";
 import {
     ChatConfig,
-    RoutineConfig,
-    RunConfig,
-    chatConfigFixtures,
-    routineConfigFixtures,
-    runConfigFixtures,
-    botConfigFixtures,
+    RunProgressConfig,
+    type ChatConfigObject,
+    type RunProgress,
 } from "@vrooli/shared";
+
+// Local minimal config fixtures to avoid import issues
+const chatConfigFixtures = {
+    minimal: {
+        __version: "1.0",
+        stats: {
+            totalToolCalls: 0,
+            totalCredits: "0",
+            startedAt: null,
+            lastProcessingCycleEndedAt: null,
+        },
+    } as ChatConfigObject,
+    complete: {
+        __version: "1.0",
+        goal: "Complete the user's tasks efficiently and collaboratively",
+        preferredModel: "claude-3-opus",
+        subtasks: [{
+            id: "task-1",
+            description: "Initialize the conversation",
+            status: "done" as const,
+            created_at: new Date().toISOString(),
+            priority: "medium" as const,
+        }],
+        swarmLeader: "bot-leader-1",
+        blackboard: [{
+            id: "note-1",
+            value: "Initial conversation setup complete",
+            created_at: new Date().toISOString(),
+        }],
+        resources: [{
+            id: "resource-1",
+            kind: "Note" as const,
+            creator_bot_id: "bot-leader-1",
+            created_at: new Date().toISOString(),
+        }],
+        stats: {
+            totalToolCalls: 5,
+            totalCredits: "1000",
+            startedAt: Date.now(),
+            lastProcessingCycleEndedAt: Date.now(),
+        },
+    } as ChatConfigObject,
+    withDefaults: {
+        __version: "1.0",
+        goal: "Default swarm coordination",
+        stats: {
+            totalToolCalls: 0,
+            totalCredits: "0",
+            startedAt: null,
+            lastProcessingCycleEndedAt: null,
+        },
+    } as ChatConfigObject,
+};
+
+const runConfigFixtures = {
+    minimal: {
+        __version: "1.0",
+        branches: [],
+        config: {
+            botConfig: {},
+        },
+        decisions: [],
+        metrics: {
+            creditsSpent: "0",
+        },
+        subcontexts: [],
+    } as RunProgress,
+    complete: {
+        __version: "1.0",
+        branches: [],
+        config: {
+            botConfig: {},
+            name: "Test routine",
+            description: "Complete routine for testing",
+        },
+        decisions: [],
+        metrics: {
+            creditsSpent: "100",
+        },
+        subcontexts: [],
+    } as RunProgress,
+    withDefaults: {
+        __version: "1.0",
+        branches: [],
+        config: {
+            botConfig: {},
+        },
+        decisions: [],
+        metrics: {
+            creditsSpent: "0",
+        },
+        subcontexts: [],
+    } as RunProgress,
+};
 import {
     validateEmergence,
     validateIntegration,
@@ -51,7 +141,7 @@ import type {
 abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject> 
     implements ExecutionFixtureFactory<TConfig> {
     
-    protected abstract ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig;
+    protected abstract ConfigClass: typeof ChatConfig | typeof RunProgressConfig;
     protected abstract tier: "tier1" | "tier2" | "tier3";
     
     /**
@@ -72,7 +162,7 @@ abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject>
             return {
                 pass: false,
                 message: "Config validation failed",
-                errors: [error instanceof Error ? error.message : String(error)]
+                errors: [error instanceof Error ? error.message : String(error)],
             };
         }
     }
@@ -82,7 +172,7 @@ abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject>
      */
     async validateExecutionFixtureConfig(
         fixture: ExecutionFixture<TConfig>,
-        ConfigClass: typeof ChatConfig | typeof RoutineConfig | typeof RunConfig
+        ConfigClass: typeof ChatConfig | typeof RunProgressConfig,
     ): Promise<ValidationResult> {
         try {
             const configInstance = new ConfigClass({ config: fixture.config });
@@ -97,13 +187,13 @@ abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject>
             return { 
                 pass: true, 
                 message: "Config validation passed",
-                data: exported
+                data: exported,
             };
         } catch (error) {
             return { 
                 pass: false, 
                 message: "Config validation failed",
-                errors: [error instanceof Error ? error.message : String(error)]
+                errors: [error instanceof Error ? error.message : String(error)],
             };
         }
     }
@@ -145,7 +235,7 @@ abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject>
      * Type guard for fixture validation
      */
     isValid(fixture: unknown): fixture is ExecutionFixture<TConfig> {
-        if (!fixture || typeof fixture !== 'object') return false;
+        if (!fixture || typeof fixture !== "object") return false;
         const f = fixture as any;
         return f.config && f.emergence && f.integration;
     }
@@ -155,7 +245,7 @@ abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject>
      */
     merge(
         base: ExecutionFixture<TConfig>, 
-        override: Partial<ExecutionFixture<TConfig>>
+        override: Partial<ExecutionFixture<TConfig>>,
     ): ExecutionFixture<TConfig> {
         return {
             ...base,
@@ -187,7 +277,7 @@ abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject>
         return Array.from({ length: count }, (_, i) => {
             const fixture = this.create(overrides);
             // Add index to any id fields for uniqueness
-            if ('id' in fixture.config) {
+            if ("id" in fixture.config) {
                 (fixture.config as any).id = `${(fixture.config as any).id}_${i}`;
             }
             return fixture;
@@ -199,7 +289,7 @@ abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject>
      */
     getConfigValidator(): any {
         return {
-            validate: async (config: TConfig) => this.validateConfig(config)
+            validate: async (config: TConfig) => this.validateConfig(config),
         };
     }
     
@@ -208,7 +298,7 @@ abstract class BaseExecutionFixtureFactory<TConfig extends BaseConfigObject>
      */
     getIntegrationAdapter(): any {
         return {
-            create: this.getConfigValidator()
+            create: this.getConfigValidator(),
         };
     }
     
@@ -232,7 +322,7 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
         const config: ChatConfigObject = {
             ...baseConfig,
             goal: overrides?.config?.goal || "Basic coordination task",
-            ...overrides?.config
+            ...overrides?.config,
         };
         
         return {
@@ -243,8 +333,8 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
                 formation: "flat",
                 coordinationPattern: "emergence",
                 expectedAgentCount: 2,
-                minViableAgents: 1
-            }
+                minViableAgents: 1,
+            },
         };
     }
     
@@ -254,7 +344,7 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
         const config: ChatConfigObject = {
             ...baseConfig,
             goal: "Comprehensive swarm coordination task",
-            ...overrides?.config
+            ...overrides?.config,
         };
         
         return {
@@ -266,14 +356,14 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
                 emergenceConditions: {
                     minAgents: 2,
                     requiredResources: ["communication", "coordination"],
-                    environmentalFactors: ["event_availability", "agent_readiness"]
+                    environmentalFactors: ["event_availability", "agent_readiness"],
                 },
                 learningMetrics: {
                     performanceImprovement: "20% reduction in coordination overhead",
                     adaptationTime: "5 cycles to stable formation",
-                    innovationRate: "2 new patterns per 100 executions"
+                    innovationRate: "2 new patterns per 100 executions",
                 },
-                ...overrides?.emergence
+                ...overrides?.emergence,
             },
             integration: {
                 tier: "tier1",
@@ -282,31 +372,31 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
                 sharedResources: ["blackboard", "agent_registry"],
                 crossTierDependencies: {
                     dependsOn: ["tier2_orchestration", "tier3_execution"],
-                    provides: ["coordination_intelligence", "task_decomposition"]
+                    provides: ["coordination_intelligence", "task_decomposition"],
                 },
                 mcpTools: ["task_manager", "agent_coordinator"],
-                ...overrides?.integration
+                ...overrides?.integration,
             },
             swarmMetadata: {
                 formation: "hierarchical",
                 coordinationPattern: "delegation",
                 expectedAgentCount: 5,
                 minViableAgents: 3,
-                ...overrides?.swarmMetadata
+                ...overrides?.swarmMetadata,
             },
             validation: {
                 emergenceTests: ["coordination_under_load", "task_distribution", "fault_tolerance"],
                 integrationTests: ["cross_tier_communication", "event_flow"],
                 evolutionTests: ["performance_improvement", "capability_expansion"],
-                ...overrides?.validation
+                ...overrides?.validation,
             },
             metadata: {
                 domain: "coordination",
                 complexity: "complex",
                 maintainer: "execution-team",
                 lastUpdated: new Date().toISOString(),
-                ...overrides?.metadata
-            }
+                ...overrides?.metadata,
+            },
         };
     }
     
@@ -317,26 +407,26 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
             config: {
                 ...baseConfig,
                 goal: "Default swarm coordination",
-                ...overrides?.config
+                ...overrides?.config,
             },
             emergence: {
                 capabilities: ["basic_coordination", "event_processing"],
                 evolutionPath: "static → adaptive → intelligent",
-                ...overrides?.emergence
+                ...overrides?.emergence,
             },
             integration: {
                 tier: "tier1",
                 producedEvents: ["tier1.swarm.ready"],
                 consumedEvents: ["system.initialized"],
-                ...overrides?.integration
+                ...overrides?.integration,
             },
             swarmMetadata: {
                 formation: "flat",
                 coordinationPattern: "consensus",
                 expectedAgentCount: 3,
                 minViableAgents: 2,
-                ...overrides?.swarmMetadata
-            }
+                ...overrides?.swarmMetadata,
+            },
         };
     }
     
@@ -357,7 +447,7 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
                     expectedAgentCount: 3,
                     minViableAgents: 2,
                 },
-                ...overrides
+                ...overrides,
             }),
             
             securityResponse: () => this.createComplete({
@@ -374,7 +464,7 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
                     expectedAgentCount: 4,
                     minViableAgents: 2,
                 },
-                ...overrides
+                ...overrides,
             }),
             
             researchAnalysis: () => this.createComplete({
@@ -391,8 +481,8 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
                     expectedAgentCount: 6,
                     minViableAgents: 3,
                 },
-                ...overrides
-            })
+                ...overrides,
+            }),
         };
         
         const factory = variants[variant];
@@ -406,7 +496,7 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
     /**
      * Create evolution path for swarm development
      */
-    createEvolutionPath(stages: number = 3): SwarmFixture[] {
+    createEvolutionPath(stages = 3): SwarmFixture[] {
         const evolutionStages = ["reactive", "proactive", "predictive"];
         const formations = ["flat", "hierarchical", "dynamic"];
         
@@ -417,14 +507,14 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
                     capabilities: [
                         "basic_coordination",
                         ...(i >= 1 ? ["pattern_recognition"] : []),
-                        ...(i >= 2 ? ["predictive_optimization"] : [])
-                    ]
+                        ...(i >= 2 ? ["predictive_optimization"] : []),
+                    ],
                 },
                 swarmMetadata: {
                     formation: formations[i] as any,
                     expectedAgentCount: 2 + i,
-                    minViableAgents: 1 + Math.floor(i / 2)
-                }
+                    minViableAgents: 1 + Math.floor(i / 2),
+                },
             });
         });
     }
@@ -433,17 +523,17 @@ export class SwarmFixtureFactory extends BaseExecutionFixtureFactory<ChatConfigO
 /**
  * Routine Fixture Factory (Tier 2: Process Intelligence)
  */
-export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineConfigObject> {
-    protected ConfigClass = RoutineConfig as typeof RoutineConfig;
+export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RunProgress> {
+    protected ConfigClass = RunProgressConfig as typeof RunProgressConfig;
     protected tier = "tier2" as const;
     
     createMinimal(overrides?: Partial<RoutineFixture>): RoutineFixture {
-        const baseConfig = routineConfigFixtures.minimal;
+        const baseConfig = runConfigFixtures.minimal;
         
         return {
             config: {
                 ...baseConfig,
-                ...overrides?.config
+                ...overrides?.config,
             },
             emergence: overrides?.emergence || createMinimalEmergence(),
             integration: overrides?.integration || createMinimalIntegration("tier2"),
@@ -453,19 +543,19 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
                 metrics: {
                     avgDuration: 5000,
                     avgCredits: 100,
-                    successRate: 0.8
-                }
-            }
+                    successRate: 0.8,
+                },
+            },
         };
     }
     
     createComplete(overrides?: Partial<RoutineFixture>): RoutineFixture {
-        const baseConfig = routineConfigFixtures.complete;
+        const baseConfig = runConfigFixtures.complete;
         
         return {
             config: {
                 ...baseConfig,
-                ...overrides?.config
+                ...overrides?.config,
             },
             emergence: {
                 capabilities: ["process_optimization", "error_handling", "adaptive_execution"],
@@ -474,14 +564,14 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
                 emergenceConditions: {
                     minEvents: 10,
                     requiredResources: ["execution_history", "performance_metrics"],
-                    timeframe: 3600000 // 1 hour
+                    timeframe: 3600000, // 1 hour
                 },
                 learningMetrics: {
                     performanceImprovement: "50% execution time reduction",
                     adaptationTime: "10 executions to stable performance",
-                    innovationRate: "1 optimization per 50 runs"
+                    innovationRate: "1 optimization per 50 runs",
                 },
-                ...overrides?.emergence
+                ...overrides?.emergence,
             },
             integration: {
                 tier: "tier2",
@@ -490,10 +580,10 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
                 sharedResources: ["execution_context", "step_results"],
                 crossTierDependencies: {
                     dependsOn: ["tier1_coordination", "tier3_tools"],
-                    provides: ["process_orchestration", "workflow_management"]
+                    provides: ["process_orchestration", "workflow_management"],
                 },
                 mcpTools: ["workflow_engine", "step_executor"],
-                ...overrides?.integration
+                ...overrides?.integration,
             },
             evolutionStage: {
                 strategy: "reasoning",
@@ -503,11 +593,11 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
                     avgCredits: 75,
                     successRate: 0.92,
                     errorRate: 0.08,
-                    satisfaction: 0.88
+                    satisfaction: 0.88,
                 },
                 previousVersion: "1.0.0",
                 improvements: ["Added error recovery", "Optimized step ordering"],
-                ...overrides?.evolutionStage
+                ...overrides?.evolutionStage,
             },
             domain: "general",
             navigator: "native",
@@ -515,8 +605,8 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
                 emergenceTests: ["adaptive_execution", "error_recovery"],
                 integrationTests: ["step_coordination", "resource_sharing"],
                 evolutionTests: ["performance_gains", "cost_reduction"],
-                ...overrides?.validation
-            }
+                ...overrides?.validation,
+            },
         };
     }
     
@@ -524,9 +614,9 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
         return this.createMinimal({
             emergence: {
                 capabilities: ["basic_execution", "sequential_processing"],
-                evolutionPath: "static → adaptive"
+                evolutionPath: "static → adaptive",
             },
-            ...overrides
+            ...overrides,
         });
     }
     
@@ -535,7 +625,7 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
             customerInquiry: () => this.createComplete({
                 config: {
                     name: "Customer Inquiry Handler",
-                    description: "Process customer inquiries intelligently"
+                    description: "Process customer inquiries intelligently",
                 },
                 emergence: {
                     capabilities: ["natural_language_understanding", "context_retention", "solution_generation"],
@@ -546,17 +636,17 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
                     metrics: {
                         avgDuration: 5000,
                         avgCredits: 100,
-                        successRate: 0.85
-                    }
+                        successRate: 0.85,
+                    },
                 },
                 domain: "customer-service",
-                ...overrides
+                ...overrides,
             }),
             
             dataProcessing: () => this.createComplete({
                 config: {
                     name: "Data Processing Pipeline",
-                    description: "Process and transform data efficiently"
+                    description: "Process and transform data efficiently",
                 },
                 emergence: {
                     capabilities: ["parallel_processing", "data_validation", "format_conversion"],
@@ -567,18 +657,18 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
                     metrics: {
                         avgDuration: 1000,
                         avgCredits: 50,
-                        successRate: 0.98
-                    }
+                        successRate: 0.98,
+                    },
                 },
                 domain: "system",
                 navigator: "native",
-                ...overrides
+                ...overrides,
             }),
             
             securityCheck: () => this.createComplete({
                 config: {
                     name: "Security Validation Routine",
-                    description: "Validate security compliance"
+                    description: "Validate security compliance",
                 },
                 emergence: {
                     capabilities: ["threat_analysis", "compliance_checking", "report_generation"],
@@ -589,12 +679,12 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
                     metrics: {
                         avgDuration: 3000,
                         avgCredits: 80,
-                        successRate: 0.95
-                    }
+                        successRate: 0.95,
+                    },
                 },
                 domain: "security",
-                ...overrides
-            })
+                ...overrides,
+            }),
         };
         
         const factory = variants[variant];
@@ -608,7 +698,7 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
     /**
      * Create evolution path showing routine improvement
      */
-    createEvolutionPath(stages: number = 4): RoutineFixture[] {
+    createEvolutionPath(stages = 4): RoutineFixture[] {
         const strategies: Array<"conversational" | "reasoning" | "deterministic" | "routing"> = 
             ["conversational", "reasoning", "deterministic", "routing"];
         
@@ -625,17 +715,17 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
                     version: `${i + 1}.0.0`,
                     metrics: baseMetrics,
                     previousVersion: i > 0 ? `${i}.0.0` : undefined,
-                    improvements: i > 0 ? [`Evolved from ${strategies[i-1]} to ${strategies[i]}`] : []
+                    improvements: i > 0 ? [`Evolved from ${strategies[i - 1]} to ${strategies[i]}`] : [],
                 },
                 emergence: {
                     capabilities: [
                         "basic_execution",
                         ...(i >= 1 ? ["pattern_learning"] : []),
                         ...(i >= 2 ? ["optimization"] : []),
-                        ...(i >= 3 ? ["intelligent_routing"] : [])
+                        ...(i >= 3 ? ["intelligent_routing"] : []),
                     ],
-                    evolutionPath: strategies.slice(0, i + 1).join(" → ")
-                }
+                    evolutionPath: strategies.slice(0, i + 1).join(" → "),
+                },
             });
         });
     }
@@ -644,8 +734,8 @@ export class RoutineFixtureFactory extends BaseExecutionFixtureFactory<RoutineCo
 /**
  * Execution Context Fixture Factory (Tier 3: Execution Intelligence)
  */
-export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<RunConfigObject> {
-    protected ConfigClass = RunConfig as typeof RunConfig;
+export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<RunProgress> {
+    protected ConfigClass = RunProgressConfig as typeof RunProgressConfig;
     protected tier = "tier3" as const;
     
     createMinimal(overrides?: Partial<ExecutionContextFixture>): ExecutionContextFixture {
@@ -654,7 +744,7 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
         return {
             config: {
                 ...baseConfig,
-                ...overrides?.config
+                ...overrides?.config,
             },
             emergence: overrides?.emergence || createMinimalEmergence(),
             integration: overrides?.integration || createMinimalIntegration("tier3"),
@@ -663,9 +753,9 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
                 tools: ["web_search", "calculation"],
                 constraints: {
                     maxTokens: 1000,
-                    timeout: 30000
-                }
-            }
+                    timeout: 30000,
+                },
+            },
         };
     }
     
@@ -675,7 +765,7 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
         return {
             config: {
                 ...baseConfig,
-                ...overrides?.config
+                ...overrides?.config,
             },
             emergence: {
                 capabilities: ["tool_orchestration", "resource_optimization", "adaptive_strategy"],
@@ -684,14 +774,14 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
                 emergenceConditions: {
                     minEvents: 5,
                     requiredResources: ["tool_registry", "execution_metrics"],
-                    environmentalFactors: ["available_tools", "resource_limits"]
+                    environmentalFactors: ["available_tools", "resource_limits"],
                 },
                 learningMetrics: {
                     performanceImprovement: "30% resource utilization improvement",
                     adaptationTime: "3 executions to optimal tool selection",
-                    innovationRate: "1 new tool combination per 20 runs"
+                    innovationRate: "1 new tool combination per 20 runs",
                 },
-                ...overrides?.emergence
+                ...overrides?.emergence,
             },
             integration: {
                 tier: "tier3",
@@ -700,10 +790,10 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
                 sharedResources: ["tool_results", "execution_logs"],
                 crossTierDependencies: {
                     dependsOn: ["tier2_steps", "tier1_resources"],
-                    provides: ["tool_execution", "result_processing"]
+                    provides: ["tool_execution", "result_processing"],
                 },
                 mcpTools: ["universal_tool_executor", "result_processor"],
-                ...overrides?.integration
+                ...overrides?.integration,
             },
             strategy: "reasoning",
             context: {
@@ -715,18 +805,18 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
                     resourceLimits: {
                         memory: 512,
                         cpu: 50,
-                        apiCalls: 100
-                    }
+                        apiCalls: 100,
+                    },
                 },
                 sharedMemory: {
                     previousResults: [],
-                    learnedPatterns: []
+                    learnedPatterns: [],
                 },
                 resources: {
                     creditBudget: 1000,
                     timeBudget: 60000,
                     priority: "medium",
-                    pools: ["general", "priority"]
+                    pools: ["general", "priority"],
                 },
                 safety: {
                     syncChecks: ["input_validation", "tool_authorization"],
@@ -734,38 +824,38 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
                     domainRules: ["no_destructive_operations", "data_privacy"],
                     emergencyStop: {
                         conditions: ["malicious_intent", "resource_exhaustion"],
-                        actions: ["halt_execution", "alert_admin"]
-                    }
+                        actions: ["halt_execution", "alert_admin"],
+                    },
                 },
-                ...overrides?.context
+                ...overrides?.context,
             },
             tools: {
                 available: [
                     { id: "web_search", name: "Web Search", category: "information" },
                     { id: "calculation", name: "Calculator", category: "computation" },
                     { id: "code_execution", name: "Code Runner", category: "execution", requiresApproval: true },
-                    { id: "file_operations", name: "File Manager", category: "storage", requiresApproval: true }
+                    { id: "file_operations", name: "File Manager", category: "storage", requiresApproval: true },
                 ],
                 restrictions: {
                     blacklist: ["system_command"],
-                    rateLimits: { web_search: 10, code_execution: 5 }
+                    rateLimits: { web_search: 10, code_execution: 5 },
                 },
                 preferences: {
                     taskPreferences: {
                         information_gathering: ["web_search"],
-                        computation: ["calculation", "code_execution"]
+                        computation: ["calculation", "code_execution"],
                     },
                     costOptimization: true,
-                    performanceOptimization: true
+                    performanceOptimization: true,
                 },
-                ...overrides?.tools
+                ...overrides?.tools,
             },
             validation: {
                 emergenceTests: ["tool_selection", "resource_management"],
                 integrationTests: ["result_passing", "error_propagation"],
                 evolutionTests: ["efficiency_gains", "strategy_adaptation"],
-                ...overrides?.validation
-            }
+                ...overrides?.validation,
+            },
         };
     }
     
@@ -773,9 +863,9 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
         return this.createMinimal({
             emergence: {
                 capabilities: ["basic_tool_usage", "result_processing"],
-                evolutionPath: "manual → automated"
+                evolutionPath: "manual → automated",
             },
-            ...overrides
+            ...overrides,
         });
     }
     
@@ -791,17 +881,17 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
                         resourceLimits: {
                             memory: 2048,
                             cpu: 80,
-                            apiCalls: 1000
-                        }
+                            apiCalls: 1000,
+                        },
                     },
                     resources: {
                         creditBudget: 5000,
                         timeBudget: 10000,
                         priority: "high",
-                        pools: ["priority", "dedicated"]
-                    }
+                        pools: ["priority", "dedicated"],
+                    },
                 },
-                ...overrides
+                ...overrides,
             }),
             
             secureExecution: () => this.createComplete({
@@ -811,7 +901,7 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
                     constraints: {
                         requireApproval: ["all"],
                         maxTokens: 2000,
-                        timeout: 120000
+                        timeout: 120000,
                     },
                     safety: {
                         syncChecks: ["comprehensive_validation", "authorization"],
@@ -819,11 +909,11 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
                         domainRules: ["zero_trust", "data_encryption", "access_control"],
                         emergencyStop: {
                             conditions: ["unauthorized_access", "data_breach_attempt"],
-                            actions: ["immediate_halt", "security_alert", "session_termination"]
-                        }
-                    }
+                            actions: ["immediate_halt", "security_alert", "session_termination"],
+                        },
+                    },
                 },
-                ...overrides
+                ...overrides,
             }),
             
             resourceConstrained: () => this.createMinimal({
@@ -836,18 +926,18 @@ export class ExecutionContextFixtureFactory extends BaseExecutionFixtureFactory<
                         resourceLimits: {
                             memory: 128,
                             cpu: 10,
-                            apiCalls: 10
-                        }
+                            apiCalls: 10,
+                        },
                     },
                     resources: {
                         creditBudget: 100,
                         timeBudget: 15000,
                         priority: "low",
-                        pools: ["shared"]
-                    }
+                        pools: ["shared"],
+                    },
                 },
-                ...overrides
-            })
+                ...overrides,
+            }),
         };
         
         const factory = variants[variant];
@@ -875,7 +965,7 @@ export function createMeasurableCapability(
     baseline: number,
     target: number,
     unit: string,
-    description?: string
+    description?: string,
 ): MeasurableCapability {
     return {
         name,
@@ -883,7 +973,7 @@ export function createMeasurableCapability(
         baseline,
         target,
         unit,
-        description
+        description,
     };
 }
 
@@ -898,11 +988,11 @@ export function createEnhancedEmergence(
         trigger: string;
         expectedOutcome: string;
         measurementMethod: string;
-    }>
+    }>,
 ): EnhancedEmergenceDefinition {
     return {
         ...base,
         measurableCapabilities,
-        emergenceTests
+        emergenceTests,
     };
 }

@@ -1,6 +1,6 @@
 import { Box, Button, Radio, RadioGroup, FormControlLabel, Typography, Paper } from "@mui/material";
 import { useState } from "react";
-import { DeferredDecisionData } from "./RoutineExecutor.js";
+import { type DeferredDecisionData } from "./RoutineExecutor.js";
 
 interface DecisionPromptProps {
     decision: DeferredDecisionData;

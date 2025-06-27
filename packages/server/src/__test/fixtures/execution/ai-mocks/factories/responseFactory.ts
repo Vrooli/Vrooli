@@ -5,10 +5,12 @@
  */
 
 import type { LLMResponse, LLMUsage } from "@vrooli/shared";
+import {
+    DEFAULT_MOCK_CONFIG, 
+} from "../types.js";
 import type { 
     AIMockConfig, 
-    MockFactoryResult,
-    DEFAULT_MOCK_CONFIG 
+    MockFactoryResult, 
 } from "../types.js";
 
 /**
@@ -17,7 +19,7 @@ import type {
 export function createAIMockResponse(config: AIMockConfig = {}): MockFactoryResult {
     const mergedConfig = {
         ...DEFAULT_MOCK_CONFIG,
-        ...config
+        ...config,
     };
     
     // Calculate token usage
@@ -25,7 +27,7 @@ export function createAIMockResponse(config: AIMockConfig = {}): MockFactoryResu
         promptTokens: Math.floor((mergedConfig.content?.length || 0) / 4),
         completionTokens: mergedConfig.tokensUsed || 100,
         totalTokens: 0,
-        cost: 0
+        cost: 0,
     };
     usage.totalTokens = usage.promptTokens + usage.completionTokens;
     
@@ -45,18 +47,18 @@ export function createAIMockResponse(config: AIMockConfig = {}): MockFactoryResu
             type: "function" as const,
             function: {
                 name: tc.name,
-                arguments: JSON.stringify(tc.arguments)
-            }
+                arguments: JSON.stringify(tc.arguments),
+            },
         })),
         model: mergedConfig.model || "gpt-4o-mini",
         finishReason: mergedConfig.finishReason || "stop",
-        metadata: mergedConfig.metadata
+        metadata: mergedConfig.metadata,
     };
     
     return {
         response,
         usage,
-        raw: mergedConfig
+        raw: mergedConfig,
     };
 }
 
@@ -69,12 +71,12 @@ export function createCharacteristicResponse(
         tone?: "formal" | "casual" | "technical";
         confidence?: "low" | "medium" | "high";
         includeReasoning?: boolean;
-    }
+    },
 ): MockFactoryResult {
     const config: AIMockConfig = {
         content: generateContent(characteristics),
         confidence: getConfidenceValue(characteristics.confidence),
-        reasoning: characteristics.includeReasoning ? generateReasoning(characteristics) : undefined
+        reasoning: characteristics.includeReasoning ? generateReasoning(characteristics) : undefined,
     };
     
     return createAIMockResponse(config);
@@ -88,15 +90,15 @@ export function createConversationResponse(
         previousMessages: number;
         topic?: string;
         shouldReference?: boolean;
-    }
+    },
 ): MockFactoryResult {
     const config: AIMockConfig = {
         content: generateConversationContent(context),
         confidence: 0.9,
         metadata: {
             conversationDepth: context.previousMessages,
-            topic: context.topic
-        }
+            topic: context.topic,
+        },
     };
     
     return createAIMockResponse(config);
@@ -107,7 +109,7 @@ export function createConversationResponse(
  */
 export function createTokenLimitedResponse(
     maxTokens: number,
-    exceedLimit = false
+    exceedLimit = false,
 ): MockFactoryResult {
     const actualTokens = exceedLimit ? maxTokens + 50 : Math.floor(maxTokens * 0.9);
     const content = generateContentForTokens(actualTokens);
@@ -115,7 +117,7 @@ export function createTokenLimitedResponse(
     const config: AIMockConfig = {
         content,
         tokensUsed: actualTokens,
-        finishReason: exceedLimit ? "length" : "stop"
+        finishReason: exceedLimit ? "length" : "stop",
     };
     
     return createAIMockResponse(config);
@@ -130,7 +132,7 @@ function getModelPricing(model: string): { input: number; output: number } {
         "gpt-4o-mini": { input: 0.00015, output: 0.0006 },
         "gpt-4-turbo": { input: 0.01, output: 0.03 },
         "o1-mini": { input: 0.003, output: 0.012 },
-        "o1-preview": { input: 0.015, output: 0.06 }
+        "o1-preview": { input: 0.015, output: 0.06 },
     };
     
     return pricing[model] || { input: 0.001, output: 0.002 };
@@ -140,13 +142,13 @@ function generateContent(characteristics: any): string {
     const lengths = {
         short: "This is a brief response.",
         medium: "This is a medium-length response that provides more detail and context to the user's query.",
-        long: "This is a comprehensive response that thoroughly addresses the user's question with multiple points of consideration, examples, and detailed explanations that ensure complete understanding of the topic at hand."
+        long: "This is a comprehensive response that thoroughly addresses the user's question with multiple points of consideration, examples, and detailed explanations that ensure complete understanding of the topic at hand.",
     };
     
     const tones = {
         formal: "I shall provide you with the requested information.",
         casual: "Sure thing! Here's what you need to know.",
-        technical: "The implementation utilizes a factory pattern for response generation."
+        technical: "The implementation utilizes a factory pattern for response generation.",
     };
     
     const length = characteristics.length || "medium";
@@ -159,7 +161,7 @@ function generateReasoning(characteristics: any): string {
     const reasoningTemplates = {
         formal: "Upon careful consideration of the query, I have determined that...",
         casual: "Let me think about this... I believe the best approach is...",
-        technical: "Analyzing the requirements: 1) Parse input parameters, 2) Validate constraints, 3) Generate appropriate response..."
+        technical: "Analyzing the requirements: 1) Parse input parameters, 2) Validate constraints, 3) Generate appropriate response...",
     };
     
     return reasoningTemplates[characteristics.tone || "casual"];
@@ -169,7 +171,7 @@ function getConfidenceValue(level?: "low" | "medium" | "high"): number {
     const values = {
         low: 0.6,
         medium: 0.85,
-        high: 0.95
+        high: 0.95,
     };
     
     return values[level || "medium"];
@@ -178,17 +180,17 @@ function getConfidenceValue(level?: "low" | "medium" | "high"): number {
 function generateConversationContent(context: any): string {
     const { previousMessages, topic, shouldReference } = context;
     
-    let content = `Continuing our discussion`;
+    let content = "Continuing our discussion";
     if (topic) {
         content += ` about ${topic}`;
     }
-    content += `.`;
+    content += ".";
     
     if (shouldReference && previousMessages > 0) {
-        content += ` As we discussed earlier,`;
+        content += " As we discussed earlier,";
     }
     
-    content += ` here's my response based on the context of our conversation.`;
+    content += " here's my response based on the context of our conversation.";
     
     return content;
 }
@@ -199,7 +201,7 @@ function generateContentForTokens(tokens: number): string {
     const words = [
         "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog",
         "in", "a", "demonstration", "of", "agility", "and", "grace", "while",
-        "showcasing", "natural", "movement", "patterns", "commonly", "observed"
+        "showcasing", "natural", "movement", "patterns", "commonly", "observed",
     ];
     
     let content = "";

@@ -11,7 +11,7 @@ import type {
     Permission,
 } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
-import { RedisEventBus } from "../events/eventBus.js";
+import { type RedisEventBus } from "../events/eventBus.js";
 
 /**
  * Security Validator

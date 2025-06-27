@@ -13,7 +13,7 @@ export const simpleReasoning = (): AIMockConfig => ({
     content: "Based on my analysis, the best approach is to use a factory pattern.",
     reasoning: "The user needs to create different types of objects dynamically. Factory pattern provides a clean interface for object creation without exposing instantiation logic.",
     confidence: 0.88,
-    model: "gpt-4o"
+    model: "gpt-4o",
 });
 
 /**
@@ -29,7 +29,7 @@ export const stepByStepReasoning = (): AIMockConfig => ({
 5. However, this adds complexity in service communication
 6. Given the team's experience and project requirements, the benefits outweigh the costs`,
     confidence: 0.85,
-    model: "o1-mini"
+    model: "o1-mini",
 });
 
 /**
@@ -47,8 +47,8 @@ export const mathematicalReasoning = (): AIMockConfig => ({
     confidence: 0.92,
     metadata: {
         calculationType: "capacity_planning",
-        assumptions: ["uniform load distribution", "no caching layer"]
-    }
+        assumptions: ["uniform load distribution", "no caching layer"],
+    },
 });
 
 /**
@@ -77,7 +77,7 @@ Vue:
 - Less suitable for very large apps
 
 Given your team's experience and project requirements, React offers the best balance.`,
-    confidence: 0.87
+    confidence: 0.87,
 });
 
 /**
@@ -97,8 +97,8 @@ export const problemDecomposition = (): AIMockConfig => ({
     confidence: 0.9,
     metadata: {
         problemComplexity: "high",
-        decompositionDepth: 2
-    }
+        decompositionDepth: 2,
+    },
 });
 
 /**
@@ -113,7 +113,7 @@ export const causalReasoning = (): AIMockConfig => ({
 4. Root cause: Missing cleanup in useEffect hooks
 5. Effect: Each component mount adds listeners without removal
 6. Result: Memory accumulation leading to performance issues`,
-    confidence: 0.91
+    confidence: 0.91,
 });
 
 /**
@@ -129,7 +129,7 @@ export const hypotheticalReasoning = (): AIMockConfig => ({
 - Response time would improve from 200ms to 50ms for cached requests
 - However, we'd need to handle cache invalidation carefully`,
     confidence: 0.82,
-    model: "gpt-4o"
+    model: "gpt-4o",
 });
 
 /**
@@ -144,7 +144,7 @@ export const diagnosticReasoning = (): AIMockConfig => ({
 4. Test: Added delays between operations - issue disappeared
 5. Analysis: Token validation happens before token is fully written
 6. Conclusion: Classic race condition between write and read operations`,
-    confidence: 0.89
+    confidence: 0.89,
 });
 
 /**
@@ -162,7 +162,7 @@ export const strategicReasoning = (): AIMockConfig => ({
 - Strategy: Route new features to new system, migrate old features incrementally
 - Benefits: Continuous delivery, easy rollback, learn as we go
 - Timeline: 6-month migration with monthly milestones`,
-    confidence: 0.86
+    confidence: 0.86,
 });
 
 /**
@@ -178,7 +178,7 @@ export const analogicalReasoning = (): AIMockConfig => ({
 - Event types = Different mail categories
 - Just as postal service decouples senders and recipients, event bus decouples components
 - This mental model helps understand why components don't need direct references`,
-    confidence: 0.84
+    confidence: 0.84,
 });
 
 /**
@@ -197,8 +197,8 @@ export const probabilisticReasoning = (): AIMockConfig => ({
 - Conservative estimate: 85%`,
     confidence: 0.78,
     metadata: {
-        calculationMethod: "bayesian_adjustment"
-    }
+        calculationMethod: "bayesian_adjustment",
+    },
 });
 
 /**
@@ -217,7 +217,7 @@ Wait, reconsidering:
   * Ability to handle traffic spikes
 Correction: Message queue is the better architectural choice here`,
     confidence: 0.91,
-    model: "o1-mini"
+    model: "o1-mini",
 });
 
 /**
@@ -237,8 +237,8 @@ export const metaReasoning = (): AIMockConfig => ({
     confidence: 0.95,
     metadata: {
         reasoningType: "meta-cognitive",
-        informationCompleteness: 0.6
-    }
+        informationCompleteness: 0.6,
+    },
 });
 
 /**
@@ -255,5 +255,5 @@ export const creativeReasoning = (): AIMockConfig => ({
 - This gives us queue semantics using existing infrastructure
 - Unconventional but solves the immediate problem`,
     confidence: 0.79,
-    model: "gpt-4o"
+    model: "gpt-4o",
 });

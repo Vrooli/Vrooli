@@ -11,9 +11,9 @@ import type { StreamingConfig, StreamChunk } from "../types.js";
  */
 export const wordByWord = (): StreamingConfig => ({
     chunks: [
-        "Hello", " there!", " How", " can", " I", " help", " you", " today?"
+        "Hello", " there!", " How", " can", " I", " help", " you", " today?",
     ],
-    chunkDelay: 50
+    chunkDelay: 50,
 });
 
 /**
@@ -22,7 +22,7 @@ export const wordByWord = (): StreamingConfig => ({
 export const characterTyping = (): StreamingConfig => ({
     chunks: "Hello! I'm here to assist you.".split("").map(char => char),
     chunkDelay: 30,
-    simulateTyping: true
+    simulateTyping: true,
 });
 
 /**
@@ -34,9 +34,9 @@ export const variableSpeed = (): StreamingConfig => ({
         " Hmm...",
         " I believe",
         " the answer is",
-        " quite straightforward."
+        " quite straightforward.",
     ],
-    chunkDelay: [100, 500, 200, 100, 50]
+    chunkDelay: [100, 500, 200, 100, 50],
 });
 
 /**
@@ -48,9 +48,9 @@ export const withReasoning = (): StreamingConfig => ({
     reasoningChunks: [
         "Considering the requirements...",
         "Factory pattern provides flexibility...",
-        "This approach scales well..."
+        "This approach scales well...",
     ],
-    chunkDelay: 75
+    chunkDelay: 75,
 });
 
 /**
@@ -70,9 +70,9 @@ export const longFormResponse = (): StreamingConfig => ({
         "\n\nFinally, this approach provides several benefits:",
         "\n- Clear separation of concerns",
         "\n- Easy to add new processor types",
-        "\n- Testable and maintainable code"
+        "\n- Testable and maintainable code",
     ],
-    chunkDelay: 150
+    chunkDelay: 150,
 });
 
 /**
@@ -83,14 +83,14 @@ export const interruptedStream = (): StreamingConfig => ({
         "Starting to process your request...",
         " Analyzing the data...",
         " Found an interesting pattern...",
-        " Wait, something unexpected—"
+        " Wait, something unexpected—",
     ],
     chunkDelay: 100,
     interruptAt: 3,
     error: {
         type: "NETWORK_ERROR" as any,
-        message: "Connection lost"
-    }
+        message: "Connection lost",
+    },
 });
 
 /**
@@ -104,9 +104,9 @@ export const mixedContentStream = (): StreamingConfig => ({
         { type: "text", content: "\n1. Increasing trend in user engagement" },
         { type: "reasoning", content: "This suggests the new features are working..." },
         { type: "text", content: "\n2. Lower error rates" },
-        { type: "text", content: "\n3. Improved performance metrics" }
+        { type: "text", content: "\n3. Improved performance metrics" },
     ] as StreamChunk[],
-    chunkDelay: 80
+    chunkDelay: 80,
 });
 
 /**
@@ -120,9 +120,9 @@ export const codeGeneration = (): StreamingConfig => ({
         "\n  updateUser(id: string, data: Partial<User>): Promise<User>;",
         "\n  deleteUser(id: string): Promise<void>;",
         "\n}",
-        "\n```"
+        "\n```",
     ],
-    chunkDelay: 60
+    chunkDelay: 60,
 });
 
 /**
@@ -135,9 +135,9 @@ export const withToolCalls = (): StreamingConfig => ({
         { type: "text", content: " Based on the search results:" },
         { type: "text", content: "\n- Use strict type checking" },
         { type: "text", content: "\n- Leverage type inference" },
-        { type: "text", content: "\n- Avoid 'any' type" }
+        { type: "text", content: "\n- Avoid 'any' type" },
     ] as StreamChunk[],
-    chunkDelay: 100
+    chunkDelay: 100,
 });
 
 /**
@@ -155,9 +155,9 @@ export const markdownFormatted = (): StreamingConfig => ({
         "### Recommendations\n",
         "1. Continue monitoring these metrics\n",
         "2. Consider scaling horizontally\n",
-        "3. Implement caching for frequent queries"
+        "3. Implement caching for frequent queries",
     ],
-    chunkDelay: 120
+    chunkDelay: 120,
 });
 
 /**
@@ -174,9 +174,9 @@ export const conversationalStream = (): StreamingConfig => ({
         " you're looking for",
         " a solution that balances",
         " performance and maintainability.",
-        " Am I right?"
+        " Am I right?",
     ],
-    chunkDelay: [80, 60, 100, 70, 90, 80, 70, 80, 90, 120]
+    chunkDelay: [80, 60, 100, 70, 90, 80, 70, 80, 90, 120],
 });
 
 /**
@@ -188,9 +188,9 @@ export const errorRecoveryStream = (): StreamingConfig => ({
         " Encountered an issue...",
         " Attempting alternative approach...",
         " Success! Here's the result:",
-        " The operation completed with fallback method."
+        " The operation completed with fallback method.",
     ],
-    chunkDelay: [50, 200, 300, 100, 50]
+    chunkDelay: [50, 200, 300, 100, 50],
 });
 
 /**
@@ -203,9 +203,9 @@ export const multiLanguageStream = (): StreamingConfig => ({
         "¡Hola! ",
         "你好! ",
         "こんにちは! ",
-        "I can help you in multiple languages."
+        "I can help you in multiple languages.",
     ],
-    chunkDelay: 100
+    chunkDelay: 100,
 });
 
 /**
@@ -218,9 +218,9 @@ export const progressStream = (): StreamingConfig => ({
         "\n[50%] Processing information...",
         "\n[75%] Generating insights...",
         "\n[90%] Finalizing results...",
-        "\n[100%] Complete! Here are the findings:"
+        "\n[100%] Complete! Here are the findings:",
     ],
-    chunkDelay: 200
+    chunkDelay: 200,
 });
 
 /**
@@ -236,7 +236,7 @@ export const adaptiveStream = (): StreamingConfig => ({
         " Here's what you need to do:",
         " First, implement the base class.",
         " Then add the specific implementations.",
-        " Finally, wire everything together."
+        " Finally, wire everything together.",
     ],
-    chunkDelay: [300, 250, 200, 150, 100, 80, 60, 50, 40]
+    chunkDelay: [300, 250, 200, 150, 100, 80, 60, 50, 40],
 });

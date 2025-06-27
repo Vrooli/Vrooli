@@ -18,7 +18,7 @@ export function validateAIResponse(response: unknown): MockValidationResult {
     if (!response || typeof response !== "object") {
         return {
             valid: false,
-            errors: ["Response must be a non-null object"]
+            errors: ["Response must be a non-null object"],
         };
     }
     
@@ -90,7 +90,7 @@ export function validateAIResponse(response: unknown): MockValidationResult {
         valid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
         warnings: warnings.length > 0 ? warnings : undefined,
-        suggestions: suggestions.length > 0 ? suggestions : undefined
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
     };
 }
 
@@ -158,7 +158,7 @@ export function validateStreamEvent(event: unknown): MockValidationResult {
     if (!event || typeof event !== "object") {
         return {
             valid: false,
-            errors: ["Stream event must be a non-null object"]
+            errors: ["Stream event must be a non-null object"],
         };
     }
     
@@ -218,7 +218,7 @@ export function validateStreamEvent(event: unknown): MockValidationResult {
     return {
         valid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -233,7 +233,7 @@ export function validateMockConfig(config: unknown): MockValidationResult {
     if (!config || typeof config !== "object") {
         return {
             valid: false,
-            errors: ["Mock config must be a non-null object"]
+            errors: ["Mock config must be a non-null object"],
         };
     }
     
@@ -306,6 +306,6 @@ export function validateMockConfig(config: unknown): MockValidationResult {
         valid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
         warnings: warnings.length > 0 ? warnings : undefined,
-        suggestions: suggestions.length > 0 ? suggestions : undefined
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
     };
 }

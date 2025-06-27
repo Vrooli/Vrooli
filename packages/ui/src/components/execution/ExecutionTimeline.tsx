@@ -1,7 +1,7 @@
 import { Box, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { IconCommon } from "../../icons/Icons.js";
-import { ExecutionStep } from "./RoutineExecutor.js";
+import { type ExecutionStep } from "./RoutineExecutor.js";
 
 interface ExecutionTimelineProps {
     steps: ExecutionStep[];
@@ -110,7 +110,7 @@ export function ExecutionTimeline({
 
     // Calculate the progress line height based on completed steps
     const completedSteps = steps.filter((step, index) =>
-        step.status === "completed" && index < steps.length - 1
+        step.status === "completed" && index < steps.length - 1,
     ).length;
     const progressLineHeight = completedSteps * stepHeight;
 

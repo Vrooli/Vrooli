@@ -4,6 +4,7 @@
 import { DUMMY_ID, MeetingInviteStatus, endpointsMeeting, generatePK, generatePublicId, getObjectUrl, type Meeting } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockUrl, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { MeetingUpsert } from "./MeetingUpsert.js";
 
 // Create simplified mock data for Meeting responses
@@ -150,13 +151,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsMeeting.findOne), () => {
                 return HttpResponse.json({ data: mockMeetingData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}/edit`,
+        path: getStoryRouteEditPath(mockMeetingData),
     },
 };
 
@@ -178,13 +179,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsMeeting.findOne), () => {
                 return HttpResponse.json({ data: mockMeetingData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}/edit`,
+        path: getStoryRouteEditPath(mockMeetingData),
     },
 };
 
@@ -198,7 +199,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsMeeting.findOne.endpoint}`, async () => {
+            http.get(getMockUrl(endpointsMeeting.findOne), async () => {
                 // Delay the response to simulate loading
                 const LOADING_DELAY = 120_000; // 2 minutes delay
                 await new Promise(resolve => setTimeout(resolve, LOADING_DELAY));
@@ -207,7 +208,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockMeetingData)}/edit`,
+        path: getStoryRouteEditPath(mockMeetingData),
     },
 };
 

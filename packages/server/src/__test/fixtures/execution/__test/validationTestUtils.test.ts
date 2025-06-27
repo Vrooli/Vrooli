@@ -16,7 +16,7 @@ import {
     combineValidationResults,
     createMinimalEmergence,
     createMinimalIntegration,
-    FixtureCreationUtils
+    FixtureCreationUtils,
 } from "../validationTestUtils.js";
 
 describe("Validation Test Utilities", () => {
@@ -28,8 +28,8 @@ describe("Validation Test Utilities", () => {
                 evolutionPath: "reactive → proactive → predictive",
                 emergenceConditions: {
                     minAgents: 3,
-                    requiredResources: ["knowledge_base"]
-                }
+                    requiredResources: ["knowledge_base"],
+                },
             };
             
             const result = validateEmergence(emergence);
@@ -39,7 +39,7 @@ describe("Validation Test Utilities", () => {
         
         it("should fail when no capabilities defined", () => {
             const emergence: EmergenceDefinition = {
-                capabilities: []
+                capabilities: [],
             };
             
             const result = validateEmergence(emergence);
@@ -49,7 +49,7 @@ describe("Validation Test Utilities", () => {
         
         it("should warn about invalid capability names", () => {
             const emergence: EmergenceDefinition = {
-                capabilities: ["PatternRecognition", "adaptive-response", "valid_name"]
+                capabilities: ["PatternRecognition", "adaptive-response", "valid_name"],
             };
             
             const result = validateEmergence(emergence);
@@ -62,7 +62,7 @@ describe("Validation Test Utilities", () => {
         it("should validate event patterns", () => {
             const emergence: EmergenceDefinition = {
                 capabilities: ["test"],
-                eventPatterns: ["valid.pattern.*", "invalid pattern", "also.valid"]
+                eventPatterns: ["valid.pattern.*", "invalid pattern", "also.valid"],
             };
             
             const result = validateEmergence(emergence);
@@ -77,7 +77,7 @@ describe("Validation Test Utilities", () => {
                 tier: "tier1",
                 producedEvents: ["tier1.swarm.initialized", "tier1.task.completed"],
                 consumedEvents: ["support.request.received"],
-                mcpTools: ["SendMessage", "ResourceManage"]
+                mcpTools: ["SendMessage", "ResourceManage"],
             };
             
             const result = validateIntegration(integration);
@@ -87,7 +87,7 @@ describe("Validation Test Utilities", () => {
         
         it("should fail for invalid tier", () => {
             const integration: IntegrationDefinition = {
-                tier: "tier4" as any
+                tier: "tier4" as any,
             };
             
             const result = validateIntegration(integration);
@@ -98,7 +98,7 @@ describe("Validation Test Utilities", () => {
         it("should validate event names", () => {
             const integration: IntegrationDefinition = {
                 tier: "tier2",
-                producedEvents: ["valid.event", "Invalid Event", "123.starts.with.number"]
+                producedEvents: ["valid.event", "Invalid Event", "123.starts.with.number"],
             };
             
             const result = validateIntegration(integration);
@@ -109,7 +109,7 @@ describe("Validation Test Utilities", () => {
         it("should warn about unknown MCP tools", () => {
             const integration: IntegrationDefinition = {
                 tier: "tier3",
-                mcpTools: ["SendMessage", "UnknownTool"]
+                mcpTools: ["SendMessage", "UnknownTool"],
             };
             
             const result = validateIntegration(integration);
@@ -124,16 +124,16 @@ describe("Validation Test Utilities", () => {
                 config: chatConfigFixtures.minimal.valid,
                 emergence: {
                     capabilities: ["test"],
-                    eventPatterns: ["support.*", "tier2.routine.*"]
+                    eventPatterns: ["support.*", "tier2.routine.*"],
                 },
                 integration: {
                     tier: "tier1",
                     consumedEvents: [
                         "support.request.received",
                         "tier2.routine.completed",
-                        "unmatched.event"
-                    ]
-                }
+                        "unmatched.event",
+                    ],
+                },
             };
             
             const result = validateEventFlow(fixture);
@@ -146,16 +146,16 @@ describe("Validation Test Utilities", () => {
             const fixture: SwarmFixture = {
                 config: chatConfigFixtures.minimal.valid,
                 emergence: {
-                    capabilities: ["test"]
+                    capabilities: ["test"],
                 },
                 integration: {
                     tier: "tier2",
                     producedEvents: [
                         "tier2.routine.started",
                         "tier1.wrong.prefix",
-                        "no.prefix.event"
-                    ]
-                }
+                        "no.prefix.event",
+                    ],
+                },
             };
             
             const result = validateEventFlow(fixture);
@@ -169,11 +169,11 @@ describe("Validation Test Utilities", () => {
             const fixture: SwarmFixture = {
                 config: chatConfigFixtures.complete.valid,
                 emergence: {
-                    capabilities: ["coordination"]
+                    capabilities: ["coordination"],
                 },
                 integration: {
-                    tier: "tier1"
-                }
+                    tier: "tier1",
+                },
             };
             
             const result = await validateFixtureConfig(fixture, "chat");
@@ -185,11 +185,11 @@ describe("Validation Test Utilities", () => {
             const fixture: SwarmFixture = {
                 config: chatConfigFixtures.minimal.valid,
                 emergence: {
-                    capabilities: []
+                    capabilities: [],
                 },
                 integration: {
-                    tier: "tier1"
-                }
+                    tier: "tier1",
+                },
             };
             
             const result = await validateFixtureConfig(fixture, "chat");
@@ -201,9 +201,9 @@ describe("Validation Test Utilities", () => {
             const fixture = {
                 config: chatConfigFixtures.minimal.valid,
                 emergence: {
-                    capabilities: ["test"]
+                    capabilities: ["test"],
                 },
-                integration: {} as any
+                integration: {} as any,
             };
             
             const result = await validateFixtureConfig(fixture as SwarmFixture, "chat");
@@ -217,7 +217,7 @@ describe("Validation Test Utilities", () => {
             const results = [
                 { pass: true, message: "Test 1 passed" },
                 { pass: true, message: "Test 2 passed", warnings: ["Warning 1"] },
-                { pass: true, message: "Test 3 passed" }
+                { pass: true, message: "Test 3 passed" },
             ];
             
             const combined = combineValidationResults(results);
@@ -229,7 +229,7 @@ describe("Validation Test Utilities", () => {
             const results = [
                 { pass: true, message: "Test 1 passed" },
                 { pass: false, message: "Test 2 failed", errors: ["Error 1"] },
-                { pass: true, message: "Test 3 passed", warnings: ["Warning 1"] }
+                { pass: true, message: "Test 3 passed", warnings: ["Warning 1"] },
             ];
             
             const combined = combineValidationResults(results);
@@ -246,9 +246,9 @@ describe("Validation Test Utilities", () => {
                 "chat",
                 {
                     emergence: {
-                        capabilities: ["custom_capability"]
-                    }
-                }
+                        capabilities: ["custom_capability"],
+                    },
+                },
             );
             
             expect(fixture.config).toBe(chatConfigFixtures.minimal.valid);
@@ -261,7 +261,7 @@ describe("Validation Test Utilities", () => {
             const stages = FixtureCreationUtils.createEvolutionSequence(
                 chatConfigFixtures.minimal.valid as any, // Type assertion for test
                 "routine",
-                ["conversational", "reasoning", "deterministic"]
+                ["conversational", "reasoning", "deterministic"],
             );
             
             expect(stages).toHaveLength(3);
@@ -270,7 +270,7 @@ describe("Validation Test Utilities", () => {
             
             // Verify metrics improve
             expect(stages[1].evolutionStage!.performanceMetrics.averageExecutionTime).toBeLessThan(
-                stages[0].evolutionStage!.performanceMetrics.averageExecutionTime
+                stages[0].evolutionStage!.performanceMetrics.averageExecutionTime,
             );
         });
     });

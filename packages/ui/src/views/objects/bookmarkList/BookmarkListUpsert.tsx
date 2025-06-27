@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "../../../components/buttons/IconButton.js";
+import { Tooltip } from "../../../components/Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material";
 import { DUMMY_ID, DeleteType, bookmarkListValidation, endpointsActions, endpointsBookmarkList, generatePK, noopSubmit, shapeBookmarkList, type Bookmark, type BookmarkList, type BookmarkListCreateInput, type BookmarkListShape, type BookmarkListUpdateInput, type BookmarkShape, type DeleteOneInput, type ListObject, type Session, type Success } from "@vrooli/shared";
 import { Field, Formik, useField } from "formik";
@@ -10,7 +10,7 @@ import { fetchLazyWrapper, useSubmitHelper } from "../../../api/fetchWrapper.js"
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { ListContainer } from "../../../components/containers/ListContainer.js";
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
 import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
 import { type ObjectListActions } from "../../../components/lists/types.js";
@@ -245,104 +245,201 @@ function BookmarkListForm({
 
 
     return (
-        <MaybeLargeDialog
-            display={display}
-            id="bookmark-list-upsert-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-        >
-            {BulkDeleteDialogComponent}
-            <TopBar
-                display={display}
-                onClose={onClose}
-                titleComponent={<EditableTitle
-                    handleDelete={handleDelete}
-                    isDeletable={!(isCreate || disabled)}
-                    isEditable={!disabled}
-                    titleField="label"
-                    variant="subheader"
-                    sxs={{
-                        stack: {
-                            padding: 0,
-                            ...(display === "Page" && !isMobile ? {
-                                margin: "auto",
-                                maxWidth: "800px",
-                                paddingTop: 1,
-                                paddingBottom: 1,
-                            } : {}),
-                        },
-                    }}
-                    DialogContentForm={() => (
-                        <BaseForm
-                            display="Dialog"
-                            style={{
-                                paddingBottom: "16px",
-                            }}
-                        >
-                            <FormContainer>
-                                <Field
-                                    fullWidth
-                                    name="label"
-                                    label={t("Label")}
-                                    as={TextInput}
-                                />
-                            </FormContainer>
-                        </BaseForm>
-                    )}
-                />}
-            />
-            <FindObjectDialog
-                find="List"
-                isOpen={searchOpen}
-                handleCancel={closeSearch}
-                handleComplete={closeSearch}
-            />
-            <BaseForm
-                display={display}
-                isLoading={isLoading}
-                style={{
-                    width: "min(700px, 100vw)",
-                    flex: 1,
-                    margin: "unset",
-                    marginLeft: "auto",
-                    marginRight: "auto",
-                }}
-            >
-                <ListContainer
-                    emptyText={t("NoResults", { ns: "error" })}
-                    isEmpty={bookmarksField.value.length === 0 && !isLoading}
+        <>
+            {display === "Dialog" ? (
+                <Dialog
+                    isOpen={isOpen ?? false}
+                    onClose={onClose ?? (() => console.warn("onClose not passed to dialog"))}
+                    size="md"
                 >
-                    <ObjectList
-                        dummyItems={new Array(DUMMY_LIST_LENGTH).fill("BookmarkList")}
-                        handleToggleSelect={handleToggleSelect}
-                        isSelecting={isSelecting}
-                        items={bookmarksField.value as ListObject[]}
-                        keyPrefix={"bookmark-item"}
-                        loading={isLoading}
-                        onAction={onAction}
-                        selectedItems={selectedData}
+                    {BulkDeleteDialogComponent}
+                    <TopBar
+                        display={display}
+                        onClose={onClose}
+                        titleComponent={<EditableTitle
+                            handleDelete={handleDelete}
+                            isDeletable={!(isCreate || disabled)}
+                            isEditable={!disabled}
+                            titleField="label"
+                            variant="subheader"
+                            sxs={{
+                                stack: {
+                                    padding: 0,
+                                    ...(display === "Page" && !isMobile ? {
+                                        margin: "auto",
+                                        maxWidth: "800px",
+                                        paddingTop: 1,
+                                        paddingBottom: 1,
+                                    } : {}),
+                                },
+                            }}
+                            DialogContentForm={() => (
+                                <BaseForm
+                                    display="Dialog"
+                                    style={{
+                                        paddingBottom: "16px",
+                                    }}
+                                >
+                                    <FormContainer>
+                                        <Field
+                                            fullWidth
+                                            name="label"
+                                            label={t("Label")}
+                                            as={TextInput}
+                                        />
+                                    </FormContainer>
+                                </BaseForm>
+                            )}
+                        />}
                     />
-                </ListContainer>
-            </BaseForm>
-            <Box sx={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: 0,
-            }}>
-                <BottomActionsButtons
-                    display={display}
-                    errors={props.errors}
-                    hideButtons={disabled}
-                    isCreate={isCreate}
-                    loading={isLoading}
-                    onCancel={handleCancel}
-                    onSetSubmitting={props.setSubmitting}
-                    onSubmit={onSubmit}
-                    sideActionButtons={sideActionButtons}
-                />
-            </Box>
-        </MaybeLargeDialog>
+                    <FindObjectDialog
+                        find="List"
+                        isOpen={searchOpen}
+                        handleCancel={closeSearch}
+                        handleComplete={closeSearch}
+                    />
+                    <BaseForm
+                        display={display}
+                        isLoading={isLoading}
+                        style={{
+                            width: "min(700px, 100vw)",
+                            flex: 1,
+                            margin: "unset",
+                            marginLeft: "auto",
+                            marginRight: "auto",
+                        }}
+                    >
+                        <ListContainer
+                            emptyText={t("NoResults", { ns: "error" })}
+                            isEmpty={bookmarksField.value.length === 0 && !isLoading}
+                        >
+                            <ObjectList
+                                dummyItems={new Array(DUMMY_LIST_LENGTH).fill("BookmarkList")}
+                                handleToggleSelect={handleToggleSelect}
+                                isSelecting={isSelecting}
+                                items={bookmarksField.value as ListObject[]}
+                                keyPrefix={"bookmark-item"}
+                                loading={isLoading}
+                                onAction={onAction}
+                                selectedItems={selectedData}
+                            />
+                        </ListContainer>
+                    </BaseForm>
+                    <Box sx={{
+                        position: "absolute",
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                    }}>
+                        <BottomActionsButtons
+                            display={display}
+                            errors={props.errors}
+                            hideButtons={disabled}
+                            isCreate={isCreate}
+                            loading={isLoading}
+                            onCancel={handleCancel}
+                            onSetSubmitting={props.setSubmitting}
+                            onSubmit={onSubmit}
+                            sideActionButtons={sideActionButtons}
+                        />
+                    </Box>
+                </Dialog>
+            ) : (
+                <>
+                    {BulkDeleteDialogComponent}
+                    <TopBar
+                        display={display}
+                        onClose={onClose}
+                        titleComponent={<EditableTitle
+                            handleDelete={handleDelete}
+                            isDeletable={!(isCreate || disabled)}
+                            isEditable={!disabled}
+                            titleField="label"
+                            variant="subheader"
+                            sxs={{
+                                stack: {
+                                    padding: 0,
+                                    ...(display === "Page" && !isMobile ? {
+                                        margin: "auto",
+                                        maxWidth: "800px",
+                                        paddingTop: 1,
+                                        paddingBottom: 1,
+                                    } : {}),
+                                },
+                            }}
+                            DialogContentForm={() => (
+                                <BaseForm
+                                    display="Dialog"
+                                    style={{
+                                        paddingBottom: "16px",
+                                    }}
+                                >
+                                    <FormContainer>
+                                        <Field
+                                            fullWidth
+                                            name="label"
+                                            label={t("Label")}
+                                            as={TextInput}
+                                        />
+                                    </FormContainer>
+                                </BaseForm>
+                            )}
+                        />}
+                    />
+                    <FindObjectDialog
+                        find="List"
+                        isOpen={searchOpen}
+                        handleCancel={closeSearch}
+                        handleComplete={closeSearch}
+                    />
+                    <BaseForm
+                        display={display}
+                        isLoading={isLoading}
+                        style={{
+                            width: "min(700px, 100vw)",
+                            flex: 1,
+                            margin: "unset",
+                            marginLeft: "auto",
+                            marginRight: "auto",
+                        }}
+                    >
+                        <ListContainer
+                            emptyText={t("NoResults", { ns: "error" })}
+                            isEmpty={bookmarksField.value.length === 0 && !isLoading}
+                        >
+                            <ObjectList
+                                dummyItems={new Array(DUMMY_LIST_LENGTH).fill("BookmarkList")}
+                                handleToggleSelect={handleToggleSelect}
+                                isSelecting={isSelecting}
+                                items={bookmarksField.value as ListObject[]}
+                                keyPrefix={"bookmark-item"}
+                                loading={isLoading}
+                                onAction={onAction}
+                                selectedItems={selectedData}
+                            />
+                        </ListContainer>
+                    </BaseForm>
+                    <Box sx={{
+                        position: "absolute",
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                    }}>
+                        <BottomActionsButtons
+                            display={display}
+                            errors={props.errors}
+                            hideButtons={disabled}
+                            isCreate={isCreate}
+                            loading={isLoading}
+                            onCancel={handleCancel}
+                            onSetSubmitting={props.setSubmitting}
+                            onSubmit={onSubmit}
+                            sideActionButtons={sideActionButtons}
+                        />
+                    </Box>
+                </>
+            )}
+        </>
     );
 }
 

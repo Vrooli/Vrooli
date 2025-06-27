@@ -4,7 +4,7 @@ import { keyframes, styled } from "@mui/material";
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Stack from "@mui/material/Stack";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../../components/Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { LINKS, PaymentType, SOCIALS } from "@vrooli/shared";
 import { lazy, Suspense, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";

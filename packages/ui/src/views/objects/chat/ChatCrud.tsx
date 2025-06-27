@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../../components/buttons/IconButton.js";
 import InputAdornment from "@mui/material/InputAdornment";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -18,10 +18,10 @@ import { SwarmPlayer } from "../../../components/swarm/SwarmPlayer.js";
 // TODO: Import useSwarmConfig hook when implemented
 // import { useSwarmConfig } from "../../../hooks/useSwarmConfig.js";
 import { HelpButton } from "../../../components/buttons/HelpButton.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
 import { ChatMessageInput } from "../../../components/inputs/ChatMessageInput/ChatMessageInput.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
-import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichInput.js";
+import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { TextInput, TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { NavListBox, NavListInboxButton, NavListNewChatButton, NavListProfileButton, NavbarInner, SiteNavigatorButton } from "../../../components/navigation/Navbar.js";
@@ -146,9 +146,6 @@ const ChatTreeContainer = styled(Box)(({ theme }) => ({
     width: "min(700px, 100%)",
 }));
 
-const dialogStyle = {
-    paper: { minWidth: "100vw" },
-} as const;
 const editableTitleStyle = { stack: { padding: 0 } } as const;
 const addChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
 const relationshipListStyle = { marginBottom: 4 } as const;
@@ -420,7 +417,7 @@ function ChatForm({
                                 language={language}
                                 name="name"
                             />
-                            <TranslatedRichInput
+                            <TranslatedAdvancedInput
                                 language={language}
                                 maxChars={2048}
                                 minRows={4}
@@ -477,13 +474,103 @@ function ChatForm({
     return (
         <>
             {existing?.id && DeleteDialogComponent}
-            <MaybeLargeDialog
-                display={display}
-                id="chat-dialog"
-                isOpen={isOpen}
-                onClose={onClose}
-                sxs={dialogStyle}
-            >
+            {display === "Dialog" ? (
+                <Dialog
+                    isOpen={isOpen ?? false}
+                    onClose={onClose ?? (() => console.warn("onClose not passed to dialog"))}
+                    size="full"
+                    showCloseButton={false}
+                >
+                    <Box sx={outerBoxStyle}>
+                    {display === ViewDisplayType.Partial ? (
+                        <PartialNavbar>
+                            <EditableTitle
+                                handleDelete={handleDelete}
+                                isDeletable={!(values.id === DUMMY_ID || disabled)}
+                                isEditable={!disabled}
+                                language={language}
+                                onClose={onSubmit}
+                                onSubmit={onSubmit}
+                                titleField="name"
+                                subtitleField="description"
+                                variant="header"
+                                DialogContentForm={titleDialogContentForm}
+                            />
+                        </PartialNavbar>
+                    ) : (
+                        <NavbarInner>
+                            <SiteNavigatorButton />
+                            <EditableTitle
+                                handleDelete={handleDelete}
+                                isDeletable={!(values.id === DUMMY_ID || disabled)}
+                                isEditable={!disabled}
+                                language={language}
+                                onClose={onSubmit}
+                                onSubmit={onSubmit}
+                                titleField="name"
+                                subtitleField="description"
+                                variant="header"
+                                DialogContentForm={titleDialogContentForm}
+                            />
+                            <NavListBox isLeftHanded={isLeftHanded}>
+                                <NavListNewChatButton handleNewChat={() => resetActiveChatFromStore(session, t)} />
+                                <NavListInboxButton />
+                                <NavListProfileButton />
+                            </NavListBox>
+                        </NavbarInner>
+                    )}
+                    <ChatTreeContainer>
+                        <ChatBubbleTree
+                            branches={messageTree.branches}
+                            handleEdit={messageInput.startEditingMessage}
+                            handleRegenerateResponse={messageActions.regenerateResponse}
+                            handleReply={messageInput.startReplyingToMessage}
+                            handleRetry={messageActions.retryPostMessage}
+                            isBotOnlyChat={isBotOnlyChat}
+                            isEditingMessage={Boolean(messageInput.messageBeingEdited)}
+                            isReplyingToMessage={Boolean(messageInput.messageBeingRepliedTo)}
+                            messageStream={messageStream}
+                            removeMessages={messageTree.removeMessages}
+                            setBranches={messageTree.setBranches}
+                            tree={messageTree.tree}
+                        />
+                    </ChatTreeContainer>
+                    {/* Swarm player displays between messages and input */}
+                    <SwarmPlayer
+                        swarmConfig={null} // TODO: Fetch swarm config from server based on chat ID
+                        swarmStatus={undefined} // TODO: Get swarm status from server
+                        chatId={values.id}
+                        onPause={() => {
+                            // TODO: Implement pause swarm via API
+                            console.log("Pause swarm for chat:", values.id);
+                        }}
+                        onResume={() => {
+                            // TODO: Implement resume swarm via API
+                            console.log("Resume swarm for chat:", values.id);
+                        }}
+                        onStop={() => {
+                            // TODO: Implement stop swarm via API
+                            console.log("Stop swarm for chat:", values.id);
+                        }}
+                    />
+                    <ChatMessageInput
+                        disabled={!existing}
+                        display={display}
+                        isLoading={isLoading}
+                        message={message}
+                        messageBeingEdited={messageInput.messageBeingEdited}
+                        messageBeingRepliedTo={messageInput.messageBeingRepliedTo}
+                        participantsTyping={usersTyping}
+                        placeholder={t("MessagePlaceholder")}
+                        setMessage={setMessage}
+                        stopEditingMessage={messageInput.stopEditingMessage}
+                        stopReplyingToMessage={messageInput.stopReplyingToMessage}
+                        submitMessage={messageInput.submitMessage}
+                        taskInfo={taskInfo}
+                    />
+                    </Box>
+                </Dialog>
+            ) : (
                 <Box sx={outerBoxStyle}>
                     {display === ViewDisplayType.Partial ? (
                         <PartialNavbar>
@@ -572,7 +659,7 @@ function ChatForm({
                         taskInfo={taskInfo}
                     />
                 </Box>
-            </MaybeLargeDialog>
+            )}
         </>
     );
 }

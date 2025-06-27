@@ -5,14 +5,14 @@
  * emergent capabilities with real AI mock execution.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { EMERGENT_FACTORIES } from "../EmergentFixtureFactory.js";
 import { 
     runRuntimeValidationTest,
     runCompleteTestSuite,
     createQuickIntegrationScenario,
     runIntegrationScenario,
-    validateRuntimeQuality
+    validateRuntimeQuality,
 } from "./testHelpers.js";
 import { RuntimeExecutionValidator } from "./RuntimeExecutionValidator.js";
 import { EvolutionValidator } from "./EvolutionValidator.js";
@@ -20,16 +20,14 @@ import { IntegrationTestRunner } from "./IntegrationTestRunner.js";
 import { EmergenceDetector } from "./EmergenceDetector.js";
 
 describe("Runtime Validation Examples", () => {
-    let originalTimeout: number;
-    
     beforeEach(() => {
         // Extend timeout for runtime tests
-        originalTimeout = expect.getState().timeout;
-        expect.setTimeout(60000); // 60 seconds
+        vi.setConfig({ testTimeout: 60000 }); // 60 seconds
     });
     
     afterEach(() => {
-        expect.setTimeout(originalTimeout);
+        // Reset to default timeout
+        vi.setConfig({ testTimeout: 5000 });
     });
     
     describe("Basic Runtime Validation", () => {
@@ -39,15 +37,15 @@ describe("Runtime Validation Examples", () => {
                 emergence: {
                     capabilities: ["customer_satisfaction", "issue_resolution"],
                     eventPatterns: ["customer/*", "support/*"],
-                    evolutionPath: "reactive → proactive → predictive"
-                }
+                    evolutionPath: "reactive → proactive → predictive",
+                },
             });
             
             // Run runtime validation
             const result = await runRuntimeValidationTest(swarmFixture, "swarm", {
                 debug: false,
                 captureMetrics: true,
-                iterationsPerScenario: 3
+                iterationsPerScenario: 3,
             });
             
             // Validate results
@@ -73,9 +71,9 @@ describe("Runtime Validation Examples", () => {
                                 executionTime: 8000,
                                 accuracy: 0.85,
                                 cost: 0.05,
-                                successRate: 0.92
+                                successRate: 0.92,
                             },
-                            characteristics: ["flexible", "context-aware"]
+                            characteristics: ["flexible", "context-aware"],
                         },
                         {
                             name: "reasoning",
@@ -84,9 +82,9 @@ describe("Runtime Validation Examples", () => {
                                 executionTime: 4000,
                                 accuracy: 0.92,
                                 cost: 0.03,
-                                successRate: 0.95
+                                successRate: 0.95,
                             },
-                            characteristics: ["analytical", "structured"]
+                            characteristics: ["analytical", "structured"],
                         },
                         {
                             name: "deterministic",
@@ -95,24 +93,24 @@ describe("Runtime Validation Examples", () => {
                                 executionTime: 500,
                                 accuracy: 0.98,
                                 cost: 0.01,
-                                successRate: 0.99
+                                successRate: 0.99,
                             },
-                            characteristics: ["fast", "predictable"]
-                        }
+                            characteristics: ["fast", "predictable"],
+                        },
                     ],
                     evolutionTriggers: ["performance_threshold", "pattern_detected"],
                     successCriteria: [
                         { metric: "executionTime", threshold: 1000, comparison: "less" },
-                        { metric: "accuracy", threshold: 0.95, comparison: "greater" }
-                    ]
-                }
+                        { metric: "accuracy", threshold: 0.95, comparison: "greater" },
+                    ],
+                },
             });
             
             // Run evolution validation
             const result = await runRuntimeValidationTest(routineFixture, "routine", {
                 includeEvolution: true,
                 captureMetrics: true,
-                iterationsPerScenario: 5
+                iterationsPerScenario: 5,
             });
             
             // Validate evolution
@@ -130,16 +128,16 @@ describe("Runtime Validation Examples", () => {
                     learningMetrics: {
                         performanceImprovement: "latency_reduction",
                         adaptationTime: "immediate",
-                        innovationRate: "optimization_per_execution"
-                    }
-                }
+                        innovationRate: "optimization_per_execution",
+                    },
+                },
             });
             
             // Run validation with stress testing
             const result = await runCompleteTestSuite(executionFixture, "execution", {
                 includeStressTests: true,
                 captureMetrics: true,
-                timeout: 30000
+                timeout: 30000,
             });
             
             // Validate performance characteristics
@@ -167,14 +165,14 @@ describe("Runtime Validation Examples", () => {
                 {
                     tier1: tier1Fixture,
                     tier2: tier2Fixture,
-                    tier3: tier3Fixture
+                    tier3: tier3Fixture,
                 },
                 [
                     "end_to_end_support",
                     "customer_satisfaction",
                     "issue_resolution",
-                    "performance_optimization"
-                ]
+                    "performance_optimization",
+                ],
             );
             
             // Run integration test
@@ -200,14 +198,14 @@ describe("Runtime Validation Examples", () => {
                 {
                     tier1: securitySwarm,
                     tier2: securityRoutine,
-                    tier3: secureExecution
+                    tier3: secureExecution,
                 },
                 [
                     "threat_detection",
                     "incident_response",
                     "compliance_monitoring",
-                    "automated_mitigation"
-                ]
+                    "automated_mitigation",
+                ],
             );
             
             // Add security-specific event flow expectations
@@ -217,7 +215,7 @@ describe("Runtime Validation Examples", () => {
                 eventType: "security.threat.detected",
                 expectedLatency: 100,
                 mandatory: true,
-                sequence: 0
+                sequence: 0,
             });
             
             const runner = new IntegrationTestRunner();
@@ -240,16 +238,16 @@ describe("Runtime Validation Examples", () => {
                     expectedBehaviors: {
                         patternRecognition: ["data_correlation", "trend_identification"],
                         adaptiveResponses: ["hypothesis_refinement", "methodology_adjustment"],
-                        collaborativeBehaviors: ["peer_review", "knowledge_synthesis"]
-                    }
-                }
+                        collaborativeBehaviors: ["peer_review", "knowledge_synthesis"],
+                    },
+                },
             });
             
             // Create validator and run emergence detection
             const validator = new RuntimeExecutionValidator();
             const runtimeConfig = EMERGENT_FACTORIES.swarm.createRuntimeConfig(researchFixture, {
                 debug: false,
-                captureMetrics: true
+                captureMetrics: true,
             });
             
             const result = await validator.validateFixtureRuntime(runtimeConfig);
@@ -275,8 +273,8 @@ describe("Runtime Validation Examples", () => {
                                 executionTime: 10000,
                                 accuracy: 0.80,
                                 cost: 0.10,
-                                throughput: 100
-                            }
+                                throughput: 100,
+                            },
                         },
                         {
                             name: "parallel",
@@ -284,8 +282,8 @@ describe("Runtime Validation Examples", () => {
                                 executionTime: 4000,
                                 accuracy: 0.85,
                                 cost: 0.08,
-                                throughput: 250
-                            }
+                                throughput: 250,
+                            },
                         },
                         {
                             name: "distributed",
@@ -293,16 +291,16 @@ describe("Runtime Validation Examples", () => {
                                 executionTime: 1500,
                                 accuracy: 0.92,
                                 cost: 0.06,
-                                throughput: 500
-                            }
-                        }
+                                throughput: 500,
+                            },
+                        },
                     ],
                     evolutionTriggers: ["throughput_threshold", "latency_target"],
                     successCriteria: [
                         { metric: "throughput", threshold: 400, comparison: "greater" },
-                        { metric: "executionTime", threshold: 2000, comparison: "less" }
-                    ]
-                }
+                        { metric: "executionTime", threshold: 2000, comparison: "less" },
+                    ],
+                },
             });
             
             // Run detailed evolution validation
@@ -314,24 +312,24 @@ describe("Runtime Validation Examples", () => {
                     description: s.description,
                     mockBehaviors: s.mockBehaviors,
                     expectedMetrics: s.expectedMetrics,
-                    expectedCapabilities: s.expectedCapabilities
+                    expectedCapabilities: s.expectedCapabilities,
                 })),
                 validationCriteria: {
                     minimumImprovement: {
                         executionTime: 0.4, // 40% improvement required
                         accuracy: 0.1,      // 10% improvement
-                        cost: 0.2          // 20% cost reduction
+                        cost: 0.2,          // 20% cost reduction
                     },
                     statisticalSignificance: {
                         required: true,
                         confidenceLevel: 0.95,
-                        minSampleSize: 5
-                    }
+                        minSampleSize: 5,
+                    },
                 },
                 options: {
                     validateStatisticalSignificance: true,
-                    iterationsPerStage: 7
-                }
+                    iterationsPerStage: 7,
+                },
             };
             
             const result = await evolutionValidator.validateEvolutionPath(config);
@@ -352,14 +350,14 @@ describe("Runtime Validation Examples", () => {
             
             const result = await runRuntimeValidationTest(qualityFixture, "swarm", {
                 captureMetrics: true,
-                iterationsPerScenario: 5
+                iterationsPerScenario: 5,
             });
             
             // Validate against quality standards
             const qualityCheck = validateRuntimeQuality(result, {
                 successRate: 0.8,
                 emergenceScore: 0.7,
-                maxDuration: 30000
+                maxDuration: 30000,
             });
             
             // All quality standards should be met
@@ -381,15 +379,15 @@ describe("Runtime Validation Examples", () => {
                     capabilities: ["graceful_degradation", "error_recovery", "adaptive_fallback"],
                     emergenceConditions: {
                         environmentalFactors: ["limited_resources", "high_error_rate"],
-                        timeToEmergence: "immediate"
-                    }
-                }
+                        timeToEmergence: "immediate",
+                    },
+                },
             });
             
             // Run with error scenarios
             const result = await runCompleteTestSuite(resilientFixture, "execution", {
                 includeErrorScenarios: true,
-                captureMetrics: true
+                captureMetrics: true,
             });
             
             // Validate error handling
@@ -408,15 +406,15 @@ describe("Runtime Validation Examples", () => {
                     capabilities: ["load_balancing", "performance_scaling", "resource_optimization"],
                     emergenceConditions: {
                         environmentalFactors: ["high_concurrency", "resource_pressure"],
-                        minAgents: 5
-                    }
-                }
+                        minAgents: 5,
+                    },
+                },
             });
             
             // Run stress tests
             const result = await runCompleteTestSuite(loadTestFixture, "swarm", {
                 includeStressTests: true,
-                iterationsPerScenario: 10
+                iterationsPerScenario: 10,
             });
             
             // Validate load handling
@@ -438,26 +436,26 @@ describe("Runtime Validation Examples", () => {
                 {
                     tier1: EMERGENT_FACTORIES.swarm.createVariant("securityResponse", {
                         emergence: {
-                            capabilities: ["hipaa_compliance", "data_protection", "audit_logging"]
-                        }
+                            capabilities: ["hipaa_compliance", "data_protection", "audit_logging"],
+                        },
                     }),
                     tier2: EMERGENT_FACTORIES.routine.createVariant("securityCheck", {
                         emergence: {
-                            capabilities: ["compliance_validation", "privacy_enforcement"]
-                        }
+                            capabilities: ["compliance_validation", "privacy_enforcement"],
+                        },
                     }),
                     tier3: EMERGENT_FACTORIES.execution.createVariant("secureExecution", {
                         emergence: {
-                            capabilities: ["secure_processing", "encrypted_storage"]
-                        }
-                    })
+                            capabilities: ["secure_processing", "encrypted_storage"],
+                        },
+                    }),
                 },
                 [
                     "end_to_end_compliance",
                     "hipaa_compliance",
                     "audit_automation",
-                    "privacy_preservation"
-                ]
+                    "privacy_preservation",
+                ],
             );
             
             // Add healthcare-specific validation criteria
@@ -468,8 +466,8 @@ describe("Runtime Validation Examples", () => {
                 emergenceThreshold: 0.8,
                 crossTierCoordination: {
                     required: true,
-                    minimumInteractions: 5
-                }
+                    minimumInteractions: 5,
+                },
             };
             
             const result = await runIntegrationScenario(healthcareScenario);
@@ -488,36 +486,36 @@ describe("Runtime Validation Examples", () => {
                 {
                     tier1: EMERGENT_FACTORIES.swarm.createVariant("researchAnalysis", {
                         emergence: {
-                            capabilities: ["market_analysis", "risk_assessment", "portfolio_optimization"]
-                        }
+                            capabilities: ["market_analysis", "risk_assessment", "portfolio_optimization"],
+                        },
                     }),
                     tier2: EMERGENT_FACTORIES.routine.createVariant("dataProcessing", {
                         emergence: {
-                            capabilities: ["real_time_processing", "decision_making", "execution_timing"]
-                        }
+                            capabilities: ["real_time_processing", "decision_making", "execution_timing"],
+                        },
                     }),
                     tier3: EMERGENT_FACTORIES.execution.createVariant("highPerformance", {
                         emergence: {
-                            capabilities: ["ultra_low_latency", "high_throughput", "fault_tolerance"]
-                        }
-                    })
+                            capabilities: ["ultra_low_latency", "high_throughput", "fault_tolerance"],
+                        },
+                    }),
                 },
                 [
                     "algorithmic_trading",
                     "risk_management", 
                     "market_prediction",
-                    "regulatory_compliance"
-                ]
+                    "regulatory_compliance",
+                ],
             );
             
             // Add performance requirements for trading
             tradingScenario.timeConstraints = {
                 maxTotalDuration: 5000,  // 5 second max for trading decisions
-                maxStepDuration: 1000    // 1 second max per step
+                maxStepDuration: 1000,    // 1 second max per step
             };
             
             const result = await runIntegrationScenario(tradingScenario, {
-                timeout: 10000
+                timeout: 10000,
             });
             
             // Validate trading system performance

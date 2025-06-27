@@ -12,7 +12,7 @@ import type {
     BaseConfigObject,
     ChatConfigObject,
     RoutineConfigObject,
-    RunConfigObject
+    RunConfigObject,
 } from "@vrooli/shared";
 import type { 
     ExecutionFixture,
@@ -20,7 +20,7 @@ import type {
     RoutineFixture,
     ExecutionContextFixture,
     ValidationResult,
-    EmergenceDefinition
+    EmergenceDefinition,
 } from "./executionValidationUtils.js";
 
 // ================================================================================================
@@ -107,7 +107,7 @@ export class ExecutionFixtureRunner {
     async executeScenario<T extends BaseConfigObject>(
         fixture: ExecutionFixture<T>,
         inputData: any,
-        options: ExecutionOptions = {}
+        options: ExecutionOptions = {},
     ): Promise<ExecutionResult> {
         const startTime = performance.now();
         this.executionTrace = [];
@@ -135,10 +135,10 @@ export class ExecutionFixtureRunner {
                     latency: endTime - startTime,
                     accuracy: result.accuracy,
                     cost: result.cost,
-                    resourceUsage: result.resourceUsage || { memory: 0, cpu: 0, tokens: 0 }
+                    resourceUsage: result.resourceUsage || { memory: 0, cpu: 0, tokens: 0 },
                 },
                 executionTrace: this.executionTrace,
-                gracefulDegradation: result.gracefulDegradation
+                gracefulDegradation: result.gracefulDegradation,
             };
         } catch (error) {
             const endTime = performance.now();
@@ -149,9 +149,9 @@ export class ExecutionFixtureRunner {
                 detectedCapabilities: [],
                 performanceMetrics: {
                     latency: endTime - startTime,
-                    resourceUsage: { memory: 0, cpu: 0, tokens: 0 }
+                    resourceUsage: { memory: 0, cpu: 0, tokens: 0 },
                 },
-                executionTrace: this.executionTrace
+                executionTrace: this.executionTrace,
             };
         }
     }
@@ -162,7 +162,7 @@ export class ExecutionFixtureRunner {
     async executeEvolutionSequence(
         evolutionStages: RoutineFixture[],
         inputData: any,
-        options: ExecutionOptions = {}
+        options: ExecutionOptions = {},
     ): Promise<EvolutionExecutionResult> {
         const stageResults: ExecutionResult[] = [];
         
@@ -175,8 +175,8 @@ export class ExecutionFixtureRunner {
                 timestamp: Date.now(),
                 tier: "tier2",
                 component: "evolution-stage",
-                action: `stage-${index}-${stage.evolutionStage?.current || 'unknown'}`,
-                data: { stage: stage.evolutionStage?.current }
+                action: `stage-${index}-${stage.evolutionStage?.current || "unknown"}`,
+                data: { stage: stage.evolutionStage?.current },
             });
         }
         
@@ -186,7 +186,7 @@ export class ExecutionFixtureRunner {
         return {
             stageResults,
             improvements,
-            validated: improvements.latencyImproved && improvements.accuracyImproved
+            validated: improvements.latencyImproved && improvements.accuracyImproved,
         };
     }
 
@@ -196,12 +196,12 @@ export class ExecutionFixtureRunner {
     async executeWithErrorInjection<T extends BaseConfigObject>(
         fixture: ExecutionFixture<T>,
         errorCondition: ErrorCondition,
-        inputData: any
+        inputData: any,
     ): Promise<ExecutionResult> {
         const options: ExecutionOptions = {
             testConditions: {
-                errorInjection: errorCondition
-            }
+                errorInjection: errorCondition,
+            },
         };
         
         const result = await this.executeScenario(fixture, inputData, options);
@@ -221,7 +221,7 @@ export class ExecutionFixtureRunner {
 
     private async createExecutionContext<T extends BaseConfigObject>(
         fixture: ExecutionFixture<T>,
-        options: ExecutionOptions
+        options: ExecutionOptions,
     ): Promise<MockExecutionContext> {
         // Create a mock execution context that simulates real AI execution
         // In a real implementation, this would integrate with actual AI services
@@ -230,14 +230,14 @@ export class ExecutionFixtureRunner {
             config: fixture.config,
             emergence: fixture.emergence,
             integration: fixture.integration,
-            options
+            options,
         });
     }
 
     private async executeWithContext(
         context: MockExecutionContext,
         inputData: any,
-        options: ExecutionOptions
+        options: ExecutionOptions,
     ): Promise<Partial<ExecutionResult>> {
         // Simulate AI execution with the given context
         const timeout = options.timeout || 30000;
@@ -258,7 +258,7 @@ export class ExecutionFixtureRunner {
                     detectedCapabilities: this.detectEmergentCapabilities(context),
                     accuracy: this.calculateMockAccuracy(context),
                     cost: this.calculateMockCost(context),
-                    resourceUsage: this.getMockResourceUsage()
+                    resourceUsage: this.getMockResourceUsage(),
                 });
             }, Math.random() * 1000 + 100); // 100-1100ms execution time
         });
@@ -266,7 +266,7 @@ export class ExecutionFixtureRunner {
 
     private async validateEmergentCapabilities(
         result: Partial<ExecutionResult>,
-        emergence: EmergenceDefinition
+        emergence: EmergenceDefinition,
     ): Promise<EmergenceValidationResult> {
         const expected = emergence.capabilities;
         const detected = result.detectedCapabilities || [];
@@ -279,7 +279,7 @@ export class ExecutionFixtureRunner {
         for (const capability of detected) {
             evidence[capability] = [
                 { type: "execution_trace", data: "Capability observed in execution" },
-                { type: "performance_metrics", data: result.performanceMetrics }
+                { type: "performance_metrics", data: result.performanceMetrics },
             ];
         }
         
@@ -287,7 +287,7 @@ export class ExecutionFixtureRunner {
             validated: missing.length === 0,
             missingCapabilities: missing,
             unexpectedCapabilities: unexpected,
-            emergenceEvidence: evidence
+            emergenceEvidence: evidence,
         };
     }
 
@@ -324,7 +324,7 @@ export class ExecutionFixtureRunner {
             processedInput: inputData,
             executionStrategy: context.config.executionStrategy || "conversational",
             emergentBehaviors: context.getDetectedCapabilities(),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
         };
     }
 
@@ -347,11 +347,11 @@ export class ExecutionFixtureRunner {
         return baseCost + complexityFactor + Math.random() * 0.02;
     }
 
-    private getMockResourceUsage(): ExecutionResult['performanceMetrics']['resourceUsage'] {
+    private getMockResourceUsage(): ExecutionResult["performanceMetrics"]["resourceUsage"] {
         return {
             memory: Math.floor(Math.random() * 1000) + 100, // 100-1100 MB
             cpu: Math.floor(Math.random() * 80) + 10, // 10-90%
-            tokens: Math.floor(Math.random() * 5000) + 500 // 500-5500 tokens
+            tokens: Math.floor(Math.random() * 5000) + 500, // 500-5500 tokens
         };
     }
 }
@@ -425,27 +425,27 @@ class MockExecutionContext {
  * Create test scenarios for runtime validation
  */
 export function createRuntimeTestScenarios<T extends BaseConfigObject>(
-    fixture: ExecutionFixture<T>
+    fixture: ExecutionFixture<T>,
 ): RuntimeTestScenario[] {
     return [
         {
             name: "basic_execution",
             input: { query: "test input" },
             expectedCapabilities: fixture.emergence.capabilities.slice(0, 2), // Test subset
-            timeout: 5000
+            timeout: 5000,
         },
         {
             name: "complex_execution",
             input: { query: "complex test scenario", context: "detailed" },
             expectedCapabilities: fixture.emergence.capabilities,
-            timeout: 10000
+            timeout: 10000,
         },
         {
             name: "edge_case_execution",
             input: { query: "", edge: true },
             expectedCapabilities: ["error_recovery"],
-            timeout: 3000
-        }
+            timeout: 3000,
+        },
     ];
 }
 
@@ -461,7 +461,7 @@ export interface RuntimeTestScenario {
  */
 export function validateRuntimeExecution(
     result: ExecutionResult,
-    scenario: RuntimeTestScenario
+    scenario: RuntimeTestScenario,
 ): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -473,7 +473,7 @@ export function validateRuntimeExecution(
 
     // Check capability emergence
     const missingCapabilities = scenario.expectedCapabilities.filter(
-        cap => !result.detectedCapabilities.includes(cap)
+        cap => !result.detectedCapabilities.includes(cap),
     );
     
     if (missingCapabilities.length > 0) {
@@ -489,6 +489,6 @@ export function validateRuntimeExecution(
         pass: errors.length === 0,
         message: errors.length === 0 ? "Runtime validation passed" : "Runtime validation failed",
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }

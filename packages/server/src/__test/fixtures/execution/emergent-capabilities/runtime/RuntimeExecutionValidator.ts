@@ -178,7 +178,7 @@ export class RuntimeExecutionValidator {
      * Validate fixture through runtime execution
      */
     async validateFixtureRuntime(
-        config: RuntimeValidationConfig
+        config: RuntimeValidationConfig,
     ): Promise<RuntimeValidationResult> {
         const options = config.options || {};
         
@@ -204,7 +204,7 @@ export class RuntimeExecutionValidator {
                 evolutionResults = await this.runEvolutionPath(
                     config.evolutionPath, 
                     config.fixture,
-                    options
+                    options,
                 );
             }
             
@@ -216,7 +216,7 @@ export class RuntimeExecutionValidator {
             // Calculate overall validation
             const overallValidation = this.calculateOverallValidation(
                 scenarioResults, 
-                evolutionResults
+                evolutionResults,
             );
             
             return {
@@ -224,11 +224,11 @@ export class RuntimeExecutionValidator {
                 scenarioResults,
                 evolutionResults,
                 overallValidation,
-                metrics
+                metrics,
             };
         }, { 
             validateResponses: options.validateResponses, 
-            debug: options.debug 
+            debug: options.debug, 
         });
     }
     
@@ -237,7 +237,7 @@ export class RuntimeExecutionValidator {
      */
     private setupMockBehaviors(
         behaviors: Map<string, AIMockConfig>,
-        mockService: AIMockService
+        mockService: AIMockService,
     ): void {
         behaviors.forEach((config, id) => {
             mockService.registerBehavior(id, {
@@ -246,8 +246,8 @@ export class RuntimeExecutionValidator {
                 priority: config.priority || 10,
                 metadata: {
                     name: id,
-                    description: `Runtime validation mock: ${id}`
-                }
+                    description: `Runtime validation mock: ${id}`,
+                },
             });
         });
     }
@@ -258,7 +258,7 @@ export class RuntimeExecutionValidator {
     private async runScenario(
         scenario: RuntimeScenario,
         fixture: EmergentCapabilityFixture<any>,
-        options: RuntimeValidationOptions
+        options: RuntimeValidationOptions,
     ): Promise<ScenarioResult> {
         const startTime = Date.now();
         const errors: string[] = [];
@@ -282,7 +282,7 @@ export class RuntimeExecutionValidator {
             // Match expected behaviors
             const behaviorMatches = this.matchBehaviors(
                 scenario.expectedBehaviors, 
-                interactions
+                interactions,
             );
             
             // Run custom assertions
@@ -294,12 +294,12 @@ export class RuntimeExecutionValidator {
                 behaviorMatches,
                 executionTime: Date.now() - startTime,
                 errors,
-                warnings
+                warnings,
             };
             
             // Validate capabilities
             const missingCapabilities = scenario.expectedCapabilities.filter(
-                cap => !detectedCapabilities.includes(cap)
+                cap => !detectedCapabilities.includes(cap),
             );
             if (missingCapabilities.length > 0) {
                 errors.push(`Missing capabilities: ${missingCapabilities.join(", ")}`);
@@ -345,7 +345,7 @@ export class RuntimeExecutionValidator {
                 behaviorMatches: [],
                 executionTime: Date.now() - startTime,
                 errors: [error instanceof Error ? error.message : String(error)],
-                warnings
+                warnings,
             };
         }
     }
@@ -355,7 +355,7 @@ export class RuntimeExecutionValidator {
      */
     private async processEvent(
         event: ExecutionEvent,
-        fixture: EmergentCapabilityFixture<any>
+        fixture: EmergentCapabilityFixture<any>,
     ): Promise<void> {
         // Simulate event processing based on tier
         const tier = fixture.integration.tier;
@@ -381,7 +381,7 @@ export class RuntimeExecutionValidator {
      */
     private async processTier1Event(
         event: ExecutionEvent,
-        fixture: EmergentCapabilityFixture<any>
+        fixture: EmergentCapabilityFixture<any>,
     ): Promise<void> {
         // Simulate swarm coordination
         this.executionContext.set("lastSwarmEvent", event);
@@ -392,8 +392,8 @@ export class RuntimeExecutionValidator {
                 model: "gpt-4o-mini",
                 messages: [{
                     role: "user",
-                    content: `Delegate task based on event: ${JSON.stringify(event.data)}`
-                }]
+                    content: `Delegate task based on event: ${JSON.stringify(event.data)}`,
+                }],
             });
         }
     }
@@ -403,7 +403,7 @@ export class RuntimeExecutionValidator {
      */
     private async processTier2Event(
         event: ExecutionEvent,
-        fixture: EmergentCapabilityFixture<any>
+        fixture: EmergentCapabilityFixture<any>,
     ): Promise<void> {
         // Simulate routine execution
         this.executionContext.set("lastRoutineEvent", event);
@@ -414,8 +414,8 @@ export class RuntimeExecutionValidator {
             model: "gpt-4o-mini",
             messages: [{
                 role: "user",
-                content: `Execute ${fixture.config.name} in ${stage} mode for: ${JSON.stringify(event.data)}`
-            }]
+                content: `Execute ${fixture.config.name} in ${stage} mode for: ${JSON.stringify(event.data)}`,
+            }],
         });
     }
     
@@ -424,7 +424,7 @@ export class RuntimeExecutionValidator {
      */
     private async processTier3Event(
         event: ExecutionEvent,
-        fixture: EmergentCapabilityFixture<any>
+        fixture: EmergentCapabilityFixture<any>,
     ): Promise<void> {
         // Simulate tool execution
         this.executionContext.set("lastExecutionEvent", event);
@@ -433,8 +433,8 @@ export class RuntimeExecutionValidator {
             model: "gpt-4o-mini",
             messages: [{
                 role: "user",
-                content: `Execute tools and orchestrate operations for: ${JSON.stringify(event.data)}`
-            }]
+                content: `Execute tools and orchestrate operations for: ${JSON.stringify(event.data)}`,
+            }],
         });
     }
     
@@ -443,7 +443,7 @@ export class RuntimeExecutionValidator {
      */
     private async processCrossTierEvent(
         event: ExecutionEvent,
-        fixture: EmergentCapabilityFixture<any>
+        fixture: EmergentCapabilityFixture<any>,
     ): Promise<void> {
         // Simulate cross-tier coordination
         await this.processTier1Event(event, fixture);
@@ -456,7 +456,7 @@ export class RuntimeExecutionValidator {
      */
     private detectCapabilities(
         interactions: any[],
-        fixture: EmergentCapabilityFixture<any>
+        fixture: EmergentCapabilityFixture<any>,
     ): string[] {
         const detectedCapabilities = new Set<string>();
         
@@ -484,7 +484,7 @@ export class RuntimeExecutionValidator {
             "threat_detection": ["threat", "anomaly", "alert", "security"],
             "performance_optimization": ["optimized", "improved", "faster", "efficient"],
             "task_delegation": ["assigned", "delegated", "distributed", "agent"],
-            "collective_intelligence": ["synthesized", "combined", "insights from", "agents"]
+            "collective_intelligence": ["synthesized", "combined", "insights from", "agents"],
         };
         
         const indicators = capabilityIndicators[capability] || [];
@@ -498,7 +498,7 @@ export class RuntimeExecutionValidator {
      */
     private matchBehaviors(
         expectedBehaviors: ExpectedBehavior[],
-        interactions: any[]
+        interactions: any[],
     ): BehaviorMatch[] {
         return expectedBehaviors.map(expected => {
             const matches = this.findBehaviorMatches(expected, interactions);
@@ -520,7 +520,7 @@ export class RuntimeExecutionValidator {
                 expected,
                 matched,
                 occurrences,
-                evidence: matches.slice(0, 3) // Keep first 3 as evidence
+                evidence: matches.slice(0, 3), // Keep first 3 as evidence
             };
         });
     }
@@ -530,7 +530,7 @@ export class RuntimeExecutionValidator {
      */
     private findBehaviorMatches(
         behavior: ExpectedBehavior,
-        interactions: any[]
+        interactions: any[],
     ): any[] {
         const matches: any[] = [];
         
@@ -544,7 +544,7 @@ export class RuntimeExecutionValidator {
                     
                 case "tool_usage":
                     if (interaction.response.toolCalls?.some((t: any) => 
-                        this.matchesPattern(t.name, behavior.pattern)
+                        this.matchesPattern(t.name, behavior.pattern),
                     )) {
                         matches.push(interaction);
                     }
@@ -580,7 +580,7 @@ export class RuntimeExecutionValidator {
     private async runEvolutionPath(
         evolutionPath: EvolutionScenario[],
         fixture: EmergentCapabilityFixture<any>,
-        options: RuntimeValidationOptions
+        options: RuntimeValidationOptions,
     ): Promise<EvolutionResult[]> {
         const results: EvolutionResult[] = [];
         let previousMetrics: any = null;
@@ -603,7 +603,7 @@ export class RuntimeExecutionValidator {
             
             // Identify new capabilities
             const capabilitiesAdded = scenario.expectedCapabilities.filter(
-                cap => !results.some(r => r.capabilitiesAdded.includes(cap))
+                cap => !results.some(r => r.capabilitiesAdded.includes(cap)),
             );
             
             results.push({
@@ -611,7 +611,7 @@ export class RuntimeExecutionValidator {
                 metrics: stageResult.metrics,
                 improvement,
                 capabilitiesAdded,
-                validated: this.validateStageMetrics(stageResult.metrics, scenario.expectedMetrics)
+                validated: this.validateStageMetrics(stageResult.metrics, scenario.expectedMetrics),
             });
             
             previousMetrics = stageResult.metrics;
@@ -625,7 +625,7 @@ export class RuntimeExecutionValidator {
      */
     private async executeEvolutionStage(
         scenario: EvolutionScenario,
-        fixture: EmergentCapabilityFixture<any>
+        fixture: EmergentCapabilityFixture<any>,
     ): Promise<{ metrics: any }> {
         const startTime = Date.now();
         
@@ -634,8 +634,8 @@ export class RuntimeExecutionValidator {
             model: "gpt-4o-mini",
             messages: [{
                 role: "user",
-                content: `Test ${fixture.config.name} in ${scenario.stage} stage`
-            }]
+                content: `Test ${fixture.config.name} in ${scenario.stage} stage`,
+            }],
         };
         
         const result = await this.mockRegistry.execute(testInput);
@@ -649,8 +649,8 @@ export class RuntimeExecutionValidator {
                 executionTime,
                 accuracy: responseMetadata.accuracy || scenario.expectedMetrics.accuracy || 0,
                 cost: result.usage?.cost || scenario.expectedMetrics.cost || 0,
-                successRate: responseMetadata.successRate || scenario.expectedMetrics.successRate || 0
-            }
+                successRate: responseMetadata.successRate || scenario.expectedMetrics.successRate || 0,
+            },
         };
     }
     
@@ -659,13 +659,13 @@ export class RuntimeExecutionValidator {
      */
     private calculateImprovement(
         previous: any,
-        current: any
+        current: any,
     ): any {
         return {
             executionTime: (previous.executionTime - current.executionTime) / previous.executionTime,
             accuracy: (current.accuracy - previous.accuracy) / previous.accuracy,
             cost: (previous.cost - current.cost) / previous.cost,
-            overall: this.calculateOverallImprovement(previous, current)
+            overall: this.calculateOverallImprovement(previous, current),
         };
     }
     
@@ -676,7 +676,7 @@ export class RuntimeExecutionValidator {
         const weights = {
             executionTime: 0.3,
             accuracy: 0.4,
-            cost: 0.3
+            cost: 0.3,
         };
         
         let score = 0;
@@ -692,7 +692,7 @@ export class RuntimeExecutionValidator {
      */
     private validateStageMetrics(
         actual: any,
-        expected: any
+        expected: any,
     ): boolean {
         const tolerance = 0.1; // 10% tolerance
         
@@ -714,25 +714,25 @@ export class RuntimeExecutionValidator {
      */
     private calculateOverallValidation(
         scenarioResults: ScenarioResult[],
-        evolutionResults?: EvolutionResult[]
+        evolutionResults?: EvolutionResult[],
     ): OverallValidation {
         // Calculate capability coverage
         const totalExpected = scenarioResults.reduce(
-            (sum, r) => sum + r.expectedCapabilities.length, 0
+            (sum, r) => sum + r.expectedCapabilities.length, 0,
         );
         const totalDetected = scenarioResults.reduce(
             (sum, r) => sum + r.detectedCapabilities.filter(
-                c => r.expectedCapabilities.includes(c)
-            ).length, 0
+                c => r.expectedCapabilities.includes(c),
+            ).length, 0,
         );
         const capabilityCoverage = totalExpected > 0 ? totalDetected / totalExpected : 0;
         
         // Calculate behavior accuracy
         const totalBehaviors = scenarioResults.reduce(
-            (sum, r) => sum + r.behaviorMatches.length, 0
+            (sum, r) => sum + r.behaviorMatches.length, 0,
         );
         const matchedBehaviors = scenarioResults.reduce(
-            (sum, r) => sum + r.behaviorMatches.filter(b => b.matched).length, 0
+            (sum, r) => sum + r.behaviorMatches.filter(b => b.matched).length, 0,
         );
         const behaviorAccuracy = totalBehaviors > 0 ? matchedBehaviors / totalBehaviors : 0;
         
@@ -765,7 +765,7 @@ export class RuntimeExecutionValidator {
             capabilityCoverage,
             behaviorAccuracy,
             evolutionValidated,
-            recommendations: recommendations.length > 0 ? recommendations : undefined
+            recommendations: recommendations.length > 0 ? recommendations : undefined,
         };
     }
 }
@@ -774,9 +774,9 @@ export class RuntimeExecutionValidator {
  * Metrics collector for runtime performance
  */
 class MetricsCollector {
-    private startTime: number = 0;
-    private tokenCount: number = 0;
-    private totalCost: number = 0;
+    private startTime = 0;
+    private tokenCount = 0;
+    private totalCost = 0;
     private memorySnapshots: number[] = [];
     
     start(): void {
@@ -800,8 +800,8 @@ class MetricsCollector {
             mockBehaviorHits: stats.behaviorHits,
             resourceUsage: {
                 peakMemoryMB: Math.max(...this.memorySnapshots),
-                avgCpuPercent: 0 // Would need actual CPU monitoring
-            }
+                avgCpuPercent: 0, // Would need actual CPU monitoring
+            },
         };
     }
     

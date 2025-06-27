@@ -18,6 +18,9 @@ export * from "./agent-types/emergentAgentFixtures.js";
 export * from "./agent-types/advancedAgentPatterns.js";
 export * from "./agent-types/eventDrivenAgentExamples.js";
 
+// Event-driven agent fixtures
+export * from "./eventDrivenAgentFixtures.js";
+
 // Evolution examples
 export * from "./evolution-examples/emergentBehaviorExamples.js";
 
@@ -46,6 +49,11 @@ export * from "./self-improvement/eventPatternLearning.js";
  * - Successful patterns spread across teams
  * - Domain-specific expertise develops naturally
  */
+
+// New example fixtures demonstrating true emergence
+export * from "./researchSwarmExample.js";
+export * from "./evolvingRoutineExample.js";
+export * from "./crossTierEmergenceExample.js";
 
 // Example evolution metrics
 export const evolutionMetrics = {

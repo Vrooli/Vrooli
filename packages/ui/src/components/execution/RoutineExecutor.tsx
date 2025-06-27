@@ -1,4 +1,4 @@
-import { ResourceVersion, RunTaskInfo, Run, RunStatus, ResourceSubType, noop } from "@vrooli/shared";
+import { type ResourceVersion, type RunTaskInfo, type Run, RunStatus, ResourceSubType, noop } from "@vrooli/shared";
 import { useCallback, useEffect, useReducer, useState } from "react";
 import { Box, Skeleton } from "@mui/material";
 import { ExecutionTimeline } from "./ExecutionTimeline.js";
@@ -213,7 +213,7 @@ export function RoutineExecutor({
             
             // For complex routines (like BPMN), add placeholder steps for unknown future paths
             const isComplexRoutine = graphConfig.__type === "BPMN-2.0" || graphConfig.nodes.some((node: any) => 
-                node.type === "gateway" || node.type === "decision"
+                node.type === "gateway" || node.type === "decision",
             );
             
             if (isComplexRoutine && currentStepIndex < totalNodes - 1) {
@@ -260,7 +260,7 @@ export function RoutineExecutor({
         dispatch({ 
             type: "UPDATE_STEPS", 
             steps: newSteps,
-            currentStepIndex: newSteps.findIndex(step => step.status === "running") || 0
+            currentStepIndex: newSteps.findIndex(step => step.status === "running") || 0,
         });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [resourceVersion?.resourceSubType, resourceVersion?.config, runStatus]);
@@ -372,7 +372,7 @@ export function RoutineExecutor({
                         {/* Timeline skeleton */}
                         <Box sx={{ 
                             width: chatMode ? 220 : 280, 
-                            display: { xs: "none", sm: "block" }
+                            display: { xs: "none", sm: "block" },
                         }}>
                             <Box sx={{ display: "flex", flexDirection: "column", gap: 1, p: 1 }}>
                                 {[1, 2, 3, 4].map((i) => (
@@ -448,7 +448,7 @@ export function RoutineExecutor({
                             width: chatMode ? 220 : 280, 
                             borderRight: 1, 
                             borderColor: "divider",
-                            display: { xs: "none", sm: "block" }
+                            display: { xs: "none", sm: "block" },
                         }}>
                             <ExecutionTimeline
                                 steps={state.steps}

@@ -227,7 +227,7 @@ export class EvolutionValidator {
      * Validate evolution path with quantifiable improvements
      */
     async validateEvolutionPath(
-        config: EvolutionValidationConfig
+        config: EvolutionValidationConfig,
     ): Promise<EvolutionValidationResult> {
         const options = config.options || {};
         const iterationsPerStage = options.iterationsPerStage || 5;
@@ -249,7 +249,7 @@ export class EvolutionValidator {
                 previousStage,
                 iterationsPerStage,
                 warmupIterations,
-                options
+                options,
             );
             
             stageResults.push(stageResult);
@@ -269,14 +269,14 @@ export class EvolutionValidator {
             stageResults,
             improvementAnalysis,
             config.validationCriteria,
-            statisticalValidation
+            statisticalValidation,
         );
         
         // Generate recommendations
         const recommendations = this.generateRecommendations(
             stageResults,
             improvementAnalysis,
-            config.validationCriteria
+            config.validationCriteria,
         );
         
         return {
@@ -285,7 +285,7 @@ export class EvolutionValidator {
             improvementAnalysis,
             statisticalValidation,
             overallValidation,
-            recommendations
+            recommendations,
         };
     }
     
@@ -298,7 +298,7 @@ export class EvolutionValidator {
         previousStage: StageValidationResult | undefined,
         iterations: number,
         warmupIterations: number,
-        options: EvolutionValidationOptions
+        options: EvolutionValidationOptions,
     ): Promise<StageValidationResult> {
         const allMetrics: StageMetrics[] = [];
         const allCapabilities: Set<string> = new Set();
@@ -311,7 +311,7 @@ export class EvolutionValidator {
                 const iterationResult = await this.executeStageIteration(
                     stage,
                     fixture,
-                    options
+                    options,
                 );
                 
                 // Skip warmup iterations for metrics
@@ -332,7 +332,7 @@ export class EvolutionValidator {
                 iterations: 0,
                 capabilitiesDetected: [],
                 validated: false,
-                issues: ["No successful iterations"]
+                issues: ["No successful iterations"],
             };
         }
         
@@ -353,12 +353,12 @@ export class EvolutionValidator {
         const validated = this.validateStageMetrics(
             aggregateMetrics,
             stage.expectedMetrics,
-            issues
+            issues,
         );
         
         // Check for expected capabilities
         const missingCapabilities = stage.expectedCapabilities.filter(
-            cap => !allCapabilities.has(cap)
+            cap => !allCapabilities.has(cap),
         );
         if (missingCapabilities.length > 0) {
             warnings.push(`Missing capabilities: ${missingCapabilities.join(", ")}`);
@@ -373,7 +373,7 @@ export class EvolutionValidator {
             improvement,
             validated,
             issues: issues.length > 0 ? issues : undefined,
-            warnings: warnings.length > 0 ? warnings : undefined
+            warnings: warnings.length > 0 ? warnings : undefined,
         };
     }
     
@@ -383,7 +383,7 @@ export class EvolutionValidator {
     private async executeStageIteration(
         stage: EvolutionStageConfig,
         fixture: EmergentCapabilityFixture<any>,
-        options: EvolutionValidationOptions
+        options: EvolutionValidationOptions,
     ): Promise<{ metrics: StageMetrics; capabilities: string[] }> {
         return withAIMocks(async (mockService) => {
             // Setup stage-specific mocks
@@ -391,7 +391,7 @@ export class EvolutionValidator {
                 mockService.registerBehavior(id, {
                     pattern: config.pattern,
                     response: config,
-                    priority: config.priority || 10
+                    priority: config.priority || 10,
                 });
             });
             
@@ -403,8 +403,8 @@ export class EvolutionValidator {
                 model: "gpt-4o-mini",
                 messages: [{
                     role: "user",
-                    content: `Execute ${fixture.config.name} in ${stage.name} stage`
-                }]
+                    content: `Execute ${fixture.config.name} in ${stage.name} stage`,
+                }],
             };
             
             const result = await mockService.execute(testInput);
@@ -422,7 +422,7 @@ export class EvolutionValidator {
                 resourceUsage: responseMetadata.resourceUsage || 0,
                 throughput: responseMetadata.throughput || 0,
                 latency: responseMetadata.latency || executionTime,
-                errorRate: responseMetadata.errorRate || 0
+                errorRate: responseMetadata.errorRate || 0,
             };
             
             return { metrics, capabilities };
@@ -468,7 +468,7 @@ export class EvolutionValidator {
             "performance_optimization": ["optimized", "improved", "faster", "efficient"],
             "adaptive_learning": ["learned", "adapted", "improved", "evolved"],
             "task_delegation": ["assigned", "delegated", "distributed"],
-            "collective_intelligence": ["synthesized", "combined", "insights"]
+            "collective_intelligence": ["synthesized", "combined", "insights"],
         };
         
         const indicators = capabilityIndicators[capability] || [];
@@ -483,7 +483,7 @@ export class EvolutionValidator {
         
         const keys: (keyof StageMetrics)[] = [
             "executionTime", "accuracy", "cost", "successRate", 
-            "resourceUsage", "throughput", "latency", "errorRate"
+            "resourceUsage", "throughput", "latency", "errorRate",
         ];
         
         for (const key of keys) {
@@ -504,7 +504,7 @@ export class EvolutionValidator {
         
         const keys: (keyof StageMetrics)[] = [
             "executionTime", "accuracy", "cost", "successRate", 
-            "resourceUsage", "throughput", "latency", "errorRate"
+            "resourceUsage", "throughput", "latency", "errorRate",
         ];
         
         for (const key of keys) {
@@ -525,7 +525,7 @@ export class EvolutionValidator {
      */
     private calculateImprovement(
         previousMetrics: StageMetrics,
-        currentMetrics: StageMetrics
+        currentMetrics: StageMetrics,
     ): ImprovementMetrics {
         const improvement: ImprovementMetrics = {
             executionTime: 0,
@@ -535,8 +535,8 @@ export class EvolutionValidator {
             relative: {
                 executionTime: 0,
                 accuracy: 0,
-                cost: 0
-            }
+                cost: 0,
+            },
         };
         
         // Calculate absolute improvements
@@ -571,7 +571,7 @@ export class EvolutionValidator {
     private validateStageMetrics(
         actual: StageMetrics,
         expected: StageMetrics,
-        issues: string[]
+        issues: string[],
     ): boolean {
         let isValid = true;
         const tolerance = 0.2; // 20% tolerance
@@ -602,7 +602,7 @@ export class EvolutionValidator {
      */
     private analyzeImprovements(
         stageResults: StageValidationResult[],
-        criteria: EvolutionCriteria
+        criteria: EvolutionCriteria,
     ): ImprovementAnalysis {
         const improvementTrajectory: Array<{
             fromStage: string;
@@ -614,13 +614,13 @@ export class EvolutionValidator {
         for (let i = 1; i < stageResults.length; i++) {
             const improvement = this.calculateImprovement(
                 stageResults[i - 1].metrics,
-                stageResults[i].metrics
+                stageResults[i].metrics,
             );
             
             improvementTrajectory.push({
                 fromStage: stageResults[i - 1].stage,
                 toStage: stageResults[i].stage,
-                improvement
+                improvement,
             });
         }
         
@@ -645,7 +645,7 @@ export class EvolutionValidator {
             improvementTrajectory,
             improvementVelocity,
             stabilityAnalysis,
-            regressionAnalysis
+            regressionAnalysis,
         };
     }
     
@@ -674,7 +674,7 @@ export class EvolutionValidator {
                 instabilityPeriods.push({
                     stage: stage.stage,
                     variance: executionTimeCV,
-                    duration: stage.iterations
+                    duration: stage.iterations,
                 });
             }
         }
@@ -684,7 +684,7 @@ export class EvolutionValidator {
         return {
             stableStages,
             instabilityPeriods,
-            overallStability
+            overallStability,
         };
     }
     
@@ -696,7 +696,7 @@ export class EvolutionValidator {
             fromStage: string;
             toStage: string;
             improvement: ImprovementMetrics;
-        }>
+        }>,
     ): RegressionAnalysis {
         const regressionEvents: Array<{
             fromStage: string;
@@ -717,7 +717,7 @@ export class EvolutionValidator {
                     fromStage: trajectory.fromStage,
                     toStage: trajectory.toStage,
                     magnitude: Math.abs(trajectory.improvement.overall),
-                    recovered
+                    recovered,
                 });
             }
         }
@@ -728,7 +728,7 @@ export class EvolutionValidator {
         return {
             regressionEvents,
             regressionRate,
-            recoveryRate
+            recoveryRate,
         };
     }
     
@@ -737,7 +737,7 @@ export class EvolutionValidator {
      */
     private performStatisticalValidation(
         stageResults: StageValidationResult[],
-        criteria: EvolutionCriteria
+        criteria: EvolutionCriteria,
     ): StatisticalValidation {
         const significanceTests: Array<{
             metric: string;
@@ -756,7 +756,7 @@ export class EvolutionValidator {
             return {
                 significanceTests,
                 effectSizes,
-                overallSignificance: false
+                overallSignificance: false,
             };
         }
         
@@ -778,13 +778,13 @@ export class EvolutionValidator {
                     metric,
                     pValue: tTestResult.pValue,
                     significant: tTestResult.pValue < (1 - (criteria.statisticalSignificance?.confidenceLevel || 0.95)),
-                    confidenceInterval: tTestResult.confidenceInterval
+                    confidenceInterval: tTestResult.confidenceInterval,
                 });
                 
                 effectSizes.push({
                     metric,
                     cohensD,
-                    magnitude: this.interpretCohensD(cohensD)
+                    magnitude: this.interpretCohensD(cohensD),
                 });
             }
         }
@@ -794,7 +794,7 @@ export class EvolutionValidator {
         return {
             significanceTests,
             effectSizes,
-            overallSignificance
+            overallSignificance,
         };
     }
     
@@ -803,7 +803,7 @@ export class EvolutionValidator {
      */
     private performTTest(
         sample1: number[],
-        sample2: number[]
+        sample2: number[],
     ): { pValue: number; confidenceInterval: [number, number] } {
         const mean1 = sample1.reduce((sum, val) => sum + val, 0) / sample1.length;
         const mean2 = sample2.reduce((sum, val) => sum + val, 0) / sample2.length;
@@ -821,7 +821,7 @@ export class EvolutionValidator {
         const marginOfError = 1.96 * se; // Using z-score for simplicity
         const confidenceInterval: [number, number] = [
             (mean1 - mean2) - marginOfError,
-            (mean1 - mean2) + marginOfError
+            (mean1 - mean2) + marginOfError,
         ];
         
         return { pValue, confidenceInterval };
@@ -887,7 +887,7 @@ export class EvolutionValidator {
         stageResults: StageValidationResult[],
         improvementAnalysis: ImprovementAnalysis,
         criteria: EvolutionCriteria,
-        statisticalValidation?: StatisticalValidation
+        statisticalValidation?: StatisticalValidation,
     ): OverallEvolutionValidation {
         let criteriaMetCount = 0;
         let totalCriteriaCount = 0;
@@ -956,7 +956,7 @@ export class EvolutionValidator {
             criteriaMetCount,
             totalCriteriaCount,
             confidenceScore,
-            qualityScore
+            qualityScore,
         };
     }
     
@@ -965,7 +965,7 @@ export class EvolutionValidator {
      */
     private calculateQualityScore(
         stageResults: StageValidationResult[],
-        improvementAnalysis: ImprovementAnalysis
+        improvementAnalysis: ImprovementAnalysis,
     ): number {
         const validStages = stageResults.filter(s => s.validated).length;
         const stageValidityScore = validStages / stageResults.length;
@@ -982,7 +982,7 @@ export class EvolutionValidator {
     private generateRecommendations(
         stageResults: StageValidationResult[],
         improvementAnalysis: ImprovementAnalysis,
-        criteria: EvolutionCriteria
+        criteria: EvolutionCriteria,
     ): EvolutionRecommendation[] {
         const recommendations: EvolutionRecommendation[] = [];
         
@@ -993,7 +993,7 @@ export class EvolutionValidator {
                 type: "warning",
                 stage: stage.stage,
                 message: `Stage validation failed: ${stage.issues?.join(", ") || "Unknown issues"}`,
-                priority: "high"
+                priority: "high",
             });
         }
         
@@ -1003,7 +1003,7 @@ export class EvolutionValidator {
                 type: "improvement",
                 message: "Overall improvement is below recommended threshold (10%)",
                 suggestedAction: "Review evolution strategy and stage configurations",
-                priority: "medium"
+                priority: "medium",
             });
         }
         
@@ -1013,7 +1013,7 @@ export class EvolutionValidator {
                 type: "optimization",
                 message: "System shows instability across stages",
                 suggestedAction: "Increase iterations per stage or adjust mock behaviors",
-                priority: "medium"
+                priority: "medium",
             });
         }
         
@@ -1023,7 +1023,7 @@ export class EvolutionValidator {
                 type: "warning",
                 message: "High regression rate detected",
                 suggestedAction: "Review stage transitions and evolution triggers",
-                priority: "high"
+                priority: "high",
             });
         }
         
@@ -1041,7 +1041,7 @@ export class EvolutionValidator {
             resourceUsage: 0,
             throughput: 0,
             latency: 0,
-            errorRate: 0
+            errorRate: 0,
         };
     }
     
@@ -1054,8 +1054,8 @@ export class EvolutionValidator {
             relative: {
                 executionTime: 0,
                 accuracy: 0,
-                cost: 0
-            }
+                cost: 0,
+            },
         };
     }
 }

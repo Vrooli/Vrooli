@@ -1567,7 +1567,7 @@ function generateOptimalAllocation(resources: number, tasks: number): number[] {
     const allocation = Array(tasks).fill(baseAllocation);
     
     // Distribute remainder
-    let remainder = resources - baseAllocation * tasks;
+    const remainder = resources - baseAllocation * tasks;
     for (let i = 0; i < remainder; i++) {
         allocation[i % tasks]++;
     }

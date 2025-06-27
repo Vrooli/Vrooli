@@ -7,7 +7,6 @@
 
 import { RoutineFixture } from "../types.js";
 import type { RoutineConfigObject } from "@vrooli/shared";
-
 // Import evolution fixtures
 import {
     TECHNICAL_SUPPORT_SPECIALIST_V3,
@@ -56,7 +55,7 @@ export function getAllRoutines(): MockRoutine[] {
         description: routine.description || `Evolution routine ${index + 1}`,
         version: routine.version || "1.0.0",
         resourceSubType: "conversational", // Default for now
-        config: routine as RoutineConfigObject
+        config: routine as RoutineConfigObject,
     }));
 }
 
@@ -75,6 +74,6 @@ export function getRoutinesByEvolutionStage() {
         conversational: [TECHNICAL_SUPPORT_SPECIALIST_V3],
         reasoning: [BILLING_SPECIALIST_V3, ESCALATION_HANDLER_V2], 
         deterministic: [ACCOUNT_SPECIALIST_V3],
-        routing: [RESPONSE_SYNTHESIZER_V1]
+        routing: [RESPONSE_SYNTHESIZER_V1],
     };
 }

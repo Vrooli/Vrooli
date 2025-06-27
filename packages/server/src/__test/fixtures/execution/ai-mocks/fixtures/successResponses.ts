@@ -12,7 +12,7 @@ import type { AIMockConfig } from "../types.js";
 export const greeting = (): AIMockConfig => ({
     content: "Hello! How can I assist you today?",
     confidence: 0.95,
-    model: "gpt-4o-mini"
+    model: "gpt-4o-mini",
 });
 
 /**
@@ -21,7 +21,7 @@ export const greeting = (): AIMockConfig => ({
 export const helpfulResponse = (): AIMockConfig => ({
     content: "I'd be happy to help you with that. Let me break down the solution for you step by step.",
     confidence: 0.9,
-    model: "gpt-4o"
+    model: "gpt-4o",
 });
 
 /**
@@ -29,7 +29,7 @@ export const helpfulResponse = (): AIMockConfig => ({
  */
 export const acknowledgment = (): AIMockConfig => ({
     content: "I understand. Let me process that information for you.",
-    confidence: 0.88
+    confidence: 0.88,
 });
 
 /**
@@ -39,8 +39,8 @@ export const taskComplete = (): AIMockConfig => ({
     content: "I've successfully completed the task. Here's a summary of what was done.",
     confidence: 0.92,
     metadata: {
-        taskStatus: "completed"
-    }
+        taskStatus: "completed",
+    },
 });
 
 /**
@@ -48,7 +48,7 @@ export const taskComplete = (): AIMockConfig => ({
  */
 export const clarificationRequest = (): AIMockConfig => ({
     content: "I need a bit more information to help you effectively. Could you please clarify what you mean by that?",
-    confidence: 0.75
+    confidence: 0.75,
 });
 
 /**
@@ -56,7 +56,7 @@ export const clarificationRequest = (): AIMockConfig => ({
  */
 export const multipleOptions = (): AIMockConfig => ({
     content: "There are several ways to approach this:\n1. Option A: Quick but limited\n2. Option B: Comprehensive but time-consuming\n3. Option C: Balanced approach\n\nWhich would you prefer?",
-    confidence: 0.85
+    confidence: 0.85,
 });
 
 /**
@@ -65,7 +65,7 @@ export const multipleOptions = (): AIMockConfig => ({
 export const technicalExplanation = (): AIMockConfig => ({
     content: "The system uses a three-tier architecture where Tier 1 handles coordination, Tier 2 manages processes, and Tier 3 executes tasks. This separation ensures scalability and maintainability.",
     confidence: 0.93,
-    model: "gpt-4o"
+    model: "gpt-4o",
 });
 
 /**
@@ -75,7 +75,7 @@ export const contextAwareResponse = (overrides?: Partial<AIMockConfig>): AIMockC
     content: "Based on our previous discussion, I understand you're working on improving the system performance. Here's my recommendation considering that context.",
     confidence: 0.91,
     reasoning: "The user mentioned performance in their last message, so I'm tailoring my response to address that specific concern.",
-    ...overrides
+    ...overrides,
 });
 
 /**
@@ -86,8 +86,8 @@ export const urgentResponse = (): AIMockConfig => ({
     confidence: 0.94,
     metadata: {
         priority: "high",
-        responseTime: "immediate"
-    }
+        responseTime: "immediate",
+    },
 });
 
 /**
@@ -95,7 +95,7 @@ export const urgentResponse = (): AIMockConfig => ({
  */
 export const summaryResponse = (): AIMockConfig => ({
     content: "To summarize our discussion: We covered three main points - system architecture, performance optimization, and testing strategies. The key takeaway is to focus on incremental improvements.",
-    confidence: 0.89
+    confidence: 0.89,
 });
 
 /**
@@ -104,7 +104,7 @@ export const summaryResponse = (): AIMockConfig => ({
 export const creativeResponse = (): AIMockConfig => ({
     content: "Here's a creative approach to your problem: Instead of traditional methods, we could implement an event-driven architecture that allows components to evolve independently.",
     confidence: 0.82,
-    model: "gpt-4o"
+    model: "gpt-4o",
 });
 
 /**
@@ -113,7 +113,7 @@ export const creativeResponse = (): AIMockConfig => ({
 export const educationalResponse = (): AIMockConfig => ({
     content: "Let me explain this concept in simple terms. Think of it like a restaurant where the waiter (Tier 1) takes orders, the kitchen manager (Tier 2) coordinates cooking, and the chefs (Tier 3) prepare the food.",
     confidence: 0.9,
-    reasoning: "Using analogies helps explain complex technical concepts."
+    reasoning: "Using analogies helps explain complex technical concepts.",
 });
 
 /**
@@ -124,8 +124,8 @@ export const validationResponse = (): AIMockConfig => ({
     confidence: 0.96,
     metadata: {
         validationStatus: "passed",
-        checks: ["format", "range", "consistency"]
-    }
+        checks: ["format", "range", "consistency"],
+    },
 });
 
 /**
@@ -136,8 +136,8 @@ export const errorRecoveryResponse = (): AIMockConfig => ({
     confidence: 0.87,
     metadata: {
         recoveryMethod: "alternative-approach",
-        originalError: "timeout"
-    }
+        originalError: "timeout",
+    },
 });
 
 /**
@@ -145,7 +145,7 @@ export const errorRecoveryResponse = (): AIMockConfig => ({
  */
 export const collaborativeResponse = (): AIMockConfig => ({
     content: "Great idea! Let's work together on this. I'll handle the technical implementation while you provide the business requirements. How does that sound?",
-    confidence: 0.88
+    confidence: 0.88,
 });
 
 /**
@@ -157,8 +157,8 @@ export const dataAnalysisResponse = (): AIMockConfig => ({
     model: "gpt-4o",
     metadata: {
         analysisType: "statistical",
-        dataPoints: 1500
-    }
+        dataPoints: 1500,
+    },
 });
 
 /**
@@ -167,7 +167,7 @@ export const dataAnalysisResponse = (): AIMockConfig => ({
 export const decisionSupportResponse = (): AIMockConfig => ({
     content: "Based on the criteria you've provided, I recommend Option B. It offers the best balance of performance (85%), cost-effectiveness (90%), and maintainability (88%).",
     confidence: 0.89,
-    reasoning: "Weighted analysis of multiple factors with Option B scoring highest overall."
+    reasoning: "Weighted analysis of multiple factors with Option B scoring highest overall.",
 });
 
 /**
@@ -178,8 +178,8 @@ export const progressUpdateResponse = (progress: number): AIMockConfig => ({
     confidence: 0.92,
     metadata: {
         progress,
-        status: progress === 100 ? "completed" : "in-progress"
-    }
+        status: progress === 100 ? "completed" : "in-progress",
+    },
 });
 
 /**
@@ -188,7 +188,7 @@ export const progressUpdateResponse = (progress: number): AIMockConfig => ({
 export const confirmationResponse = (): AIMockConfig => ({
     content: "I've confirmed that your request has been processed successfully. All changes have been saved and are now active.",
     confidence: 0.94,
-    finishReason: "stop"
+    finishReason: "stop",
 });
 
 /**
@@ -196,5 +196,5 @@ export const confirmationResponse = (): AIMockConfig => ({
  */
 export const standardResponse = (): AIMockConfig => ({
     content: "I've processed your request. The operation completed successfully.",
-    confidence: 0.85
+    confidence: 0.85,
 });

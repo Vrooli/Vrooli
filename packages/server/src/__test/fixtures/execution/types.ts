@@ -11,13 +11,14 @@
 import type {
     BaseConfigObject,
     ChatConfigObject,
-    RoutineConfigObject,
-    RunConfigObject,
+    RunProgress,
     BotConfigObject,
     SwarmSubTask,
     SwarmResource,
     BlackboardItem,
     ChatToolCallRecord,
+    SwarmPolicy,
+    PendingToolCallEntry,
 } from "@vrooli/shared";
 
 /**
@@ -99,6 +100,10 @@ export interface MeasurableCapability {
     target: number;
     unit: string;
     description?: string;
+    /** How this capability improves over time */
+    evolutionFormula?: string;
+    /** Minimum events needed to observe improvement */
+    minEventsForMeasurement?: number;
 }
 
 /**
@@ -280,6 +285,55 @@ export type ExecutionTier = "tier1" | "tier2" | "tier3" | "cross-tier";
  */
 export type ExecutionStrategy = "conversational" | "reasoning" | "deterministic" | "routing";
 
+/**
+ * Emergence pattern types - how capabilities emerge from configuration
+ */
+export interface EmergencePattern {
+    /** Pattern name (e.g., "collaborative_learning", "swarm_intelligence") */
+    name: string;
+    
+    /** Minimum configuration requirements for this pattern */
+    requires: {
+        minAgents?: number;
+        minEvents?: number;
+        eventTypes?: string[];
+        resources?: string[];
+        timeWindow?: number;
+    };
+    
+    /** What emerges when pattern is triggered */
+    produces: {
+        capabilities: string[];
+        behaviors: string[];
+        optimizations: string[];
+    };
+    
+    /** How to measure emergence */
+    metrics: MeasurableCapability[];
+}
+
+/**
+ * Evolution trigger - what causes a fixture to evolve
+ */
+export interface EvolutionTrigger {
+    /** Trigger type */
+    type: "performance" | "error_rate" | "usage_pattern" | "external_event";
+    
+    /** Threshold for triggering evolution */
+    threshold: {
+        metric: string;
+        operator: ">" | "<" | "=" | ">=" | "<=";
+        value: number;
+    };
+    
+    /** What happens when triggered */
+    action: {
+        targetStrategy: ExecutionStrategy;
+        preserveState: boolean;
+        migrationSteps: string[];
+    };
+}
+
 // Tier 1: Coordination Intelligence Types
 
 /**
@@ -416,8 +470,8 @@ export interface MOISEObligation extends MOISENorm {
 /**
  * Routine fixture for Tier 2 process orchestration
  */
-export interface RoutineFixture extends ExecutionFixture<RoutineConfigObject> {
-    config: RoutineConfigObject;
+export interface RoutineFixture extends ExecutionFixture<RunProgress> {
+    config: RunProgress;
     
     /** Evolution stage of this routine */
     evolutionStage: EvolutionStage;
@@ -530,7 +584,7 @@ export interface StateTransition {
 /**
  * Execution context fixture for Tier 3
  */
-export interface ExecutionContextFixture extends ExecutionFixture<RunConfigObject> {
+export interface ExecutionContextFixture extends ExecutionFixture<RunProgress> {
     /** Execution strategy */
     strategy: ExecutionStrategy;
     
@@ -947,7 +1001,12 @@ export type TypedExecutionFixture<TConfig extends BaseConfigObject> = ExecutionF
 // Re-export common types from shared package for convenience
 export type {
     ChatConfigObject,
-    RoutineConfigObject,
-    RunConfigObject,
+    RunProgress,
     BotConfigObject,
+    SwarmSubTask,
+    SwarmResource,
+    BlackboardItem,
+    ChatToolCallRecord,
+    SwarmPolicy,
+    PendingToolCallEntry,
 };

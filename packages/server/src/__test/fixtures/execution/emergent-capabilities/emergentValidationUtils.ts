@@ -210,13 +210,13 @@ export interface ComprehensiveValidationResult extends ValidationResult {
  */
 export async function validateEmergentFixture<T extends BaseConfigObject>(
     fixture: EmergentCapabilityFixture<T>,
-    ConfigClass: new (config: T) => any
+    ConfigClass: new (config: T) => any,
 ): Promise<ComprehensiveValidationResult> {
     const results: ComprehensiveValidationResult = {
         isValid: true,
         configValidation: { isValid: false },
         emergenceValidation: { isValid: false },
-        integrationValidation: { isValid: false }
+        integrationValidation: { isValid: false },
     };
     
     // 1. Validate base configuration using shared utilities
@@ -224,12 +224,12 @@ export async function validateEmergentFixture<T extends BaseConfigObject>(
         const configInstance = new ConfigClass(fixture.config);
         results.configValidation = { 
             isValid: true, 
-            data: configInstance 
+            data: configInstance, 
         };
     } catch (error) {
         results.configValidation = {
             isValid: false,
-            errors: [error instanceof Error ? error.message : String(error)]
+            errors: [error instanceof Error ? error.message : String(error)],
         };
         results.isValid = false;
     }
@@ -259,7 +259,7 @@ export async function validateEmergentFixture<T extends BaseConfigObject>(
         results.configValidation.isValid ? 1 : 0,
         results.emergenceValidation.isValid ? 1 : 0,
         results.integrationValidation.isValid ? 1 : 0,
-        results.evolutionValidation?.isValid ? 1 : 0
+        results.evolutionValidation?.isValid ? 1 : 0,
     ].filter(score => score !== undefined);
     
     results.overallScore = scores.reduce((a, b) => a + b, 0) / scores.length;
@@ -313,7 +313,7 @@ export function validateEmergenceDefinition(emergence: EmergenceDefinition): Val
     return {
         isValid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -364,7 +364,7 @@ export function validateIntegrationDefinition(integration: IntegrationDefinition
     return {
         isValid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -410,7 +410,7 @@ export function validateEvolutionDefinition(evolution: EvolutionDefinition): Val
     return {
         isValid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -419,7 +419,7 @@ export function validateEvolutionDefinition(evolution: EvolutionDefinition): Val
  */
 function hasImprovement(
     prev: EvolutionStage["performanceMetrics"],
-    curr: EvolutionStage["performanceMetrics"]
+    curr: EvolutionStage["performanceMetrics"],
 ): boolean {
     // Lower execution time is better
     if (prev.executionTime && curr.executionTime && curr.executionTime < prev.executionTime) {
@@ -476,7 +476,7 @@ export function isValidEvolutionPath(path: string): boolean {
  */
 export function createEmergentSocketEmitter(
     fixture: EmergentCapabilityFixture,
-    mockEmitter: MockSocketEmitter
+    mockEmitter: MockSocketEmitter,
 ): MockSocketEmitter {
     // Subscribe to consumed events
     if (fixture.integration.consumedEvents) {
@@ -546,7 +546,7 @@ export function validateAgentConfig(agent: ExtendedAgentConfig): ValidationResul
     return {
         isValid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -586,7 +586,7 @@ export function validateSwarmConfig(swarm: EmergentSwarmConfig): ValidationResul
     return {
         isValid: errors.length === 0,
         errors: errors.length > 0 ? errors : undefined,
-        warnings: warnings.length > 0 ? warnings : undefined
+        warnings: warnings.length > 0 ? warnings : undefined,
     };
 }
 
@@ -596,7 +596,7 @@ export function validateSwarmConfig(swarm: EmergentSwarmConfig): ValidationResul
 export function runComprehensiveEmergentTests<T extends BaseConfigObject>(
     fixture: EmergentCapabilityFixture<T>,
     ConfigClass: new (config: T) => any,
-    fixtureName: string
+    fixtureName: string,
 ): void {
     describe(`${fixtureName} emergent capability fixture`, () => {
         let validationResult: ComprehensiveValidationResult;
@@ -651,7 +651,7 @@ export function runComprehensiveEmergentTests<T extends BaseConfigObject>(
                 for (let i = 1; i < stages.length; i++) {
                     const improved = hasImprovement(
                         stages[i - 1].performanceMetrics,
-                        stages[i].performanceMetrics
+                        stages[i].performanceMetrics,
                     );
                     expect(improved).toBe(true);
                 }
@@ -701,7 +701,7 @@ export async function simulateEmergence(
     fixture: EmergentCapabilityFixture,
     mockEmitter: MockSocketEmitter,
     events: ExecutionEvent[],
-    timeSpan: number = 1000
+    timeSpan = 1000,
 ): Promise<{
     emergedCapabilities: string[];
     performanceMetrics: Record<string, number>;
@@ -755,7 +755,7 @@ export async function simulateEmergence(
     return {
         emergedCapabilities: Array.from(emergedCapabilities),
         performanceMetrics: avgMetrics,
-        learningProgress
+        learningProgress,
     };
 }
 
@@ -773,7 +773,7 @@ function matchesEventPattern(event: string, pattern: string): boolean {
  * Create test scenarios for emergence validation
  */
 export function createEmergenceTestScenarios(
-    fixture: EmergentCapabilityFixture
+    fixture: EmergentCapabilityFixture,
 ): Array<{
     name: string;
     events: ExecutionEvent[];
@@ -788,8 +788,8 @@ export function createEmergenceTestScenarios(
         events: createEventsForPatterns(fixture.emergence.eventPatterns || []),
         expectedCapabilities: fixture.emergence.capabilities.slice(0, 1),
         expectedMetrics: {
-            learningProgress: { min: 0.2 }
-        }
+            learningProgress: { min: 0.2 },
+        },
     });
     
     // Full emergence scenario
@@ -797,12 +797,12 @@ export function createEmergenceTestScenarios(
         name: "Full capability emergence",
         events: createEventsForPatterns(
             fixture.emergence.eventPatterns || [],
-            fixture.emergence.capabilities.length * 10
+            fixture.emergence.capabilities.length * 10,
         ),
         expectedCapabilities: fixture.emergence.capabilities,
         expectedMetrics: {
-            learningProgress: { min: 0.8 }
-        }
+            learningProgress: { min: 0.8 },
+        },
     });
     
     // Evolution scenario (if applicable)
@@ -812,7 +812,7 @@ export function createEmergenceTestScenarios(
                 name: `Evolution to ${stage.name}`,
                 events: createEvolutionEvents(stage),
                 expectedCapabilities: stage.capabilities || fixture.emergence.capabilities,
-                expectedMetrics: stage.performanceMetrics as any
+                expectedMetrics: stage.performanceMetrics as any,
             });
         }
     }
@@ -823,7 +823,7 @@ export function createEmergenceTestScenarios(
 /**
  * Helper to create events for testing patterns
  */
-function createEventsForPatterns(patterns: string[], count: number = 10): ExecutionEvent[] {
+function createEventsForPatterns(patterns: string[], count = 10): ExecutionEvent[] {
     const events: ExecutionEvent[] = [];
     
     for (let i = 0; i < count; i++) {
@@ -842,9 +842,9 @@ function createEventsForPatterns(patterns: string[], count: number = 10): Execut
             priority: "medium",
             data: {
                 index: i,
-                pattern: pattern,
-                testData: Math.random()
-            }
+                pattern,
+                testData: Math.random(),
+            },
         });
     }
     
@@ -871,8 +871,8 @@ function createEvolutionEvents(stage: EvolutionStage): ExecutionEvent[] {
         data: {
             targetStage: stage.name,
             currentMetrics: stage.performanceMetrics,
-            strategy: stage.strategy
-        }
+            strategy: stage.strategy,
+        },
     });
     
     return events;

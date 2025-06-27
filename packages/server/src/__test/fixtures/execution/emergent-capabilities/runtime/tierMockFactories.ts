@@ -32,16 +32,16 @@ export const TierMockFactories = {
                         agentId: "agent_specialized_123",
                         taskId: "task_456",
                         reason: "Best match for required skills: data analysis, pattern recognition",
-                        confidence: 0.92
-                    }
+                        confidence: 0.92,
+                    },
                 }],
                 metadata: {
                     tier: "tier1",
                     capability: "intelligent_delegation",
                     confidence: 0.9,
                     agentsInvolved: 3,
-                    decisionFactors: ["skill_match", "availability", "past_performance"]
-                }
+                    decisionFactors: ["skill_match", "availability", "past_performance"],
+                },
             });
             
             // Collective intelligence mock
@@ -57,8 +57,8 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                     capability: "knowledge_synthesis",
                     contributingAgents: 3,
                     confidenceLevel: 0.88,
-                    emergentInsight: true
-                }
+                    emergentInsight: true,
+                },
             });
             
             // Swarm formation mock
@@ -72,18 +72,18 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                         agents: [
                             { role: "coordinator", agentId: "coord_001" },
                             { role: "analyzer", agentId: "analyst_002" },
-                            { role: "executor", agentId: "exec_003" }
+                            { role: "executor", agentId: "exec_003" },
                         ],
                         formation: "hierarchical",
-                        objective: swarmType
-                    }
+                        objective: swarmType,
+                    },
                 }],
                 metadata: {
                     tier: "tier1",
                     capability: "dynamic_team_formation",
                     formationStrategy: "skill_based",
-                    expectedDuration: "15-30 minutes"
-                }
+                    expectedDuration: "15-30 minutes",
+                },
             });
             
             // Consensus building mock
@@ -95,8 +95,8 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                     tier: "tier1",
                     capability: "democratic_decision_making",
                     votingMethod: "weighted_confidence",
-                    consensusStrength: 0.75
-                }
+                    consensusStrength: 0.75,
+                },
             });
             
             // Load balancing mock
@@ -108,14 +108,14 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                     arguments: {
                         currentLoad: { agent1: 0.8, agent2: 0.3, agent3: 0.9 },
                         newDistribution: { agent1: 0.6, agent2: 0.6, agent3: 0.6 },
-                        strategy: "equal_distribution"
-                    }
+                        strategy: "equal_distribution",
+                    },
                 }],
                 metadata: {
                     tier: "tier1",
                     capability: "adaptive_load_balancing",
-                    efficiency: 0.94
-                }
+                    efficiency: 0.94,
+                },
             });
             
             return mocks;
@@ -136,8 +136,8 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                             tier: "tier1",
                             capability: "customer_satisfaction",
                             sentimentDetected: "negative",
-                            responseStrategy: "empathetic_solution"
-                        }
+                            responseStrategy: "empathetic_solution",
+                        },
                     });
                     
                     mocks.set("issue_resolution", {
@@ -145,13 +145,13 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                         content: "I've identified the root cause and have a solution ready.",
                         toolCalls: [{
                             name: "applyFix",
-                            arguments: { fixType: "automatic", confidence: 0.95 }
+                            arguments: { fixType: "automatic", confidence: 0.95 },
                         }],
                         metadata: {
                             tier: "tier1",
                             capability: "issue_resolution",
-                            resolutionTime: 120
-                        }
+                            resolutionTime: 120,
+                        },
                     });
                     break;
                     
@@ -164,14 +164,14 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                             arguments: {
                                 threatLevel: "medium",
                                 threatType: "unauthorized_access_attempt",
-                                confidence: 0.87
-                            }
+                                confidence: 0.87,
+                            },
                         }],
                         metadata: {
                             tier: "tier1",
                             capability: "threat_detection",
-                            responseTime: 50
-                        }
+                            responseTime: 50,
+                        },
                     });
                     
                     mocks.set("incident_response", {
@@ -181,8 +181,8 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                         metadata: {
                             tier: "tier1",
                             capability: "automated_response",
-                            containmentStrategy: "network_isolation"
-                        }
+                            containmentStrategy: "network_isolation",
+                        },
                     });
                     break;
                     
@@ -195,14 +195,14 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                             tier: "tier1",
                             capability: "pattern_discovery",
                             statisticalSignificance: 0.99,
-                            dataPointsAnalyzed: 10000
-                        }
+                            dataPointsAnalyzed: 10000,
+                        },
                     });
                     break;
             }
             
             return mocks;
-        }
+        },
     },
     
     /**
@@ -227,12 +227,12 @@ Synthesis: Implement dynamic connection pooling to prevent checkout failures`,
                     executionTime: 8000,
                     accuracy: 0.85,
                     cost: 0.05,
-                    characteristics: ["flexible", "context_aware", "exploratory"]
+                    characteristics: ["flexible", "context_aware", "exploratory"],
                 },
                 streamConfig: {
                     enabled: true,
-                    chunkDelayMs: 100
-                }
+                    chunkDelayMs: 100,
+                },
             });
             
             // Reasoning stage - structured analysis
@@ -249,8 +249,8 @@ Step 4: Execute with confidence`,
                     executionTime: 4000,
                     accuracy: 0.92,
                     cost: 0.03,
-                    characteristics: ["analytical", "structured", "systematic"]
-                }
+                    characteristics: ["analytical", "structured", "systematic"],
+                },
             });
             
             // Deterministic stage - optimized execution
@@ -263,9 +263,9 @@ Step 4: Execute with confidence`,
                     executionTime: 500,
                     accuracy: 0.98,
                     cost: 0.01,
-                    characteristics: ["fast", "predictable", "cacheable", "efficient"]
+                    characteristics: ["fast", "predictable", "cacheable", "efficient"],
                 },
-                cached: true
+                cached: true,
             });
             
             // Routing stage - intelligent path selection
@@ -277,14 +277,14 @@ Step 4: Execute with confidence`,
                     arguments: {
                         selectedPath: "optimized_path_v2",
                         reason: "Historical success rate: 97%",
-                        alternativePaths: ["standard_path", "fallback_path"]
-                    }
+                        alternativePaths: ["standard_path", "fallback_path"],
+                    },
                 }],
                 metadata: {
                     tier: "tier2",
                     capability: "intelligent_routing",
-                    decisionTime: 100
-                }
+                    decisionTime: 100,
+                },
             });
             
             return mocks;
@@ -304,8 +304,8 @@ Step 4: Execute with confidence`,
                     tier: "tier2",
                     capability: "stateful_execution",
                     stateTransition: "processing → completed",
-                    checkpoint: true
-                }
+                    checkpoint: true,
+                },
             });
             
             // Error recovery
@@ -317,8 +317,8 @@ Step 4: Execute with confidence`,
                     tier: "tier2",
                     capability: "adaptive_recovery",
                     recoveryStrategy: "exponential_backoff",
-                    attemptNumber: 2
-                }
+                    attemptNumber: 2,
+                },
             });
             
             // Parallel execution
@@ -326,17 +326,17 @@ Step 4: Execute with confidence`,
                 pattern: /parallel.*execution|concurrent.*processing|batch/i,
                 content: "Executing tasks in parallel for optimal performance",
                 toolCalls: [
-                    { name: "executeParallel", arguments: { taskCount: 5, strategy: "fork_join" } }
+                    { name: "executeParallel", arguments: { taskCount: 5, strategy: "fork_join" } },
                 ],
                 metadata: {
                     tier: "tier2",
                     capability: "parallel_processing",
-                    speedup: 3.5
-                }
+                    speedup: 3.5,
+                },
             });
             
             return mocks;
-        }
+        },
     },
     
     /**
@@ -357,24 +357,24 @@ Step 4: Execute with confidence`,
                 toolCalls: [
                     { 
                         name: "validateInput", 
-                        arguments: { schema: "input_schema_v2", strict: true } 
+                        arguments: { schema: "input_schema_v2", strict: true }, 
                     },
                     { 
                         name: "transformData", 
-                        arguments: { format: "normalized", parallel: true } 
+                        arguments: { format: "normalized", parallel: true }, 
                     },
                     { 
                         name: "generateOutput", 
-                        arguments: { format: "json", compress: true } 
-                    }
+                        arguments: { format: "json", compress: true }, 
+                    },
                 ],
                 metadata: {
                     tier: "tier3",
                     capability: "intelligent_orchestration",
                     toolsUsed: 3,
                     executionPlan: "pipeline",
-                    optimizations: ["parallel_transform", "output_compression"]
-                }
+                    optimizations: ["parallel_transform", "output_compression"],
+                },
             });
             
             // Strategy selection
@@ -386,8 +386,8 @@ Step 4: Execute with confidence`,
                     tier: "tier3",
                     capability: "adaptive_strategy_selection",
                     selectedStrategy: "fast_path",
-                    selectionCriteria: ["input_size", "complexity", "resource_availability"]
-                }
+                    selectionCriteria: ["input_size", "complexity", "resource_availability"],
+                },
             });
             
             // Resource optimization
@@ -399,8 +399,8 @@ Step 4: Execute with confidence`,
                     capability: "resource_management",
                     memoryUsage: "45MB",
                     cpuUtilization: "23%",
-                    optimizations: ["lazy_loading", "stream_processing"]
-                }
+                    optimizations: ["lazy_loading", "stream_processing"],
+                },
             });
             
             // Caching behavior
@@ -412,8 +412,8 @@ Step 4: Execute with confidence`,
                     capability: "intelligent_caching",
                     cacheKey: "execution_hash_abc123",
                     ttl: 3600,
-                    hitRate: 0.78
-                }
+                    hitRate: 0.78,
+                },
             });
             
             // Error handling
@@ -426,8 +426,8 @@ Step 4: Execute with confidence`,
                     capability: "resilient_execution",
                     errorType: "timeout",
                     fallbackStrategy: "degraded_mode",
-                    recoveryTime: 150
-                }
+                    recoveryTime: 150,
+                },
             });
             
             return mocks;
@@ -448,8 +448,8 @@ Step 4: Execute with confidence`,
                             tier: "tier3",
                             profile: "high_performance",
                             executionTime: 50,
-                            optimizations: ["simd", "cache_aligned", "zero_copy"]
-                        }
+                            optimizations: ["simd", "cache_aligned", "zero_copy"],
+                        },
                     });
                     break;
                     
@@ -461,8 +461,8 @@ Step 4: Execute with confidence`,
                             tier: "tier3",
                             profile: "resource_constrained",
                             memoryUsage: "10MB",
-                            techniques: ["streaming", "incremental_processing"]
-                        }
+                            techniques: ["streaming", "incremental_processing"],
+                        },
                     });
                     break;
                     
@@ -473,14 +473,14 @@ Step 4: Execute with confidence`,
                         metadata: {
                             tier: "tier3",
                             profile: "balanced",
-                            tradeoff: "performance_vs_resources"
-                        }
+                            tradeoff: "performance_vs_resources",
+                        },
                     });
                     break;
             }
             
             return mocks;
-        }
+        },
     },
     
     /**
@@ -508,9 +508,9 @@ Tier 3: Tools orchestrated for efficient processing`,
                         tier1: 100,
                         tier2: 200,
                         tier3: 150,
-                        total: 450
-                    }
-                }
+                        total: 450,
+                    },
+                },
             });
             
             // Event propagation
@@ -523,13 +523,13 @@ Tier 3: Tools orchestrated for efficient processing`,
                         event: "capability_emerged",
                         source: "tier2",
                         targets: ["tier1", "tier3"],
-                        payload: { capability: "new_optimization", confidence: 0.9 }
-                    }
+                        payload: { capability: "new_optimization", confidence: 0.9 },
+                    },
                 }],
                 metadata: {
                     capability: "event_driven_architecture",
-                    propagationTime: 25
-                }
+                    propagationTime: 25,
+                },
             });
             
             // Feedback loops
@@ -540,8 +540,8 @@ Tier 3: Tools orchestrated for efficient processing`,
                 metadata: {
                     capability: "continuous_learning",
                     feedbackType: "performance_metrics",
-                    improvementRate: 0.15
-                }
+                    improvementRate: 0.15,
+                },
             });
             
             // Emergent capability detection
@@ -557,12 +557,12 @@ Tier 3: Tools orchestrated for efficient processing`,
                     capability: "emergence_detection",
                     emergentCapability: "predictive_resource_allocation",
                     confidenceScore: 0.82,
-                    evidenceSources: ["pattern_analysis", "performance_metrics", "behavior_correlation"]
-                }
+                    evidenceSources: ["pattern_analysis", "performance_metrics", "behavior_correlation"],
+                },
             });
             
             return mocks;
-        }
+        },
     },
     
     /**
@@ -570,7 +570,7 @@ Tier 3: Tools orchestrated for efficient processing`,
      */
     createProgressiveLearningMocks(
         capability: string,
-        stages: Array<{ iteration: number; confidence: number; improvements: string[] }>
+        stages: Array<{ iteration: number; confidence: number; improvements: string[] }>,
     ): Map<string, AIMockConfig> {
         const mocks = new Map<string, AIMockConfig>();
         
@@ -584,10 +584,10 @@ Tier 3: Tools orchestrated for efficient processing`,
                     iteration: stage.iteration,
                     confidence: stage.confidence,
                     improvements: stage.improvements,
-                    learningStage: index === 0 ? "novice" : index === stages.length - 1 ? "expert" : "intermediate"
+                    learningStage: index === 0 ? "novice" : index === stages.length - 1 ? "expert" : "intermediate",
                 },
                 confidence: stage.confidence,
-                maxUses: 1 // Ensure progression
+                maxUses: 1, // Ensure progression
             });
         });
         
@@ -607,8 +607,8 @@ Tier 3: Tools orchestrated for efficient processing`,
                 type: "network_error",
                 message: "Connection timeout",
                 code: "ETIMEDOUT",
-                retryable: true
-            }
+                retryable: true,
+            },
         });
         
         // Resource exhaustion
@@ -618,8 +618,8 @@ Tier 3: Tools orchestrated for efficient processing`,
                 type: "resource_error",
                 message: "Insufficient memory",
                 code: "ENOMEM",
-                retryable: false
-            }
+                retryable: false,
+            },
         });
         
         // Rate limiting
@@ -629,10 +629,10 @@ Tier 3: Tools orchestrated for efficient processing`,
                 type: "rate_limit",
                 message: "Rate limit exceeded",
                 code: 429,
-                retryAfter: 60
-            }
+                retryAfter: 60,
+            },
         });
         
         return mocks;
-    }
+    },
 };
