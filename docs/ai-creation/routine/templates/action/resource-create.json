@@ -1,0 +1,150 @@
+{
+  "id": "1234567890123456801",
+  "publicId": "resource-create-template",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "1234567890123456802",
+      "publicId": "resource-create-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Template for creating platform resources using MCP tools",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineInternalAction",
+      "config": {
+        "__version": "1.0",
+        "callDataAction": {
+          "__version": "1.0",
+          "schema": {
+            "toolName": "ResourceManage",
+            "inputTemplate": {
+              "op": "create",
+              "resource_type": "{{input.resourceType}}",
+              "data": {
+                "name": "{{input.resourceName}}",
+                "description": "{{input.description}}",
+                "isPrivate": "{{input.isPrivate}}",
+                "tags": "{{input.tags}}",
+                "metadata": {
+                  "createdBy": "{{userId}}",
+                  "createdAt": "{{now()}}",
+                  "source": "routine-generation"
+                }
+              },
+              "options": {
+                "validate": true,
+                "generateId": true,
+                "notifyOwner": "{{input.notifyOwner}}"
+              }
+            },
+            "outputMapping": {
+              "createdResource": "result.resource",
+              "resourceId": "result.resource.id",
+              "resourceUrl": "result.resource.url",
+              "success": "result.success",
+              "errorMessage": "result.error"
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "elements": [
+              {
+                "fieldName": "resourceType",
+                "id": "resource_type_input",
+                "label": "Resource Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["Project", "Routine", "Note", "Team"]
+              },
+              {
+                "fieldName": "resourceName",
+                "id": "resource_name_input",
+                "label": "Resource Name",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Enter resource name"
+              },
+              {
+                "fieldName": "description",
+                "id": "description_input",
+                "label": "Description",
+                "type": "TextArea",
+                "placeholder": "Describe the resource purpose"
+              },
+              {
+                "fieldName": "isPrivate",
+                "id": "is_private_input",
+                "label": "Private Resource",
+                "type": "Checkbox",
+                "defaultValue": false
+              },
+              {
+                "fieldName": "tags",
+                "id": "tags_input",
+                "label": "Tags",
+                "type": "JSON",
+                "placeholder": "[\"tag1\", \"tag2\"]"
+              },
+              {
+                "fieldName": "notifyOwner",
+                "id": "notify_owner_input",
+                "label": "Notify Owner",
+                "type": "Checkbox",
+                "defaultValue": true
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "elements": [
+              {
+                "fieldName": "createdResource",
+                "id": "created_resource_output",
+                "label": "Created Resource",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "resourceId",
+                "id": "resource_id_output",
+                "label": "Resource ID",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "resourceUrl",
+                "id": "resource_url_output",
+                "label": "Resource URL",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "success",
+                "id": "success_output",
+                "label": "Creation Successful",
+                "type": "Checkbox"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "1234567890123456803",
+          "language": "en",
+          "name": "Create Platform Resource",
+          "description": "Creates new platform resources (projects, routines, notes, teams) with proper metadata and permissions. Handles validation and provides creation feedback.",
+          "instructions": "Select the resource type and provide name and description. Configure privacy settings and tags as needed. The resource will be created with proper ownership and permissions."
+        }
+      ]
+    }
+  ]
+}

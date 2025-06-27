@@ -1,0 +1,100 @@
+{
+  "id": "1234567890123456792",
+  "publicId": "api-get-basic-template",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "1234567890123456793",
+      "publicId": "api-get-v1-template",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Template for basic REST API GET requests",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineApi",
+      "config": {
+        "__version": "1.0",
+        "callDataApi": {
+          "__version": "1.0",
+          "schema": {
+            "endpoint": "{{input.baseUrl}}/{{input.endpoint}}",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{env.API_TOKEN}}",
+              "Accept": "application/json",
+              "User-Agent": "Vrooli/1.0"
+            },
+            "timeoutMs": 30000,
+            "retryPolicy": {
+              "maxAttempts": 3,
+              "backoffMs": 1000
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "elements": [
+              {
+                "fieldName": "baseUrl",
+                "id": "base_url_input",
+                "label": "Base URL",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "https://api.example.com"
+              },
+              {
+                "fieldName": "endpoint",
+                "id": "endpoint_input",
+                "label": "API Endpoint",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "v1/users"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "elements": [
+              {
+                "fieldName": "apiResponse",
+                "id": "api_response_output",
+                "label": "API Response Data",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "statusCode",
+                "id": "status_code_output",
+                "label": "HTTP Status Code",
+                "type": "IntegerInput"
+              },
+              {
+                "fieldName": "success",
+                "id": "success_flag_output",
+                "label": "Request Successful",
+                "type": "Checkbox"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "1234567890123456794",
+          "language": "en",
+          "name": "Basic API GET Request",
+          "description": "Performs a basic HTTP GET request to a REST API endpoint with authentication and error handling. Returns response data and status information.",
+          "instructions": "Provide the base URL and endpoint path. Ensure the API_TOKEN environment variable is configured for authentication."
+        }
+      ]
+    }
+  ]
+}

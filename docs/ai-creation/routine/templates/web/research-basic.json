@@ -1,0 +1,117 @@
+{
+  "id": "1234567890123456798",
+  "publicId": "web-research-template",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "1234567890123456799",
+      "publicId": "web-research-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Template for basic web research and information gathering",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineWeb",
+      "config": {
+        "__version": "1.0",
+        "callDataWeb": {
+          "__version": "1.0",
+          "schema": {
+            "queryTemplate": "{{input.searchTerm}} {{input.context}} {{input.timeFilter}}",
+            "searchEngine": "google",
+            "maxResults": 15,
+            "language": "en",
+            "region": "us",
+            "timeRange": "{{input.timeRange}}",
+            "contentType": "any",
+            "outputMapping": {
+              "searchResults": "results",
+              "totalCount": "total",
+              "searchQuery": "query",
+              "topUrls": "results[*].url",
+              "summaries": "results[*].snippet"
+            },
+            "extractContent": true,
+            "summaryLength": 200
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "elements": [
+              {
+                "fieldName": "searchTerm",
+                "id": "search_term_input",
+                "label": "Research Topic",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Enter topic to research"
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Additional Context",
+                "type": "TextInput",
+                "placeholder": "Add context or modifiers"
+              },
+              {
+                "fieldName": "timeRange",
+                "id": "time_range_input",
+                "label": "Time Range",
+                "type": "Selector",
+                "options": ["any", "day", "week", "month", "year"],
+                "defaultValue": "any"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "elements": [
+              {
+                "fieldName": "searchResults",
+                "id": "search_results_output",
+                "label": "Search Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "totalCount",
+                "id": "total_count_output",
+                "label": "Total Results Found",
+                "type": "IntegerInput"
+              },
+              {
+                "fieldName": "topUrls",
+                "id": "top_urls_output",
+                "label": "Top Result URLs",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "summaries",
+                "id": "summaries_output",
+                "label": "Content Summaries",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "1234567890123456800",
+          "language": "en",
+          "name": "Web Research Basic",
+          "description": "Performs web research on specified topics with configurable search parameters. Returns structured results with URLs, summaries, and metadata for further analysis.",
+          "instructions": "Enter a research topic and optional context. Use time range filters to focus on recent information. Results include URLs and content summaries."
+        }
+      ]
+    }
+  ]
+}

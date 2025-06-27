@@ -1,0 +1,85 @@
+{
+  "id": "1234567890123456789",
+  "publicId": "sentiment-analysis-template",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "1234567890123456790",
+      "publicId": "sentiment-v1-template",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Template for text sentiment analysis routines",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 300,
+            "model": null,
+            "prompt": "Analyze the sentiment of the following text:\n\n\"{{input.text}}\"\n\nProvide:\n1. Overall sentiment (positive, negative, neutral)\n2. Confidence score (0-100)\n3. Key emotional indicators\n4. Brief explanation\n\nFormat as JSON: {\"sentiment\": \"...\", \"confidence\": 85, \"indicators\": [...], \"explanation\": \"...\"}",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "elements": [
+              {
+                "fieldName": "text",
+                "id": "text_input",
+                "label": "Text to Analyze",
+                "type": "TextArea",
+                "isRequired": true,
+                "placeholder": "Enter text for sentiment analysis..."
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "analysis_response",
+                "label": "Sentiment Analysis",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "sentiment",
+                "id": "sentiment_result",
+                "label": "Overall Sentiment",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "confidence",
+                "id": "confidence_score",
+                "label": "Confidence Score",
+                "type": "IntegerInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "1234567890123456791",
+          "language": "en",
+          "name": "Text Sentiment Analysis",
+          "description": "Analyzes text content to determine emotional sentiment, confidence levels, and key indicators. Returns structured sentiment data for further processing.",
+          "instructions": "Provide any text content for sentiment analysis. The routine will analyze emotional tone and provide confidence scores and explanations."
+        }
+      ]
+    }
+  ]
+}
