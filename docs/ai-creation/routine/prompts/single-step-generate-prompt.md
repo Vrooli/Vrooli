@@ -68,6 +68,7 @@ RoutineGenerate routines are commonly used as subroutines within RoutineMultiSte
         "formInput": {
           "__version": "1.0",
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "inputFieldName",
@@ -85,6 +86,7 @@ RoutineGenerate routines are commonly used as subroutines within RoutineMultiSte
         "formOutput": {
           "__version": "1.0", 
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "response",

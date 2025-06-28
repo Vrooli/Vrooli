@@ -1,0 +1,253 @@
+{
+  "id": "7829564732190847649",
+  "publicId": "budget-track-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847650",
+      "publicId": "budget-track-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive budget management with financial insights",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Categorize Expenses",
+                "description": "Organizes expenses into meaningful categories for analysis",
+                "subroutineId": "TODO: Need categorization subroutine for expense classification",
+                "inputMap": {
+                  "rawExpenses": "expenseData",
+                  "customCategories": "userCategories",
+                  "timeframe": "analysisWindow"
+                },
+                "outputMap": {
+                  "categorizedExpenses": "organizedSpending",
+                  "categoryTotals": "spendingByCategory",
+                  "uncategorizedItems": "unknownExpenses"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Spending Patterns",
+                "description": "Identifies trends, cycles, and anomalies in spending behavior",
+                "subroutineId": "TODO: Need analysis subroutine for pattern recognition",
+                "inputMap": {
+                  "categorizedExpenses": "organizedSpending",
+                  "historicalData": "pastSpending",
+                  "seasonalFactors": "timeBasedPatterns"
+                },
+                "outputMap": {
+                  "spendingTrends": "patternAnalysis",
+                  "anomalousExpenses": "unusualSpending",
+                  "cyclicalPatterns": "recurringTrends"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Compare Against Budget",
+                "description": "Evaluates actual spending versus planned budget allocations",
+                "subroutineId": "TODO: Need comparison subroutine for budget variance",
+                "inputMap": {
+                  "categoryTotals": "spendingByCategory",
+                  "budgetLimits": "plannedBudget",
+                  "budgetPeriod": "budgetTimeframe"
+                },
+                "outputMap": {
+                  "budgetVariance": "spendingGaps",
+                  "overBudgetCategories": "exceededLimits",
+                  "underBudgetCategories": "availableBalance"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Generate Financial Insights",
+                "description": "Provides actionable insights and optimization recommendations",
+                "subroutineId": "TODO: Need insights subroutine for financial advice",
+                "inputMap": {
+                  "spendingTrends": "patternAnalysis",
+                  "budgetVariance": "spendingGaps",
+                  "financialGoals": "userObjectives"
+                },
+                "outputMap": {
+                  "savingsOpportunities": "costReductionTips",
+                  "spendingRecommendations": "behaviorAdjustments",
+                  "goalProgress": "objectiveTracking"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Create Action Plan",
+                "description": "Develops specific, actionable steps for budget improvement",
+                "subroutineId": "TODO: Need planning subroutine for financial action items",
+                "inputMap": {
+                  "savingsOpportunities": "costReductionTips",
+                  "overBudgetCategories": "exceededLimits",
+                  "financialGoals": "userObjectives"
+                },
+                "outputMap": {
+                  "actionItems": "improvementTasks",
+                  "budgetAdjustments": "revisedBudget",
+                  "timelinedGoals": "scheduledObjectives"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Reports",
+                "description": "Creates visual and summary reports for financial tracking",
+                "subroutineId": "TODO: Need reporting subroutine for data visualization",
+                "inputMap": {
+                  "allAnalysis": "financialData",
+                  "actionItems": "improvementTasks",
+                  "reportFormat": "presentationStyle"
+                },
+                "outputMap": {
+                  "financialSummary": "budgetReport",
+                  "visualCharts": "spendingGraphs",
+                  "alertsNotifications": "warningSystem"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "expenses": "expenseData",
+                "budget": "plannedBudget",
+                "goals": "userObjectives",
+                "timeframe": "analysisWindow"
+              },
+              "outputMap": {
+                "budgetReport": "comprehensiveAnalysis",
+                "improvementTasks": "actionPlan",
+                "costReductionTips": "savingsGuidance",
+                "spendingGraphs": "visualInsights"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "expenses",
+                "id": "expenses_input",
+                "label": "Expense Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Transaction data or expense list to analyze"
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Budget Allocations",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Planned budget by category"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Financial Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Savings targets, debt reduction, investment goals"
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Analysis Timeframe",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "monthly",
+                "options": ["weekly", "monthly", "quarterly", "yearly"]
+              },
+              {
+                "fieldName": "reportDetail",
+                "id": "report_detail_input",
+                "label": "Report Detail Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": ["summary", "standard", "detailed", "comprehensive"]
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Focus Areas",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "all",
+                "options": ["all", "overspending", "savings-opportunities", "goal-tracking", "category-analysis"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "comprehensiveAnalysis",
+                "id": "comprehensive_analysis_output",
+                "label": "Complete Budget Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Financial Action Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "savingsGuidance",
+                "id": "savings_guidance_output",
+                "label": "Savings Opportunities & Tips",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "visualInsights",
+                "id": "visual_insights_output",
+                "label": "Visual Charts & Graphs",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "reasoning",
+          "2": "deterministic",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "deterministic"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847651",
+          "language": "en",
+          "name": "Budget Tracker & Advisor",
+          "description": "Comprehensive budget management system that analyzes spending patterns, compares against budgets, identifies savings opportunities, and provides actionable financial guidance with visual reports and goal tracking.",
+          "instructions": "Upload your expense data and budget allocations. Set your financial goals and analysis timeframe. The routine will categorize expenses, analyze patterns, identify variances, provide savings recommendations, and create visual reports with a personalized action plan for financial improvement."
+        }
+      ]
+    }
+  ]
+}

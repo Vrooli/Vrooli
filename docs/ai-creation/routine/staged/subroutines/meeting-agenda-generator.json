@@ -1,0 +1,140 @@
+{
+  "id": "7829564732190847652",
+  "publicId": "meet-agenda-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847653",
+      "publicId": "meet-agenda-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Professional meeting agenda creation with time allocation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "promptTemplate": "You are a professional meeting facilitator and organizational consultant specializing in creating effective, time-efficient meeting agendas.\n\nMeeting Details:\n- Purpose: {{input.meetingPurpose}}\n- Duration: {{input.meetingDuration}}\n- Participants: {{input.participants}}\n- Meeting Type: {{input.meetingType}}\n- Key Topics: {{input.keyTopics}}\n- Decisions Needed: {{input.decisionsNeeded}}\n- Follow-up from Previous Meeting: {{input.previousFollowup}}\n\nCreate a comprehensive meeting agenda that includes:\n\n1. **Meeting Header**:\n   - Clear meeting title\n   - Date, time, duration\n   - Location/platform details\n   - Facilitator and note-taker assignments\n\n2. **Agenda Structure**:\n   - Welcome and introductions (if needed)\n   - Review of previous action items\n   - Main discussion topics with time allocations\n   - Decision points clearly marked\n   - Action item capture time\n   - Next steps and follow-up\n\n3. **Time Management**:\n   - Realistic time allocation for each item\n   - Buffer time for discussions\n   - Clear start and end times\n   - Transition time between topics\n\n4. **Engagement Elements**:\n   - Specific questions to drive discussion\n   - Clear objectives for each agenda item\n   - Assigned speakers/leaders for topics\n   - Interactive elements where appropriate\n\n5. **Meeting Materials**:\n   - Pre-read materials list\n   - Documents to be shared\n   - Preparation requirements for participants\n\nAdapt the agenda format based on meeting type (status update, brainstorming, decision-making, training, etc.) and ensure all elements support the meeting's primary purpose.",
+            "temperature": 0.4,
+            "model": "medium",
+            "systemMessage": "You are an expert meeting facilitator who creates structured, time-efficient agendas that drive productive outcomes and clear action items."
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "meetingPurpose",
+                "id": "meeting_purpose_input",
+                "label": "Meeting Purpose",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "What is the main objective of this meeting?"
+              },
+              {
+                "fieldName": "meetingDuration",
+                "id": "meeting_duration_input",
+                "label": "Meeting Duration",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["15-min", "30-min", "45-min", "1-hour", "90-min", "2-hours", "half-day", "full-day"]
+              },
+              {
+                "fieldName": "participants",
+                "id": "participants_input",
+                "label": "Participants",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of attendees with roles (optional)"
+              },
+              {
+                "fieldName": "meetingType",
+                "id": "meeting_type_input",
+                "label": "Meeting Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["status-update", "brainstorming", "decision-making", "planning", "problem-solving", "training", "team-building", "review", "kickoff", "retrospective"]
+              },
+              {
+                "fieldName": "keyTopics",
+                "id": "key_topics_input",
+                "label": "Key Topics to Discuss",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Main discussion points and topics"
+              },
+              {
+                "fieldName": "decisionsNeeded",
+                "id": "decisions_needed_input",
+                "label": "Decisions Needed",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Specific decisions that must be made"
+              },
+              {
+                "fieldName": "previousFollowup",
+                "id": "previous_followup_input",
+                "label": "Previous Meeting Follow-ups",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Action items from previous meetings to review"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "formattedAgenda",
+                "id": "formatted_agenda_output",
+                "label": "Complete Meeting Agenda",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timeAllocation",
+                "id": "time_allocation_output",
+                "label": "Time Allocation Breakdown",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "preparationChecklist",
+                "id": "preparation_checklist_output",
+                "label": "Meeting Preparation Checklist",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "facilitationTips",
+                "id": "facilitation_tips_output",
+                "label": "Facilitation Tips",
+                "type": "TextInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847654",
+          "language": "en",
+          "name": "Meeting Agenda Generator",
+          "description": "Creates professional, well-structured meeting agendas with optimal time allocation. Includes preparation checklists, facilitation tips, and formats tailored to different meeting types and objectives.",
+          "instructions": "Specify the meeting purpose, duration, participants, and key topics. Include any decisions needed and follow-ups from previous meetings. The routine will generate a comprehensive agenda with time allocations, preparation requirements, and facilitation guidance."
+        }
+      ]
+    }
+  ]
+}

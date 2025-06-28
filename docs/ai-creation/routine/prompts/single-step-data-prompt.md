@@ -67,21 +67,17 @@ RoutineData routines are commonly used as subroutines within RoutineMultiStep wo
               "format": "{{input.inputFormat}}",
               "options": "{{input.processingOptions}}"
             },
-            "outputMappings": [
-              {
-                "schemaIndex": 0,
-                "mapping": {
-                  "processedData": "result.data",
-                  "format": "result.format",
-                  "recordCount": "result.count"
-                }
-              }
-            ]
+            "outputMapping": {
+              "processedData": "result.data",
+              "format": "result.format",
+              "recordCount": "result.count"
+            }
           }
         },
         "formInput": {
           "__version": "1.0",
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "sourceData",
@@ -97,6 +93,7 @@ RoutineData routines are commonly used as subroutines within RoutineMultiStep wo
         "formOutput": {
           "__version": "1.0", 
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "processedData",
@@ -149,15 +146,11 @@ Since RoutineData uses code execution for data processing, configure the `callDa
 #### Output Mappings
 ```json
 {
-  "outputMappings": [
-    {
-      "schemaIndex": 0,
-      "mapping": {
-        "processedData": "result.data",
-        "metadata": "result.metadata",
-        "errors": "result.errors"
-      }
-    }
+  "outputMapping": {
+    "processedData": "result.data",
+    "metadata": "result.metadata",
+    "errors": "result.errors"
+  }
   ]
 }
 ```
@@ -255,15 +248,10 @@ Standard output for data processing:
         "delimiter": "{{input.delimiter}}",
         "headers": "{{input.hasHeaders}}"
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "jsonData": "result.json",
-            "recordCount": "result.count"
-          }
-        }
-      ]
+      "outputMapping": {
+        "jsonData": "result.json",
+        "recordCount": "result.count"
+      }
     }
   }
 }
@@ -279,15 +267,11 @@ Standard output for data processing:
         "rules": "{{input.validationRules}}",
         "mode": "{{input.validationMode}}"
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "isValid": "result.valid",
-            "errors": "result.errors",
-            "validRecords": "result.validCount"
-          }
-        }
+      "outputMapping": {
+        "isValid": "result.valid",
+        "errors": "result.errors",
+        "validRecords": "result.validCount"
+      }
       ]
     }
   }
@@ -304,15 +288,10 @@ Standard output for data processing:
         "groupByFields": "{{input.groupBy}}",
         "aggregationFunctions": "{{input.aggregations}}"
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "aggregatedData": "result.aggregations",
-            "groupCount": "result.groups"
-          }
-        }
-      ]
+      "outputMapping": {
+        "aggregatedData": "result.aggregations",
+        "groupCount": "result.groups"
+      }
     }
   }
 }
@@ -328,15 +307,10 @@ Standard output for data processing:
         "filterCriteria": "{{input.filters}}",
         "operator": "{{input.logicalOperator}}"
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "filteredData": "result.data",
-            "matchCount": "result.matches"
-          }
-        }
-      ]
+      "outputMapping": {
+        "filteredData": "result.data",
+        "matchCount": "result.matches"
+      }
     }
   }
 }
@@ -352,15 +326,10 @@ Standard output for data processing:
         "transformations": "{{input.transformRules}}",
         "outputSchema": "{{input.targetSchema}}"
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "transformedData": "result.data",
-            "transformationLog": "result.log"
-          }
-        }
-      ]
+      "outputMapping": {
+        "transformedData": "result.data",
+        "transformationLog": "result.log"
+      }
     }
   }
 }
@@ -439,7 +408,7 @@ Before generating a RoutineData routine, verify:
 
 ### Code Configuration:
 - [ ] `inputTemplate` properly maps form inputs
-- [ ] `outputMappings` includes proper schemaIndex and mapping
+- [ ] `outputMapping` is properly structured as an object
 - [ ] Template variables use correct syntax
 - [ ] All input fields are referenced in template
 

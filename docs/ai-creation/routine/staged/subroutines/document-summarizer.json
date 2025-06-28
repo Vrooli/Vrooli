@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190847568",
+  "publicId": "doc-summary-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847569",
+      "publicId": "doc-summary-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Summarizes documents with key point extraction",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "promptTemplate": "You are an expert document summarizer. Your task is to condense the following document into a concise summary while preserving all key points and maintaining the document's structure.\n\nDocument to summarize:\n{{input.documentText}}\n\nSummary requirements:\n- Target length: {{input.summaryLength}} (short/medium/long)\n- Focus areas: {{input.focusAreas}}\n- Preserve document structure and logical flow\n- Extract and highlight key points\n- Include important quotes where relevant\n\nProvide a structured summary with:\n1. Executive summary (2-3 sentences)\n2. Key points by section\n3. Important quotes or data points\n4. Main conclusions or takeaways",
+            "temperature": 0.3,
+            "model": "medium",
+            "systemMessage": "You are a professional document analyst skilled at extracting essential information while maintaining accuracy and context."
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "documentText",
+                "id": "document_text_input",
+                "label": "Document Text",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Paste the document text to summarize..."
+              },
+              {
+                "fieldName": "summaryLength",
+                "id": "summary_length_input",
+                "label": "Summary Length",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "medium",
+                "options": ["short", "medium", "long"]
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Focus Areas",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Specific topics or sections to emphasize (optional)"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "summary",
+                "id": "summary_output",
+                "label": "Document Summary",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "keyPoints",
+                "id": "key_points_output",
+                "label": "Key Points List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "importantQuotes",
+                "id": "important_quotes_output",
+                "label": "Important Quotes",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "wordCount",
+                "id": "word_count_output",
+                "label": "Summary Word Count",
+                "type": "IntegerInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847570",
+          "language": "en",
+          "name": "Document Summarizer",
+          "description": "Condenses long documents into concise summaries while preserving key points, structure, and important details. Handles very large texts by intelligently extracting the most relevant information.",
+          "instructions": "Paste the document text you want to summarize. You can specify the desired summary length (short, medium, or long) and any specific areas you want the summary to focus on. The routine will produce a structured summary with key points, important quotes, and main takeaways."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "id": "7829564732190847625",
+  "publicId": "note-task-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847626",
+      "publicId": "note-task-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Extracts actionable tasks from unstructured notes",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "promptTemplate": "You are an expert at identifying actionable tasks from unstructured notes, meeting minutes, and conversations.\n\nAnalyze the following text:\n{{input.rawNotes}}\n\nContext (if provided): {{input.noteContext}}\n\nExtract all actionable tasks by:\n1. Identifying action verbs and commitments\n2. Looking for deadlines, due dates, or time references\n3. Finding assigned owners or responsible parties\n4. Recognizing follow-up items and next steps\n5. Detecting implied tasks from decisions or discussions\n\nFor each task, provide:\n- Task description (clear and actionable)\n- Assigned owner (if mentioned)\n- Due date/deadline (if specified)\n- Priority level (based on context)\n- Related context or dependencies\n\nAlso identify:\n- Decisions that might require action\n- Questions that need follow-up\n- Commitments made by participants\n\nFormat the output as structured JSON with a clear task list.",
+            "temperature": 0.3,
+            "model": "medium",
+            "systemMessage": "You are a meticulous task extraction specialist who ensures no action item is missed from notes and conversations."
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rawNotes",
+                "id": "raw_notes_input",
+                "label": "Raw Notes or Meeting Minutes",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Paste unstructured notes, meeting minutes, or conversation transcripts"
+              },
+              {
+                "fieldName": "noteContext",
+                "id": "note_context_input",
+                "label": "Context Information",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Meeting type, participants, or other context"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "extractedTasks",
+                "id": "extracted_tasks_output",
+                "label": "Extracted Task List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "assignedOwners",
+                "id": "assigned_owners_output",
+                "label": "Task Assignments",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "suggestedDueDates",
+                "id": "suggested_due_dates_output",
+                "label": "Suggested Due Dates",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "followUpQuestions",
+                "id": "follow_up_questions_output",
+                "label": "Follow-up Questions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847627",
+          "language": "en",
+          "name": "Note-to-Task Converter",
+          "description": "Parses unstructured notes or meeting minutes to extract actionable tasks. Identifies to-do items, assignments, deadlines, and follow-ups automatically from text.",
+          "instructions": "Paste your raw notes, meeting minutes, or conversation transcript. The routine will analyze the text to extract all actionable tasks, identify assigned owners, suggest due dates, and highlight items requiring follow-up."
+        }
+      ]
+    }
+  ]
+}

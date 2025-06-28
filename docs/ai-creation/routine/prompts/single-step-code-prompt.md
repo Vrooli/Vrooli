@@ -63,16 +63,11 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
               "config": "{{input.processingConfig}}",
               "options": "{{input.options}}"
             },
-            "outputMappings": [
-              {
-                "schemaIndex": 0,
-                "mapping": {
-                  "result": "processedData",
-                  "metadata": "processingMetadata",
-                  "status": "success"
-                }
-              }
-            ],
+            "outputMapping": {
+              "result": "processedData",
+              "metadata": "processingMetadata",
+              "status": "success"
+            },
             "language": "javascript",
             "timeoutMs": 30000,
             "memoryLimitMb": 128
@@ -81,6 +76,7 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
         "formInput": {
           "__version": "1.0",
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "sourceData",
@@ -96,6 +92,7 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
         "formOutput": {
           "__version": "1.0", 
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "processedData",
@@ -134,7 +131,7 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
 
 #### Required Fields
 - **`inputTemplate`**: Object mapping template variables to code inputs
-- **`outputMappings`**: Array defining how code outputs map to routine outputs
+- **`outputMapping`**: Object defining how code outputs map to routine outputs
 - **`language`**: Programming language for code execution
 
 #### Optional Fields
@@ -181,41 +178,26 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
 
 ### Output Mapping Configuration
 
-#### Single Output Schema
+#### Basic Output Mapping
 ```json
 {
-  "outputMappings": [
-    {
-      "schemaIndex": 0,
-      "mapping": {
-        "result": "processedResult",
-        "count": "itemCount",
-        "status": "processingStatus"
-      }
-    }
-  ]
+  "outputMapping": {
+    "result": "processedResult",
+    "count": "itemCount",
+    "status": "processingStatus"
+  }
 }
 ```
 
-#### Multiple Output Schemas
+#### Complex Output Mapping
 ```json
 {
-  "outputMappings": [
-    {
-      "schemaIndex": 0,
-      "mapping": {
-        "primaryResult": "mainOutput",
-        "metrics": "performanceMetrics"
-      }
-    },
-    {
-      "schemaIndex": 1,
-      "mapping": {
-        "alternativeResult": "alternativeOutput",
-        "warnings": "processingWarnings"
-      }
-    }
-  ]
+  "outputMapping": {
+    "primaryResult": "mainOutput",
+    "metrics": "performanceMetrics",
+    "alternativeResult": "alternativeOutput",
+    "warnings": "processingWarnings"
+  }
 }
 ```
 
@@ -276,16 +258,11 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
         "transformationRules": "{{input.rules}}",
         "outputFormat": "{{input.targetFormat}}"
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "transformedData": "result",
-            "transformationLog": "metadata.log",
-            "errorCount": "metadata.errors"
-          }
-        }
-      ],
+      "outputMapping": {
+        "transformedData": "result",
+        "transformationLog": "metadata.log",
+        "errorCount": "metadata.errors"
+      },
       "language": "javascript",
       "timeoutMs": 45000
     }
@@ -303,16 +280,11 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
         "analysisType": "{{input.statisticalMethod}}",
         "confidenceLevel": "{{input.confidence}}"
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "statistics": "analysisResults",
-            "summary": "summaryStats",
-            "charts": "visualizations"
-          }
-        }
-      ],
+      "outputMapping": {
+        "statistics": "analysisResults",
+        "summary": "summaryStats",
+        "charts": "visualizations"
+      },
       "language": "python",
       "timeoutMs": 90000,
       "memoryLimitMb": 256
@@ -331,16 +303,11 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
         "validationRules": "{{input.rules}}",
         "strictMode": "{{input.strict}}"
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "validRecords": "valid",
-            "invalidRecords": "invalid",
-            "validationReport": "report"
-          }
-        }
-      ],
+      "outputMapping": {
+        "validRecords": "valid",
+        "invalidRecords": "invalid",
+        "validationReport": "report"
+      },
       "language": "javascript",
       "timeoutMs": 30000
     }
@@ -361,16 +328,11 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
           "customComparator": "{{input.comparator}}"
         }
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "sortedArray": "result",
-            "comparisonCount": "metrics.comparisons",
-            "executionTime": "metrics.timeMs"
-          }
-        }
-      ],
+      "outputMapping": {
+        "sortedArray": "result",
+        "comparisonCount": "metrics.comparisons",
+        "executionTime": "metrics.timeMs"
+      },
       "language": "javascript",
       "timeoutMs": 20000
     }
@@ -389,16 +351,11 @@ RoutineCode routines are commonly used as subroutines within RoutineMultiStep wo
         "targetFormat": "{{input.toFormat}}",
         "conversionOptions": "{{input.options}}"
       },
-      "outputMappings": [
-        {
-          "schemaIndex": 0,
-          "mapping": {
-            "convertedData": "output",
-            "conversionMetadata": "metadata",
-            "warningsLog": "warnings"
-          }
-        }
-      ],
+      "outputMapping": {
+        "convertedData": "output",
+        "conversionMetadata": "metadata",
+        "warningsLog": "warnings"
+      },
       "language": "javascript",
       "timeoutMs": 25000
     }

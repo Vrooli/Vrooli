@@ -1,0 +1,140 @@
+{
+  "id": "7829564732190847742",
+  "publicId": "perf-review-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847743",
+      "publicId": "perf-review-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Performance evaluation and feedback preparation system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "promptTemplate": "You are an expert HR professional and performance management specialist with extensive experience in conducting fair, constructive, and development-focused performance reviews.\n\nPerformance Review Context:\n- Review Type: {{input.reviewType}}\n- Employee Role: {{input.employeeRole}}\n- Review Period: {{input.reviewPeriod}}\n- Performance Data: {{input.performanceMetrics}}\n- Key Achievements: {{input.majorAccomplishments}}\n- Challenges/Issues: {{input.performanceChallenges}}\n- Development Goals: {{input.developmentObjectives}}\n\nCreate a comprehensive performance review framework that includes:\n\n1. **Performance Evaluation Structure**:\n   - Clear assessment criteria and rating scales\n   - Objective vs. subjective evaluation areas\n   - Goal achievement analysis\n   - Competency-based assessments\n   - 360-degree feedback integration\n\n2. **Accomplishments & Strengths Analysis**:\n   - Achievement documentation and impact measurement\n   - Strength identification and reinforcement\n   - Success story compilation\n   - Value contribution assessment\n   - Recognition and appreciation elements\n\n3. **Development Areas & Improvement Plan**:\n   - Performance gap identification\n   - Root cause analysis of challenges\n   - Specific improvement recommendations\n   - Skill development priorities\n   - Resource and support requirements\n\n4. **Goal Setting & Future Planning**:\n   - SMART goal formulation for next period\n   - Career development pathway discussion\n   - Learning and development opportunities\n   - Success metrics and milestones\n   - Timeline and accountability framework\n\n5. **Feedback Delivery Guidance**:\n   - Constructive feedback techniques\n   - Difficult conversation management\n   - Motivation and engagement strategies\n   - Two-way communication facilitation\n   - Follow-up and check-in planning\n\n6. **Documentation & Action Planning**:\n   - Performance record compilation\n   - Development plan documentation\n   - Progress tracking mechanisms\n   - Escalation or support triggers\n   - Next review preparation\n\nEnsure the review is balanced, fair, actionable, and focused on both recognition and growth opportunities.",
+            "temperature": 0.4,
+            "model": "medium",
+            "systemMessage": "You are a thoughtful HR professional who creates fair, constructive performance reviews that balance accountability with development, fostering employee growth while meeting organizational objectives."
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reviewType",
+                "id": "review_type_input",
+                "label": "Review Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["annual-review", "mid-year-review", "quarterly-review", "probationary-review", "project-review", "promotion-review", "improvement-plan", "360-feedback"]
+              },
+              {
+                "fieldName": "employeeRole",
+                "id": "employee_role_input",
+                "label": "Employee Role & Level",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Job title, seniority level, and key responsibilities"
+              },
+              {
+                "fieldName": "reviewPeriod",
+                "id": "review_period_input",
+                "label": "Review Period",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Time period being evaluated (e.g., Jan 2024 - Dec 2024)"
+              },
+              {
+                "fieldName": "performanceMetrics",
+                "id": "performance_metrics_input",
+                "label": "Performance Data & Metrics",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Quantitative performance data, KPIs, targets vs. actual"
+              },
+              {
+                "fieldName": "majorAccomplishments",
+                "id": "major_accomplishments_input",
+                "label": "Key Achievements",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Significant accomplishments and contributions"
+              },
+              {
+                "fieldName": "performanceChallenges",
+                "id": "performance_challenges_input",
+                "label": "Performance Challenges",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Areas where performance fell short or challenges encountered"
+              },
+              {
+                "fieldName": "developmentObjectives",
+                "id": "development_objectives_input",
+                "label": "Development Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Career development and growth objectives"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reviewFramework",
+                "id": "review_framework_output",
+                "label": "Complete Review Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "performanceAssessment",
+                "id": "performance_assessment_output",
+                "label": "Performance Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "developmentPlan",
+                "id": "development_plan_output",
+                "label": "Development Action Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "feedbackGuidance",
+                "id": "feedback_guidance_output",
+                "label": "Feedback Delivery Guidance",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847744",
+          "language": "en",
+          "name": "Performance Review Assistant",
+          "description": "Comprehensive performance evaluation system that creates structured assessments, analyzes achievements and challenges, develops improvement plans, provides feedback guidance, and establishes development frameworks for effective performance management.",
+          "instructions": "Specify the review type, employee role, and evaluation period. Provide performance data, achievements, and challenges. The routine will create a complete review framework with assessment criteria, development plans, and feedback delivery guidance."
+        }
+      ]
+    }
+  ]
+}

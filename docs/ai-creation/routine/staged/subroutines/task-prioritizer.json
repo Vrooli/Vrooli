@@ -1,0 +1,142 @@
+{
+  "id": "7829564732190847574",
+  "publicId": "task-prior-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847575",
+      "publicId": "task-prior-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Sorts tasks by importance, urgency, and deadlines",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "inputTemplate": {
+              "tasks": "{{input.taskList}}",
+              "deadlines": "{{input.deadlines}}",
+              "importanceScores": "{{input.importance}}",
+              "urgencyScores": "{{input.urgency}}",
+              "effortEstimates": "{{input.effort}}",
+              "dependencies": "{{input.dependencies}}"
+            },
+            "outputMapping": {
+              "prioritizedTasks": "result.sortedTasks",
+              "priorityScores": "result.scores",
+              "criticalPath": "result.criticalItems",
+              "scoringExplanation": "result.rationale"
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskList",
+                "id": "task_list_input",
+                "label": "Task List",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Array of tasks with names and descriptions"
+              },
+              {
+                "fieldName": "deadlines",
+                "id": "deadlines_input",
+                "label": "Task Deadlines",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Deadline dates/times for each task"
+              },
+              {
+                "fieldName": "importance",
+                "id": "importance_input",
+                "label": "Importance Scores",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Importance rating (1-10) for each task"
+              },
+              {
+                "fieldName": "urgency",
+                "id": "urgency_input",
+                "label": "Urgency Scores",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Urgency rating (1-10) for each task"
+              },
+              {
+                "fieldName": "effort",
+                "id": "effort_input",
+                "label": "Effort Estimates",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Time/effort required for each task"
+              },
+              {
+                "fieldName": "dependencies",
+                "id": "dependencies_input",
+                "label": "Task Dependencies",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Which tasks depend on others"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedTasks",
+                "id": "prioritized_tasks_output",
+                "label": "Prioritized Task List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priorityScores",
+                "id": "priority_scores_output",
+                "label": "Priority Scores",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "criticalPath",
+                "id": "critical_path_output",
+                "label": "Critical Path Items",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "scoringExplanation",
+                "id": "scoring_explanation_output",
+                "label": "Scoring Rationale",
+                "type": "TextInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847576",
+          "language": "en",
+          "name": "Task Prioritizer",
+          "description": "Sorts tasks by importance, urgency, and deadlines to help focus on high-impact items. Uses a scoring algorithm that considers multiple factors including the Eisenhower Matrix principles.",
+          "instructions": "Provide your task list along with optional metadata like deadlines, importance ratings, urgency levels, effort estimates, and dependencies. The routine will calculate priority scores and return a sorted list with the most critical tasks first."
+        }
+      ]
+    }
+  ]
+}

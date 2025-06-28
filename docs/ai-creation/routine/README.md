@@ -30,7 +30,8 @@ docs/ai-creation/routine/
 
 scripts/main/
 ├── routine-generate-enhanced.sh # Smart multi-pass generation (recommended)
-├── routine-generate.sh          # Basic generation (legacy)
+├── routine-generate.sh          # Basic generation with optional --direct mode
+├── routine-generate-direct.sh   # Direct prompt generation for manual use
 └── routine-import.sh            # Import and validate staged routines
 ```
 
@@ -64,7 +65,22 @@ This enhanced system provides:
 - **Staged file scanning** to reuse already-generated subroutines
 - **Hierarchical organization** with separate subroutines and main routines
 
-#### Option B: Basic Generation (Legacy)
+#### Option B: Direct Generation with Claude (Interactive)
+```bash
+# Generate prompt for manual use with Claude
+./scripts/main/routine-generate.sh --direct
+
+# Or use the dedicated direct script with more options
+./scripts/main/routine-generate-direct.sh --prompt-only --subroutines
+```
+
+This generates a prompt that you can copy and paste directly to Claude (web interface or Claude Code) without going through the maintenance-agent.sh script. Options:
+- `--prompt-only`: Generate and display the prompt
+- `--subroutines`: Include subroutine discovery in the prompt
+- `--output FILE`: Save prompt to a file
+- `--validate`: Show validation instructions
+
+#### Option C: Basic Generation with Claude Code CLI (Automated)
 ```bash
 ./scripts/main/routine-generate.sh
 ```

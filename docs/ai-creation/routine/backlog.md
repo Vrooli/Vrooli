@@ -1331,4 +1331,132 @@ When processing backlog items:
 
 Items that have been processed and moved to staged/ will be listed here with their filename references.
 
+### Completed on 2024-01-27
+
+#### 1. Yes-Man Avoidance (COMPLETED)
+- **Generated File**: `staged/yes-man-avoidance.json`
+- **Type**: Multi-step routine
+- **Strategy**: Reasoning
+- **Notes**: Detects social pressure tactics and generates balanced responses
+
+#### 8. Daily Agenda Planner (COMPLETED)
+- **Generated File**: `staged/daily-agenda-planner.json`
+- **Type**: Multi-step routine with 4 steps
+- **Strategy**: Mixed (deterministic for scheduling, conversational for recommendations)
+- **Notes**: Creates time-blocked schedules accounting for priorities, energy, and constraints
+
+#### 16. Document Summarizer (COMPLETED)
+- **Generated File**: `staged/subroutines/document-summarizer.json`
+- **Type**: Single-step generate routine (subroutine)
+- **Strategy**: Reasoning
+- **Notes**: Reusable subroutine for condensing documents while preserving key information
+
+#### 26. Decision Support Framework (COMPLETED)
+- **Generated File**: `staged/decision-support-framework.json`
+- **Type**: Multi-step routine with 4 steps
+- **Strategy**: Reasoning
+- **Notes**: Systematic decision analysis with bias detection and risk assessment
+
+#### 9. Task Prioritizer (COMPLETED)
+- **Generated File**: `staged/subroutines/task-prioritizer.json`
+- **Type**: Single-step code routine (subroutine)
+- **Strategy**: Deterministic
+- **Notes**: Reusable component for sorting tasks by multiple factors using scoring algorithm
+
+#### 2. Introspective Self-Review (COMPLETED)
+- **Generated File**: `staged/introspective-self-review.json`
+- **Type**: Multi-step routine with 5 steps
+- **Strategy**: Mixed (reasoning and deterministic)
+- **Notes**: AI agent self-reflection with performance analysis and knowledge base updates
+
+#### 3. Goal Alignment & Progress Checkpoint (COMPLETED)
+- **Generated File**: `staged/goal-alignment-checkpoint.json`
+- **Type**: Multi-step routine with 5 steps
+- **Strategy**: Mixed (reasoning and deterministic)
+- **Notes**: Reviews progress against OKRs and triggers course corrections
+
+#### 31. Web Research Agent (COMPLETED)
+- **Generated File**: `staged/subroutines/web-research-agent.json`
+- **Type**: Single-step web routine (subroutine)
+- **Strategy**: Reasoning
+- **Notes**: Comprehensive web search with multiple angles and source credibility
+
+#### 34. Fact-Checking Agent (COMPLETED)
+- **Generated File**: `staged/fact-checking-agent.json`
+- **Type**: Multi-step routine with 5 steps
+- **Strategy**: Reasoning
+- **Notes**: Decomposes claims, searches evidence, evaluates credibility, and generates reports
+
+#### 4. Capability Gap Analysis (COMPLETED)
+- **Generated File**: `staged/capability-gap-analysis.json`
+- **Type**: Multi-step routine with 5 steps
+- **Strategy**: Mixed (reasoning and deterministic)
+- **Notes**: Identifies knowledge gaps and creates remediation plans
+
+#### 6. Dynamic Task Allocation (COMPLETED)
+- **Generated File**: `staged/dynamic-task-allocation.json`
+- **Type**: Multi-step routine with 5 steps
+- **Strategy**: Mixed (reasoning, deterministic, conversational)
+- **Notes**: Optimally assigns tasks to agents based on skills and workload
+
+#### 13. Deadline Monitor (COMPLETED)
+- **Generated File**: `staged/subroutines/deadline-monitor.json`
+- **Type**: Single-step code routine (subroutine)
+- **Strategy**: Deterministic
+- **Notes**: Tracks deadlines and generates risk-based alerts
+
+#### 18. Research Synthesis Workflow (COMPLETED)
+- **Generated File**: `staged/research-synthesis-workflow.json`
+- **Type**: Multi-step routine with 6 steps
+- **Strategy**: Reasoning
+- **Notes**: Comprehensive research with credibility assessment and synthesis
+
+#### 29. Risk Assessment Agent (COMPLETED)
+- **Generated File**: `staged/risk-assessment-agent.json`
+- **Type**: Multi-step routine with 6 steps
+- **Strategy**: Mixed (reasoning and deterministic)
+- **Notes**: Full risk analysis with mitigation and contingency planning
+
+#### 15. Project Task Organizer (COMPLETED)
+- **Generated File**: `staged/project-task-organizer.json`
+- **Type**: Multi-step routine with 6 steps
+- **Strategy**: Mixed (reasoning, deterministic, conversational)
+- **Notes**: Creates work breakdown structures with dependencies and milestones
+
+#### 10. Weekly Review Assistant (COMPLETED)
+- **Generated File**: `staged/weekly-review-assistant.json`
+- **Type**: Multi-step routine with 6 steps
+- **Strategy**: Conversational with mixed subroutines
+- **Notes**: Aggregates week data, analyzes accomplishments, extracts lessons, plans next week
+
+#### 17. Multi-Source Synthesizer (COMPLETED)
+- **Generated File**: `staged/multi-source-synthesizer.json`
+- **Type**: Multi-step routine with 5 steps
+- **Strategy**: Reasoning
+- **Notes**: Gathers from multiple sources, compares findings, synthesizes unified report
+
+#### 24. Email Draft Assistant (COMPLETED)
+- **Generated File**: `staged/subroutines/email-draft-assistant.json`
+- **Type**: Single-step generate routine (subroutine)
+- **Strategy**: Conversational
+- **Notes**: Composes professional emails with appropriate tone and structure
+
+#### 27. Pros & Cons Evaluator (COMPLETED)
+- **Generated File**: `staged/pros-cons-evaluator.json`
+- **Type**: Multi-step routine with 5 steps
+- **Strategy**: Mixed (reasoning and deterministic)
+- **Notes**: Structured analysis with weighted factors and recommendations
+
+#### 19. Meeting Minutes Summarizer (COMPLETED)
+- **Generated File**: `staged/meeting-minutes-summarizer.json`
+- **Type**: Multi-step routine with 5 steps
+- **Strategy**: Conversational with reasoning subroutines
+- **Notes**: Extracts key points, decisions, and action items from meeting transcripts
+
+#### 12. Pomodoro Session Manager (COMPLETED)
+- **Generated File**: `staged/subroutines/pomodoro-session-manager.json`
+- **Type**: Single-step generate routine (subroutine)
+- **Strategy**: Conversational
+- **Notes**: Manages focus sessions with motivational guidance and break suggestions
+
 <!-- Processed items will be moved here -->

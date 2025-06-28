@@ -1,0 +1,167 @@
+{
+  "id": "7829564732190847709",
+  "publicId": "home-org-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847710",
+      "publicId": "home-org-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Systematic home organization and maintenance planning",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "inputTemplate": {
+              "homeLayout": "{{input.homeDescription}}",
+              "problemAreas": "{{input.organizationChallenges}}",
+              "lifestyle": "{{input.lifestyleFactors}}",
+              "goals": "{{input.organizationGoals}}",
+              "budget": "{{input.availableBudget}}",
+              "timeframe": "{{input.implementationTime}}"
+            },
+            "outputMapping": {
+              "organizationPlan": "result.plan",
+              "roomByRoomGuide": "result.rooms",
+              "storageStrategy": "result.storage",
+              "maintenanceSchedule": "result.maintenance",
+              "declutteringPlan": "result.declutter",
+              "budgetBreakdown": "result.budget"
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "homeDescription",
+                "id": "home_description_input",
+                "label": "Home Layout & Description",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe your home layout, room types, and current state"
+              },
+              {
+                "fieldName": "organizationChallenges",
+                "id": "organization_challenges_input",
+                "label": "Organization Challenges",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What areas or types of clutter are problematic?"
+              },
+              {
+                "fieldName": "lifestyleFactors",
+                "id": "lifestyle_factors_input",
+                "label": "Lifestyle Factors",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Family size, work schedule, hobbies, pets, etc."
+              },
+              {
+                "fieldName": "organizationGoals",
+                "id": "organization_goals_input",
+                "label": "Organization Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What do you want to achieve with organization?"
+              },
+              {
+                "fieldName": "availableBudget",
+                "id": "available_budget_input",
+                "label": "Available Budget",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": ["minimal", "low", "moderate", "substantial", "unlimited"]
+              },
+              {
+                "fieldName": "implementationTime",
+                "id": "implementation_time_input",
+                "label": "Implementation Timeframe",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "1-month",
+                "options": ["1-week", "2-weeks", "1-month", "3-months", "6-months", "ongoing"]
+              },
+              {
+                "fieldName": "organizationStyle",
+                "id": "organization_style_input",
+                "label": "Organization Style Preference",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "practical",
+                "options": ["minimalist", "practical", "aesthetic", "functional", "maximalist-organized"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "organizationPlan",
+                "id": "organization_plan_output",
+                "label": "Complete Organization Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "roomByRoomGuide",
+                "id": "room_by_room_guide_output",
+                "label": "Room-by-Room Organization Guide",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "storageStrategy",
+                "id": "storage_strategy_output",
+                "label": "Storage Solutions Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "maintenanceSchedule",
+                "id": "maintenance_schedule_output",
+                "label": "Organization Maintenance Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "declutteringPlan",
+                "id": "decluttering_plan_output",
+                "label": "Decluttering Action Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "budgetBreakdown",
+                "id": "budget_breakdown_output",
+                "label": "Budget & Shopping Guide",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847711",
+          "language": "en",
+          "name": "Home Organization System",
+          "description": "Comprehensive home organization solution that creates personalized plans for decluttering, storage optimization, room-by-room organization, and maintenance schedules tailored to lifestyle and budget constraints.",
+          "instructions": "Describe your home layout and organization challenges. Specify your goals, lifestyle factors, and available budget. The routine will create a complete organization plan with room-specific guidance, storage strategies, decluttering steps, and maintenance schedules."
+        }
+      ]
+    }
+  ]
+}

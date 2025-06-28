@@ -1,0 +1,228 @@
+{
+  "id": "7829564732190847634",
+  "publicId": "habit-track-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847635",
+      "publicId": "habit-track-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive habit tracking with personalized coaching",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Log Daily Habits",
+                "description": "Records completion status for each tracked habit",
+                "subroutineId": "TODO: Need data entry subroutine for habit logging",
+                "inputMap": {
+                  "habitList": "trackedHabits",
+                  "completionStatus": "dailyProgress",
+                  "dateLogged": "currentDate"
+                },
+                "outputMap": {
+                  "loggedHabits": "completedHabits",
+                  "streakUpdates": "streakData",
+                  "missedHabits": "incompleteHabits"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Progress Patterns",
+                "description": "Identifies trends, streaks, and patterns in habit completion",
+                "subroutineId": "TODO: Need analysis subroutine for pattern recognition",
+                "inputMap": {
+                  "loggedHabits": "completedHabits",
+                  "historicalData": "pastPerformance",
+                  "timeFrame": "analysisWindow"
+                },
+                "outputMap": {
+                  "progressTrends": "habitTrends",
+                  "streakAnalysis": "streakInsights",
+                  "strugglingAreas": "challengePatterns"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Generate Coaching Insights",
+                "description": "Provides personalized advice and motivation based on performance",
+                "subroutineId": "TODO: Need generation subroutine for coaching advice",
+                "inputMap": {
+                  "progressTrends": "habitTrends",
+                  "strugglingAreas": "challengePatterns",
+                  "personalGoals": "userObjectives",
+                  "motivationStyle": "preferredMotivation"
+                },
+                "outputMap": {
+                  "coachingAdvice": "personalizedGuidance",
+                  "motivationalMessage": "encouragement",
+                  "strategyRecommendations": "improvementTips"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Plan Habit Adjustments",
+                "description": "Suggests modifications to habits or routines for better success",
+                "subroutineId": "TODO: Need planning subroutine for habit optimization",
+                "inputMap": {
+                  "strugglingAreas": "challengePatterns",
+                  "currentHabits": "trackedHabits",
+                  "availableTime": "scheduleConstraints"
+                },
+                "outputMap": {
+                  "habitAdjustments": "optimizationPlan",
+                  "newHabitSuggestions": "additionRecommendations",
+                  "timingChanges": "scheduleOptimizations"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Set Weekly Goals",
+                "description": "Establishes realistic targets for the upcoming week",
+                "subroutineId": "TODO: Need goal-setting subroutine for weekly planning",
+                "inputMap": {
+                  "progressTrends": "habitTrends",
+                  "habitAdjustments": "optimizationPlan",
+                  "userPreferences": "personalStyle"
+                },
+                "outputMap": {
+                  "weeklyTargets": "upcomingGoals",
+                  "focusAreas": "priorityHabits",
+                  "rewardSystem": "incentivePlan"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "habits": "trackedHabits",
+                "progress": "dailyProgress",
+                "goals": "userObjectives",
+                "timeframe": "analysisWindow"
+              },
+              "outputMap": {
+                "personalizedGuidance": "coachingReport",
+                "upcomingGoals": "weeklyPlan",
+                "optimizationPlan": "habitRecommendations",
+                "habitTrends": "progressInsights"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "habits",
+                "id": "habits_input",
+                "label": "Tracked Habits",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of habits you want to track"
+              },
+              {
+                "fieldName": "progress",
+                "id": "progress_input",
+                "label": "Daily Progress",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Completion status for each habit today"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Personal Goals",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "What you want to achieve with these habits"
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Analysis Timeframe",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "week",
+                "options": ["week", "month", "quarter"]
+              },
+              {
+                "fieldName": "motivationStyle",
+                "id": "motivation_style_input",
+                "label": "Preferred Motivation Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "encouraging",
+                "options": ["encouraging", "challenging", "analytical", "celebratory"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "coachingReport",
+                "id": "coaching_report_output",
+                "label": "Personalized Coaching Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "weeklyPlan",
+                "id": "weekly_plan_output",
+                "label": "Weekly Action Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "habitRecommendations",
+                "id": "habit_recommendations_output",
+                "label": "Habit Optimization Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "progressInsights",
+                "id": "progress_insights_output",
+                "label": "Progress Analysis & Insights",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "reasoning",
+          "2": "conversational",
+          "3": "reasoning",
+          "4": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847636",
+          "language": "en",
+          "name": "Habit Tracker & Coach",
+          "description": "Comprehensive habit tracking system with personalized coaching. Logs daily progress, analyzes patterns, provides tailored advice, and helps optimize routines for better consistency and goal achievement.",
+          "instructions": "Enter your tracked habits and daily completion status. Specify your goals and preferred motivation style. The routine will analyze your patterns, provide personalized coaching advice, suggest optimizations, and create a weekly action plan to improve your habit consistency."
+        }
+      ]
+    }
+  ]
+}

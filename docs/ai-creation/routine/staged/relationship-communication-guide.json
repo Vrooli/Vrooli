@@ -1,0 +1,269 @@
+{
+  "id": "7829564732190847775",
+  "publicId": "relationship-comm-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847776",
+      "publicId": "relationship-comm-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive relationship communication and conflict resolution system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Assess Communication Patterns",
+                "description": "Analyzes current relationship dynamics and communication styles",
+                "subroutineId": "TODO: Need communication assessment subroutine",
+                "inputMap": {
+                  "relationshipContext": "relationshipProfile",
+                  "communicationChallenges": "currentIssues",
+                  "interactionHistory": "pastPatterns"
+                },
+                "outputMap": {
+                  "communicationAnalysis": "patternAssessment",
+                  "strengthsWeaknesses": "capabilityProfile",
+                  "improvementAreas": "developmentTargets"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Develop Active Listening Skills",
+                "description": "Builds foundation for effective understanding and empathy",
+                "subroutineId": "TODO: Need active listening training subroutine",
+                "inputMap": {
+                  "listeningChallenges": "hearingBarriers",
+                  "empathyLevel": "understandingCapacity",
+                  "attentionFactors": "focusAbility"
+                },
+                "outputMap": {
+                  "listeningSkills": "enhancedHearing",
+                  "empathyTechniques": "understandingMethods",
+                  "presenceStrategies": "attentionImprovement"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Master Expressing Feelings & Needs",
+                "description": "Teaches clear, non-violent communication of emotions and requirements",
+                "subroutineId": "TODO: Need expression training subroutine",
+                "inputMap": {
+                  "emotionalAwareness": "feelingsRecognition",
+                  "expressionStyle": "communicationPreference",
+                  "vulnerabilityComfort": "opennessLevel"
+                },
+                "outputMap": {
+                  "expressionSkills": "articulationAbility",
+                  "emotionalClarity": "feelingsCommunication",
+                  "needsAssertion": "requirementExpression"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Handle Difficult Conversations",
+                "description": "Provides strategies for navigating conflict and sensitive topics",
+                "subroutineId": "TODO: Need difficult conversation subroutine",
+                "inputMap": {
+                  "conflictTypes": "disagreementPatterns",
+                  "triggerAwareness": "emotionalButtons",
+                  "deescalationNeeds": "tensionManagement"
+                },
+                "outputMap": {
+                  "conflictSkills": "disagreementNavigation",
+                  "triggerManagement": "emotionalRegulation",
+                  "deescalationTechniques": "tensionReduction"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Build Trust & Intimacy",
+                "description": "Strengthens emotional connection and relationship security",
+                "subroutineId": "TODO: Need trust building subroutine",
+                "inputMap": {
+                  "trustLevel": "securityAssessment",
+                  "intimacyGoals": "connectionObjectives",
+                  "vulnerabilityBarriers": "opennessObstacles"
+                },
+                "outputMap": {
+                  "trustStrategies": "securityBuilding",
+                  "intimacyTechniques": "connectionDeepening",
+                  "vulnerabilityPractice": "opennessSkills"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Maintain Long-term Growth",
+                "description": "Creates ongoing development and relationship maintenance practices",
+                "subroutineId": "TODO: Need relationship maintenance subroutine",
+                "inputMap": {
+                  "growthGoals": "developmentObjectives",
+                  "maintenancePractices": "ongoingHabits",
+                  "checkInSchedule": "reviewFrequency"
+                },
+                "outputMap": {
+                  "growthPlan": "developmentStrategy",
+                  "maintenanceRoutines": "sustainabilityPractices",
+                  "assessmentFramework": "progressTracking"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "relationship": "relationshipProfile",
+                "challenges": "currentIssues",
+                "goals": "communicationGoals",
+                "timeline": "improvementTimeframe"
+              },
+              "outputMap": {
+                "developmentStrategy": "relationshipGrowth",
+                "sustainabilityPractices": "maintenanceSystem",
+                "patternAssessment": "communicationInsights",
+                "progressTracking": "improvementMonitoring"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "relationship",
+                "id": "relationship_input",
+                "label": "Relationship Context",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Type of relationship, duration, current dynamics, and participants"
+              },
+              {
+                "fieldName": "challenges",
+                "id": "challenges_input",
+                "label": "Communication Challenges",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What specific communication issues are you experiencing?"
+              },
+              {
+                "fieldName": "relationshipType",
+                "id": "relationship_type_input",
+                "label": "Relationship Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["romantic-partner", "marriage", "family-member", "close-friend", "work-colleague", "parent-child", "sibling", "roommate", "business-partner", "other"]
+              },
+              {
+                "fieldName": "issueType",
+                "id": "issue_type_input",
+                "label": "Primary Issue",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["misunderstandings", "frequent-conflicts", "emotional-distance", "trust-issues", "different-communication-styles", "unmet-needs", "anger-management", "lack-of-intimacy", "boundary-problems", "multiple-issues"]
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Communication Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What improvements do you hope to achieve?"
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Improvement Timeline",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "3-months",
+                "options": ["immediate", "2-weeks", "1-month", "3-months", "6-months", "ongoing"]
+              },
+              {
+                "fieldName": "participationLevel",
+                "id": "participation_level_input",
+                "label": "Other Party Involvement",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "willing",
+                "options": ["fully-engaged", "willing", "reluctant", "resistant", "unknown", "solo-work"]
+              },
+              {
+                "fieldName": "communicationStyle",
+                "id": "communication_style_input",
+                "label": "Your Communication Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "direct",
+                "options": ["direct", "indirect", "emotional", "logical", "passive", "assertive", "aggressive", "avoidant", "mixed"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "relationshipGrowth",
+                "id": "relationship_growth_output",
+                "label": "Complete Relationship Development Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "maintenanceSystem",
+                "id": "maintenance_system_output",
+                "label": "Long-term Relationship Maintenance",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "communicationInsights",
+                "id": "communication_insights_output",
+                "label": "Communication Pattern Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementMonitoring",
+                "id": "improvement_monitoring_output",
+                "label": "Progress Tracking Framework",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "conversational",
+          "2": "conversational",
+          "3": "conversational",
+          "4": "conversational",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847777",
+          "language": "en",
+          "name": "Relationship Communication Guide",
+          "description": "Comprehensive relationship improvement system that assesses communication patterns, develops listening skills, masters emotional expression, handles difficult conversations, builds trust and intimacy, and maintains long-term growth for healthier relationships.",
+          "instructions": "Describe your relationship context and current communication challenges. Specify relationship type and primary issues. Include your communication goals and improvement timeline. The routine will assess patterns, build skills, and create a growth plan."
+        }
+      ]
+    }
+  ]
+}

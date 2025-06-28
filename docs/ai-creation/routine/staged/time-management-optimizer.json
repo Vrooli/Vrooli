@@ -1,0 +1,268 @@
+{
+  "id": "7829564732190847769",
+  "publicId": "time-mgmt-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847770",
+      "publicId": "time-mgmt-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive time management and productivity optimization system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Current Time Usage",
+                "description": "Audits how time is currently spent and identifies patterns",
+                "subroutineId": "TODO: Need time audit subroutine",
+                "inputMap": {
+                  "dailySchedule": "currentTimeUse",
+                  "taskInventory": "activityList",
+                  "productivityChallenges": "timeStruggles"
+                },
+                "outputMap": {
+                  "timeAnalysis": "usagePatterns",
+                  "inefficiencyAreas": "timeWasters",
+                  "productivePatterns": "efficiencyZones"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Prioritize Goals & Tasks",
+                "description": "Establishes clear priorities using proven frameworks",
+                "subroutineId": "TODO: Need prioritization subroutine",
+                "inputMap": {
+                  "objectives": "goalFramework",
+                  "taskList": "responsibilityInventory",
+                  "constraints": "limitationsFactors"
+                },
+                "outputMap": {
+                  "priorityMatrix": "organizedPriorities",
+                  "goalAlignment": "focusAreas",
+                  "taskHierarchy": "workStructure"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Design Optimal Schedule Structure",
+                "description": "Creates time blocks and scheduling framework",
+                "subroutineId": "TODO: Need schedule design subroutine",
+                "inputMap": {
+                  "organizedPriorities": "priorityMatrix",
+                  "energyPatterns": "productivityRhythms",
+                  "externalCommitments": "fixedObligations"
+                },
+                "outputMap": {
+                  "scheduleFramework": "timeStructure",
+                  "energyAlignment": "optimalTiming",
+                  "bufferSystem": "flexibilityReserves"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Implement Productivity Systems",
+                "description": "Establishes tools and methods for execution",
+                "subroutineId": "TODO: Need productivity tools subroutine",
+                "inputMap": {
+                  "timeStructure": "scheduleFramework",
+                  "workStyle": "personalPreferences",
+                  "technologyOptions": "toolPreferences"
+                },
+                "outputMap": {
+                  "productivityStack": "toolsWorkflow",
+                  "executionRhythm": "workPattern",
+                  "accountabilitySystem": "trackingMechanism"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Address Time Wasters & Distractions",
+                "description": "Eliminates or minimizes productivity killers",
+                "subroutineId": "TODO: Need distraction management subroutine",
+                "inputMap": {
+                  "timeWasters": "inefficiencyAreas",
+                  "distractionSources": "interruptionPatterns",
+                  "environmentalFactors": "contextualChallenges"
+                },
+                "outputMap": {
+                  "distractionPlan": "focusStrategy",
+                  "environmentOptimization": "workspaceDesign",
+                  "boundarySystem": "protectionMechanisms"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Monitor & Continuously Improve",
+                "description": "Tracks progress and refines time management approach",
+                "subroutineId": "TODO: Need improvement tracking subroutine",
+                "inputMap": {
+                  "performanceData": "productivityMetrics",
+                  "systemFeedback": "effectivenessIndicators",
+                  "adaptationNeeds": "changeRequirements"
+                },
+                "outputMap": {
+                  "performanceAnalysis": "productivityAssessment",
+                  "optimizationPlan": "improvementStrategy",
+                  "adaptiveFramework": "continuousRefinement"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "individual": "currentTimeUse",
+                "objectives": "goalFramework",
+                "constraints": "limitationsFactors",
+                "preferences": "personalPreferences"
+              },
+              "outputMap": {
+                "productivityAssessment": "timeManagementOutcome",
+                "improvementStrategy": "optimizationPlan",
+                "timeStructure": "scheduleSystem",
+                "continuousRefinement": "adaptationFramework"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "individual",
+                "id": "individual_input",
+                "label": "Current Time Usage",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "How do you currently spend your time? Daily/weekly patterns"
+              },
+              {
+                "fieldName": "objectives",
+                "id": "objectives_input",
+                "label": "Goals & Priorities",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What are your main goals and important tasks?"
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Time Constraints",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Fixed commitments, deadlines, and limitations"
+              },
+              {
+                "fieldName": "challengeArea",
+                "id": "challenge_area_input",
+                "label": "Primary Challenge",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["procrastination", "too-many-tasks", "constant-interruptions", "poor-planning", "energy-management", "technology-distractions", "perfectionism", "work-life-balance"]
+              },
+              {
+                "fieldName": "preferences",
+                "id": "preferences_input",
+                "label": "Work Style Preferences",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "How do you prefer to work? Peak energy times, tools, etc."
+              },
+              {
+                "fieldName": "currentSystems",
+                "id": "current_systems_input",
+                "label": "Current Tools & Methods",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What productivity tools or methods do you currently use?"
+              },
+              {
+                "fieldName": "timeAvailable",
+                "id": "time_available_input",
+                "label": "Available Time for Optimization",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": ["very-limited", "limited", "moderate", "flexible", "highly-flexible"]
+              },
+              {
+                "fieldName": "complexityLevel",
+                "id": "complexity_level_input",
+                "label": "System Complexity Preference",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": ["simple", "moderate", "detailed", "comprehensive"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeManagementOutcome",
+                "id": "time_management_outcome_output",
+                "label": "Complete Time Management Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "optimizationPlan",
+                "id": "optimization_plan_output",
+                "label": "Productivity Improvement Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "scheduleSystem",
+                "id": "schedule_system_output",
+                "label": "Optimal Schedule Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "adaptationFramework",
+                "id": "adaptation_framework_output",
+                "label": "Continuous Improvement System",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "conversational",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847771",
+          "language": "en",
+          "name": "Time Management Optimizer",
+          "description": "Comprehensive productivity system that analyzes time usage, prioritizes goals, designs optimal schedules, implements productivity tools, addresses distractions, and creates continuous improvement frameworks for effective time management.",
+          "instructions": "Describe your current time usage patterns and main goals. Specify constraints and primary productivity challenges. Include work style preferences and available optimization time. The routine will create a personalized time management system with schedules, tools, and improvement strategies."
+        }
+      ]
+    }
+  ]
+}

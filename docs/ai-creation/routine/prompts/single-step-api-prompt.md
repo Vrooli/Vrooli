@@ -81,6 +81,7 @@ RoutineApi routines are commonly used as subroutines within RoutineMultiStep wor
         "formInput": {
           "__version": "1.0",
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "parameter1",
@@ -98,6 +99,7 @@ RoutineApi routines are commonly used as subroutines within RoutineMultiStep wor
         "formOutput": {
           "__version": "1.0", 
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "apiResponse",

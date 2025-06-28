@@ -78,6 +78,7 @@ RoutineWeb routines are commonly used as subroutines within RoutineMultiStep wor
         "formInput": {
           "__version": "1.0",
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "searchTerm",
@@ -93,6 +94,7 @@ RoutineWeb routines are commonly used as subroutines within RoutineMultiStep wor
         "formOutput": {
           "__version": "1.0", 
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "searchResults",

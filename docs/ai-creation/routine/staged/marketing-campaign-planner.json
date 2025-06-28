@@ -1,0 +1,259 @@
+{
+  "id": "7829564732190847751",
+  "publicId": "marketing-camp-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847752",
+      "publicId": "marketing-camp-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive marketing campaign strategy and execution planning",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Define Campaign Objectives",
+                "description": "Establishes clear goals, target metrics, and success criteria",
+                "subroutineId": "TODO: Need campaign objective setting subroutine",
+                "inputMap": {
+                  "businessGoals": "organizationalObjectives",
+                  "campaignPurpose": "marketingIntent",
+                  "targetMetrics": "performanceGoals"
+                },
+                "outputMap": {
+                  "campaignGoals": "clarifiedObjectives",
+                  "successMetrics": "kpiTargets",
+                  "budgetParameters": "resourceAllocation"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Research Target Audience",
+                "description": "Analyzes demographics, psychographics, and behavioral patterns",
+                "subroutineId": "TODO: Need audience research subroutine",
+                "inputMap": {
+                  "productService": "offeringDetails",
+                  "marketSegments": "potentialAudiences",
+                  "competitorAnalysis": "marketContext"
+                },
+                "outputMap": {
+                  "audienceProfiles": "targetSegments",
+                  "buyerPersonas": "idealCustomers",
+                  "marketInsights": "audienceIntelligence"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Develop Campaign Strategy",
+                "description": "Creates overarching approach and positioning framework",
+                "subroutineId": "TODO: Need strategy development subroutine",
+                "inputMap": {
+                  "clarifiedObjectives": "campaignGoals",
+                  "targetSegments": "audienceProfiles",
+                  "brandPositioning": "messageFramework"
+                },
+                "outputMap": {
+                  "campaignStrategy": "strategicApproach",
+                  "valueProposition": "coreMessage",
+                  "differentiationStrategy": "competitiveAdvantage"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Select Marketing Channels",
+                "description": "Chooses optimal channels and platforms for audience reach",
+                "subroutineId": "TODO: Need channel selection subroutine",
+                "inputMap": {
+                  "idealCustomers": "buyerPersonas",
+                  "resourceAllocation": "budgetParameters",
+                  "channelPreferences": "platformOptions"
+                },
+                "outputMap": {
+                  "channelMix": "selectedPlatforms",
+                  "channelStrategy": "platformApproach",
+                  "budgetDistribution": "channelAllocation"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Create Content Strategy",
+                "description": "Develops messaging, creative concepts, and content calendar",
+                "subroutineId": "TODO: Need content strategy subroutine",
+                "inputMap": {
+                  "coreMessage": "valueProposition",
+                  "selectedPlatforms": "channelMix",
+                  "creativeConcepts": "contentIdeas"
+                },
+                "outputMap": {
+                  "contentPlan": "messagingStrategy",
+                  "creativeBriefs": "contentGuidelines",
+                  "contentCalendar": "publishingSchedule"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Plan Execution & Measurement",
+                "description": "Creates implementation timeline and tracking framework",
+                "subroutineId": "TODO: Need execution planning subroutine",
+                "inputMap": {
+                  "strategicApproach": "campaignStrategy",
+                  "publishingSchedule": "contentCalendar",
+                  "kpiTargets": "successMetrics"
+                },
+                "outputMap": {
+                  "executionPlan": "implementationRoadmap",
+                  "measurementFramework": "analyticsStrategy",
+                  "optimizationPlan": "continuousImprovement"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "business": "organizationalObjectives",
+                "product": "offeringDetails",
+                "budget": "resourceAllocation",
+                "timeline": "campaignDuration"
+              },
+              "outputMap": {
+                "strategicApproach": "campaignBlueprint",
+                "implementationRoadmap": "executionGuide",
+                "messagingStrategy": "contentFramework",
+                "analyticsStrategy": "measurementPlan"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "business",
+                "id": "business_input",
+                "label": "Business Objectives",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What business goals should this campaign support?"
+              },
+              {
+                "fieldName": "product",
+                "id": "product_input",
+                "label": "Product/Service Details",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe what you're marketing"
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Campaign Budget",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Total available budget for the campaign"
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Campaign Duration",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["1-week", "2-weeks", "1-month", "3-months", "6-months", "ongoing"]
+              },
+              {
+                "fieldName": "campaignType",
+                "id": "campaign_type_input",
+                "label": "Campaign Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "awareness",
+                "options": ["awareness", "lead-generation", "conversion", "retention", "product-launch", "brand-building", "seasonal-promotion", "event-marketing"]
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Who are you trying to reach?"
+              },
+              {
+                "fieldName": "currentChannels",
+                "id": "current_channels_input",
+                "label": "Current Marketing Channels",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What channels do you currently use?"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "campaignBlueprint",
+                "id": "campaign_blueprint_output",
+                "label": "Complete Campaign Blueprint",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "executionGuide",
+                "id": "execution_guide_output",
+                "label": "Campaign Execution Guide",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contentFramework",
+                "id": "content_framework_output",
+                "label": "Content Strategy Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "measurementPlan",
+                "id": "measurement_plan_output",
+                "label": "Performance Measurement Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847753",
+          "language": "en",
+          "name": "Marketing Campaign Planner",
+          "description": "Comprehensive marketing campaign system that defines objectives, researches audiences, develops strategies, selects channels, creates content plans, and establishes execution and measurement frameworks for successful marketing initiatives.",
+          "instructions": "Define your business objectives and product details. Specify campaign budget and duration. The routine will research target audiences, develop campaign strategy, select optimal channels, create content plans, and establish execution and measurement frameworks."
+        }
+      ]
+    }
+  ]
+}

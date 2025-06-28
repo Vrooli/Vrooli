@@ -1,0 +1,237 @@
+{
+  "id": "7829564732190847628",
+  "publicId": "swot-anal-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847629",
+      "publicId": "swot-anal-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive SWOT analysis with strategic insights",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Strengths",
+                "description": "Identifies internal positive attributes and advantages",
+                "subroutineId": "TODO: Need reasoning subroutine for strength analysis",
+                "inputMap": {
+                  "entityDescription": "analysisSubject",
+                  "contextInfo": "businessContext",
+                  "competitorData": "marketComparison"
+                },
+                "outputMap": {
+                  "strengths": "identifiedStrengths",
+                  "coreCompetencies": "keyAdvantages",
+                  "uniqueAssets": "differentiators"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Identify Weaknesses",
+                "description": "Examines internal limitations and areas for improvement",
+                "subroutineId": "TODO: Need reasoning subroutine for weakness identification",
+                "inputMap": {
+                  "entityDescription": "analysisSubject",
+                  "performanceData": "currentMetrics",
+                  "resourceConstraints": "limitations"
+                },
+                "outputMap": {
+                  "weaknesses": "identifiedWeaknesses",
+                  "improvementAreas": "gapAnalysis",
+                  "criticalDeficiencies": "urgentIssues"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Explore Opportunities",
+                "description": "Discovers external factors that could provide advantages",
+                "subroutineId": "TODO: Need reasoning subroutine for opportunity exploration",
+                "inputMap": {
+                  "marketTrends": "industryTrends",
+                  "contextInfo": "businessContext",
+                  "timeHorizon": "planningPeriod"
+                },
+                "outputMap": {
+                  "opportunities": "identifiedOpportunities",
+                  "growthPotential": "expansionAreas",
+                  "emergingTrends": "futureProspects"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Assess Threats",
+                "description": "Evaluates external risks and challenges",
+                "subroutineId": "TODO: Need reasoning subroutine for threat assessment",
+                "inputMap": {
+                  "competitorData": "marketComparison",
+                  "marketTrends": "industryTrends",
+                  "riskFactors": "externalRisks"
+                },
+                "outputMap": {
+                  "threats": "identifiedThreats",
+                  "riskSeverity": "threatLevels",
+                  "competitivePressures": "marketChallenges"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Create Strategic Matrix",
+                "description": "Combines all factors into SWOT matrix with cross-analysis",
+                "subroutineId": "TODO: Need reasoning subroutine for matrix creation",
+                "inputMap": {
+                  "strengths": "identifiedStrengths",
+                  "weaknesses": "identifiedWeaknesses",
+                  "opportunities": "identifiedOpportunities",
+                  "threats": "identifiedThreats"
+                },
+                "outputMap": {
+                  "swotMatrix": "completeMatrix",
+                  "strategicCombinations": "crossAnalysis",
+                  "priorityActions": "keyStrategies"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Strategic Recommendations",
+                "description": "Develops actionable strategies based on SWOT insights",
+                "subroutineId": "TODO: Need generation subroutine for strategy development",
+                "inputMap": {
+                  "swotMatrix": "completeMatrix",
+                  "strategicCombinations": "crossAnalysis",
+                  "contextInfo": "businessContext",
+                  "timeHorizon": "planningPeriod"
+                },
+                "outputMap": {
+                  "strategicPlan": "recommendedStrategies",
+                  "actionPriorities": "implementationOrder",
+                  "quickWins": "immediateActions"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "entityDescription": "analysisSubject",
+                "context": "businessContext",
+                "timeHorizon": "planningPeriod",
+                "competitorInfo": "marketComparison"
+              },
+              "outputMap": {
+                "completeMatrix": "swotMatrix",
+                "recommendedStrategies": "strategicInsights",
+                "implementationOrder": "actionRecommendations",
+                "keyStrategies": "priorityInitiatives"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "entityDescription",
+                "id": "entity_description_input",
+                "label": "Entity/Situation Description",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe the business, project, or situation to analyze"
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Business Context",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Industry, market position, current state"
+              },
+              {
+                "fieldName": "timeHorizon",
+                "id": "time_horizon_input",
+                "label": "Planning Time Horizon",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "1-year",
+                "options": ["3-months", "6-months", "1-year", "3-years", "5-years"]
+              },
+              {
+                "fieldName": "competitorInfo",
+                "id": "competitor_info_input",
+                "label": "Competitor Information",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Key competitors and market dynamics"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "swotMatrix",
+                "id": "swot_matrix_output",
+                "label": "SWOT Matrix",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "strategicInsights",
+                "id": "strategic_insights_output",
+                "label": "Strategic Insights",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionRecommendations",
+                "id": "action_recommendations_output",
+                "label": "Action Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priorityInitiatives",
+                "id": "priority_initiatives_output",
+                "label": "Priority Initiatives",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847630",
+          "language": "en",
+          "name": "SWOT Analysis Assistant",
+          "description": "Performs comprehensive SWOT analysis for projects, businesses, or decisions. Identifies Strengths, Weaknesses, Opportunities, and Threats, then provides strategic recommendations based on cross-factor analysis.",
+          "instructions": "Describe the entity or situation you want to analyze (business, project, idea, etc.). Provide context, time horizon, and competitor information if available. The routine will perform a thorough SWOT analysis and generate strategic recommendations with prioritized action items."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,260 @@
+{
+  "id": "7829564732190847718",
+  "publicId": "wellness-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847719",
+      "publicId": "wellness-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Holistic wellness planning with personalized health strategies",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Assess Current Wellness State",
+                "description": "Evaluates physical, mental, and emotional health status",
+                "subroutineId": "TODO: Need wellness assessment subroutine",
+                "inputMap": {
+                  "healthStatus": "currentWellness",
+                  "lifestyleFactors": "dailyHabits",
+                  "stressFactors": "wellnessBarriers"
+                },
+                "outputMap": {
+                  "wellnessBaseline": "currentState",
+                  "healthStrengths": "positiveAreas",
+                  "improvementAreas": "wellnessGaps"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Define Wellness Goals",
+                "description": "Sets specific, achievable health and wellness objectives",
+                "subroutineId": "TODO: Need goal setting subroutine",
+                "inputMap": {
+                  "wellnessAspirations": "healthGoals",
+                  "currentState": "wellnessBaseline",
+                  "timeframe": "goalTimeline"
+                },
+                "outputMap": {
+                  "wellnessObjectives": "specificGoals",
+                  "priorityAreas": "focusDomains",
+                  "successMetrics": "measurementCriteria"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Design Fitness Strategy",
+                "description": "Creates personalized physical activity and exercise plan",
+                "subroutineId": "TODO: Need fitness planning subroutine",
+                "inputMap": {
+                  "fitnessLevel": "currentFitness",
+                  "exercisePreferences": "activityPreferences",
+                  "timeAvailable": "exerciseSchedule"
+                },
+                "outputMap": {
+                  "fitnessProgram": "exercisePlan",
+                  "activitySchedule": "workoutCalendar",
+                  "progressionPlan": "fitnessProgression"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Plan Nutrition Strategy",
+                "description": "Develops sustainable eating habits and nutrition approach",
+                "subroutineId": "TODO: Need nutrition planning subroutine",
+                "inputMap": {
+                  "dietaryPreferences": "nutritionNeeds",
+                  "currentEating": "eatingHabits",
+                  "healthGoals": "nutritionObjectives"
+                },
+                "outputMap": {
+                  "nutritionPlan": "eatingStrategy",
+                  "mealPlanning": "nutritionSchedule",
+                  "hydrationPlan": "fluidIntakeStrategy"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Develop Mental Wellness Plan",
+                "description": "Addresses stress management and mental health practices",
+                "subroutineId": "TODO: Need mental wellness subroutine",
+                "inputMap": {
+                  "stressLevel": "mentalPressure",
+                  "copingStrategies": "currentCoping",
+                  "mentalHealthGoals": "psychologicalObjectives"
+                },
+                "outputMap": {
+                  "stressManagement": "stressReductionPlan",
+                  "mindfulnessPractices": "mentalWellnessActivities",
+                  "emotionalSupport": "mentalHealthResources"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Create Implementation Framework",
+                "description": "Integrates all wellness elements into sustainable daily routine",
+                "subroutineId": "TODO: Need implementation planning subroutine",
+                "inputMap": {
+                  "allPlans": "wellnessComponents",
+                  "dailySchedule": "lifestyleConstraints",
+                  "motivationFactors": "sustainabilityDrivers"
+                },
+                "outputMap": {
+                  "dailyRoutine": "integratedSchedule",
+                  "habitFormation": "behaviorChangeStrategy",
+                  "trackingSystem": "progressMonitoring"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "wellness": "currentWellness",
+                "goals": "healthGoals",
+                "preferences": "lifestylePreferences",
+                "constraints": "lifestyleConstraints"
+              },
+              "outputMap": {
+                "integratedSchedule": "comprehensiveWellnessPlan",
+                "exercisePlan": "fitnessStrategy",
+                "eatingStrategy": "nutritionApproach",
+                "stressReductionPlan": "mentalWellnessStrategy"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "wellness",
+                "id": "wellness_input",
+                "label": "Current Wellness State",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Describe your current physical, mental, and emotional health"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Wellness Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What health and wellness goals do you want to achieve?"
+              },
+              {
+                "fieldName": "preferences",
+                "id": "preferences_input",
+                "label": "Lifestyle Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Exercise preferences, dietary restrictions, activity likes/dislikes"
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Lifestyle Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Time limitations, physical restrictions, budget constraints"
+              },
+              {
+                "fieldName": "fitnessLevel",
+                "id": "fitness_level_input",
+                "label": "Current Fitness Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "beginner",
+                "options": ["sedentary", "beginner", "intermediate", "advanced", "athlete"]
+              },
+              {
+                "fieldName": "timeCommitment",
+                "id": "time_commitment_input",
+                "label": "Daily Wellness Time",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "30-60-minutes",
+                "options": ["15-30-minutes", "30-60-minutes", "1-2-hours", "2-3-hours", "flexible"]
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Priority Focus Areas",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Which areas matter most? (fitness, nutrition, stress, sleep, etc.)"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "comprehensiveWellnessPlan",
+                "id": "comprehensive_wellness_plan_output",
+                "label": "Complete Wellness Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "fitnessStrategy",
+                "id": "fitness_strategy_output",
+                "label": "Personalized Fitness Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "nutritionApproach",
+                "id": "nutrition_approach_output",
+                "label": "Nutrition & Meal Planning",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "mentalWellnessStrategy",
+                "id": "mental_wellness_strategy_output",
+                "label": "Mental Wellness & Stress Management",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847720",
+          "language": "en",
+          "name": "Wellness Plan Creator",
+          "description": "Holistic wellness planning system that assesses current health, defines goals, creates fitness and nutrition strategies, develops mental wellness practices, and integrates everything into sustainable daily routines.",
+          "instructions": "Describe your current wellness state and health goals. Specify your lifestyle preferences and constraints. The routine will create a comprehensive wellness plan with personalized fitness, nutrition, and mental wellness strategies integrated into your daily schedule."
+        }
+      ]
+    }
+  ]
+}

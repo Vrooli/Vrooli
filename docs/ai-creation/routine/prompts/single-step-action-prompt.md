@@ -83,6 +83,7 @@ RoutineInternalAction routines are commonly used as subroutines within RoutineMu
         "formInput": {
           "__version": "1.0",
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "resourceType",
@@ -100,6 +101,7 @@ RoutineInternalAction routines are commonly used as subroutines within RoutineMu
         "formOutput": {
           "__version": "1.0", 
           "schema": {
+            "containers": [],
             "elements": [
               {
                 "fieldName": "createdResource",

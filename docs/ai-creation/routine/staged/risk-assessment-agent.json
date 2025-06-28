@@ -1,0 +1,236 @@
+{
+  "id": "7829564732190847601",
+  "publicId": "risk-assess-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847602",
+      "publicId": "risk-assess-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive risk analysis with mitigation strategies",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Identify Risk Categories",
+                "description": "Categorizes potential risks by type and domain",
+                "subroutineId": "TODO: Need reasoning subroutine for risk categorization",
+                "inputMap": {
+                  "planDescription": "planOrDecision",
+                  "contextInfo": "contextDetails",
+                  "riskDomains": "focusAreas"
+                },
+                "outputMap": {
+                  "riskCategories": "identifiedCategories",
+                  "riskFactors": "potentialRisks",
+                  "scopeBoundaries": "analysisScope"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Risk Likelihood",
+                "description": "Assesses probability of each risk occurring",
+                "subroutineId": "TODO: Need reasoning subroutine for probability assessment",
+                "inputMap": {
+                  "riskFactors": "potentialRisks",
+                  "contextInfo": "contextDetails",
+                  "historicalData": "pastIncidents"
+                },
+                "outputMap": {
+                  "likelihoodScores": "probabilityRatings",
+                  "riskDrivers": "causalFactors",
+                  "timeframes": "riskTimelines"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Evaluate Impact Severity",
+                "description": "Determines potential impact if risks materialize",
+                "subroutineId": "TODO: Need reasoning subroutine for impact analysis",
+                "inputMap": {
+                  "riskFactors": "potentialRisks",
+                  "planDescription": "planOrDecision",
+                  "stakeholders": "affectedParties"
+                },
+                "outputMap": {
+                  "impactScores": "severityRatings",
+                  "cascadeEffects": "secondaryImpacts",
+                  "criticalRisks": "highPriorityRisks"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Generate Risk Matrix",
+                "description": "Creates risk matrix plotting likelihood vs impact",
+                "subroutineId": "TODO: Need deterministic matrix generation subroutine",
+                "inputMap": {
+                  "likelihoodScores": "probabilityRatings",
+                  "impactScores": "severityRatings",
+                  "criticalRisks": "highPriorityRisks"
+                },
+                "outputMap": {
+                  "riskMatrix": "priorityMatrix",
+                  "riskRankings": "orderedRisks",
+                  "heatmapData": "visualizationData"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Develop Mitigation Strategies",
+                "description": "Creates strategies to prevent or minimize risks",
+                "subroutineId": "TODO: Need reasoning subroutine for mitigation planning",
+                "inputMap": {
+                  "riskRankings": "orderedRisks",
+                  "riskDrivers": "causalFactors",
+                  "availableResources": "mitigationResources"
+                },
+                "outputMap": {
+                  "mitigationPlans": "preventionStrategies",
+                  "contingencyPlans": "responseStrategies",
+                  "resourceRequirements": "mitigationCosts"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Compile Risk Report",
+                "description": "Generates comprehensive risk assessment report",
+                "subroutineId": "TODO: Need generation subroutine for report compilation",
+                "inputMap": {
+                  "riskMatrix": "priorityMatrix",
+                  "mitigationPlans": "preventionStrategies",
+                  "contingencyPlans": "responseStrategies",
+                  "criticalRisks": "highPriorityRisks"
+                },
+                "outputMap": {
+                  "riskReport": "assessmentReport",
+                  "executiveSummary": "riskSummary",
+                  "actionPlan": "recommendedActions"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "planOrDecision": "planDescription",
+                "context": "contextDetails",
+                "riskTolerance": "toleranceLevel",
+                "resources": "availableResources"
+              },
+              "outputMap": {
+                "assessmentReport": "riskInventory",
+                "preventionStrategies": "mitigationStrategies",
+                "responseStrategies": "contingencyPlans",
+                "recommendedActions": "actionableInsights"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "planOrDecision",
+                "id": "plan_decision_input",
+                "label": "Plan or Decision Description",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe the plan or decision to assess"
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Context Information",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Additional context and constraints"
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Tolerance Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": ["very-low", "low", "moderate", "high", "very-high"]
+              },
+              {
+                "fieldName": "resources",
+                "id": "resources_input",
+                "label": "Available Resources",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Resources available for risk mitigation"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "riskInventory",
+                "id": "risk_inventory_output",
+                "label": "Risk Assessment Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "mitigationStrategies",
+                "id": "mitigation_strategies_output",
+                "label": "Mitigation Strategies",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contingencyPlans",
+                "id": "contingency_plans_output",
+                "label": "Contingency Plans",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionableInsights",
+                "id": "actionable_insights_output",
+                "label": "Recommended Actions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "deterministic",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847603",
+          "language": "en",
+          "name": "Risk Assessment Agent",
+          "description": "Analyzes risks associated with plans or decisions and suggests mitigation strategies. Evaluates likelihood and impact, creates risk matrices, and develops both prevention and contingency plans.",
+          "instructions": "Describe the plan or decision you want to assess for risks. Provide context, risk tolerance level, and available resources. The routine will identify risks, evaluate their likelihood and impact, prioritize them, and generate mitigation strategies with contingency plans."
+        }
+      ]
+    }
+  ]
+}
