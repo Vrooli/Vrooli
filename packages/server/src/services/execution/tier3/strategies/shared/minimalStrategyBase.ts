@@ -268,7 +268,7 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
                     event === "failed" ? "high" : "medium",
                     {
                         tags: ["strategy", "execution", event],
-                    }
+                    },
                 ),
             );
             

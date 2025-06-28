@@ -6,13 +6,18 @@
  */
 
 import { generatePK } from "@vrooli/shared";
-import {
-    projectFixtures,
-    sessionHelpers,
-    teamFixtures,
-    userFixtures,
-    type SessionUser,
-} from "../fixtures/index.js";
+import { UserDbFactory, TeamDbFactory, ResourceDbFactory, ResourceVersionDbFactory } from "@vrooli/server/test-fixtures";
+import { DbProvider } from "@vrooli/server";
+
+// Session user type for testing
+export interface SessionUser {
+    id: string;
+    name: string;
+    email: string;
+    accountStatus?: string;
+    isBot?: boolean;
+    theme?: string;
+}
 
 // Simple type definitions for testing
 export interface SimpleTestUser {
@@ -42,53 +47,36 @@ export async function createSimpleTestUser(overrides: Partial<SimpleTestUser> = 
     user: SimpleTestUser;
     sessionData: SessionUser;
 }> {
-    const prisma = getPrisma();
+    const prisma = DbProvider.get();
+    const userFactory = new UserDbFactory(prisma);
 
-    // Use fixtures if available, otherwise create basic data
-    const baseUser = userFixtures?.minimal?.create || {
-        name: "Test User",
-        email: "test@example.com",
-    };
+    // Create user with auth and email using factory
+    const dbUser = await userFactory.createWithRelations({
+        overrides: {
+            name: overrides.name || "Test User",
+            handle: `test_${generatePK().slice(-8)}`,
+        },
+        withAuth: true,
+        withEmails: true,
+    });
 
-    const userId = overrides.id || generatePK();
-    const userName = overrides.name || baseUser.name || "Test User";
-    const userEmail = overrides.email || baseUser.email || `test-${userId}@example.com`;
-
-    // Create basic user data
+    // Extract the user data we need
     const user: SimpleTestUser = {
-        id: userId,
-        name: userName,
-        email: userEmail,
+        id: dbUser.id,
+        name: dbUser.name || "Test User",
+        email: dbUser.emails?.[0]?.emailAddress || `test-${dbUser.id}@example.com`,
         ...overrides,
     };
 
     // Create session data
-    const sessionData = await sessionHelpers.quickSession("standard");
-    sessionData.id = userId;
-    sessionData.name = userName;
-    sessionData.email = userEmail;
-
-    // If we have a database connection, create the actual user record
-    if (prisma) {
-        try {
-            await prisma.user.create({
-                data: {
-                    id: userId,
-                    name: userName,
-                    emails: {
-                        create: {
-                            id: generatePK(),
-                            emailAddress: userEmail,
-                            isVerified: true,
-                        },
-                    },
-                },
-            });
-        } catch (error) {
-            console.warn("Could not create user in database:", error);
-            // Continue without database record - tests can still use the mock data
-        }
-    }
+    const sessionData: SessionUser = {
+        id: dbUser.id,
+        name: dbUser.name || "Test User",
+        email: dbUser.emails?.[0]?.emailAddress || `test-${dbUser.id}@example.com`,
+        accountStatus: "Unlocked",
+        isBot: dbUser.isBot || false,
+        theme: dbUser.theme || "light",
+    };
 
     return { user, sessionData };
 }
@@ -100,49 +88,27 @@ export async function createSimpleTestTeam(
     owner: SimpleTestUser,
     overrides: Partial<SimpleTestTeam> = {},
 ): Promise<SimpleTestTeam> {
-    const prisma = getPrisma();
+    const prisma = DbProvider.get();
+    const teamFactory = new TeamDbFactory(prisma);
 
-    const baseTeam = teamFixtures?.minimal?.create || {
-        name: "Test Team",
-    };
-
-    const teamId = overrides.id || generatePK();
-    const teamName = overrides.name || baseTeam.name || "Test Team";
+    // Create team using factory
+    const dbTeam = await teamFactory.createWithRelations({
+        overrides: {
+            handle: `team_${generatePK().slice(-8)}`,
+        },
+        owner: { userId: owner.id },
+        translations: [{
+            language: "en",
+            name: overrides.name || "Test Team",
+        }],
+    });
 
     const team: SimpleTestTeam = {
-        id: teamId,
-        name: teamName,
+        id: dbTeam.id,
+        name: dbTeam.translations?.[0]?.name || "Test Team",
         ownerId: owner.id,
         ...overrides,
     };
-
-    // If we have a database connection, create the actual team record
-    if (prisma) {
-        try {
-            await prisma.team.create({
-                data: {
-                    id: teamId,
-                    creator: { connect: { id: owner.id } },
-                    members: {
-                        create: {
-                            id: generatePK(),
-                            user: { connect: { id: owner.id } },
-                            role: "Owner",
-                        },
-                    },
-                    translations: {
-                        create: {
-                            id: generatePK(),
-                            language: "en",
-                            name: teamName,
-                        },
-                    },
-                },
-            });
-        } catch (error) {
-            console.warn("Could not create team in database:", error);
-        }
-    }
 
     return team;
 }
@@ -155,58 +121,40 @@ export async function createSimpleTestProject(
     team?: SimpleTestTeam,
     overrides: Partial<SimpleTestProject> = {},
 ): Promise<SimpleTestProject> {
-    const prisma = getPrisma();
+    const prisma = DbProvider.get();
+    const resourceFactory = new ResourceDbFactory(prisma);
 
-    const baseProject = projectFixtures?.minimal?.create || {
-        name: "Test Project",
-    };
-
-    const projectId = overrides.id || generatePK();
-    const projectName = overrides.name || baseProject.name || "Test Project";
+    // Create project resource using factory
+    const dbResource = await resourceFactory.createWithRelations({
+        resourceType: "Project",
+        owner: team ? { teamId: team.id } : { userId: owner.id },
+        overrides: {
+            isPrivate: false,
+        },
+        versions: [{
+            versionLabel: "1.0.0",
+            isLatest: true,
+            isComplete: true,
+            translations: [{
+                language: "en",
+                name: overrides.name || "Test Project",
+                description: "Test project for integration testing",
+            }],
+        }],
+        translations: [{
+            language: "en",
+            name: overrides.name || "Test Project",
+            description: "Test project for integration testing",
+        }],
+    });
 
     const project: SimpleTestProject = {
-        id: projectId,
-        name: projectName,
+        id: dbResource.id,
+        name: dbResource.translations?.[0]?.name || "Test Project",
         ownerId: owner.id,
         teamId: team?.id,
         ...overrides,
     };
-
-    // If we have a database connection, create the actual project record
-    if (prisma) {
-        try {
-            await prisma.project.create({
-                data: {
-                    id: projectId,
-                    isPrivate: false,
-                    creator: { connect: { id: owner.id } },
-                    ...(team ? { team: { connect: { id: team.id } } } : {
-                        owner: { connect: { id: owner.id } },
-                    }),
-                    versions: {
-                        create: {
-                            id: generatePK(),
-                            versionLabel: "1.0.0",
-                            isComplete: true,
-                            isPrivate: false,
-                            creator: { connect: { id: owner.id } },
-                            ...(team ? {} : { root: { connect: { id: owner.id } } }),
-                            translations: {
-                                create: {
-                                    id: generatePK(),
-                                    language: "en",
-                                    name: projectName,
-                                    description: "Test project for integration testing",
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-        } catch (error) {
-            console.warn("Could not create project in database:", error);
-        }
-    }
 
     return project;
 }
@@ -215,7 +163,7 @@ export async function createSimpleTestProject(
  * Clean up test data (simple version)
  */
 export async function cleanupSimpleTestData(ids: string[]) {
-    const prisma = getPrisma();
+    const prisma = DbProvider.get();
     if (!prisma || ids.length === 0) return;
 
     try {
@@ -224,7 +172,7 @@ export async function cleanupSimpleTestData(ids: string[]) {
             where: { id: { in: ids } },
         });
 
-        await prisma.project.deleteMany({
+        await prisma.resource.deleteMany({
             where: { id: { in: ids } },
         });
 
@@ -253,4 +201,100 @@ export function createSimpleTestContext(user: SimpleTestUser) {
         req: {},
         res: {},
     };
+}
+
+/**
+ * Create test objects that can be commented on
+ * Supports: Project, Routine, Standard, SmartContract, Api (via ResourceVersion)
+ */
+export async function createTestCommentTarget(
+    type: "Project" | "Routine" | "Standard" | "SmartContract" | "Api",
+    ownerId?: string,
+): Promise<string> {
+    const prisma = DbProvider.get();
+    
+    // Create a simple user if none provided
+    let userId = ownerId;
+    if (!userId) {
+        const { user } = await createSimpleTestUser();
+        userId = user.id;
+    }
+
+    switch (type) {
+        case "Project": {
+            const resourceFactory = new ResourceDbFactory(prisma);
+            const resource = await resourceFactory.createWithRelations({
+                resourceType: "Project",
+                owner: { userId },
+                overrides: { isPrivate: false },
+                versions: [{
+                    versionLabel: "1.0.0",
+                    isLatest: true,
+                    isComplete: true,
+                    translations: [{
+                        language: "en",
+                        name: `Test ${type}`,
+                        description: `Test ${type} for commenting`,
+                    }],
+                }],
+                translations: [{
+                    language: "en",
+                    name: `Test ${type}`,
+                    description: `Test ${type} for commenting`,
+                }],
+            });
+            // Return the resource's version ID since comments attach to ResourceVersion
+            return resource.versions?.[0]?.id || resource.id;
+        }
+
+        case "Routine": {
+            const resourceFactory = new ResourceDbFactory(prisma);
+            const resource = await resourceFactory.createWithRelations({
+                resourceType: "Routine",
+                owner: { userId },
+                overrides: { isPrivate: false },
+                versions: [{
+                    versionLabel: "1.0.0",
+                    isLatest: true,
+                    isComplete: true,
+                    translations: [{
+                        language: "en",
+                        name: `Test ${type}`,
+                        description: `Test ${type} for commenting`,
+                    }],
+                }],
+            });
+            // Return the resource's version ID since comments attach to ResourceVersion  
+            return resource.versions?.[0]?.id || resource.id;
+        }
+
+        case "Standard":
+        case "SmartContract":
+        case "Api": {
+            // These are ResourceTypes, so create using ResourceVersionDbFactory
+            const resourceVersionFactory = new ResourceVersionDbFactory(prisma);
+            const resourceVersion = await resourceVersionFactory.createWithRelations({
+                owner: { userId },
+                overrides: {
+                    versionLabel: "1.0.0",
+                    isLatest: true,
+                    isComplete: true,
+                    isPrivate: false,
+                },
+                resource: {
+                    isPrivate: false,
+                    resourceType: type,
+                },
+                translations: [{
+                    language: "en",
+                    name: `Test ${type}`,
+                    description: `Test ${type} for commenting`,
+                }],
+            });
+            return resourceVersion.id;
+        }
+
+        default:
+            throw new Error(`Unsupported comment target type: ${type}`);
+    }
 }

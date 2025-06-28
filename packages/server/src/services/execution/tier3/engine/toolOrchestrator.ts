@@ -3,7 +3,7 @@ import {
     type ExecutionEvent,
     type ToolExecutionRequest,
     type ToolExecutionResult,
-    type ToolResource
+    type ToolResource,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
 import { EventTypes, EventUtils, type IEventBus } from "../../../events/index.js";

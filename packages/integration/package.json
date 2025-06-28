@@ -17,8 +17,7 @@
   "dependencies": {
     "@prisma/client": "^6.2.0",
     "@vrooli/server": "workspace:*",
-    "@vrooli/shared": "workspace:*",
-    "@vrooli/ui": "workspace:*"
+    "@vrooli/shared": "workspace:*"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^10.16.0",

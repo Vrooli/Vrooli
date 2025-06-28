@@ -19,7 +19,7 @@ import type {
     Session,
     YupModel,
 } from "@vrooli/shared";
-import type { UIFormTestConfig } from "@vrooli/ui/src/__test/fixtures/form-testing/UIFormTestFactory.js";
+import type { FormConfig, FormFixtures } from "@vrooli/shared";
 
 /**
  * Core interface for standardized integration test configuration
@@ -28,17 +28,19 @@ import type { UIFormTestConfig } from "@vrooli/ui/src/__test/fixtures/form-testi
  * and provides type safety for the complete data flow pipeline.
  */
 export interface StandardIntegrationConfig<
-    TFormData extends Record<string, any>,
     TShape extends { __typename: string; id: string },
     TCreateInput extends Record<string, any>,
     TUpdateInput extends Record<string, any>,
     TResult extends OrArray<{ __typename: ListObject["__typename"]; id: string }>
 > {
-    /** Object type being tested (e.g., "Comment", "Project") */
+    /** Object type being tested */
     objectType: string;
 
-    /** UI form test configuration containing fixtures and transformers */
-    uiFormConfig: UIFormTestConfig<TFormData, TShape, TCreateInput, TUpdateInput, TResult>;
+    /** Form configuration from shared package */
+    formConfig: FormConfig<TShape, TCreateInput, TUpdateInput, TResult>;
+
+    /** Test fixtures for this form */
+    fixtures: FormFixtures<TShape>;
 
     /** Endpoint caller for making actual API requests */
     endpointCaller: EndpointCaller<TCreateInput, TUpdateInput, TResult>;
@@ -46,7 +48,7 @@ export interface StandardIntegrationConfig<
     /** Database verifier for checking persistence */
     databaseVerifier: DatabaseVerifier<TResult>;
 
-    /** Validation schema from @vrooli/shared */
+    /** Validation schema for API inputs */
     validation: YupModel<["create", "update"]>;
 }
 

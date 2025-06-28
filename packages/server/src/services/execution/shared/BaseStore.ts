@@ -1,10 +1,52 @@
 /**
  * Base Store
  * 
+ * @deprecated This 300+ line generic store abstraction will be replaced by the 
+ * SwarmContextManager as outlined in swarm-state-management-redesign.md.
+ * 
+ * ## DEPRECATION DETAILS:
+ * 
+ * **Why Deprecated:**
+ * 1. **Over-Abstraction**: Generic store pattern adds unnecessary complexity layer
+ * 2. **Manual TTL Management**: Complex expiration and cleanup logic prone to errors
+ * 3. **No Live Updates**: Cannot notify subscribers of state changes
+ * 4. **Memory Management Issues**: In-memory stores can grow unbounded
+ * 5. **Type Safety Gaps**: Generic T type loses specific validation benefits
+ * 
+ * **Current Abstraction Issues:**
+ * - BaseStore interface + RedisStore + MemoryStore - 300+ lines of abstraction
+ * - Manual Redis command wrapping without type safety
+ * - Complex TTL and cleanup logic duplicated across implementations
+ * - No pub/sub integration for live updates
+ * - Memory store lacks persistence and recovery
+ * 
+ * **Replacement Strategy:**
+ * SwarmContextManager provides direct, type-safe state management with:
+ * - Unified SwarmContext type instead of generic T
+ * - Built-in Redis pub/sub for live updates
+ * - Automatic TTL and cleanup management
+ * - Type-safe state operations with validation
+ * 
+ * **Migration Timeline:**
+ * - Phase 1: SwarmContextManager replaces Redis store usage (weeks 1-2)
+ * - Phase 2: Migrate in-memory stores to context-specific managers (weeks 3-4)
+ * - Phase 3: Remove BaseStore abstraction entirely (weeks 5-6)
+ * 
+ * **Benefits After Removal:**
+ * - 300+ lines removed (100% reduction)
+ * - Direct type-safe state operations
+ * - Automatic state change notifications
+ * - No manual TTL or cleanup management
+ * - Consistent state access patterns across all tiers
+ * 
  * Generic store pattern for state management across all tiers.
  * Provides a consistent interface with Redis and in-memory implementations.
  * 
  * This reduces duplication while maintaining flexibility for tier-specific needs.
+ * 
+ * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete replacement plan
+ * @see SwarmContextManager - Unified state management replacement
+ * @see UnifiedSwarmContext - Type-safe state model replacement
  */
 
 import { type Logger } from "winston";
@@ -101,7 +143,14 @@ export class InMemoryStore<T> implements IStore<T> {
      * Create a deep copy of an object
      */
     protected deepCopy(obj: T): T {
-        return JSON.parse(JSON.stringify(obj));
+        try {
+            return JSON.parse(JSON.stringify(obj));
+        } catch (error) {
+            this.logger.error("[BaseStore] Error creating deep copy", {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            throw new Error(`Deep copy failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 }
 
@@ -124,7 +173,15 @@ export class RedisStore<T> implements IStore<T> {
                 this.logger.debug(`[RedisStore] Item not found: ${key}`);
                 return null;
             }
-            return JSON.parse(data) as T;
+            try {
+                return JSON.parse(data) as T;
+            } catch (parseError) {
+                this.logger.error(`[RedisStore] Error parsing JSON data for key: ${key}`, {
+                    error: parseError instanceof Error ? parseError.message : String(parseError),
+                    dataLength: data.length,
+                });
+                throw new Error(`JSON parsing failed for key ${key}: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+            }
         } catch (error) {
             this.logger.error(`[RedisStore] Error getting item: ${key}`, {
                 error: error instanceof Error ? error.message : String(error),
@@ -397,6 +454,13 @@ export class CachedStore<T> implements IStore<T> {
     }
 
     private deepCopy(obj: T): T {
-        return JSON.parse(JSON.stringify(obj));
+        try {
+            return JSON.parse(JSON.stringify(obj));
+        } catch (error) {
+            this.logger.error("[MemoryStore] Error creating deep copy", {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            throw new Error(`Deep copy failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 }

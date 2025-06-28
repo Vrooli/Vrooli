@@ -35,6 +35,14 @@ import { type ISwarmStateStore } from "../state/swarmStateStore.js";
 import { type ConversationBridge } from "../intelligence/conversationBridge.js";
 import { BaseStateMachine, BaseStates, type BaseEvent } from "../../shared/BaseStateMachine.js";
 import { EventTypes } from "../../../events/index.js";
+import { 
+    type SwarmContextManager, 
+    type ISwarmContextManager,
+} from "../../shared/SwarmContextManager.js";
+import { 
+    type UnifiedSwarmContext,
+    type ContextUpdateEvent,
+} from "../../shared/UnifiedSwarmContext.js";
 
 /**
  * Swarm event types
@@ -109,11 +117,14 @@ interface ConversationState {
 export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     private conversationId: string | null = null;
     private initiatingUser: SessionUser | null = null;
+    private swarmId: string | null = null;
+    private contextSubscriptionId: string | null = null;
 
     constructor(
         logger: Logger,
         private readonly stateStore: ISwarmStateStore,
         private readonly conversationBridge?: ConversationBridge, // Optional for backward compatibility
+        private readonly contextManager?: ISwarmContextManager, // NEW: Optional SwarmContextManager integration
     ) {
         super(logger, SwarmState.UNINITIALIZED, "SwarmStateMachine");
     }
@@ -135,7 +146,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     /**
      * Starts the swarm with a goal and initial configuration
      */
-    async start(convoId: string, goal: string, initiatingUser: SessionUser): Promise<void> {
+    async start(convoId: string, goal: string, initiatingUser: SessionUser, swarmId?: string): Promise<void> {
         if (this.state !== SwarmState.UNINITIALIZED) {
             this.logger.warn(`SwarmStateMachine for ${convoId} already started. Current state: ${this.state}`);
             return;
@@ -143,10 +154,17 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         
         this.conversationId = convoId;
         this.initiatingUser = initiatingUser;
+        this.swarmId = swarmId || convoId; // Use provided swarmId or fall back to convoId
         this.state = SwarmState.STARTING;
-        this.logger.info(`Starting SwarmStateMachine for ${convoId} with goal: "${goal}"`);
+        this.logger.info(`Starting SwarmStateMachine for ${convoId} with goal: "${goal}", swarmId: ${this.swarmId}`);
 
         try {
+            // NEW: Create initial context and setup subscription for live updates if SwarmContextManager is available
+            if (this.contextManager && this.swarmId) {
+                await this.createInitialSwarmContext(this.swarmId, goal, initiatingUser);
+                await this.setupContextSubscription(this.swarmId);
+            }
+
             await this.errorHandler.execute(async () => {
                 // Get or create conversation state
                 let convoState = await this.getConversationState(convoId);
@@ -402,6 +420,24 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             throw new Error("SwarmStateMachine: onStop() called before conversationId was set.");
         }
 
+        // NEW: Cleanup context subscription
+        if (this.contextManager && this.contextSubscriptionId) {
+            try {
+                await this.contextManager.unsubscribe(this.contextSubscriptionId);
+                this.contextSubscriptionId = null;
+                this.logger.debug("[SwarmStateMachine] Cleaned up context subscription", {
+                    conversationId: this.conversationId,
+                    swarmId: this.swarmId,
+                });
+            } catch (error) {
+                this.logger.warn("[SwarmStateMachine] Failed to cleanup context subscription", {
+                    conversationId: this.conversationId,
+                    swarmId: this.swarmId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+
         const convoState = await this.getConversationState(this.conversationId);
         if (!convoState) {
             throw new Error("Conversation state not found");
@@ -553,8 +589,97 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         conversationId: string, 
         updates: Partial<ChatConfigObject>,
     ): Promise<void> {
-        // Update config in state store
-        this.logger.debug(`Updating conversation config for ${conversationId}`, updates);
+        // NEW: Use SwarmContextManager for unified state management if available
+        if (this.contextManager && this.swarmId) {
+            try {
+                // Transform conversation config updates to unified context format
+                const contextUpdates: Partial<UnifiedSwarmContext> = {
+                    execution: {
+                        goal: updates.goal,
+                        status: "idle", // Default status
+                        startedAt: new Date(),
+                        lastActivity: new Date(),
+                    },
+                    blackboard: {
+                        items: (updates.blackboard || []).reduce((acc, item) => {
+                            acc[item.id || generatePK()] = {
+                                id: item.id || generatePK(),
+                                type: item.type || "data",
+                                content: item.content,
+                                metadata: item.metadata || {},
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
+                            };
+                            return acc;
+                        }, {} as Record<string, any>),
+                    },
+                    // Initialize with default policies for emergent capabilities
+                    policy: {
+                        security: {
+                            permissions: { allowAll: false, allowedActions: [] },
+                            toolApproval: { requireApproval: true, autoApproveList: [] },
+                            dataAccess: { allowPersonalData: false, encryptionRequired: true },
+                        },
+                        resource: {
+                            allocation: { strategy: "balanced", maxConcurrent: 10 },
+                            limits: { maxCredits: 100000, maxTime: 3600000, maxMemory: 1000000000 },
+                            thresholds: { warningAt: 0.8, criticalAt: 0.95 },
+                        },
+                        organizational: {
+                            structure: { hierarchical: true, maxDepth: 3 },
+                            decisionMaking: { consensus: false, leaderApproval: true },
+                            communication: { broadcast: true, direct: true },
+                        },
+                    },
+                    // Initialize with default configuration for emergent features
+                    configuration: {
+                        timeouts: {
+                            swarmExecution: 3600000,
+                            taskExecution: 600000,
+                            communicationTimeout: 30000,
+                        },
+                        retries: {
+                            maxRetries: 3,
+                            backoffMultiplier: 2,
+                            initialDelay: 1000,
+                        },
+                        features: {
+                            enableEmergentCapabilities: true,
+                            enableLiveUpdates: true,
+                            enableResourceOptimization: true,
+                            enableSecurityMonitoring: true,
+                        },
+                    },
+                };
+
+                // Update context with emergent-friendly structure
+                await this.contextManager.updateContext(
+                    this.swarmId,
+                    contextUpdates,
+                    `Swarm configuration updated: ${Object.keys(updates).join(", ")}`,
+                );
+
+                this.logger.info("[SwarmStateMachine] Updated swarm context via SwarmContextManager", {
+                    swarmId: this.swarmId,
+                    conversationId,
+                    updatedFields: Object.keys(updates),
+                    emergentCapabilitiesEnabled: true,
+                });
+                
+            } catch (error) {
+                this.logger.error("[SwarmStateMachine] Failed to update context via SwarmContextManager", {
+                    swarmId: this.swarmId,
+                    conversationId,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+                
+                // Fall back to conversation bridge for backward compatibility
+                this.logger.debug(`Falling back to conversation config update for ${conversationId}`, updates);
+            }
+        } else {
+            // Fallback: Use conversation bridge if SwarmContextManager not available
+            this.logger.debug(`Updating conversation config for ${conversationId} (legacy mode)`, updates);
+        }
     }
 
     private async getDrainDelay(conversationId: string): Promise<number> {
@@ -931,5 +1056,372 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             conversationId: event.conversationId,
             updateType: event.payload?.type, 
         });
+    }
+
+    /**
+     * Setup context subscription for live updates from SwarmContextManager
+     * 
+     * This enables the state machine to receive real-time updates when agents modify
+     * swarm policies, resource allocations, or organizational structure through events.
+     */
+    private async setupContextSubscription(swarmId: string): Promise<void> {
+        if (!this.contextManager) {
+            this.logger.debug("[SwarmStateMachine] No context manager available, skipping subscription setup");
+            return;
+        }
+
+        try {
+            this.contextSubscriptionId = await this.contextManager.subscribe({
+                swarmId,
+                subscriberId: `swarm_state_machine_${this.conversationId}`,
+                watchPaths: [
+                    "execution.status",           // Track swarm execution status changes
+                    "policy.security.*",          // Monitor security policy updates
+                    "policy.resource.*",          // Monitor resource policy changes
+                    "policy.organizational.*",    // Monitor organizational changes
+                    "configuration.features.*",   // Monitor feature flag changes
+                    "blackboard.items.*",         // Monitor shared state changes
+                    "resources.allocated.*",      // Monitor resource allocation changes
+                ],
+                handler: this.handleContextUpdate.bind(this),
+            });
+
+            this.logger.info("[SwarmStateMachine] Setup context subscription for emergent coordination", {
+                swarmId,
+                subscriptionId: this.contextSubscriptionId,
+                conversationId: this.conversationId,
+            });
+
+        } catch (error) {
+            this.logger.error("[SwarmStateMachine] Failed to setup context subscription", {
+                swarmId,
+                conversationId: this.conversationId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            // Don't throw - state machine can still function without live updates
+        }
+    }
+
+    /**
+     * Handle context updates from SwarmContextManager
+     * 
+     * This method processes live updates from the unified context, allowing the state machine
+     * to react to changes made by agents through the emergent capabilities system.
+     */
+    private async handleContextUpdate(event: ContextUpdateEvent): Promise<void> {
+        if (!this.conversationId || !this.swarmId) {
+            return;
+        }
+
+        this.logger.debug("[SwarmStateMachine] Received context update", {
+            swarmId: event.swarmId,
+            version: event.newVersion,
+            changesCount: event.changes.length,
+            emergent: event.emergent,
+            conversationId: this.conversationId,
+        });
+
+        try {
+            // Process different types of context updates
+            for (const change of event.changes) {
+                await this.processContextChange(change, event);
+            }
+
+            // If this was an emergent change (made by an agent), emit special monitoring event
+            if (event.emergent) {
+                await this.publishUnifiedEvent(
+                    EventTypes.STATE_SWARM_UPDATED,
+                    {
+                        entityType: "swarm",
+                        entityId: this.conversationId,
+                        newState: this.state,
+                        message: `Emergent context update: ${event.reason || "Agent-driven modification"}`,
+                        metadata: {
+                            contextVersion: event.newVersion,
+                            changesApplied: event.changes.length,
+                            updatedBy: event.updatedBy,
+                            emergentCapabilities: true,
+                        },
+                    },
+                    {
+                        conversationId: this.conversationId,
+                        priority: "medium",
+                        deliveryGuarantee: "fire-and-forget",
+                    },
+                );
+            }
+
+        } catch (error) {
+            this.logger.error("[SwarmStateMachine] Failed to process context update", {
+                swarmId: event.swarmId,
+                version: event.newVersion,
+                conversationId: this.conversationId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    /**
+     * Process individual context changes and trigger appropriate state machine reactions
+     */
+    private async processContextChange(change: ContextUpdateEvent["changes"][0], event: ContextUpdateEvent): Promise<void> {
+        // React to execution status changes
+        if (change.path.startsWith("execution.status")) {
+            const newStatus = change.newValue;
+            this.logger.info("[SwarmStateMachine] Swarm execution status changed via context", {
+                oldStatus: change.oldValue,
+                newStatus,
+                conversationId: this.conversationId,
+                swarmId: event.swarmId,
+            });
+            
+            // Could trigger state transitions here if needed
+            // For now, just log the change
+        }
+
+        // React to security policy changes
+        if (change.path.startsWith("policy.security")) {
+            this.logger.info("[SwarmStateMachine] Security policy updated via context", {
+                path: change.path,
+                updatedBy: event.updatedBy,
+                emergent: event.emergent,
+                conversationId: this.conversationId,
+            });
+
+            // Generate event for the conversation bridge to process
+            if (this.conversationBridge && this.conversationId) {
+                await this.handleEvent({
+                    type: "internal_status_update",
+                    conversationId: this.conversationId,
+                    sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                    payload: {
+                        type: "security_policy_updated",
+                        path: change.path,
+                        oldValue: change.oldValue,
+                        newValue: change.newValue,
+                        updatedBy: event.updatedBy,
+                        emergent: event.emergent,
+                    },
+                });
+            }
+        }
+
+        // React to resource policy changes
+        if (change.path.startsWith("policy.resource")) {
+            this.logger.info("[SwarmStateMachine] Resource policy updated via context", {
+                path: change.path,
+                updatedBy: event.updatedBy,
+                emergent: event.emergent,
+                conversationId: this.conversationId,
+            });
+
+            // Generate event for resource management updates
+            if (this.conversationBridge && this.conversationId) {
+                await this.handleEvent({
+                    type: "internal_status_update",
+                    conversationId: this.conversationId,
+                    sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                    payload: {
+                        type: "resource_policy_updated",
+                        path: change.path,
+                        oldValue: change.oldValue,
+                        newValue: change.newValue,
+                        updatedBy: event.updatedBy,
+                        emergent: event.emergent,
+                    },
+                });
+            }
+        }
+
+        // React to organizational changes
+        if (change.path.startsWith("policy.organizational")) {
+            this.logger.info("[SwarmStateMachine] Organizational structure updated via context", {
+                path: change.path,
+                updatedBy: event.updatedBy,
+                emergent: event.emergent,
+                conversationId: this.conversationId,
+            });
+
+            // Generate event for organizational updates
+            if (this.conversationBridge && this.conversationId) {
+                await this.handleEvent({
+                    type: "internal_status_update",
+                    conversationId: this.conversationId,
+                    sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                    payload: {
+                        type: "organizational_structure_updated",
+                        path: change.path,
+                        oldValue: change.oldValue,
+                        newValue: change.newValue,
+                        updatedBy: event.updatedBy,
+                        emergent: event.emergent,
+                    },
+                });
+            }
+        }
+
+        // React to blackboard changes (shared state updates)
+        if (change.path.startsWith("blackboard.items")) {
+            this.logger.debug("[SwarmStateMachine] Blackboard state updated via context", {
+                path: change.path,
+                updatedBy: event.updatedBy,
+                emergent: event.emergent,
+                conversationId: this.conversationId,
+            });
+
+            // Blackboard changes are frequent, so only log at debug level
+            // Agents can react to these through their own subscriptions
+        }
+    }
+
+    /**
+     * Create initial swarm context in SwarmContextManager
+     * 
+     * This creates the unified context structure that enables emergent capabilities
+     * by providing a data-driven foundation for agent behavior.
+     */
+    private async createInitialSwarmContext(
+        swarmId: string, 
+        goal: string, 
+        initiatingUser: SessionUser,
+    ): Promise<void> {
+        if (!this.contextManager) {
+            this.logger.debug("[SwarmStateMachine] No context manager available, skipping context creation");
+            return;
+        }
+
+        try {
+            // Check if context already exists
+            const existingContext = await this.contextManager.getContext(swarmId);
+            if (existingContext) {
+                this.logger.debug("[SwarmStateMachine] Swarm context already exists, skipping creation", {
+                    swarmId,
+                    existingVersion: existingContext.version,
+                });
+                return;
+            }
+
+            // Create initial context with emergent-friendly structure
+            const initialContext: Partial<UnifiedSwarmContext> = {
+                execution: {
+                    goal,
+                    status: "starting",
+                    startedAt: new Date(),
+                    lastActivity: new Date(),
+                },
+                // Initialize resource pool with defaults (can be overridden by agents)
+                resources: {
+                    total: {
+                        credits: 100000,
+                        tokens: 500000,
+                        time: 3600000, // 1 hour
+                        memory: 1000000000, // 1GB
+                    },
+                    allocated: [],
+                    available: {
+                        credits: 100000,
+                        tokens: 500000,
+                        time: 3600000,
+                        memory: 1000000000,
+                    },
+                },
+                // Data-driven policies that agents can modify
+                policy: {
+                    security: {
+                        permissions: {
+                            allowAll: false,
+                            allowedActions: ["read_context", "update_blackboard", "request_resources"],
+                        },
+                        toolApproval: {
+                            requireApproval: true,
+                            autoApproveList: ["update_swarm_shared_state", "resource_manage"],
+                        },
+                        dataAccess: {
+                            allowPersonalData: false,
+                            encryptionRequired: true,
+                        },
+                    },
+                    resource: {
+                        allocation: {
+                            strategy: "balanced",
+                            maxConcurrent: 10,
+                        },
+                        limits: {
+                            maxCredits: 100000,
+                            maxTime: 3600000,
+                            maxMemory: 1000000000,
+                        },
+                        thresholds: {
+                            warningAt: 0.8,
+                            criticalAt: 0.95,
+                        },
+                    },
+                    organizational: {
+                        structure: {
+                            hierarchical: true,
+                            maxDepth: 3,
+                        },
+                        decisionMaking: {
+                            consensus: false,
+                            leaderApproval: true,
+                        },
+                        communication: {
+                            broadcast: true,
+                            direct: true,
+                        },
+                    },
+                },
+                // Emergent capability configuration
+                configuration: {
+                    timeouts: {
+                        swarmExecution: 3600000,
+                        taskExecution: 600000,
+                        communicationTimeout: 30000,
+                    },
+                    retries: {
+                        maxRetries: 3,
+                        backoffMultiplier: 2,
+                        initialDelay: 1000,
+                    },
+                    features: {
+                        enableEmergentCapabilities: true,
+                        enableLiveUpdates: true,
+                        enableResourceOptimization: true,
+                        enableSecurityMonitoring: true,
+                        enablePerformanceLearning: true,
+                    },
+                },
+                // Initialize empty blackboard for agent communication
+                blackboard: {
+                    items: {},
+                },
+                // Initialize empty teams and agents (will be populated by agents)
+                teams: [],
+                agents: [],
+                activeRuns: [],
+            };
+
+            await this.contextManager.createContext(swarmId, initialContext);
+
+            this.logger.info("[SwarmStateMachine] Created initial swarm context for emergent capabilities", {
+                swarmId,
+                goal,
+                initiatingUserId: initiatingUser.id,
+                emergentCapabilities: {
+                    liveUpdates: initialContext.configuration?.features?.enableLiveUpdates,
+                    resourceOptimization: initialContext.configuration?.features?.enableResourceOptimization,
+                    securityMonitoring: initialContext.configuration?.features?.enableSecurityMonitoring,
+                    performanceLearning: initialContext.configuration?.features?.enablePerformanceLearning,
+                },
+            });
+
+        } catch (error) {
+            this.logger.error("[SwarmStateMachine] Failed to create initial swarm context", {
+                swarmId,
+                goal,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            // Don't throw - state machine can still function without unified context
+        }
     }
 }

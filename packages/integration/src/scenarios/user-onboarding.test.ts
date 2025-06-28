@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { getPrisma } from "../setup/test-setup.js";
-import { enhancedTestUtils, EnhancedDataFactory } from "../fixtures/index.js";
+import { DbProvider } from "@vrooli/server";
+import { UserDbFactory, TeamDbFactory, ProjectDbFactory } from "@vrooli/server/test-fixtures";
 import { shape, transformInput } from "@vrooli/shared";
 import { User, Team, Project } from "@vrooli/server";
 import type { 
@@ -13,7 +13,7 @@ describe("User Onboarding Scenario", () => {
     let prisma: any;
 
     beforeEach(async () => {
-        prisma = getPrisma();
+        prisma = DbProvider.get();
     });
 
     it("should complete full user onboarding flow", async () => {

@@ -5,7 +5,7 @@
  * following the pattern: Form Data → Shape → Validation → Endpoint → Database → Response
  */
 
-import { getPrisma } from "../setup/test-setup.js";
+import { DbProvider } from "@vrooli/server";
 import { generatePK } from "@vrooli/shared";
 import { 
     auth,
@@ -61,7 +61,7 @@ export class IntegrationTestHelpers {
     private prisma: any;
 
     constructor() {
-        this.prisma = getPrisma();
+        this.prisma = DbProvider.get();
     }
 
     /**

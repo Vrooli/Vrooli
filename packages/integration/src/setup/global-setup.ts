@@ -34,7 +34,8 @@ export async function setup() {
         process.env.JWT_PUB = publicKey;
         process.env.PROJECT_DIR = "/root/Vrooli";
         process.env.VITE_SERVER_LOCATION = "local";
-        process.env.LETSENCRYPT_EMAIL = "test@example.com";
+        process.env.SITE_EMAIL_USERNAME = "test@example.com";
+        process.env.SITE_EMAIL_ALIAS = "noreply@example.com";
         process.env.VAPID_PUBLIC_KEY = "test-vapid-public";
         process.env.VAPID_PRIVATE_KEY = "test-vapid-private";
         process.env.WORKER_ID = "0";
@@ -79,18 +80,23 @@ export async function setup() {
         // Run migrations ONCE (from server directory)
         console.log("\n3. Running Prisma migrations...");
         const serverPath = path.resolve(__dirname, "../../../server");
-        execSync("npx prisma migrate deploy", {
+        // Set PRISMA_SCHEMA_PATH for the migration
+        const envWithSchema = {
+            ...process.env,
+            PRISMA_SCHEMA_PATH: path.join(serverPath, "src/db/schema.prisma"),
+        };
+        execSync("npx prisma migrate deploy --schema=./src/db/schema.prisma", {
             stdio: "inherit",
-            env: process.env,
+            env: envWithSchema,
             cwd: serverPath,
         });
         console.log("✓ Migrations applied");
 
         // Generate Prisma client ONCE (from server directory)
         console.log("\n4. Generating Prisma client...");
-        execSync("npx prisma generate", {
+        execSync("npx prisma generate --schema=./src/db/schema.prisma", {
             stdio: "inherit",
-            env: process.env,
+            env: envWithSchema,
             cwd: serverPath,
         });
         console.log("✓ Prisma client generated");

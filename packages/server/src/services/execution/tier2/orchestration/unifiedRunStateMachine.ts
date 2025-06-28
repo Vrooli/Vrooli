@@ -1,6 +1,55 @@
 /**
  * UnifiedRunStateMachine - Complete Tier 2 Process Intelligence Implementation
  * 
+ * @deprecated This massive 2,219-line monolithic state machine will be deprecated and replaced 
+ * by the SwarmContextManager architecture as outlined in swarm-state-management-redesign.md.
+ * 
+ * ## DEPRECATION DETAILS:
+ * 
+ * **Why Deprecated:**
+ * 1. **Monolithic Complexity**: Single 2,219-line file violates single responsibility principle
+ * 2. **Critical Bug**: createTier3ExecutionRequest() uses wrong format, breaking resource allocation
+ * 3. **No Live Updates**: Cannot receive policy/configuration changes while running
+ * 4. **Manual Resource Tracking**: Complex manual allocation logic prone to errors
+ * 5. **Testing Difficulties**: Massive class hard to unit test and mock
+ * 
+ * **Critical Bug (lines 1341-1358):**
+ * ```typescript
+ * // BROKEN: Wrong format for Tier 3 communication
+ * private createTier3ExecutionRequest(context: RunExecutionContext, stepInfo: StepInfo): TierExecutionRequest {
+ *     return {
+ *         executionId: generatePK(),
+ *         payload: { stepInfo, inputs: context.variables },  // ❌ Wrong format
+ *         metadata: { runId: context.runId },                // ❌ Wrong format
+ *         // MISSING: allocation, context, input fields required by TierThreeExecutor
+ *     };
+ * }
+ * ```
+ * 
+ * **Replacement Architecture:**
+ * This 2,219-line monolith will be replaced by 4 focused components (~900 total lines):
+ * 1. **RunStateMachine** (300 lines) - Core state management only
+ * 2. **NavigationOrchestrator** (200 lines) - Navigator coordination
+ * 3. **ParallelExecutionManager** (250 lines) - Branch coordination
+ * 4. **ResourceFlowController** (150 lines) - Resource management
+ * 
+ * **Migration Timeline:**
+ * - Phase 1: Deploy SwarmContextManager alongside (weeks 1-2)
+ * - Phase 2: Route new executions through new architecture (weeks 3-4)
+ * - Phase 3: Migrate existing executions and remove this file (weeks 5-6)
+ * 
+ * **Benefits After Migration:**
+ * - 66% reduction in complexity (2,219 → 900 lines)
+ * - Live configuration updates through SwarmContextManager
+ * - Automatic resource flow protocol (no manual tracking)
+ * - Event-driven coordination (no polling/manual checks)
+ * - Easy unit testing of focused components
+ * - Fixed Tier 2 → Tier 3 resource propagation
+ * 
+ * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete replacement plan
+ * @see SwarmContextManager - Central state authority replacement
+ * @see ResourceFlowProtocol - Automated resource management replacement
+ * 
  * This is the core implementation of Tier 2's process intelligence, implementing a comprehensive
  * state machine that manages the entire lifecycle of routine execution. It consolidates all
  * previously fragmented components into a single, cohesive execution engine.
@@ -94,6 +143,10 @@ import { nanoid } from "@vrooli/shared";
 import { type NavigatorRegistry } from "../navigation/navigatorRegistry.js";
 import { type MOISEGate, type DeonticValidationResult } from "../validation/moiseGate.js";
 import { type IRunStateStore, type IModernRunStateStore } from "../state/runStateStore.js";
+import { ResourceFlowProtocol } from "../../shared/ResourceFlowProtocol.js";
+// SwarmContextManager integration for live configuration updates
+import { type ISwarmContextManager } from "../../shared/SwarmContextManager.js";
+import { type UnifiedSwarmContext, type ContextUpdateEvent } from "../../shared/UnifiedSwarmContext.js";
 
 /**
  * Comprehensive state machine states implementing the complete documented architecture
@@ -404,6 +457,14 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
     private readonly tier3Executor: TierCommunicationInterface;
     private readonly unifiedEventBus: IEventBus | null;
     
+    // @deprecated Temporary resource flow protocol to fix critical Tier 2 → Tier 3 bug
+    // This will be replaced by SwarmContextManager.allocateResources() once implemented
+    private readonly resourceFlowProtocol: ResourceFlowProtocol;
+    
+    // SwarmContextManager integration for live policy updates
+    private readonly contextManager?: ISwarmContextManager;
+    private contextSubscriptionId?: string;
+    
     // Active execution tracking
     private readonly activeRuns: Map<string, RunExecutionContext> = new Map();
     private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; runId: string }> = new Map();
@@ -418,6 +479,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         moiseGate: MOISEGate,
         stateStore: IRunStateStore,
         tier3Executor: TierCommunicationInterface,
+        contextManager?: ISwarmContextManager,
     ) {
         super(logger, eventBus, RunStateMachineState.UNINITIALIZED);
         
@@ -425,15 +487,231 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         this.moiseGate = moiseGate;
         this.stateStore = stateStore;
         this.tier3Executor = tier3Executor;
+        this.contextManager = contextManager;
         
         // Get unified event system for modern event publishing
         this.unifiedEventBus = getUnifiedEventSystem();
+        
+        // @deprecated Initialize temporary resource flow protocol to fix critical bug
+        // This will be removed once SwarmContextManager is implemented
+        this.resourceFlowProtocol = new ResourceFlowProtocol(logger);
         
         // Create modern context adapter - both Redis and InMemory stores implement both interfaces
         this.modernStateStore = stateStore as unknown as IModernRunStateStore;
         
         this.setupStateTransitions();
+        this.setupContextSubscriptions();
         this.logger.info("[UnifiedRunStateMachine] Initialized with comprehensive tier 2 architecture");
+    }
+
+    /**
+     * Setup context subscriptions for live policy and configuration updates
+     */
+    private async setupContextSubscriptions(): Promise<void> {
+        if (!this.contextManager) {
+            this.logger.debug("[UnifiedRunStateMachine] No context manager available, skipping context subscriptions");
+            return;
+        }
+
+        try {
+            // Subscribe to context updates for live policy changes
+            this.contextSubscriptionId = await this.contextManager.subscribe({
+                swarmId: "*", // Subscribe to all swarms this run state machine may handle
+                eventTypes: ["policy.update", "resource.update", "configuration.update"],
+                callback: this.handleContextUpdate.bind(this),
+            });
+            
+            this.logger.info("[UnifiedRunStateMachine] Context subscriptions established", {
+                subscriptionId: this.contextSubscriptionId,
+            });
+        } catch (error) {
+            this.logger.error("[UnifiedRunStateMachine] Failed to setup context subscriptions", {
+                error: error instanceof Error ? error.message : "Unknown error",
+            });
+        }
+    }
+
+    /**
+     * Handle context updates for live policy and configuration changes
+     */
+    private async handleContextUpdate(event: ContextUpdateEvent): Promise<void> {
+        try {
+            this.logger.debug("[UnifiedRunStateMachine] Received context update", {
+                eventType: event.eventType,
+                swarmId: event.swarmId,
+                updateKeys: event.updates ? Object.keys(event.updates) : [],
+            });
+
+            const { eventType, swarmId, updates } = event;
+
+            // Handle policy updates
+            if (eventType === "policy.update" && updates?.policy) {
+                await this.handlePolicyUpdate(swarmId, updates.policy);
+            }
+
+            // Handle resource updates
+            if (eventType === "resource.update" && updates?.resourcePool) {
+                await this.handleResourceUpdate(swarmId, updates.resourcePool);
+            }
+
+            // Handle configuration updates
+            if (eventType === "configuration.update" && updates) {
+                await this.handleConfigurationUpdate(swarmId, updates);
+            }
+
+        } catch (error) {
+            this.logger.error("[UnifiedRunStateMachine] Failed to handle context update", {
+                error: error instanceof Error ? error.message : "Unknown error",
+                eventType: event.eventType,
+                swarmId: event.swarmId,
+            });
+        }
+    }
+
+    /**
+     * Handle policy updates from SwarmContextManager
+     */
+    private async handlePolicyUpdate(swarmId: string, policyUpdates: any): Promise<void> {
+        this.logger.info("[UnifiedRunStateMachine] Applying policy updates", {
+            swarmId,
+            policyKeys: Object.keys(policyUpdates),
+        });
+
+        // Update security policies for affected runs
+        for (const [runId, runContext] of this.activeRuns) {
+            if (runContext.swarmId === swarmId) {
+                // Security policy updates
+                if (policyUpdates.security) {
+                    await this.applySecurityPolicyUpdate(runContext, policyUpdates.security);
+                }
+
+                // Resource policy updates  
+                if (policyUpdates.resource) {
+                    await this.applyResourcePolicyUpdate(runContext, policyUpdates.resource);
+                }
+
+                // Organizational policy updates
+                if (policyUpdates.organizational) {
+                    await this.applyOrganizationalPolicyUpdate(runContext, policyUpdates.organizational);
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle resource updates from SwarmContextManager
+     */
+    private async handleResourceUpdate(swarmId: string, resourceUpdates: any): Promise<void> {
+        this.logger.info("[UnifiedRunStateMachine] Applying resource updates", {
+            swarmId,
+            resourceKeys: Object.keys(resourceUpdates),
+        });
+
+        // Update resource allocation for affected runs
+        for (const [runId, runContext] of this.activeRuns) {
+            if (runContext.swarmId === swarmId) {
+                await this.updateRunResourceAllocation(runContext, resourceUpdates);
+            }
+        }
+    }
+
+    /**
+     * Handle configuration updates from SwarmContextManager
+     */
+    private async handleConfigurationUpdate(swarmId: string, configUpdates: any): Promise<void> {
+        this.logger.info("[UnifiedRunStateMachine] Applying configuration updates", {
+            swarmId,
+            configKeys: Object.keys(configUpdates),
+        });
+
+        // Apply configuration changes to affected runs
+        for (const [runId, runContext] of this.activeRuns) {
+            if (runContext.swarmId === swarmId) {
+                await this.applyRunConfigurationUpdate(runContext, configUpdates);
+            }
+        }
+    }
+
+    /**
+     * Apply security policy updates to a running context
+     */
+    private async applySecurityPolicyUpdate(runContext: RunExecutionContext, securityPolicy: any): Promise<void> {
+        // Update permission validation rules
+        if (securityPolicy.permissions) {
+            this.logger.debug("[UnifiedRunStateMachine] Updating security permissions", {
+                runId: runContext.runId,
+                permissions: Object.keys(securityPolicy.permissions),
+            });
+            // Note: MOISEGate integration would go here when available
+        }
+
+        // Update tool approval rules
+        if (securityPolicy.toolApproval) {
+            this.logger.debug("[UnifiedRunStateMachine] Updating tool approval rules", {
+                runId: runContext.runId,
+                approvalRules: Object.keys(securityPolicy.toolApproval),
+            });
+        }
+    }
+
+    /**
+     * Apply resource policy updates to a running context
+     */
+    private async applyResourcePolicyUpdate(runContext: RunExecutionContext, resourcePolicy: any): Promise<void> {
+        if (resourcePolicy.allocation || resourcePolicy.thresholds) {
+            this.logger.debug("[UnifiedRunStateMachine] Updating resource policies", {
+                runId: runContext.runId,
+                hasAllocation: !!resourcePolicy.allocation,
+                hasThresholds: !!resourcePolicy.thresholds,
+            });
+            
+            // Use ResourceFlowProtocol for updated allocation
+            if (resourcePolicy.allocation) {
+                await this.resourceFlowProtocol.updateAllocation(runContext.runId, resourcePolicy.allocation);
+            }
+        }
+    }
+
+    /**
+     * Apply organizational policy updates to a running context
+     */
+    private async applyOrganizationalPolicyUpdate(runContext: RunExecutionContext, orgPolicy: any): Promise<void> {
+        this.logger.debug("[UnifiedRunStateMachine] Updating organizational policies", {
+            runId: runContext.runId,
+            orgPolicyKeys: Object.keys(orgPolicy),
+        });
+        // Organizational policy application would be implemented here
+    }
+
+    /**
+     * Update resource allocation for a running context
+     */
+    private async updateRunResourceAllocation(runContext: RunExecutionContext, resourceUpdates: any): Promise<void> {
+        this.logger.debug("[UnifiedRunStateMachine] Updating run resource allocation", {
+            runId: runContext.runId,
+            resourceUpdates: Object.keys(resourceUpdates),
+        });
+        
+        // Use ResourceFlowProtocol for live resource updates
+        await this.resourceFlowProtocol.updateAllocation(runContext.runId, resourceUpdates);
+    }
+
+    /**
+     * Apply configuration updates to a running context
+     */
+    private async applyRunConfigurationUpdate(runContext: RunExecutionContext, configUpdates: any): Promise<void> {
+        this.logger.debug("[UnifiedRunStateMachine] Applying configuration updates", {
+            runId: runContext.runId,
+            configKeys: Object.keys(configUpdates),
+        });
+        
+        // Update run configuration with new settings
+        if (configUpdates.execution) {
+            runContext.config = { ...runContext.config, ...configUpdates.execution };
+        }
+        
+        // Persist updated configuration
+        await this.modernStateStore.updateRunContext(runContext.runId, { config: runContext.config });
     }
 
     /**
@@ -1338,23 +1616,53 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         });
     }
 
+    /**
+     * Create properly formatted Tier 3 execution request
+     * 
+     * @deprecated This method fixes the critical bug where the wrong format was used for
+     * Tier 2 → Tier 3 communication. This temporary fix uses ResourceFlowProtocol to create
+     * properly formatted TierExecutionRequest objects that TierThreeExecutor can handle.
+     * 
+     * This will be replaced by SwarmContextManager.delegateToTier3() once implemented.
+     * 
+     * **Critical Bug Fixed:**
+     * - Uses correct TierExecutionRequest<StepExecutionInput> format
+     * - Includes required allocation field with proper resource limits
+     * - Provides correct context and input objects as expected by TierThreeExecutor
+     * - Enables proper resource flow tracking across tier boundaries
+     * 
+     * @param context - Run execution context from Tier 2
+     * @param stepInfo - Step information to execute in Tier 3
+     * @returns Properly formatted TierExecutionRequest for TierThreeExecutor
+     */
     private createTier3ExecutionRequest(context: RunExecutionContext, stepInfo: StepInfo): TierExecutionRequest {
-        return {
-            executionId: generatePK(),
-            tierOrigin: 2,
-            tierTarget: 3,
-            type: "step",
-            payload: {
-                stepInfo,
-                inputs: context.variables,
-                context: context.blackboard,
-            },
-            metadata: {
-                runId: context.runId,
-                userId: context.parentContext?.executingAgent || "system",
-                swarmId: context.swarmId,
-            },
+        // Create parent allocation for step execution
+        // @deprecated This will be replaced by SwarmContextManager.getCurrentAllocation()
+        const parentAllocation = {
+            maxCredits: context.resourceLimits?.maxCredits || "1000",
+            maxDurationMs: context.resourceLimits?.maxDurationMs || 30000,
+            maxMemoryMB: context.resourceLimits?.maxMemoryMB || 512,
+            maxConcurrentSteps: context.resourceLimits?.maxConcurrentSteps || 1,
         };
+        
+        // Use ResourceFlowProtocol to create properly formatted request
+        const properRequest = this.resourceFlowProtocol.createTier3ExecutionRequest(
+            context,
+            stepInfo,
+            parentAllocation,
+        );
+        
+        this.logger.debug("[UnifiedRunStateMachine] Created Tier 3 execution request (BUG FIXED)", {
+            stepId: properRequest.input.stepId,
+            stepType: properRequest.input.stepType,
+            hasAllocation: !!properRequest.allocation,
+            hasContext: !!properRequest.context,
+            hasInput: !!properRequest.input,
+            // Log the fix that was applied
+            bugFix: "Using correct TierExecutionRequest format instead of legacy payload/metadata structure",
+        });
+        
+        return properRequest;
     }
 
     private updateContextWithResults(context: RunExecutionContext, result: ExecutionResult): void {
@@ -2214,6 +2522,31 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             
             // Fallback to medium complexity
             return 2.0;
+        }
+    }
+
+    /**
+     * Cleanup resources when the state machine is being disposed
+     */
+    public async dispose(): Promise<void> {
+        try {
+            // Unsubscribe from context updates
+            if (this.contextManager && this.contextSubscriptionId) {
+                await this.contextManager.unsubscribe(this.contextSubscriptionId);
+                this.contextSubscriptionId = undefined;
+                this.logger.debug("[UnifiedRunStateMachine] Context subscription cleaned up");
+            }
+            
+            // Call parent dispose if available
+            if (super.dispose) {
+                await super.dispose();
+            }
+            
+            this.logger.info("[UnifiedRunStateMachine] Disposed successfully");
+        } catch (error) {
+            this.logger.error("[UnifiedRunStateMachine] Error during disposal", {
+                error: error instanceof Error ? error.message : "Unknown error",
+            });
         }
     }
 }

@@ -18,6 +18,7 @@ import {
 } from "@vrooli/shared";
 import { type IRunStateStore, getRunStateStore } from "./state/runStateStore.js";
 import { MOISEGate } from "./validation/moiseGate.js";
+import { type ISwarmContextManager } from "../shared/SwarmContextManager.js";
 
 /**
  * Tier Two Orchestrator - Main Entry Point for Tier 2 Process Intelligence
@@ -68,11 +69,13 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
     private readonly navigatorRegistry: NavigatorRegistry;
     private readonly moiseGate: MOISEGate;
     private readonly stateStore: IRunStateStore;
+    private readonly contextManager?: ISwarmContextManager;
 
 
-    constructor(logger: Logger, eventBus: EventBus, tier3Executor: TierCommunicationInterface) {
+    constructor(logger: Logger, eventBus: EventBus, tier3Executor: TierCommunicationInterface, contextManager?: ISwarmContextManager) {
         super(logger, eventBus, "TierTwoOrchestrator");
         this.tier3Executor = tier3Executor;
+        this.contextManager = contextManager;
 
         // Initialize shared dependencies
         this.stateStore = getRunStateStore();
@@ -88,6 +91,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
             this.moiseGate,
             this.stateStore,
             tier3Executor,
+            contextManager,
         );
 
         // Setup event handlers

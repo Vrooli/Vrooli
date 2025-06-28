@@ -17,8 +17,53 @@ import { type ISwarmStateStore } from "./swarmStateStore.js";
 /**
  * Redis-based swarm state store for production use
  * 
+ * @deprecated This 400+ line direct Redis access pattern will be replaced by the 
+ * SwarmContextManager as outlined in swarm-state-management-redesign.md.
+ * 
+ * ## DEPRECATION DETAILS:
+ * 
+ * **Why Deprecated:**
+ * 1. **Direct Redis Operations**: 400+ lines of manual Redis commands scattered throughout (lines 225, 248, 282, etc.)
+ * 2. **Manual Index Management**: Complex state-based indexing with potential race conditions
+ * 3. **No Live Updates**: Cannot notify running state machines of configuration changes
+ * 4. **Memory Leak Prone**: Manual TTL management and cleanup can fail silently
+ * 5. **Testing Difficulties**: Hard to mock Redis interactions for unit testing
+ * 
+ * **Current Direct Redis Patterns (To Be Deprecated):**
+ * ```typescript
+ * // Manual Redis operations scattered throughout
+ * await redis.set(key, data, "EX", this.ttl);        // Line 225, 248, 282, etc.
+ * await redis.get(key);                              // Line 248, 376, 507, etc.
+ * await redis.del(key);                              // Line 307, 435, 566, etc.
+ * await redis.sadd(key, member);                     // Line 589
+ * await redis.smembers(key);                         // Line 651, 658, 665
+ * ```
+ * 
+ * **Replacement Strategy:**
+ * SwarmContextManager will provide a unified interface with:
+ * - Automatic Redis pub/sub for live updates
+ * - Built-in versioning and concurrency control
+ * - Consistent TTL and cleanup management
+ * - Event-driven state change notifications
+ * 
+ * **Migration Timeline:**
+ * - Phase 1: Deploy SwarmContextManager with Redis backend (weeks 1-2)
+ * - Phase 2: Route state operations through SwarmContextManager (weeks 3-4)
+ * - Phase 3: Remove direct Redis access patterns (weeks 5-6)
+ * 
+ * **Benefits After Migration:**
+ * - 400+ lines reduced to ~100 lines of interface calls
+ * - Live configuration updates through pub/sub
+ * - Automatic index management and cleanup
+ * - Type-safe state operations without manual Redis commands
+ * - Built-in concurrency control and versioning
+ * 
  * This implementation extends RedisStore for basic CRUD operations
  * and adds swarm-specific functionality on top.
+ * 
+ * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete replacement plan
+ * @see SwarmContextManager - Unified state management replacement
+ * @see ResourceFlowProtocol - Automated resource allocation replacement
  */
 export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmStateStore {
     private readonly indexPrefix = "swarm_index:";

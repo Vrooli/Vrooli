@@ -23,6 +23,7 @@ import { ResourceManager } from "./organization/resourceManager.js";
 import { SwarmStateStoreFactory } from "./state/swarmStateStoreFactory.js";
 import { type ISwarmStateStore } from "./state/swarmStateStore.js";
 import { createConversationBridge, type ConversationBridge } from "./intelligence/conversationBridge.js";
+import { type ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import {
     type SwarmStatus,
     type Swarm,
@@ -54,10 +55,17 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     private readonly chatStore: PrismaChatStore;
     private readonly conversationBridge: ConversationBridge;
     private readonly creationLocks: Map<string, Promise<void>> = new Map(); // Simple in-memory lock
+    private readonly contextManager?: ISwarmContextManager; // NEW: Optional SwarmContextManager for emergent capabilities
 
-    constructor(logger: Logger, eventBus: EventBus, tier2Orchestrator: TierCommunicationInterface) {
+    constructor(
+        logger: Logger, 
+        eventBus: EventBus, 
+        tier2Orchestrator: TierCommunicationInterface,
+        contextManager?: ISwarmContextManager, // NEW: Optional context manager integration
+    ) {
         super(logger, eventBus, "TierOneCoordinator");
         this.tier2Orchestrator = tier2Orchestrator;
+        this.contextManager = contextManager;
         
         // Initialize state store
         this.stateStore = SwarmStateStoreFactory.getInstance(logger);
@@ -71,7 +79,9 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         // Setup event handlers
         this.setupEventHandlers();
         
-        this.logger.info("[TierOneCoordinator] Initialized");
+        this.logger.info("[TierOneCoordinator] Initialized with emergent capabilities", {
+            hasContextManager: !!this.contextManager,
+        });
     }
 
     /**
@@ -367,6 +377,11 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             // Store swarm state
             await this.stateStore.createSwarm(config.swarmId, swarm);
 
+            // NEW: Initialize unified swarm context for emergent capabilities
+            if (this.contextManager) {
+                await this.initializeSwarmContext(config.swarmId, swarm, config);
+            }
+
             // Emit initial swarm state through unified event system
             await this.publishUnifiedEvent(EventTypes.STATE_SWARM_UPDATED, {
                 entityType: "swarm",
@@ -393,22 +408,23 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 conversationId,
             });
 
-            // Create state machine
+            // Create state machine with context manager integration
             const stateMachine = new SwarmStateMachine(
                 this.logger,
                 this.stateStore,
                 this.conversationBridge,
+                this.contextManager, // NEW: Pass context manager for emergent capabilities
             );
 
             this.swarmMachines.set(config.swarmId, stateMachine);
 
-            // Start the swarm with the conversationId
+            // Start the swarm with the conversationId and swarmId
             const initiatingUser = { 
                 id: config.userId, 
                 name: "User", 
                 hasPremium: false, 
             } as SessionUser;
-            await stateMachine.start(conversationId, config.goal, initiatingUser);
+            await stateMachine.start(conversationId, config.goal, initiatingUser, config.swarmId); // NEW: Pass swarmId
 
             // Emit swarm started event using unified event system
             await this.publishUnifiedEvent(EventTypes.TEAM_FORMED, {
@@ -1236,5 +1252,351 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         const timeProgress = swarm.resources.consumed.time / swarm.resources.allocated.maxTime;
         
         return Math.min(Math.max(resourceProgress, timeProgress) * 100, 100);
+    }
+
+    /**
+     * Initialize unified swarm context for emergent capabilities
+     * 
+     * This creates the data-driven context that enables agents to modify swarm behavior
+     * through configuration changes rather than code changes.
+     */
+    private async initializeSwarmContext(
+        swarmId: string, 
+        swarm: Swarm, 
+        config: {
+            name: string;
+            description: string;
+            goal: string;
+            resources: {
+                maxCredits: number;
+                maxTokens: number;
+                maxTime: number;
+                tools: Array<{ name: string; description: string }>;
+            };
+            config: {
+                model: string;
+                temperature: number;
+                autoApproveTools: boolean;
+                parallelExecutionLimit: number;
+            };
+            userId: string;
+            organizationId?: string;
+            parentSwarmId?: string;
+            leaderBotId?: string;
+        },
+    ): Promise<void> {
+        if (!this.contextManager) {
+            return;
+        }
+
+        try {
+            this.logger.debug("[TierOneCoordinator] Initializing swarm context for emergent capabilities", {
+                swarmId,
+                name: config.name,
+            });
+
+            // Create initial context configuration that enables emergent capabilities
+            const initialContext = {
+                // Identity and basic metadata
+                updatedBy: config.userId,
+                
+                // Resource management based on swarm allocation
+                resources: {
+                    total: {
+                        credits: config.resources.maxCredits.toString(),
+                        durationMs: config.resources.maxTime,
+                        memoryMB: 1024, // Default memory allocation
+                        concurrentExecutions: config.config.parallelExecutionLimit,
+                        models: {
+                            [config.config.model]: {
+                                tokensPerMinute: config.resources.maxTokens,
+                                maxConcurrentRequests: config.config.parallelExecutionLimit,
+                                costPerToken: "0.01", // Default cost estimation
+                            },
+                        },
+                        tools: config.resources.tools.reduce((acc, tool) => {
+                            acc[tool.name] = {
+                                creditsPerUse: "10", // Default cost per tool use
+                                avgExecutionTimeMs: 5000, // Default execution time
+                                memoryRequirementMB: 64, // Default memory requirement
+                            };
+                            return acc;
+                        }, {} as any),
+                    },
+                    allocated: [],
+                    available: {
+                        credits: config.resources.maxCredits.toString(),
+                        durationMs: config.resources.maxTime,
+                        memoryMB: 1024,
+                        concurrentExecutions: config.config.parallelExecutionLimit,
+                        models: {
+                            [config.config.model]: {
+                                tokensPerMinute: config.resources.maxTokens,
+                                maxConcurrentRequests: config.config.parallelExecutionLimit,
+                                costPerToken: "0.01",
+                            },
+                        },
+                        tools: config.resources.tools.reduce((acc, tool) => {
+                            acc[tool.name] = {
+                                creditsPerUse: "10",
+                                avgExecutionTimeMs: 5000,
+                                memoryRequirementMB: 64,
+                            };
+                            return acc;
+                        }, {} as any),
+                    },
+                    usageHistory: [],
+                },
+                
+                // Policies that agents can modify for emergent capabilities
+                policy: {
+                    security: {
+                        permissions: {
+                            "swarm_leader": {
+                                canExecuteTools: config.resources.tools.map(t => t.name),
+                                canAccessResources: ["credits", "tokens", "memory", "time"],
+                                canModifyContext: ["blackboard.*", "execution.agents.*"],
+                                maxResourceAllocation: {
+                                    maxCredits: Math.floor(config.resources.maxCredits * 0.8).toString(),
+                                    maxDurationMs: Math.floor(config.resources.maxTime * 0.8),
+                                    maxMemoryMB: 800,
+                                    maxConcurrentSteps: config.config.parallelExecutionLimit,
+                                },
+                            },
+                            "swarm_agent": {
+                                canExecuteTools: config.resources.tools.filter(t => 
+                                    !t.name.includes("admin") && !t.name.includes("system"),
+                                ).map(t => t.name),
+                                canAccessResources: ["credits", "memory"],
+                                canModifyContext: ["blackboard.items.*"],
+                                maxResourceAllocation: {
+                                    maxCredits: Math.floor(config.resources.maxCredits * 0.3).toString(),
+                                    maxDurationMs: Math.floor(config.resources.maxTime * 0.3),
+                                    maxMemoryMB: 256,
+                                    maxConcurrentSteps: 1,
+                                },
+                            },
+                        },
+                        scanning: {
+                            enabledScanners: ["pii", "malware", "injection"],
+                            blockOnViolation: true,
+                            alertingThresholds: {
+                                "pii": 3,
+                                "malware": 1,
+                                "injection": 1,
+                            },
+                        },
+                        toolApproval: {
+                            requireApprovalForTools: config.config.autoApproveTools ? [] : config.resources.tools.map(t => t.name),
+                            autoApproveForRoles: config.config.autoApproveTools ? ["swarm_leader", "swarm_agent"] : ["swarm_leader"],
+                            approvalTimeoutMs: 300000, // 5 minutes
+                        },
+                    },
+                    resource: {
+                        allocation: {
+                            strategy: "elastic" as const,
+                            tierAllocationRatios: {
+                                tier1ToTier2: 0.8, // 80% of swarm resources to routine execution
+                                tier2ToTier3: 0.6, // 60% of routine resources to step execution
+                            },
+                            bufferPercentages: {
+                                emergency: 10,
+                                optimization: 5,
+                                parallel: 15,
+                            },
+                            contention: {
+                                strategy: "priority_based" as const,
+                                preemptionEnabled: true,
+                                priorityWeights: {
+                                    "critical": 10,
+                                    "high": 5,
+                                    "medium": 2,
+                                    "low": 1,
+                                },
+                            },
+                        },
+                        thresholds: {
+                            resourceUtilization: {
+                                warning: 70,
+                                critical: 90,
+                                optimization: 50,
+                            },
+                            latency: {
+                                targetMs: 5000,
+                                warningMs: 10000,
+                                criticalMs: 30000,
+                            },
+                            failureRate: {
+                                warningPercent: 10,
+                                criticalPercent: 25,
+                            },
+                        },
+                        history: {
+                            recentAllocations: [],
+                            performanceMetrics: {
+                                avgUtilization: 0,
+                                peakUtilization: 0,
+                                bottleneckFrequency: {},
+                            },
+                            optimizationHistory: [],
+                        },
+                    },
+                    organizational: {
+                        structure: {
+                            hierarchy: [
+                                {
+                                    level: 1,
+                                    roles: ["swarm_leader"],
+                                    authority: ["approve_tools", "allocate_resources", "create_teams"],
+                                },
+                                {
+                                    level: 2,
+                                    roles: ["swarm_agent"],
+                                    authority: ["execute_tasks", "update_blackboard"],
+                                },
+                            ],
+                            groups: [
+                                {
+                                    id: "primary_team",
+                                    name: "Primary Execution Team",
+                                    members: [], // Will be populated as agents join
+                                    responsibilities: ["goal_achievement", "task_execution"],
+                                },
+                            ],
+                            dependencies: [],
+                        },
+                        functional: {
+                            missions: [
+                                {
+                                    id: "primary_mission",
+                                    name: config.name,
+                                    objectives: [config.goal],
+                                    assignedRoles: ["swarm_leader", "swarm_agent"],
+                                    expectedDuration: config.resources.maxTime,
+                                    priority: "high" as const,
+                                },
+                            ],
+                            goals: [],
+                        },
+                        normative: {
+                            norms: [
+                                {
+                                    id: "resource_conservation",
+                                    name: "Conserve Resources",
+                                    type: "obligation" as const,
+                                    condition: "resourceUtilization > 80%",
+                                    action: "reduce_concurrent_tasks",
+                                    priority: 8,
+                                },
+                                {
+                                    id: "collaboration_requirement",
+                                    name: "Collaborate on Complex Tasks",
+                                    type: "obligation" as const,
+                                    condition: "taskComplexity > 7",
+                                    action: "request_team_assistance",
+                                    priority: 6,
+                                },
+                            ],
+                            sanctions: [
+                                {
+                                    normId: "resource_conservation",
+                                    violationSeverity: "moderate" as const,
+                                    action: "resource_reduction" as const,
+                                },
+                            ],
+                        },
+                    },
+                },
+                
+                // Configuration that enables emergent behavior
+                configuration: {
+                    timeouts: {
+                        routineExecutionMs: config.resources.maxTime,
+                        stepExecutionMs: 30000,
+                        approvalTimeoutMs: 300000,
+                        idleTimeoutMs: 600000,
+                    },
+                    retries: {
+                        maxRetries: 3,
+                        backoffStrategy: "exponential" as const,
+                        baseDelayMs: 1000,
+                        maxDelayMs: 30000,
+                    },
+                    features: {
+                        emergentGoalGeneration: true,    // Allow agents to create new goals
+                        adaptiveResourceAllocation: true, // Allow resource strategy changes
+                        crossSwarmCommunication: false,   // Disabled initially for security
+                        autonomousToolApproval: config.config.autoApproveTools,
+                        contextualLearning: true,         // Enable context-based learning
+                    },
+                    coordination: {
+                        maxParallelAgents: config.config.parallelExecutionLimit,
+                        communicationProtocol: "event_driven" as const,
+                        consensusThreshold: 0.7,
+                        leadershipElection: "manual" as const, // Leader specified during creation
+                    },
+                },
+                
+                // Shared blackboard for inter-agent communication
+                blackboard: {
+                    items: new Map(),
+                    subscriptions: [],
+                },
+                
+                // Current execution state
+                execution: {
+                    status: "initializing" as const,
+                    teams: [
+                        {
+                            id: "primary_team",
+                            name: "Primary Execution Team",
+                            leader: config.leaderBotId || "system",
+                            members: [],
+                            status: "forming" as const,
+                        },
+                    ],
+                    agents: [],
+                    activeRuns: [],
+                },
+                
+                // Context metadata
+                metadata: {
+                    createdBy: config.userId,
+                    createdFrom: config.parentSwarmId,
+                    subscribers: [],
+                    emergencyContacts: [config.userId],
+                    retentionPolicy: {
+                        keepHistoryDays: 30,
+                        archiveAfterDays: 90,
+                        deleteAfterDays: 365,
+                    },
+                    diagnostics: {
+                        contextSize: 0, // Will be calculated by SwarmContextManager
+                        updateFrequency: 0,
+                        subscriptionCount: 0,
+                        lastOptimization: new Date(),
+                    },
+                },
+            };
+
+            // Create the context
+            await this.contextManager.createContext(swarmId, initialContext);
+
+            this.logger.info("[TierOneCoordinator] Initialized swarm context with emergent capabilities", {
+                swarmId,
+                name: config.name,
+                emergentFeaturesEnabled: Object.values(initialContext.configuration.features).filter(Boolean).length,
+                securityRoles: Object.keys(initialContext.policy.security.permissions).length,
+                resourcePoolsConfigured: Object.keys(initialContext.resources.total.models).length + Object.keys(initialContext.resources.total.tools).length,
+            });
+
+        } catch (error) {
+            this.logger.error("[TierOneCoordinator] Failed to initialize swarm context", {
+                swarmId,
+                name: config.name,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            // Don't throw - swarm can still function without unified context
+        }
     }
 }

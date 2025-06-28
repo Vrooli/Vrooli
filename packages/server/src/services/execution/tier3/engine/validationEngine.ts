@@ -64,6 +64,42 @@ interface _ReasoningFramework {
 /**
  * Validation Engine - Comprehensive output validation with emergent agent integration
  * 
+ * @deprecated This 760-line monolithic validation engine will be split into focused components 
+ * as part of the SwarmContextManager migration outlined in swarm-state-management-redesign.md.
+ * 
+ * ## DEPRECATION DETAILS:
+ * 
+ * **Why Deprecated:**
+ * 1. **Multiple Responsibilities**: 760 lines handling schema validation, security scanning, AND reasoning validation
+ * 2. **Monolithic Structure**: Single class with 10+ distinct validation methods violates SRP
+ * 3. **Complex Testing**: Difficult to unit test individual validation concerns in isolation
+ * 4. **Mixed Abstractions**: Schema validation logic mixed with AI reasoning validation
+ * 5. **Event Publishing Overhead**: Complex event emission logic embedded throughout validation
+ * 
+ * **Current Monolithic Methods (To Be Split):**
+ * - validateOutput() + validateSchema() - Schema validation logic (~150 lines)
+ * - performSecurityScan() + detectXSS() + detectPII() - Security scanning (~250 lines)
+ * - validateReasoning() + validateLogicalReasoning() - AI reasoning validation (~200 lines)
+ * - Event publishing helpers and infrastructure (~160 lines)
+ * 
+ * **Replacement Architecture:**
+ * This 760-line monolith will be replaced by 3 focused components (~650 total lines):
+ * 1. **ValidationCore** (200 lines) - Pure schema validation with Yup
+ * 2. **SecurityScanner** (250 lines) - Security-focused validation with threat detection
+ * 3. **ReasoningValidator** (200 lines) - AI reasoning validation and quality checks
+ * 
+ * **Migration Timeline:**
+ * - Phase 1: Extract ValidationCore for schema validation (weeks 1-2)
+ * - Phase 2: Extract SecurityScanner and ReasoningValidator (weeks 3-4)
+ * - Phase 3: Remove monolithic ValidationEngine (weeks 5-6)
+ * 
+ * **Benefits After Split:**
+ * - 14% complexity reduction (760 → 650 lines)
+ * - Single responsibility per component (easier testing)
+ * - Focused validation concerns (schema, security, reasoning)
+ * - Independent evolution of validation logic
+ * - Cleaner event emission patterns
+ * 
  * This component provides validation infrastructure and emits events for emergent agents:
  * - Schema validation using Yup
  * - Event emission for security agents (XSS, PII, threats)
@@ -73,6 +109,11 @@ interface _ReasoningFramework {
  * EMERGENT CAPABILITIES:
  * Security, quality, and optimization intelligence emerges from specialized agents
  * that subscribe to validation events, not from hardcoded logic.
+ * 
+ * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete replacement plan
+ * @see ValidationCore - Pure schema validation replacement
+ * @see SecurityScanner - Security validation replacement
+ * @see ReasoningValidator - AI reasoning validation replacement
  */
 export class ValidationEngine {
     private readonly logger: Logger;

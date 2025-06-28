@@ -11,14 +11,14 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { createSimpleTestUser } from "../utils/simple-helpers.js";
-import { getPrisma } from "../setup/test-setup.js";
+import { DbProvider } from "@vrooli/server";
 import { generatePK } from "@vrooli/shared";
 
 describe("User Onboarding Workflow Scenario", () => {
     let prisma: any;
 
     beforeEach(async () => {
-        prisma = getPrisma();
+        prisma = DbProvider.get();
     });
 
     it("should complete full user onboarding workflow", async () => {

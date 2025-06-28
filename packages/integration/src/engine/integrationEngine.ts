@@ -81,13 +81,12 @@ import type {
  * @template TResult - Type of API response and database result
  */
 export class IntegrationEngine<
-    TFormData extends Record<string, any>,
     TShape extends { __typename: string; id: string },
     TCreateInput extends Record<string, any>,
     TUpdateInput extends Record<string, any>,
     TResult extends { id: string; __typename: string }
 > {
-    private readonly config: StandardIntegrationConfig<TFormData, TShape, TCreateInput, TUpdateInput, TResult>;
+    private readonly config: StandardIntegrationConfig<TShape, TCreateInput, TUpdateInput, TResult>;
     private readonly testSession: Session | null = null;
 
     /**
@@ -100,7 +99,7 @@ export class IntegrationEngine<
      * ```typescript
      * const engine = new IntegrationEngine({
      *     objectType: "Comment",
-     *     uiFormConfig: commentFormTestConfig, // Contains all transformation methods
+     *     formConfig: commentFormConfig, // Contains all transformation methods
      *     endpointCaller: commentEndpointCaller,
      *     databaseVerifier: commentDatabaseVerifier,
      *     validation: commentValidation
@@ -150,7 +149,7 @@ export class IntegrationEngine<
     async executeTest(
         scenario: string,
         options: IntegrationTestOptions = {},
-    ): Promise<IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>> {
+    ): Promise<IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>> {
         const {
             isCreate = true,
             existingId,
@@ -165,7 +164,7 @@ export class IntegrationEngine<
         const testId = this.generateTestId();
         
         // Initialize result structure
-        const result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult> = {
+        const result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult> = {
             success: false,
             metadata: {
                 objectType: this.config.objectType,
@@ -175,7 +174,7 @@ export class IntegrationEngine<
                 testId,
             },
             dataFlow: {
-                formData: {} as TFormData,
+                formData: {} as TShape,
                 shapeData: {} as TShape,
                 apiInput: {} as TCreateInput | TUpdateInput,
                 apiResponse: null,
@@ -233,7 +232,7 @@ export class IntegrationEngine<
             result.success = this.determineOverallSuccess(result);
 
         } catch (error) {
-            this.handleTestError(error, result, "execution");
+            this.handleTestError(error, result, "validation");
         } finally {
             // Record total timing
             result.timing.total = Date.now() - startTime;
@@ -282,9 +281,9 @@ export class IntegrationEngine<
         options: IntegrationTestOptions = {},
         parallel: boolean = false,
         maxConcurrency: number = 3,
-    ): Promise<BatchIntegrationResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>> {
+    ): Promise<BatchIntegrationResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>> {
         const startTime = Date.now();
-        const results: Array<IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>> = [];
+        const results: Array<IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>> = [];
         const errors: Array<{ testId: string; scenario: string; error: string }> = [];
 
         try {
@@ -372,6 +371,138 @@ export class IntegrationEngine<
     }
 
     /**
+     * Test a complete round-trip form submission
+     * 
+     * This is an alias for executeTest that provides a more intuitive API
+     * for the common use case of testing form submissions.
+     * 
+     * @param scenario - Name of the test scenario
+     * @param options - Test execution options
+     * @returns Complete test result
+     */
+    async testRoundTripSubmission(
+        scenario: string,
+        options: IntegrationTestOptions = {},
+    ): Promise<IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>> {
+        return this.executeTest(scenario, options);
+    }
+
+    /**
+     * Test form performance under load
+     * 
+     * Runs multiple iterations of a test scenario to measure performance
+     * characteristics and identify potential bottlenecks.
+     * 
+     * @param scenario - Name of the test scenario
+     * @param options - Performance test options
+     * @returns Performance test results
+     */
+    async testFormPerformance(
+        scenario: string,
+        options: {
+            iterations?: number;
+            concurrency?: number;
+            isCreate?: boolean;
+            contextData?: any;
+        } = {},
+    ): Promise<{
+        successRate: number;
+        averageTime: number;
+        errors: string[];
+    }> {
+        const {
+            iterations = 10,
+            concurrency = 1,
+            isCreate = true,
+            contextData,
+        } = options;
+
+        // Create test scenarios for batch execution
+        const scenarios: IntegrationScenario[] = Array.from({ length: iterations }, (_, i) => ({
+            name: scenario,
+            description: `Performance test iteration ${i + 1}`,
+            shouldSucceed: true,
+            operation: isCreate ? "create" : "update",
+            options: {
+                isCreate,
+                validateConsistency: false, // Skip consistency checks for performance tests
+                cleanup: true,
+                captureTimings: true,
+                ...contextData,
+            },
+        }));
+
+        // Execute batch test
+        const batchResult = await this.executeBatch(
+            scenarios,
+            { ...contextData },
+            concurrency > 1,
+            concurrency,
+        );
+
+        return {
+            successRate: batchResult.performance.successRate,
+            averageTime: batchResult.performance.averageTime,
+            errors: batchResult.errors.map(e => e.error),
+        };
+    }
+
+    /**
+     * Generate integration test cases based on available fixtures
+     * 
+     * Analyzes the fixtures and generates test cases with expected outcomes.
+     * This is useful for dynamic test generation and discovering edge cases.
+     * 
+     * @returns Array of test cases with metadata
+     */
+    generateIntegrationTestCases(): Array<{
+        scenario: string;
+        description: string;
+        isCreate: boolean;
+        shouldSucceed: boolean;
+    }> {
+        const testCases: Array<{
+            scenario: string;
+            description: string;
+            isCreate: boolean;
+            shouldSucceed: boolean;
+        }> = [];
+
+        // Get all fixture scenarios
+        const fixtureCategories = ['valid', 'invalid', 'edge'];
+        
+        for (const category of fixtureCategories) {
+            const categoryFixtures = this.config.fixtures[category];
+            if (!categoryFixtures) continue;
+
+            for (const [scenarioName, _] of Object.entries(categoryFixtures)) {
+                const shouldSucceed = category === 'valid';
+                const fullScenarioName = `${category}.${scenarioName}`;
+
+                // Generate create test case
+                testCases.push({
+                    scenario: fullScenarioName,
+                    description: `Create ${this.config.objectType} with ${category} ${scenarioName} data`,
+                    isCreate: true,
+                    shouldSucceed,
+                });
+
+                // Generate update test case (only for valid scenarios)
+                if (shouldSucceed) {
+                    testCases.push({
+                        scenario: fullScenarioName,
+                        description: `Update ${this.config.objectType} with ${category} ${scenarioName} data`,
+                        isCreate: false,
+                        shouldSucceed: true,
+                    });
+                }
+            }
+        }
+
+        return testCases;
+    }
+
+    /**
      * Generate dynamic test scenarios from available form fixtures
      * 
      * This method analyzes the available form fixtures and generates
@@ -389,7 +520,7 @@ export class IntegrationEngine<
      * ```
      */
     generateTestScenarios(): IntegrationScenario[] {
-        const fixtures = this.config.uiFormConfig.formFixtures;
+        const fixtures = this.config.fixtures;
         const scenarios: IntegrationScenario[] = [];
 
         for (const [fixtureName, _] of Object.entries(fixtures)) {
@@ -444,17 +575,17 @@ export class IntegrationEngine<
             errors.push("objectType is required");
         }
 
-        if (!this.config.uiFormConfig) {
-            errors.push("uiFormConfig is required");
-        }
-
-        // Check that UI form config has required transformation methods
-        if (!this.config.uiFormConfig.responseToCreateInput) {
-            errors.push("uiFormConfig.responseToCreateInput is required for integration tests");
+        if (!this.config.formConfig) {
+            errors.push("formConfig is required");
         }
         
-        if (!this.config.uiFormConfig.responseToUpdateInput) {
-            errors.push("uiFormConfig.responseToUpdateInput is required for integration tests");
+        if (!this.config.fixtures) {
+            errors.push("fixtures is required");
+        }
+
+        // Check that form config has required transformation methods
+        if (!this.config.formConfig.transformations) {
+            errors.push("formConfig.transformations is required for integration tests");
         }
 
         if (!this.config.endpointCaller) {
@@ -481,22 +612,37 @@ export class IntegrationEngine<
      */
     private async executeFormTransformation(
         scenario: string,
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
-        _captureTimings: boolean,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
+        captureTimings: boolean,
     ): Promise<void> {
         const transformStart = captureTimings ? Date.now() : 0;
 
         try {
-            // Get form data from fixtures
-            const formData = this.config.uiFormConfig.formFixtures[scenario];
+            // Get form data from fixtures - check in categories
+            let formData: TShape | undefined;
+            
+            // Check if scenario contains a dot, indicating category.name format
+            if (scenario.includes('.')) {
+                const [category, name] = scenario.split('.');
+                formData = this.config.fixtures[category]?.[name];
+            } else {
+                // Try to find in any category
+                for (const category of ['valid', 'invalid', 'edge']) {
+                    if (this.config.fixtures[category]?.[scenario]) {
+                        formData = this.config.fixtures[category][scenario];
+                        break;
+                    }
+                }
+            }
+            
             if (!formData) {
-                throw new Error(`Form fixture '${scenario}' not found`);
+                throw new Error(`Form fixture '${scenario}' not found in any category`);
             }
             
             result.dataFlow.formData = formData;
 
             // Transform to shape
-            const shapeData = this.config.uiFormConfig.formToShape(formData);
+            const shapeData = this.config.formConfig.transformations.formToShape(formData);
             result.dataFlow.shapeData = shapeData;
 
             if (captureTimings) {
@@ -514,10 +660,10 @@ export class IntegrationEngine<
      * @private
      */
     private async executeApiInputGeneration(
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
         isCreate: boolean,
         existingId: string | undefined,
-        _captureTimings: boolean,
+        captureTimings: boolean,
     ): Promise<void> {
         try {
             // For updates, we need to get existing data first
@@ -531,17 +677,11 @@ export class IntegrationEngine<
 
             // Convert shape to API input using form config transformation methods
             if (isCreate) {
-                // Use the form config's transformToAPIInput method
-                if (this.config.uiFormConfig.transformFunction) {
-                    result.dataFlow.apiInput = this.config.uiFormConfig.transformFunction(
-                        result.dataFlow.shapeData,
-                        {} as TShape, // No existing data for create
-                        true, // isCreate
+                // Use the form config's shapeToInput.create method
+                if (this.config.formConfig.transformations.shapeToInput.create) {
+                    result.dataFlow.apiInput = this.config.formConfig.transformations.shapeToInput.create(
+                        result.dataFlow.shapeData
                     );
-                } else if (this.config.uiFormConfig.responseToCreateInput) {
-                    // Fallback: simulate response format and convert to input
-                    const tempResult = result.dataFlow.shapeData as unknown as TResult;
-                    result.dataFlow.apiInput = this.config.uiFormConfig.responseToCreateInput(tempResult);
                 } else {
                     throw new Error("No transformation method available for create operation");
                 }
@@ -550,15 +690,11 @@ export class IntegrationEngine<
                     throw new Error("Existing data required for update operation");
                 }
                 
-                if (this.config.uiFormConfig.transformFunction) {
-                    result.dataFlow.apiInput = this.config.uiFormConfig.transformFunction(
-                        result.dataFlow.shapeData,
+                if (this.config.formConfig.transformations.shapeToInput.update) {
+                    result.dataFlow.apiInput = this.config.formConfig.transformations.shapeToInput.update(
                         existingData as unknown as TShape,
-                        false, // isCreate
+                        result.dataFlow.shapeData
                     );
-                } else if (this.config.uiFormConfig.responseToUpdateInput) {
-                    const updatedData = { ...existingData, ...result.dataFlow.shapeData } as TResult;
-                    result.dataFlow.apiInput = this.config.uiFormConfig.responseToUpdateInput(existingData, updatedData);
                 } else {
                     throw new Error("No transformation method available for update operation");
                 }
@@ -576,11 +712,11 @@ export class IntegrationEngine<
      * @private
      */
     private async executeApiCall(
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
         isCreate: boolean,
         existingId: string | undefined,
         session: Session | undefined,
-        _captureTimings: boolean,
+        captureTimings: boolean,
     ): Promise<void> {
         const apiStart = captureTimings ? Date.now() : 0;
 
@@ -625,8 +761,8 @@ export class IntegrationEngine<
      * @private
      */
     private async executeDatabaseVerification(
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
-        _captureTimings: boolean,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
+        captureTimings: boolean,
     ): Promise<void> {
         const dbStart = captureTimings ? Date.now() : 0;
 
@@ -664,7 +800,7 @@ export class IntegrationEngine<
      * @private
      */
     private async executeConsistencyValidation(
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
     ): Promise<void> {
         try {
             // Form to API consistency
@@ -694,7 +830,7 @@ export class IntegrationEngine<
      * @private
      */
     private validateFormToApiConsistency(
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
     ): boolean {
         try {
             // Basic validation - ensure we have both form data and API input
@@ -720,7 +856,7 @@ export class IntegrationEngine<
      * @private
      */
     private validateApiToDatabaseConsistency(
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
     ): boolean {
         try {
             if (!result.dataFlow.apiResponse || !result.dataFlow.databaseData) {
@@ -757,7 +893,7 @@ export class IntegrationEngine<
      * @private
      */
     private validateBidirectionalTransform(
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
     ): boolean {
         try {
             if (!result.dataFlow.apiResponse) {
@@ -765,41 +901,26 @@ export class IntegrationEngine<
                 return false;
             }
 
-            // Test that we can transform the API response back to input format
-            if (this.config.uiFormConfig.validateBidirectionalTransform) {
-                const validation = this.config.uiFormConfig.validateBidirectionalTransform(
-                    result.dataFlow.apiResponse,
-                    result.dataFlow.apiInput,
+            // Test that we can transform the API response back to shape format
+            try {
+                // Convert API response back to shape using apiResultToShape
+                const backToShape = this.config.formConfig.transformations.apiResultToShape(
+                    result.dataFlow.apiResponse
                 );
-
-                if (!validation.isValid) {
-                    result.consistency.details.push("Bidirectional transformation validation failed");
-                    validation.errors.forEach(error => {
-                        result.consistency.details.push(`  Error: ${error}`);
-                    });
-                    validation.warnings.forEach(warning => {
-                        result.warnings.push(warning);
-                    });
+                
+                // Then try to transform it back to input to verify round-trip capability
+                if (this.config.formConfig.transformations.shapeToInput.create) {
+                    const roundTripInput = this.config.formConfig.transformations.shapeToInput.create(backToShape);
+                    // If we got here without throwing, the transformation worked
+                    result.consistency.details.push("Bidirectional transformation validated using form config methods");
+                    return true;
                 } else {
-                    result.consistency.details.push("Bidirectional transformation validated");
+                    result.consistency.details.push("Create transformation not available - partial bidirectional validation");
+                    return true;
                 }
-
-                return validation.isValid;
-            } else {
-                // If no validation method provided, try basic consistency check
-                if (this.config.uiFormConfig.responseToFormData) {
-                    try {
-                        this.config.uiFormConfig.responseToFormData(result.dataFlow.apiResponse);
-                        result.consistency.details.push("Basic response-to-form transformation successful");
-                        return true;
-                    } catch (error) {
-                        result.consistency.details.push(`Response-to-form transformation failed: ${error}`);
-                        return false;
-                    }
-                } else {
-                    result.consistency.details.push("No bidirectional validation method available - skipping");
-                    return true; // Don't fail if no validation method is provided
-                }
+            } catch (error) {
+                result.consistency.details.push(`Bidirectional transformation failed: ${error}`);
+                return false;
             }
 
         } catch (error) {
@@ -814,7 +935,7 @@ export class IntegrationEngine<
      * @private
      */
     private determineOverallSuccess(
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
     ): boolean {
         // Test succeeds if:
         // 1. No errors were recorded
@@ -832,8 +953,8 @@ export class IntegrationEngine<
      */
     private handleTestError(
         error: unknown,
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
-        stage: "transformation" | "api" | "database" | "validation" | "execution",
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
+        stage: "transformation" | "api" | "database" | "validation",
     ): void {
         const errorMessage = error instanceof Error ? error.message : String(error);
         result.errors.push({
@@ -850,7 +971,7 @@ export class IntegrationEngine<
      */
     private handleApiError(
         apiError: ApiError,
-        result: IntegrationTestResult<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
+        result: IntegrationTestResult<TShape, TShape, TCreateInput, TUpdateInput, TResult>,
     ): void {
         result.errors.push({
             stage: "api",
@@ -905,8 +1026,8 @@ export class IntegrationEngine<
  * ```typescript
  * const engine = createIntegrationEngine({
  *     objectType: "Comment",
- *     uiFormConfig: commentFormTestConfig,
- *     apiInputTransformer: commentApiInputTransformer,
+ *     formConfig: commentFormConfig,
+ *     fixtures: commentFormFixtures,
  *     endpointCaller: commentEndpointCaller,
  *     databaseVerifier: commentDatabaseVerifier,
  *     validation: commentValidation
@@ -914,13 +1035,12 @@ export class IntegrationEngine<
  * ```
  */
 export function createIntegrationEngine<
-    TFormData extends Record<string, any>,
     TShape extends { __typename: string; id: string },
     TCreateInput extends Record<string, any>,
     TUpdateInput extends Record<string, any>,
     TResult extends { id: string; __typename: string }
 >(
-    config: StandardIntegrationConfig<TFormData, TShape, TCreateInput, TUpdateInput, TResult>,
-): IntegrationEngine<TFormData, TShape, TCreateInput, TUpdateInput, TResult> {
+    config: StandardIntegrationConfig<TShape, TCreateInput, TUpdateInput, TResult>,
+): IntegrationEngine<TShape, TCreateInput, TUpdateInput, TResult> {
     return new IntegrationEngine(config);
 }

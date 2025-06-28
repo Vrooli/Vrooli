@@ -41,6 +41,8 @@ export default defineConfig({
                 "node_modules/",
                 "src/setup/",
                 "src/fixtures/",
+                "dist/**",
+                "test-dist/**",
                 "**/*.d.ts",
                 "**/*.config.*",
                 "**/mockData",

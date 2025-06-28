@@ -13,20 +13,8 @@
  * - Enables workflow testing for multi-step user journeys
  */
 
-import { 
-    userPersonas,
-    sessionHelpers,
-    userFixtures,
-    teamFixtures,
-    projectFixtures,
-    commentFixtures,
-    bookmarkFixtures,
-    integrationWorkflowFixtures,
-    integrationErrorFixtures,
-    quickIntegrationFixtures,
-    type IntegrationFixtureConfig,
-} from "../fixtures/index.js";
-import { getPrisma } from "../setup/test-setup.js";
+import { DbProvider } from "@vrooli/server";
+import { UserDbFactory, TeamDbFactory, ProjectDbFactory } from "@vrooli/server/test-fixtures";
 import type { SessionUser } from "@vrooli/shared";
 
 // =============================================================================

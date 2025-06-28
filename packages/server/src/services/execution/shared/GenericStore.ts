@@ -44,6 +44,33 @@ export interface QueryOptions {
  * - TTL management
  * - Event publishing on operations
  * - Error handling and logging
+ * 
+ * @deprecated This 450+ line generic store will be replaced by the SwarmContextManager 
+ * as outlined in swarm-state-management-redesign.md.
+ * 
+ * ## DEPRECATION DETAILS:
+ * 
+ * **Why Deprecated:**
+ * 1. **Over-Engineering**: 450+ lines for what should be simple state operations
+ * 2. **Generic Complexity**: Type-safe generics add complexity without specific benefits
+ * 3. **Event Publishing Overhead**: Complex event emission for simple CRUD operations
+ * 4. **Batch Operation Complexity**: Manual batch handling that SwarmContextManager automates
+ * 5. **Configuration Bloat**: Multiple configuration options for simple storage needs
+ * 
+ * **Migration to SwarmContextManager:**
+ * The SwarmContextManager will provide simpler, more focused state management:
+ * - Direct SwarmContext operations instead of generic T
+ * - Built-in versioning and concurrency control
+ * - Automatic event publishing through pub/sub
+ * - Simplified batch operations through context updates
+ * 
+ * **Timeline:**
+ * - Phase 1: Replace with SwarmContextManager (weeks 1-2)  
+ * - Phase 2: Remove GenericStore usage (weeks 3-4)
+ * - Phase 3: Delete this file (weeks 5-6)
+ * 
+ * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete replacement plan
+ * @see SwarmContextManager - Direct replacement for generic storage
  */
 export class GenericStore<T> {
     private readonly config: Required<StoreConfig<T>>;
@@ -59,7 +86,13 @@ export class GenericStore<T> {
             keyPrefix: config.keyPrefix,
             defaultTTL: config.defaultTTL ?? 0,
             serialize: config.serialize ?? ((data: T) => JSON.stringify(data)),
-            deserialize: config.deserialize ?? ((data: string) => JSON.parse(data) as T),
+            deserialize: config.deserialize ?? ((data: string) => {
+                try {
+                    return JSON.parse(data) as T;
+                } catch (error) {
+                    throw new Error(`JSON deserialization failed: ${error instanceof Error ? error.message : String(error)}`);
+                }
+            }),
             validate: config.validate ?? (() => true),
             publishEvents: config.publishEvents ?? false,
             eventChannelPrefix: config.eventChannelPrefix ?? config.keyPrefix,

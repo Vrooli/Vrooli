@@ -15,15 +15,17 @@ import type {
     CommentUpdateInput,
     Session,
 } from "@vrooli/shared";
+import { shapeComment } from "@vrooli/shared";
 import type {
     StandardIntegrationConfig,
     EndpointCaller,
     DatabaseVerifier,
 } from "./types.js";
-// Import the existing UI form test configuration with integration support
-// This contains all the form fixtures, transformations, and response handlers
-import { commentFormTestConfig } from "@vrooli/ui/src/__test/fixtures/form-testing/examples/CommentFormTestWithIntegration.js";
-import { getPrisma } from "../setup/test-setup.js";
+// Import the unified form configuration from shared package
+import { commentFormConfig } from "@vrooli/shared";
+// Import test fixtures from local copy
+import { commentFormFixtures } from "../fixtures/comment.js";
+import { DbProvider } from "@vrooli/server";
 
 /**
  * Note: API Input Transformer logic has been moved to commentFormTestConfig.
@@ -48,7 +50,7 @@ const commentEndpointCaller: EndpointCaller<CommentCreateInput, CommentUpdateInp
 
         try {
             // Import and call actual endpoint logic
-            const { default: commentLogic } = await import("@vrooli/server/src/endpoints/logic/comment.js");
+            const { comment: commentLogic } = await import("@vrooli/server");
 
             const result = await commentLogic.Create.performLogic({
                 input,
@@ -77,7 +79,7 @@ const commentEndpointCaller: EndpointCaller<CommentCreateInput, CommentUpdateInp
         const startTime = Date.now();
 
         try {
-            const { default: commentLogic } = await import("@vrooli/server/src/endpoints/logic/comment.js");
+            const { comment: commentLogic } = await import("@vrooli/server/endpoints");
 
             const result = await commentLogic.Update.performLogic({
                 input: { ...input, id },
@@ -106,7 +108,7 @@ const commentEndpointCaller: EndpointCaller<CommentCreateInput, CommentUpdateInp
         const startTime = Date.now();
 
         try {
-            const { default: commentLogic } = await import("@vrooli/server/src/endpoints/logic/comment.js");
+            const { comment: commentLogic } = await import("@vrooli/server/endpoints");
 
             const result = await commentLogic.Read.performLogic({
                 input: { id },
@@ -135,7 +137,7 @@ const commentEndpointCaller: EndpointCaller<CommentCreateInput, CommentUpdateInp
         const startTime = Date.now();
 
         try {
-            const { default: commentLogic } = await import("@vrooli/server/src/endpoints/logic/comment.js");
+            const { comment: commentLogic } = await import("@vrooli/server/endpoints");
 
             await commentLogic.Delete.performLogic({
                 input: { id },
@@ -168,7 +170,7 @@ const commentEndpointCaller: EndpointCaller<CommentCreateInput, CommentUpdateInp
 const commentDatabaseVerifier: DatabaseVerifier<Comment> = {
     findById: async (id: string): Promise<Comment | null> => {
         try {
-            const prisma = getPrisma();
+            const prisma = DbProvider.get();
             const comment = await prisma.comment.findUnique({
                 where: { id },
                 include: {
@@ -214,7 +216,7 @@ const commentDatabaseVerifier: DatabaseVerifier<Comment> = {
 
     cleanup: async (id: string) => {
         try {
-            const prisma = getPrisma();
+            const prisma = DbProvider.get();
             await prisma.comment.delete({ where: { id } });
         } catch (error) {
             console.error("Cleanup error:", error);
@@ -229,21 +231,30 @@ const commentDatabaseVerifier: DatabaseVerifier<Comment> = {
  * (which includes all transformation methods) with endpoint caller and database verifier.
  */
 export const commentIntegrationConfig: StandardIntegrationConfig<
-    any, // Form data type from UI fixtures
     CommentShape,
     CommentCreateInput,
     CommentUpdateInput,
     Comment
 > = {
     objectType: "Comment",
-    uiFormConfig: commentFormTestConfig,  // ← Contains all transformation methods now!
+    formConfig: commentFormConfig,
+    fixtures: commentFormFixtures,
     endpointCaller: commentEndpointCaller,
     databaseVerifier: commentDatabaseVerifier,
-    validation: commentFormTestConfig.validation, // Already included in UI config
+    validation: commentFormConfig.validation.schema,
 };
+
+/**
+ * Comment Integration Factory - uses the existing IntegrationEngine
+ */
+import { createIntegrationEngine } from "../engine/integrationEngine.js";
+export const commentFormIntegrationFactory = createIntegrationEngine(commentIntegrationConfig);
 
 // Export for individual use
 export {
     commentEndpointCaller,
     commentDatabaseVerifier,
 };
+
+// Re-export createTestCommentTarget for convenience
+export { createTestCommentTarget } from "../utils/simple-helpers.js";

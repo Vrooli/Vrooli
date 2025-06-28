@@ -1,8 +1,49 @@
 /**
  * Redis Index Manager
  * 
+ * @deprecated This 200+ line Redis indexing utility will be replaced by automated 
+ * indexing in SwarmContextManager as outlined in swarm-state-management-redesign.md.
+ * 
+ * ## DEPRECATION DETAILS:
+ * 
+ * **Why Deprecated:**
+ * 1. **Manual Index Management**: 200+ lines of manual Redis index operations
+ * 2. **Complex State Transitions**: Manual state-based indexing prone to race conditions
+ * 3. **No Atomic Operations**: Index updates separate from data updates (consistency issues)
+ * 4. **Memory Overhead**: Multiple index structures maintained manually
+ * 5. **Cleanup Complexity**: Manual TTL and cleanup management across multiple indexes
+ * 
+ * **Current Manual Operations (To Be Automated):**
+ * - addToSet() + removeFromSet() + getSetMembers() - 60+ lines of set management
+ * - addToList() + removeFromList() + getListMembers() - 40+ lines of list management  
+ * - updateStateIndex() - 50+ lines of complex state transition logic
+ * - Manual TTL management and cleanup - 30+ lines
+ * - Batch operations and pipeline management - 20+ lines
+ * 
+ * **Replacement Strategy:**
+ * SwarmContextManager will provide automatic indexing through:
+ * - Built-in state-based indexing (no manual management)
+ * - Atomic context updates with automatic index consistency
+ * - Redis pub/sub for automatic index invalidation
+ * - Versioned context updates with rollback capability
+ * 
+ * **Migration Timeline:**
+ * - Phase 1: SwarmContextManager handles indexing automatically (weeks 1-2)
+ * - Phase 2: Remove manual index operations (weeks 3-4)
+ * - Phase 3: Delete RedisIndexManager entirely (weeks 5-6)
+ * 
+ * **Benefits After Removal:**
+ * - 200+ lines removed (100% reduction)
+ * - No manual index management or cleanup
+ * - Atomic state + index updates (no consistency issues)
+ * - Automatic index invalidation through pub/sub
+ * - Simplified state operations without index concerns
+ * 
  * Centralized utility for managing Redis indexes across all stores.
  * Eliminates duplicate index management code and provides consistent patterns.
+ * 
+ * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete replacement plan
+ * @see SwarmContextManager - Automated indexing replacement
  */
 
 import { type Logger } from "winston";

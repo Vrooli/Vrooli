@@ -65,6 +65,7 @@ export abstract class BaseStateMachine<
     protected readonly unifiedEventBus: IEventBus | null;
     protected readonly componentName: string;
     protected readonly errorHandler: ComponentErrorHandler;
+    protected readonly maxQueueSize: number = 1000; // Prevent unbounded growth
     
     constructor(
         protected readonly logger: Logger,
@@ -105,6 +106,20 @@ export abstract class BaseStateMachine<
                 state: this.state,
             });
             return;
+        }
+
+        // Prevent unbounded queue growth
+        if (this.eventQueue.length >= this.maxQueueSize) {
+            this.logger.warn(`[${this.constructor.name}] Event queue at capacity, dropping oldest events`, {
+                queueSize: this.eventQueue.length,
+                maxSize: this.maxQueueSize,
+                droppedEventType: this.eventQueue[0]?.type,
+                newEventType: event.type,
+            });
+            
+            // Drop oldest events to make room (FIFO eviction)
+            const dropCount = Math.floor(this.maxQueueSize * 0.1); // Drop 10% of queue
+            this.eventQueue.splice(0, dropCount);
         }
 
         this.eventQueue.push(event);

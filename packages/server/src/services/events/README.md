@@ -136,6 +136,33 @@ await approvalSystem.handleUserApprovalResponse({
 });
 ```
 
+### 5. **Socket Event Adapter** (`adapters/socketEventAdapter.ts`)
+Bridges the event system with socket.io for real-time client updates:
+
+```typescript
+const socketAdapter = createSocketEventAdapter(eventBus, logger);
+
+// Automatically routes events to socket clients:
+// - STATE_SWARM_UPDATED → swarmStateUpdate socket event
+// - RESOURCE_SWARM_UPDATED → swarmResourceUpdate socket event
+// - CONFIG_SWARM_UPDATED → swarmConfigUpdate socket event
+// - TEAM_SWARM_UPDATED → swarmTeamUpdate socket event
+// - TOOL_APPROVAL_REQUIRED → tool_approval_required socket event
+
+// Components publish events normally
+await this.publishUnifiedEvent(EventTypes.STATE_SWARM_UPDATED, {
+  entityType: "swarm",
+  entityId: swarmId,
+  newState: ExecutionStates.RUNNING,
+  message: "Swarm is processing"
+}, {
+  conversationId: chatId // Required for routing
+});
+
+// Socket adapter automatically emits to connected clients
+// Agents can subscribe to monitor/modify socket traffic
+```
+
 ## 📊 Event Patterns
 
 ### Topic Hierarchy
@@ -172,6 +199,26 @@ safety/
 emergency/
   stop
   escalation
+
+state/
+  swarm/
+    updated
+  run/
+    updated
+  task/
+    updated
+
+config/
+  swarm/
+    updated
+  routine/
+    updated
+
+resource/
+  swarm/
+    updated
+  user/
+    updated
 ```
 
 ### Subscription Patterns
