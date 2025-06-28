@@ -33,8 +33,7 @@
  * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete context design
  */
 
-import { 
-    type ExecutionContext,
+import {
     type CoreResourceAllocation,
     type ExecutionResourceUsage,
     type SwarmId,
@@ -46,16 +45,16 @@ import {
 export interface ResourcePool {
     /** Total credits available/allocated */
     credits: string; // BigInt as string to handle large values
-    
+
     /** Maximum execution duration in milliseconds */
     durationMs: number;
-    
+
     /** Maximum memory allocation in MB */
     memoryMB: number;
-    
+
     /** Maximum concurrent executions */
     concurrentExecutions: number;
-    
+
     /** Available AI models and their limits */
     models: {
         [modelName: string]: {
@@ -64,7 +63,7 @@ export interface ResourcePool {
             costPerToken: string; // BigInt as string
         };
     };
-    
+
     /** Available tools and their resource costs */
     tools: {
         [toolName: string]: {
@@ -81,28 +80,28 @@ export interface ResourcePool {
 export interface ResourceAllocation {
     /** Unique allocation identifier */
     id: string;
-    
+
     /** What entity this allocation is for (routine, step, etc.) */
     consumerId: string;
-    
+
     /** Type of consumer (routine, step, agent, etc.) */
     consumerType: "routine" | "step" | "agent" | "parallel_branch";
-    
+
     /** Allocated resource limits */
     allocation: CoreResourceAllocation;
-    
+
     /** Current usage against allocation */
     usage: ExecutionResourceUsage;
-    
+
     /** Parent allocation (for hierarchical tracking) */
     parentAllocationId?: string;
-    
+
     /** Allocation timestamp */
     allocatedAt: Date;
-    
+
     /** Expected completion time (for resource planning) */
     expectedCompletionAt?: Date;
-    
+
     /** Priority for resource contention resolution */
     priority: "low" | "medium" | "high" | "critical";
 }
@@ -120,7 +119,7 @@ export interface SecurityPolicy {
             maxResourceAllocation: CoreResourceAllocation;
         };
     };
-    
+
     /** Security scanning configuration */
     scanning: {
         enabledScanners: string[]; // "xss", "pii", "malware", etc.
@@ -129,7 +128,7 @@ export interface SecurityPolicy {
             [scannerName: string]: number; // Severity threshold
         };
     };
-    
+
     /** Tool approval requirements */
     toolApproval: {
         requireApprovalForTools: string[]; // Tool names requiring approval
@@ -145,20 +144,20 @@ export interface ResourcePolicy {
     /** Base allocation strategy configuration */
     allocation: {
         strategy: "strict" | "elastic" | "predictive" | "agent_optimized";
-        
+
         /** Tier-to-tier allocation percentages (data-driven) */
         tierAllocationRatios: {
             tier1ToTier2: number; // Swarm → Routine
             tier2ToTier3: number; // Routine → Step
         };
-        
+
         /** Buffer percentages for emergency allocation */
         bufferPercentages: {
             emergency: number;    // Reserve for critical failures
             optimization: number; // Reserve for agent improvements
             parallel: number;     // Reserve for parallel execution
         };
-        
+
         /** Resource contention resolution */
         contention: {
             strategy: "priority_based" | "fair_share" | "elastic_preemption";
@@ -168,7 +167,7 @@ export interface ResourcePolicy {
             };
         };
     };
-    
+
     /** Performance thresholds that trigger agent optimizations */
     thresholds: {
         resourceUtilization: {
@@ -176,19 +175,19 @@ export interface ResourcePolicy {
             critical: number;    // % utilization to trigger emergency actions
             optimization: number; // % utilization to trigger agent optimization
         };
-        
+
         latency: {
             targetMs: number;    // Target execution latency
             warningMs: number;   // Latency threshold for warnings
             criticalMs: number;  // Latency threshold for escalation
         };
-        
+
         failureRate: {
             warningPercent: number;  // % failure rate to trigger warnings
             criticalPercent: number; // % failure rate to trigger escalation
         };
     };
-    
+
     /** Historical data for agent learning */
     history: {
         recentAllocations: ResourceAllocation[];
@@ -218,7 +217,7 @@ export interface MOISEPolicy {
             roles: string[];
             authority: string[]; // What this level can authorize
         }[];
-        
+
         /** Groups and their members */
         groups: {
             id: string;
@@ -226,7 +225,7 @@ export interface MOISEPolicy {
             members: string[]; // Agent IDs
             responsibilities: string[];
         }[];
-        
+
         /** Dependencies between roles/groups */
         dependencies: {
             from: string; // Role or group ID
@@ -235,7 +234,7 @@ export interface MOISEPolicy {
             conditions?: string[]; // When this dependency applies
         }[];
     };
-    
+
     /** Functional specifications */
     functional: {
         /** Mission definitions */
@@ -247,7 +246,7 @@ export interface MOISEPolicy {
             expectedDuration: number;
             priority: "low" | "medium" | "high" | "critical";
         }[];
-        
+
         /** Goals that emerge from agent coordination */
         goals: {
             id: string;
@@ -258,7 +257,7 @@ export interface MOISEPolicy {
             emergentFromMission?: string; // Mission that generated this goal
         }[];
     };
-    
+
     /** Normative specifications */
     normative: {
         /** Behavioral norms */
@@ -270,7 +269,7 @@ export interface MOISEPolicy {
             action: string;    // What action is required/forbidden/allowed
             priority: number;  // For conflict resolution
         }[];
-        
+
         /** Sanctions for norm violations */
         sanctions: {
             normId: string;
@@ -291,7 +290,7 @@ export interface SwarmConfiguration {
         approvalTimeoutMs: number;
         idleTimeoutMs: number;
     };
-    
+
     /** Retry and error handling policies */
     retries: {
         maxRetries: number;
@@ -299,7 +298,7 @@ export interface SwarmConfiguration {
         baseDelayMs: number;
         maxDelayMs: number;
     };
-    
+
     /** Feature flags for emergent capabilities */
     features: {
         emergentGoalGeneration: boolean;    // Allow agents to create new goals
@@ -308,7 +307,7 @@ export interface SwarmConfiguration {
         autonomousToolApproval: boolean;    // Allow auto-approval based on patterns
         contextualLearning: boolean;        // Enable context-based learning
     };
-    
+
     /** Agent coordination settings */
     coordination: {
         maxParallelAgents: number;
@@ -338,7 +337,7 @@ export interface BlackboardItem {
 export interface BlackboardState {
     /** Key-value storage for shared data - using Record instead of Map for JSON serialization */
     items: Record<string, BlackboardItem>;
-    
+
     /** Subscription patterns for agent notification */
     subscriptions: {
         agentId: string;
@@ -353,7 +352,7 @@ export interface BlackboardState {
 export interface SwarmExecutionState {
     /** Overall swarm status */
     status: "initializing" | "running" | "idle" | "paused" | "completed" | "failed" | "terminated";
-    
+
     /** Active teams and their current assignments */
     teams: {
         id: string;
@@ -363,7 +362,7 @@ export interface SwarmExecutionState {
         currentMission?: string; // Mission ID
         status: "forming" | "active" | "idle" | "dissolved";
     }[];
-    
+
     /** Active agents and their current state */
     agents: {
         id: string;
@@ -380,7 +379,7 @@ export interface SwarmExecutionState {
             successRate: number;
         };
     }[];
-    
+
     /** Active routine executions */
     activeRuns: {
         runId: string;
@@ -406,18 +405,18 @@ export interface UnifiedSwarmContext {
     readonly createdAt: Date;
     readonly lastUpdated: Date;
     readonly updatedBy: string; // Agent or user ID that made the last update
-    
+
     // Resource management
     resources: {
         /** Total resources available to this swarm */
         total: ResourcePool;
-        
+
         /** Currently allocated resources */
         allocated: ResourceAllocation[];
-        
+
         /** Available resources (total - allocated) */
         available: ResourcePool;
-        
+
         /** Resource usage history for optimization */
         usageHistory: {
             timestamp: Date;
@@ -425,47 +424,47 @@ export interface UnifiedSwarmContext {
             utilizationPercent: number;
         }[];
     };
-    
+
     // Policies (fully data-driven for agent modification)
     policy: {
         /** Security and access control */
         security: SecurityPolicy;
-        
+
         /** Resource allocation and management */
         resource: ResourcePolicy;
-        
+
         /** Organizational structure and coordination */
         organizational: MOISEPolicy;
     };
-    
+
     // Configuration (enables emergent behavior)
     configuration: SwarmConfiguration;
-    
+
     // Shared state for inter-agent coordination
     blackboard: BlackboardState;
-    
+
     // Current execution state
     execution: SwarmExecutionState;
-    
+
     // Context metadata for system management
     metadata: {
         /** Creation context */
         createdBy: string; // User or system ID
         createdFrom?: string; // Parent swarm or template ID
-        
+
         /** Live update subscription info */
         subscribers: string[]; // Component IDs subscribed to updates
-        
+
         /** Emergency contacts and escalation */
         emergencyContacts: string[]; // User IDs to notify on critical events
-        
+
         /** Data retention and cleanup */
         retentionPolicy: {
             keepHistoryDays: number;
             archiveAfterDays: number;
             deleteAfterDays: number;
         };
-        
+
         /** Performance and debugging info */
         diagnostics: {
             contextSize: number; // Size in bytes
@@ -482,13 +481,13 @@ export interface UnifiedSwarmContext {
 export interface ContextUpdateEvent {
     /** Swarm being updated */
     swarmId: SwarmId;
-    
+
     /** Previous version number */
     previousVersion: number;
-    
+
     /** New version number */
     newVersion: number;
-    
+
     /** What changed (for efficient updates) */
     changes: {
         path: string; // JSONPath to changed field
@@ -496,16 +495,16 @@ export interface ContextUpdateEvent {
         newValue: any;
         changeType: "created" | "updated" | "deleted";
     }[];
-    
+
     /** Who made the change */
     updatedBy: string;
-    
+
     /** When the change occurred */
     timestamp: Date;
-    
+
     /** Change reason (for audit trail) */
     reason?: string;
-    
+
     /** Whether this was an emergent change (made by an agent) */
     emergent: boolean;
 }
@@ -516,19 +515,19 @@ export interface ContextUpdateEvent {
 export interface ContextSubscription {
     /** Unique subscription ID */
     id: string;
-    
+
     /** Swarm being monitored */
     swarmId: SwarmId;
-    
+
     /** Component that created the subscription */
     subscriberId: string;
-    
+
     /** JSONPath patterns to monitor */
     watchPaths: string[];
-    
+
     /** Callback for updates */
     handler: (event: ContextUpdateEvent) => Promise<void>;
-    
+
     /** Subscription metadata */
     metadata: {
         createdAt: Date;
@@ -544,24 +543,24 @@ export interface ContextSubscription {
 export interface ContextQuery {
     /** Swarm to query */
     swarmId: SwarmId;
-    
+
     /** JSONPath expressions for data to retrieve */
     select?: string[];
-    
+
     /** Filters to apply */
     where?: {
         path: string;
         operator: "equals" | "contains" | "greaterThan" | "lessThan" | "exists";
         value: any;
     }[];
-    
+
     /** Version constraints */
     version?: {
         exact?: number;
         minimum?: number;
         maximum?: number;
     };
-    
+
     /** Include historical data */
     includeHistory?: boolean;
 }
@@ -572,21 +571,21 @@ export interface ContextQuery {
 export interface ContextValidationResult {
     /** Whether the context is valid */
     valid: boolean;
-    
+
     /** Validation errors */
     errors: {
         path: string;
         message: string;
         severity: "error" | "warning" | "info";
     }[];
-    
+
     /** Validation warnings */
     warnings: {
         path: string;
         message: string;
         suggestion?: string;
     }[];
-    
+
     /** Validation performance metrics */
     metrics: {
         validationTimeMs: number;
@@ -598,40 +597,38 @@ export interface ContextValidationResult {
 /**
  * Type guards for runtime type checking
  */
-export namespace UnifiedSwarmContextGuards {
-    export function isResourcePool(obj: any): obj is ResourcePool {
-        return obj && 
-               typeof obj.credits === "string" &&
-               typeof obj.durationMs === "number" &&
-               typeof obj.memoryMB === "number" &&
-               typeof obj.concurrentExecutions === "number" &&
-               typeof obj.models === "object" &&
-               typeof obj.tools === "object";
-    }
-    
-    export function isUnifiedSwarmContext(obj: any): obj is UnifiedSwarmContext {
-        return obj &&
-               typeof obj.swarmId === "string" &&
-               typeof obj.version === "number" &&
-               obj.createdAt instanceof Date &&
-               obj.lastUpdated instanceof Date &&
-               typeof obj.updatedBy === "string" &&
-               typeof obj.resources === "object" &&
-               typeof obj.policy === "object" &&
-               typeof obj.configuration === "object" &&
-               typeof obj.blackboard === "object" &&
-               typeof obj.execution === "object" &&
-               typeof obj.metadata === "object";
-    }
-    
-    export function isContextUpdateEvent(obj: any): obj is ContextUpdateEvent {
-        return obj &&
-               typeof obj.swarmId === "string" &&
-               typeof obj.previousVersion === "number" &&
-               typeof obj.newVersion === "number" &&
-               Array.isArray(obj.changes) &&
-               typeof obj.updatedBy === "string" &&
-               obj.timestamp instanceof Date &&
-               typeof obj.emergent === "boolean";
-    }
+export function isResourcePool(obj: any): obj is ResourcePool {
+    return obj &&
+        typeof obj.credits === "string" &&
+        typeof obj.durationMs === "number" &&
+        typeof obj.memoryMB === "number" &&
+        typeof obj.concurrentExecutions === "number" &&
+        typeof obj.models === "object" &&
+        typeof obj.tools === "object";
+}
+
+export function isUnifiedSwarmContext(obj: any): obj is UnifiedSwarmContext {
+    return obj &&
+        typeof obj.swarmId === "string" &&
+        typeof obj.version === "number" &&
+        obj.createdAt instanceof Date &&
+        obj.lastUpdated instanceof Date &&
+        typeof obj.updatedBy === "string" &&
+        typeof obj.resources === "object" &&
+        typeof obj.policy === "object" &&
+        typeof obj.configuration === "object" &&
+        typeof obj.blackboard === "object" &&
+        typeof obj.execution === "object" &&
+        typeof obj.metadata === "object";
+}
+
+export function isContextUpdateEvent(obj: any): obj is ContextUpdateEvent {
+    return obj &&
+        typeof obj.swarmId === "string" &&
+        typeof obj.previousVersion === "number" &&
+        typeof obj.newVersion === "number" &&
+        Array.isArray(obj.changes) &&
+        typeof obj.updatedBy === "string" &&
+        obj.timestamp instanceof Date &&
+        typeof obj.emergent === "boolean";
 }

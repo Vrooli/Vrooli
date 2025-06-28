@@ -111,42 +111,38 @@
  * @see {@link https://github.com/Vrooli/Vrooli/blob/main/docs/architecture/execution/tiers/tier2-process-intelligence/run-state-machine-diagram.md} - State Machine Documentation
  */
 
-import { type Logger } from "winston";
 import {
-    type Navigator,
+    type BlackboardItem,
+    type ChatConfigObject,
+    type ExecutionId,
+    type ExecutionResult,
+    type ExecutionStatus,
     type Location,
-    type StepInfo,
-    type Run,
+    type Navigator,
+    type RoutineExecutionInput,
     type RunConfig,
     type RunProgress,
-    type ExecutionResult,
+    type StepInfo,
+    type SwarmResource,
+    type TierCapabilities,
     type TierCommunicationInterface,
     type TierExecutionRequest,
-    type TierCapabilities,
-    type ExecutionId,
-    type ExecutionStatus,
-    type RoutineExecutionInput,
-    type ChatConfigObject,
-    type SwarmResource,
-    type BlackboardItem,
     type ToolCallRecord,
-    type PendingToolCallEntry,
-    RunState as RunStateEnum,
-    generatePK,
     deepClone,
+    generatePK,
+    nanoid,
 } from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { BaseStateMachine, BaseStates, type BaseState, type BaseEvent } from "../../shared/BaseStateMachine.js";
+import { type Logger } from "winston";
+import { type IEventBus, EventTypes, EventUtils } from "../../../events/index.js";
 import { getUnifiedEventSystem } from "../../../events/initialization/eventSystemService.js";
-import { type IEventBus, EventUtils, EventTypes } from "../../../events/index.js";
-import { nanoid } from "@vrooli/shared";
-import { type NavigatorRegistry } from "../navigation/navigatorRegistry.js";
-import { type MOISEGate, type DeonticValidationResult } from "../validation/moiseGate.js";
-import { type IRunStateStore, type IModernRunStateStore } from "../state/runStateStore.js";
+import { type BaseEvent, BaseStateMachine } from "../../shared/BaseStateMachine.js";
 import { ResourceFlowProtocol } from "../../shared/ResourceFlowProtocol.js";
+import { type NavigatorRegistry } from "../navigation/navigatorRegistry.js";
+import { type IModernRunStateStore, type IRunStateStore } from "../state/runStateStore.js";
+import { type DeonticValidationResult, type MOISEGate } from "../validation/moiseGate.js";
 // SwarmContextManager integration for live configuration updates
 import { type ISwarmContextManager } from "../../shared/SwarmContextManager.js";
-import { type UnifiedSwarmContext, type ContextUpdateEvent } from "../../shared/UnifiedSwarmContext.js";
+import { type ContextUpdateEvent } from "../../shared/UnifiedSwarmContext.js";
 
 /**
  * Comprehensive state machine states implementing the complete documented architecture
@@ -154,10 +150,10 @@ import { type UnifiedSwarmContext, type ContextUpdateEvent } from "../../shared/
 export enum RunStateMachineState {
     // Initialization phase
     UNINITIALIZED = "UNINITIALIZED",
-    INITIALIZING = "INITIALIZING", 
+    INITIALIZING = "INITIALIZING",
     NAVIGATOR_SELECTION = "NAVIGATOR_SELECTION",
     PLANNING = "PLANNING",
-    
+
     // Execution phase  
     EXECUTING = "EXECUTING",
     STEP_EXECUTION = "STEP_EXECUTION",
@@ -165,30 +161,30 @@ export enum RunStateMachineState {
     STEP_VALIDATION = "STEP_VALIDATION",
     STEP_COMPLETE = "STEP_COMPLETE",
     STEP_RETRY = "STEP_RETRY",
-    
+
     // Coordination phase
     BRANCH_COORDINATION = "BRANCH_COORDINATION",
-    PARALLEL_EXECUTION = "PARALLEL_EXECUTION", 
+    PARALLEL_EXECUTION = "PARALLEL_EXECUTION",
     PARALLEL_SYNC = "PARALLEL_SYNC",
     EVENT_WAITING = "EVENT_WAITING",
     EVENT_PROCESSING = "EVENT_PROCESSING",
-    
+
     // Management phase
     RESOURCE_CHECK = "RESOURCE_CHECK",
     CHECKPOINT = "CHECKPOINT",
     CHECKPOINT_SAVED = "CHECKPOINT_SAVED",
-    
+
     // Terminal states
     COMPLETED = "COMPLETED",
     RESULT_AGGREGATION = "RESULT_AGGREGATION",
     FAILED = "FAILED",
     CANCELLED = "CANCELLED",
     CLEANUP = "CLEANUP",
-    
+
     // Control states
     PAUSED = "PAUSED",
     EMERGENCY = "EMERGENCY",
-    
+
     // Error states
     PERMISSION_DENIED = "PERMISSION_DENIED",
     RESOURCE_EXHAUSTED = "RESOURCE_EXHAUSTED",
@@ -200,42 +196,42 @@ export enum RunStateMachineState {
  */
 export interface RunStateMachineEvent extends BaseEvent {
     runId: string;
-    
+
     // Event-specific data
     routine?: any;
     inputs?: Record<string, unknown>;
     config?: RunConfig;
     userId?: string;
     swarmConfig?: ChatConfigObject;
-    
+
     // Navigator data
     navigator?: Navigator;
     location?: Location;
     parallelLocations?: Location[];
-    
+
     // Execution data
     executionRequest?: TierExecutionRequest;
     executionResult?: ExecutionResult;
     stepInfo?: StepInfo;
-    
+
     // Branch coordination data
     branchId?: string;
     branchResults?: Record<string, unknown>;
-    
+
     // Validation data
     deonticResult?: DeonticValidationResult;
     validationErrors?: string[];
-    
+
     // Context data
     context?: RunExecutionContext;
-    
+
     // Error data
     error?: unknown;
     reason?: string;
-    
+
     // Resource data
     resourceUsage?: ResourceUsage;
-    
+
     // Performance data
     performanceMetrics?: PerformanceMetrics;
 }
@@ -302,36 +298,36 @@ export interface RunExecutionContext {
     // Core run data
     runId: string;
     routineId: string;
-    
+
     // Swarm inheritance
     swarmId?: string;
     parentContext?: SwarmContext;
     teamId?: string;
     availableResources?: SwarmResource[];
     sharedKnowledge?: BlackboardItem[];
-    
+
     // Navigation state
     navigator: Navigator;
     currentLocation: Location;
     visitedLocations: Location[];
-    
+
     // Execution state
     variables: Record<string, unknown>;
     outputs: Record<string, unknown>;
     completedSteps: string[];
     parallelBranches: BranchExecution[];
-    
+
     // Context management (compatible with shared context interfaces)
     blackboard: Record<string, unknown>;
     scopes: ContextScope[];
-    
+
     // Resource tracking
     resourceLimits: ResourceLimits;
     resourceUsage: ResourceUsage;
-    
+
     // Progress tracking
     progress: RunProgress;
-    
+
     // Error handling
     retryCount: number;
     lastError?: string;
@@ -456,25 +452,25 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
     private readonly modernStateStore: IModernRunStateStore; // Modern context interface
     private readonly tier3Executor: TierCommunicationInterface;
     private readonly unifiedEventBus: IEventBus | null;
-    
+
     // @deprecated Temporary resource flow protocol to fix critical Tier 2 → Tier 3 bug
     // This will be replaced by SwarmContextManager.allocateResources() once implemented
     private readonly resourceFlowProtocol: ResourceFlowProtocol;
-    
+
     // SwarmContextManager integration for live policy updates
     private readonly contextManager?: ISwarmContextManager;
     private contextSubscriptionId?: string;
-    
+
     // Active execution tracking
     private readonly activeRuns: Map<string, RunExecutionContext> = new Map();
     private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; runId: string }> = new Map();
-    
+
     // Current state
     private currentRun: RunExecutionContext | null = null;
-    
+
     constructor(
         logger: Logger,
-        eventBus: EventBus,
+        eventBus: IEventBus,
         navigatorRegistry: NavigatorRegistry,
         moiseGate: MOISEGate,
         stateStore: IRunStateStore,
@@ -482,23 +478,23 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         contextManager?: ISwarmContextManager,
     ) {
         super(logger, eventBus, RunStateMachineState.UNINITIALIZED);
-        
+
         this.navigatorRegistry = navigatorRegistry;
         this.moiseGate = moiseGate;
         this.stateStore = stateStore;
         this.tier3Executor = tier3Executor;
         this.contextManager = contextManager;
-        
+
         // Get unified event system for modern event publishing
         this.unifiedEventBus = getUnifiedEventSystem();
-        
+
         // @deprecated Initialize temporary resource flow protocol to fix critical bug
         // This will be removed once SwarmContextManager is implemented
         this.resourceFlowProtocol = new ResourceFlowProtocol(logger);
-        
+
         // Create modern context adapter - both Redis and InMemory stores implement both interfaces
         this.modernStateStore = stateStore as unknown as IModernRunStateStore;
-        
+
         this.setupStateTransitions();
         this.setupContextSubscriptions();
         this.logger.info("[UnifiedRunStateMachine] Initialized with comprehensive tier 2 architecture");
@@ -517,10 +513,11 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             // Subscribe to context updates for live policy changes
             this.contextSubscriptionId = await this.contextManager.subscribe({
                 swarmId: "*", // Subscribe to all swarms this run state machine may handle
-                eventTypes: ["policy.update", "resource.update", "configuration.update"],
-                callback: this.handleContextUpdate.bind(this),
+                subscriberId: "UnifiedRunStateMachine",
+                watchPaths: ["policy.*", "resources.*", "configuration.*"],
+                handler: this.handleContextUpdate.bind(this),
             });
-            
+
             this.logger.info("[UnifiedRunStateMachine] Context subscriptions established", {
                 subscriptionId: this.contextSubscriptionId,
             });
@@ -664,7 +661,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                 hasAllocation: !!resourcePolicy.allocation,
                 hasThresholds: !!resourcePolicy.thresholds,
             });
-            
+
             // Use ResourceFlowProtocol for updated allocation
             if (resourcePolicy.allocation) {
                 await this.resourceFlowProtocol.updateAllocation(runContext.runId, resourcePolicy.allocation);
@@ -691,7 +688,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             runId: runContext.runId,
             resourceUpdates: Object.keys(resourceUpdates),
         });
-        
+
         // Use ResourceFlowProtocol for live resource updates
         await this.resourceFlowProtocol.updateAllocation(runContext.runId, resourceUpdates);
     }
@@ -704,12 +701,12 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             runId: runContext.runId,
             configKeys: Object.keys(configUpdates),
         });
-        
+
         // Update run configuration with new settings
         if (configUpdates.execution) {
             runContext.config = { ...runContext.config, ...configUpdates.execution };
         }
-        
+
         // Persist updated configuration
         await this.modernStateStore.updateRunContext(runContext.runId, { config: runContext.config });
     }
@@ -1006,12 +1003,12 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
     }
 
     protected async onStop(mode: "graceful" | "force", reason?: string): Promise<unknown> {
-        this.logLifecycleEvent("Stopping", { 
-            mode, 
+        this.logLifecycleEvent("Stopping", {
+            mode,
             reason,
             activeRunsCount: this.activeRuns.size,
         });
-        
+
         // Cancel all active runs
         for (const runId of this.activeRuns.keys()) {
             await this.handleEvent({
@@ -1035,7 +1032,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             runId: event.runId,
             error: error instanceof Error ? error.message : String(error),
         });
-        
+
         // Only consider fatal if it's a critical system error
         return false;
     }
@@ -1077,20 +1074,20 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handleNavigatorSelected(event: RunStateMachineEvent): Promise<void> {
         const context = this.getRunContext(event.runId);
-        
+
         await this.transitionTo(RunStateMachineState.PLANNING);
-        
+
         // Get start location from navigator
         const startLocation = context.navigator.getStartLocation(event.routine?.definition);
         context.currentLocation = startLocation;
         context.visitedLocations.push(startLocation);
-        
+
         // Persist navigation state
         await this.modernStateStore.updateRunContext(event.runId, context);
-        
+
         // Create execution plan
         const executionPlan = await this.createExecutionPlan(context);
-        
+
         await this.handleEvent({
             type: "PLANNING_COMPLETE",
             runId: event.runId,
@@ -1100,7 +1097,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handlePlanningComplete(event: RunStateMachineEvent): Promise<void> {
         await this.transitionTo(RunStateMachineState.EXECUTING);
-        
+
         // Start main execution loop
         await this.handleEvent({
             type: "CHECK_AVAILABLE_STEPS",
@@ -1111,18 +1108,18 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handleStepReady(event: RunStateMachineEvent): Promise<void> {
         const context = this.getRunContext(event.runId);
-        
+
         await this.transitionTo(RunStateMachineState.STEP_EXECUTION);
-        
+
         // Get step info from navigator
         const stepInfo = context.navigator.getStepInfo(context.currentLocation);
-        
+
         // Proceed to MOISE+ validation
         await this.transitionTo(RunStateMachineState.DEONTIC_GATE);
-        
+
         // Perform MOISE+ validation
         const deonticResult = await this.validateDeonticRules(context, stepInfo);
-        
+
         await this.handleEvent({
             type: "DEONTIC_CHECK_COMPLETE",
             runId: event.runId,
@@ -1139,14 +1136,14 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
         if (event.deonticResult.allowed) {
             await this.transitionTo(RunStateMachineState.STEP_VALIDATION);
-            
+
             // Execute step through tier 3
             const context = this.getRunContext(event.runId);
             const executionRequest = this.createTier3ExecutionRequest(context, event.stepInfo);
-            
+
             try {
                 const result = await this.tier3Executor.execute(executionRequest);
-                
+
                 await this.handleEvent({
                     type: "STEP_COMPLETED",
                     runId: event.runId,
@@ -1178,15 +1175,15 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         }
 
         const context = this.getRunContext(event.runId);
-        
+
         // Update context with results
         this.updateContextWithResults(context, event.executionResult);
-        
+
         // Persist updated context
         await this.modernStateStore.updateRunContext(event.runId, context);
-        
+
         await this.transitionTo(RunStateMachineState.STEP_COMPLETE);
-        
+
         // Check for next steps
         await this.handleEvent({
             type: "CHECK_AVAILABLE_STEPS",
@@ -1197,12 +1194,12 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handleStepFailed(event: RunStateMachineEvent): Promise<void> {
         const context = this.getRunContext(event.runId);
-        
+
         // Check if retryable
         if (context.retryCount < (context.resourceLimits.maxSteps || 3)) {
             await this.transitionTo(RunStateMachineState.STEP_RETRY);
             context.retryCount++;
-            
+
             // Retry after delay
             setTimeout(() => {
                 this.handleEvent({
@@ -1224,16 +1221,16 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handleBranchCoordination(event: RunStateMachineEvent): Promise<void> {
         const context = this.getRunContext(event.runId);
-        
+
         await this.transitionTo(RunStateMachineState.BRANCH_COORDINATION);
-        
+
         // Get available next locations
         const availableLocations = await this.getAvailableNextLocations(context);
-        
+
         if (availableLocations.parallel.length > 1) {
             // Check resource capacity for parallel execution
             const resourceCheck = await this.assessParallelCapacity(availableLocations.parallel);
-            
+
             if (resourceCheck.sufficient) {
                 await this.transitionTo(RunStateMachineState.PARALLEL_EXECUTION);
                 await this.handleEvent({
@@ -1283,12 +1280,12 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         }
 
         const context = this.getRunContext(event.runId);
-        
+
         // Create isolated contexts for each parallel branch
         const branchPromises = event.parallelLocations.map(async (location, index) => {
             const branchContext = this.createIsolatedBranchContext(context, location, index);
             const branchId = generatePK();
-            
+
             const branch: BranchExecution = {
                 id: branchId,
                 parentStepId: context.currentLocation.id,
@@ -1298,16 +1295,16 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                 branchIndex: index,
                 context: branchContext,
             };
-            
+
             context.parallelBranches.push(branch);
-            
+
             // Execute branch
             return this.executeBranch(branch);
         });
-        
+
         // Wait for all branches to complete
         const branchResults = await Promise.allSettled(branchPromises);
-        
+
         await this.handleEvent({
             type: "PARALLEL_SYNC_COMPLETE",
             runId: event.runId,
@@ -1318,14 +1315,14 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handleParallelSyncComplete(event: RunStateMachineEvent): Promise<void> {
         const context = this.getRunContext(event.runId);
-        
+
         await this.transitionTo(RunStateMachineState.PARALLEL_SYNC);
-        
+
         // Merge branch results into main context
         if (event.branchResults) {
             this.mergeBranchResults(context, event.branchResults);
         }
-        
+
         // Continue execution
         await this.transitionTo(RunStateMachineState.EXECUTING);
         await this.handleEvent({
@@ -1337,7 +1334,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handleEventTriggered(event: RunStateMachineEvent): Promise<void> {
         await this.transitionTo(RunStateMachineState.EVENT_PROCESSING);
-        
+
         // Process the event and resume execution
         await this.transitionTo(RunStateMachineState.EXECUTING);
         await this.handleEvent({
@@ -1349,11 +1346,11 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handleResourceCheck(event: RunStateMachineEvent): Promise<void> {
         const context = this.getRunContext(event.runId);
-        
+
         await this.transitionTo(RunStateMachineState.RESOURCE_CHECK);
-        
+
         const resourceStatus = this.checkResourceLimits(context);
-        
+
         if (resourceStatus.withinLimits) {
             await this.transitionTo(RunStateMachineState.EXECUTING);
             await this.handleEvent({
@@ -1374,15 +1371,15 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handleCheckpoint(event: RunStateMachineEvent): Promise<void> {
         const context = this.getRunContext(event.runId);
-        
+
         await this.transitionTo(RunStateMachineState.CHECKPOINT);
-        
+
         // Create checkpoint
         const checkpoint = await this.createCheckpoint(context);
         await this.stateStore.createCheckpoint(context.runId, checkpoint);
-        
+
         await this.transitionTo(RunStateMachineState.CHECKPOINT_SAVED);
-        
+
         // Continue execution
         await this.transitionTo(RunStateMachineState.EXECUTING);
         await this.handleEvent({
@@ -1394,19 +1391,19 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private async handleRunCompleted(event: RunStateMachineEvent): Promise<void> {
         const context = this.getRunContext(event.runId);
-        
+
         await this.transitionTo(RunStateMachineState.RESULT_AGGREGATION);
-        
+
         // Aggregate final results
         const finalResults = this.aggregateResults(context);
-        
+
         // Update swarm context if available
         if (context.swarmConfig) {
             await this.updateSwarmWithResults(context.swarmConfig, context, finalResults);
         }
-        
+
         await this.transitionTo(RunStateMachineState.COMPLETED);
-        
+
         // Emit run completed event using unified event system
         await this.publishUnifiedEvent(EventTypes.ROUTINE_COMPLETED, {
             runId: event.runId,
@@ -1421,13 +1418,13 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             tags: ["routine", "completion", "orchestration"],
             conversationId: context.swarmConfig?.swarmLeader,
         });
-        
+
         // Clean up
         this.activeRuns.delete(event.runId);
         if (this.currentRun?.runId === event.runId) {
             this.currentRun = null;
         }
-        
+
         this.logger.info("[UnifiedRunStateMachine] Run completed", {
             runId: event.runId,
             outputs: finalResults,
@@ -1437,13 +1434,13 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
     private async handleCancelRun(event: RunStateMachineEvent): Promise<void> {
         await this.transitionTo(RunStateMachineState.CANCELLED);
         await this.transitionTo(RunStateMachineState.CLEANUP);
-        
+
         // Clean up
         this.activeRuns.delete(event.runId);
         if (this.currentRun?.runId === event.runId) {
             this.currentRun = null;
         }
-        
+
         this.logger.info("[UnifiedRunStateMachine] Run cancelled", {
             runId: event.runId,
             reason: event.reason,
@@ -1471,7 +1468,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         // Select and initialize navigator
         const navigator = await this.selectNavigator(routine);
         const startLocation = navigator.getStartLocation(routine.definition);
-        
+
         // Extract swarm context if available
         let swarmContext: SwarmContext | undefined;
         if (swarmConfig) {
@@ -1528,15 +1525,15 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
     private async selectNavigator(routine: any): Promise<Navigator> {
         // Auto-detect routine type or use explicit type
         const routineType = routine.type || this.detectRoutineType(routine);
-        
+
         // Get navigator from registry
         const navigator = this.navigatorRegistry.getNavigator(routineType);
-        
+
         // Validate navigator can handle the routine
         if (!navigator.canNavigate(routine.definition)) {
             throw new Error(`Navigator ${routineType} cannot handle routine ${routine.id}`);
         }
-        
+
         return navigator;
     }
 
@@ -1644,14 +1641,14 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             maxMemoryMB: context.resourceLimits?.maxMemoryMB || 512,
             maxConcurrentSteps: context.resourceLimits?.maxConcurrentSteps || 1,
         };
-        
+
         // Use ResourceFlowProtocol to create properly formatted request
         const properRequest = this.resourceFlowProtocol.createTier3ExecutionRequest(
             context,
             stepInfo,
             parentAllocation,
         );
-        
+
         this.logger.debug("[UnifiedRunStateMachine] Created Tier 3 execution request (BUG FIXED)", {
             stepId: properRequest.input.stepId,
             stepType: properRequest.input.stepType,
@@ -1661,7 +1658,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             // Log the fix that was applied
             bugFix: "Using correct TierExecutionRequest format instead of legacy payload/metadata structure",
         });
-        
+
         return properRequest;
     }
 
@@ -1670,11 +1667,11 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         if (result.outputs) {
             Object.assign(context.outputs, result.outputs);
         }
-        
+
         context.completedSteps.push(context.currentLocation.id);
         context.progress.completedSteps = context.completedSteps;
         context.progress.percentComplete = (context.completedSteps.length / (context.progress.totalSteps || 1)) * 100;
-        
+
         // Update resource usage
         if (result.resourcesUsed) {
             context.resourceUsage.creditsUsed = (BigInt(context.resourceUsage.creditsUsed) + BigInt(result.resourcesUsed.creditsUsed || "0")).toString();
@@ -1687,10 +1684,10 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
     private async getAvailableNextLocations(context: RunExecutionContext): Promise<AvailableLocations> {
         // Get potential next locations from navigator
         const nextLocations = context.navigator.getNextLocations(
-            context.currentLocation, 
+            context.currentLocation,
             context.variables,
         );
-        
+
         // Categorize locations (simplified implementation)
         return {
             parallel: nextLocations.filter((_, index) => index > 0), // Simulate parallel paths
@@ -1725,7 +1722,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
     private aggregateBranchResults(results: PromiseSettledResult<Record<string, unknown>>[]): Record<string, unknown> {
         // Aggregate results from parallel branches
         const aggregated: Record<string, unknown> = {};
-        
+
         results.forEach((result, index) => {
             if (result.status === "fulfilled") {
                 aggregated[`branch_${index}`] = result.value;
@@ -1733,7 +1730,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                 aggregated[`branch_${index}_error`] = result.reason;
             }
         });
-        
+
         return aggregated;
     }
 
@@ -1744,19 +1741,19 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     private checkResourceLimits(context: RunExecutionContext): { withinLimits: boolean; violations: string[] } {
         const violations: string[] = [];
-        
+
         if (BigInt(context.resourceUsage.creditsUsed) >= BigInt(context.resourceLimits.maxCredits || "1000")) {
             violations.push("credits");
         }
-        
+
         if (context.resourceUsage.durationMs >= (context.resourceLimits.maxDurationMs || 300000)) {
             violations.push("time");
         }
-        
+
         if (context.resourceUsage.stepsExecuted >= (context.resourceLimits.maxSteps || 50)) {
             violations.push("steps");
         }
-        
+
         return {
             withinLimits: violations.length === 0,
             violations,
@@ -1883,13 +1880,13 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             createdAt: new Date(),
             updatedAt: new Date(),
         };
-        
+
         // Create the run using the state store interface
         await this.stateStore.createRun(context.runId, runConfig);
-        
+
         // Store the modern context using the new interface
         await this.modernStateStore.updateRunContext(context.runId, context);
-        
+
         this.logger.info("[UnifiedRunStateMachine] Stored run with modern context", {
             runId: context.runId,
             routineId: context.routineId,
@@ -1987,7 +1984,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
     public async createRun(params: any): Promise<any> {
         const runId = generatePK();
-        
+
         await this.handleEvent({
             type: "START_RUN",
             runId,
@@ -1997,7 +1994,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             userId: params.userId,
             timestamp: new Date(),
         });
-        
+
         return { id: runId };
     }
 
@@ -2111,11 +2108,11 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         context: RunExecutionContext,
     ): BlackboardItem[] {
         const insights: BlackboardItem[] = [];
-        
+
         // Extract key-value insights
         for (const [key, value] of Object.entries(results)) {
             if (key === "metadata") continue;
-            
+
             // Create insight based on result type and content
             if (typeof value === "string" && value.length > 10 && value.length < 500) {
                 insights.push({
@@ -2171,7 +2168,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             // Check if this routine was executing for this subtask
             if (subtask.assignee_bot_id === context.parentContext?.executingAgent &&
                 subtask.status === "in_progress") {
-                
+
                 // Mark as done if routine completed successfully
                 if (Object.keys(results).length > 0) {
                     return {
@@ -2181,7 +2178,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                     };
                 }
             }
-            
+
             return subtask;
         });
     }
@@ -2219,28 +2216,28 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         try {
             // Use navigator to traverse and count all possible steps
             const visitedLocations = new Set<string>();
-            
+
             // Consider all possible start locations for comprehensive step counting
             const allStartLocations = context.navigator.getAllStartLocations(context.routine);
             let maxSteps = 0;
-            
+
             // Calculate steps for each possible start location and take the maximum
             for (const startLocation of allStartLocations) {
                 visitedLocations.clear(); // Reset for each start location
-                
+
                 const countSteps = (location: Location, depth = 0): number => {
                     // Prevent infinite loops and excessive depth
                     if (depth > 50 || visitedLocations.has(location.id)) {
                         return 0;
                     }
-                    
+
                     visitedLocations.add(location.id);
                     let stepCount = 1; // Count current location
-                    
+
                     try {
                         // Get next locations from navigator
                         const nextLocations = context.navigator.getNextLocations(location, context.variables);
-                        
+
                         // Count steps in all branches
                         for (const nextLocation of nextLocations) {
                             stepCount += countSteps(nextLocation, depth + 1);
@@ -2251,31 +2248,31 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                             error: error instanceof Error ? error.message : String(error),
                         });
                     }
-                    
+
                     return stepCount;
                 };
-                
+
                 const totalSteps = countSteps(startLocation);
                 maxSteps = Math.max(maxSteps, totalSteps);
             }
-            
+
             const finalSteps = Math.max(1, maxSteps); // Ensure at least 1 step
-            
+
             this.logger.debug("[UnifiedRunStateMachine] Calculated total steps", {
                 routineId: context.routineId,
                 totalSteps: finalSteps,
                 startLocationCount: allStartLocations.length,
                 navigatorType: context.navigator.type,
             });
-            
+
             return finalSteps;
-            
+
         } catch (error) {
             this.logger.error("[UnifiedRunStateMachine] Failed to calculate total steps", {
                 routineId: context.routineId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            
+
             // Fallback to simple estimate
             return 5;
         }
@@ -2288,7 +2285,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         try {
             // Base time per step varies by navigator type and strategy
             let baseTimePerStep = 30000; // 30 seconds default
-            
+
             // Adjust based on navigator type
             switch (context.navigator.type) {
                 case "native":
@@ -2304,7 +2301,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                     baseTimePerStep = 25000; // Temporal is efficient
                     break;
             }
-            
+
             // Adjust based on execution strategy
             const strategy = context.parentContext?.strategy;
             switch (strategy) {
@@ -2318,20 +2315,20 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                     baseTimePerStep *= 0.5; // Deterministic is faster
                     break;
             }
-            
+
             // Consider routine complexity factors
             const routineComplexity = this.assessRoutineComplexity(context);
             const complexityMultiplier = 1 + (routineComplexity * 0.5); // 0.5x to 2.5x based on complexity
-            
+
             // Calculate base duration
             const baseDuration = totalSteps * baseTimePerStep * complexityMultiplier;
-            
+
             // Add overhead for parallel coordination
             const parallelOpportunities = await this.identifyParallelOpportunities(context);
             const parallelOverhead = parallelOpportunities.length * 5000; // 5 seconds per parallel coordination
-            
+
             const estimatedDuration = Math.round(baseDuration + parallelOverhead);
-            
+
             this.logger.debug("[UnifiedRunStateMachine] Estimated execution duration", {
                 routineId: context.routineId,
                 totalSteps,
@@ -2340,15 +2337,15 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                 parallelOverhead,
                 estimatedDuration,
             });
-            
+
             return estimatedDuration;
-            
+
         } catch (error) {
             this.logger.error("[UnifiedRunStateMachine] Failed to estimate execution duration", {
                 routineId: context.routineId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            
+
             // Fallback to simple estimate
             return totalSteps * 30000; // 30 seconds per step
         }
@@ -2361,19 +2358,19 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         try {
             const opportunities: ParallelOpportunity[] = [];
             const visitedLocations = new Set<string>();
-            
+
             const analyzeLocation = (location: Location, depth = 0): void => {
                 // Prevent infinite loops and excessive depth
                 if (depth > 30 || visitedLocations.has(location.id)) {
                     return;
                 }
-                
+
                 visitedLocations.add(location.id);
-                
+
                 try {
                     // Get next locations from navigator
                     const nextLocations = context.navigator.getNextLocations(location, context.variables);
-                    
+
                     // If multiple next locations, it's a parallel opportunity
                     if (nextLocations.length > 1) {
                         opportunities.push({
@@ -2388,7 +2385,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                             resourceRequirement: nextLocations.length,
                         });
                     }
-                    
+
                     // Recursively analyze next locations
                     for (const nextLocation of nextLocations) {
                         analyzeLocation(nextLocation, depth + 1);
@@ -2400,10 +2397,10 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                     });
                 }
             };
-            
+
             // Analyze all possible start locations for comprehensive parallel opportunity detection
             const allStartLocations = context.navigator.getAllStartLocations(context.routine);
-            
+
             // Check if multiple start locations themselves represent a parallel opportunity
             if (allStartLocations.length > 1) {
                 opportunities.push({
@@ -2418,13 +2415,13 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                     resourceRequirement: allStartLocations.length,
                 });
             }
-            
+
             // Analyze each start location path
             for (const startLocation of allStartLocations) {
                 visitedLocations.clear(); // Reset for each start location
                 analyzeLocation(startLocation);
             }
-            
+
             this.logger.debug("[UnifiedRunStateMachine] Identified parallel opportunities", {
                 routineId: context.routineId,
                 opportunityCount: opportunities.length,
@@ -2434,15 +2431,15 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                     expectedSpeedup: o.expectedSpeedup,
                 })),
             });
-            
+
             return opportunities;
-            
+
         } catch (error) {
             this.logger.error("[UnifiedRunStateMachine] Failed to identify parallel opportunities", {
                 routineId: context.routineId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            
+
             return [];
         }
     }
@@ -2453,7 +2450,7 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
     private assessRoutineComplexity(context: RunExecutionContext): number {
         try {
             let complexityScore = 0;
-            
+
             // Base complexity from navigator type
             switch (context.navigator.type) {
                 case "native":
@@ -2471,15 +2468,15 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                 default:
                     complexityScore += 0.5;
             }
-            
+
             // Factor in variable count (more variables = more complexity)
             const variableCount = Object.keys(context.variables).length;
             complexityScore += Math.min(variableCount * 0.05, 0.3); // Cap at 0.3
-            
+
             // Factor in blackboard size (shared state complexity)
             const blackboardSize = Object.keys(context.blackboard).length;
             complexityScore += Math.min(blackboardSize * 0.03, 0.2); // Cap at 0.2
-            
+
             // Factor in resource constraints (tighter limits = more complexity)
             if (context.resourceLimits.maxCredits && BigInt(context.resourceLimits.maxCredits) < BigInt("1000")) {
                 complexityScore += 0.2; // Tight credit limits
@@ -2487,20 +2484,20 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             if (context.resourceLimits.maxDurationMs && context.resourceLimits.maxDurationMs < 300000) {
                 complexityScore += 0.2; // Tight time limits
             }
-            
+
             // Factor in swarm context (coordination complexity)
             if (context.swarmId) {
                 complexityScore += 0.3; // Swarm coordination adds complexity
             }
-            
+
             // Factor in parallel branches already identified
             if (context.parallelBranches && context.parallelBranches.length > 0) {
                 complexityScore += context.parallelBranches.length * 0.1;
             }
-            
+
             // Normalize to 0-4 scale (0 = very simple, 4 = very complex)
             const normalizedScore = Math.min(Math.max(complexityScore, 0), 4);
-            
+
             this.logger.debug("[UnifiedRunStateMachine] Assessed routine complexity", {
                 routineId: context.routineId,
                 navigatorType: context.navigator.type,
@@ -2511,15 +2508,15 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                 rawScore: complexityScore,
                 normalizedScore,
             });
-            
+
             return normalizedScore;
-            
+
         } catch (error) {
             this.logger.error("[UnifiedRunStateMachine] Failed to assess routine complexity", {
                 routineId: context.routineId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            
+
             // Fallback to medium complexity
             return 2.0;
         }
@@ -2536,12 +2533,12 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                 this.contextSubscriptionId = undefined;
                 this.logger.debug("[UnifiedRunStateMachine] Context subscription cleaned up");
             }
-            
+
             // Call parent dispose if available
             if (super.dispose) {
                 await super.dispose();
             }
-            
+
             this.logger.info("[UnifiedRunStateMachine] Disposed successfully");
         } catch (error) {
             this.logger.error("[UnifiedRunStateMachine] Error during disposal", {

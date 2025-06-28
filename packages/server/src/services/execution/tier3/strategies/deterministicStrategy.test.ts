@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Logger } from "winston";
+import { type EventBus } from "../../../events/eventBus.js";
 import { DeterministicStrategy } from "./deterministicStrategy.js";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { StrategyType } from "@vrooli/shared";
 
 // Mock dependencies
 const mockLogger: Logger = {
@@ -328,11 +327,11 @@ describe("DeterministicStrategy", () => {
 
             expect(result).toEqual({
                 name: "John",
-                fullName: { 
-                    firstName: "John", 
-                    lastName: "Doe", 
-                    age: 30, 
-                    fullName: "John Doe", 
+                fullName: {
+                    firstName: "John",
+                    lastName: "Doe",
+                    age: 30,
+                    fullName: "John Doe",
                 },
                 isAdult: false,
                 createdAt: "2024-01-01",
@@ -388,8 +387,8 @@ describe("DeterministicStrategy", () => {
         });
 
         it("should handle conditional evaluations correctly", async () => {
-            const data = { 
-                number: 10, 
+            const data = {
+                number: 10,
                 text: "hello world",
                 flag: true,
                 missing: null,

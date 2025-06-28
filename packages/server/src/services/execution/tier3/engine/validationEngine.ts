@@ -1,9 +1,9 @@
 import { nanoid } from "@vrooli/shared";
 import { type Logger } from "winston";
 import * as yup from "yup";
+import { type EventBus } from "../../../events/types.js";
 import { EventTypes, EventUtils, type IEventBus } from "../../../events/index.js";
 import { getUnifiedEventSystem } from "../../../events/initialization/eventSystemService.js";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 
 /**

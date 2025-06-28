@@ -1,16 +1,16 @@
-import { type Logger } from "winston";
 import {
+    type AvailableResources,
+    type ExecutionEvent,
     type LLMRequest,
     type LLMResponse,
-    type AvailableResources,
     type ResourceUsage,
-    type ExecutionEvent,
     type ToolExecutionResult,
     nanoid,
 } from "@vrooli/shared";
+import { type Logger } from "winston";
 import { AIServiceRegistry } from "../../conversation/registry.js";
 import type { ResponseStreamOptions } from "../../conversation/types.js";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { type IEventBus } from "../../events/types.js";
 
 // Constants for configuration
 const DEFAULT_MAX_TOKENS = 2000;
@@ -46,8 +46,8 @@ export interface ToolCallResult {
 export class LLMIntegrationService {
     private readonly logger: Logger;
     private readonly registry: AIServiceRegistry;
-    private readonly eventBus: EventBus;
-    
+    private readonly eventBus: IEventBus;
+
     // Current execution context for tool calls
     private currentStepId?: string;
     private currentRunId?: string;
@@ -55,7 +55,7 @@ export class LLMIntegrationService {
     private currentConversationId?: string;
     private currentUser?: { id: string; name?: string };
 
-    constructor(logger: Logger, eventBus: EventBus) {
+    constructor(logger: Logger, eventBus: IEventBus) {
         this.logger = logger;
         this.registry = AIServiceRegistry.get();
         this.eventBus = eventBus;
@@ -270,17 +270,17 @@ export class LLMIntegrationService {
         try {
             // Get service for model
             const _serviceId = this.registry.getBestService(request.model);
-            
+
             // Estimate tokens (rough approximation)
             const inputTokens = this.estimateTokens(request.messages, request.systemMessage);
             const outputTokens = request.maxTokens || OUTPUT_TOKENS_ESTIMATE;
-            
+
             // Get pricing (would need to be implemented in registry)
             const pricing = this.getPricingForModel(request.model);
-            
+
             const inputCost = (inputTokens / 1000) * pricing.input;
             const outputCost = (outputTokens / 1000) * pricing.output;
-            
+
             return inputCost + outputCost;
         } catch (error) {
             this.logger.warn("[LLMIntegrationService] Cost estimation failed", {
@@ -350,7 +350,7 @@ export class LLMIntegrationService {
     ): Promise<ToolCallResult> {
         // Generate unique request ID for correlation across events
         const requestId = nanoid();
-        
+
         this.logger.debug("[LLMIntegrationService] Executing tool call via event bus", {
             toolName,
             requestId,
@@ -406,8 +406,8 @@ export class LLMIntegrationService {
             });
 
             return this.createToolErrorResult(
-                toolName, 
-                args, 
+                toolName,
+                args,
                 error instanceof Error ? error.message : String(error),
             );
         }
@@ -426,12 +426,12 @@ export class LLMIntegrationService {
      * @returns Promise resolving to tool execution result
      */
     private async waitForToolCompletion(
-        requestId: string, 
+        requestId: string,
         timeout = DEFAULT_TOOL_TIMEOUT_MS,
     ): Promise<ToolCallResult> {
         return new Promise((resolve) => {
             let completed = false;
-            
+
             // Clean up function to remove event listeners
             const cleanup = () => {
                 this.eventBus.off("tool/execution/completed", completionHandler);
@@ -443,12 +443,12 @@ export class LLMIntegrationService {
                 if (!completed) {
                     completed = true;
                     cleanup();
-                    
+
                     this.logger.warn("[LLMIntegrationService] Tool execution timeout", {
                         requestId,
                         timeout,
                     });
-                    
+
                     resolve(this.createToolErrorResult("unknown", {}, "Tool execution timeout"));
                 }
             }, timeout);
@@ -459,7 +459,7 @@ export class LLMIntegrationService {
                     completed = true;
                     clearTimeout(timeoutId);
                     cleanup();
-                    
+
                     const result = event.data.result as ToolExecutionResult;
                     resolve({
                         toolName: result.toolName,
@@ -477,7 +477,7 @@ export class LLMIntegrationService {
                     completed = true;
                     clearTimeout(timeoutId);
                     cleanup();
-                    
+
                     resolve(this.createToolErrorResult(
                         event.data.toolName || "unknown",
                         event.data.parameters || {},
@@ -540,8 +540,8 @@ export class LLMIntegrationService {
      * @returns Standardized tool error result
      */
     private createToolErrorResult(
-        toolName: string, 
-        input: Record<string, unknown>, 
+        toolName: string,
+        input: Record<string, unknown>,
         error: string,
     ): ToolCallResult {
         return {
@@ -561,7 +561,7 @@ export class LLMIntegrationService {
         for (const msg of messages) {
             totalContent += msg.content;
         }
-        
+
         // Rough approximation: 1 token ≈ 4 characters for English
         return Math.ceil(totalContent.length / TOKENS_PER_CHAR_ESTIMATE);
     }
@@ -592,7 +592,7 @@ export class LLMIntegrationService {
                 { name: "o1-mini", pricing: { input: 0.003, output: 0.012 } },
             ];
         }
-        
+
         return [];
     }
 }

@@ -1,9 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { TierTwoOrchestrator } from "./tierTwoOrchestrator.js";
+import { generatePK, type ExecutionStatus, type TierCommunicationInterface, type TierExecutionRequest } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Logger } from "winston";
-import { EventBus } from "../cross-cutting/events/eventBus.js";
-import { type TierCommunicationInterface, type TierExecutionRequest, type ExecutionResult } from "@vrooli/shared";
-import { generatePK, type ExecutionStatus, RunState } from "@vrooli/shared";
+import { EventBus } from "../../events/types.js";
+import { TierTwoOrchestrator } from "./tierTwoOrchestrator.js";
 
 /**
  * TierTwoOrchestrator Tests - Process Intelligence Infrastructure
@@ -22,7 +21,7 @@ import { generatePK, type ExecutionStatus, RunState } from "@vrooli/shared";
 
 describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
     let logger: Logger;
-    let eventBus: EventBus;
+    let eventBus: IEventBus;
     let tier3Executor: TierCommunicationInterface;
     let orchestrator: TierTwoOrchestrator;
 
@@ -34,7 +33,7 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
             debug: vi.fn(),
         } as unknown as Logger;
         eventBus = new EventBus(logger);
-        
+
         // Mock Tier 3 executor
         tier3Executor = {
             execute: vi.fn(),
@@ -243,7 +242,7 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
             const result = await orchestrator.execute(request);
 
             expect(result.status).toBe("completed");
-            
+
             // Step management enables agent analysis
             await new Promise(resolve => setTimeout(resolve, 100));
         });
@@ -270,7 +269,7 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
 
             expect(result.status).toBe("failed");
             expect(result.error).toBe("Step execution failed");
-            
+
             // Recovery strategies emerge from agent analysis
         });
     });
@@ -286,7 +285,7 @@ describe("TierTwoOrchestrator - Process Intelligence Infrastructure", () => {
                 },
                 {
                     executionId: generatePK(),
-                    stepId: "step-2", 
+                    stepId: "step-2",
                     data: { previousResult: "data", action: "process" },
                 },
             ];

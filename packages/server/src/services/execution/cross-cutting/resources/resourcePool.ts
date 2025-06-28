@@ -1,6 +1,6 @@
 import { generatePK } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type EventBus } from "../events/eventBus.js";
+import { type IEventBus } from "../../../events/types.js";
 
 /**
  * Resource pool configuration
@@ -62,7 +62,7 @@ export interface PoolAllocationResult {
  */
 export class ResourcePool {
     private readonly logger: Logger;
-    private readonly eventBus?: EventBus;
+    private readonly eventBus?: IEventBus;
     private readonly config: ResourcePoolConfig;
     private state: PoolState;
     private refillTimer?: NodeJS.Timeout;
@@ -70,7 +70,7 @@ export class ResourcePool {
     constructor(
         config: ResourcePoolConfig,
         logger: Logger,
-        eventBus?: EventBus,
+        eventBus?: IEventBus,
     ) {
         this.config = config;
         this.logger = logger;
@@ -406,10 +406,10 @@ export class ResourcePool {
  */
 export class ResourcePoolManager {
     private readonly logger: Logger;
-    private readonly eventBus?: EventBus;
+    private readonly eventBus?: IEventBus;
     private readonly pools: Map<string, ResourcePool> = new Map();
 
-    constructor(logger: Logger, eventBus?: EventBus) {
+    constructor(logger: Logger, eventBus?: IEventBus) {
         this.logger = logger;
         this.eventBus = eventBus;
     }

@@ -1,20 +1,18 @@
-import { type Logger } from "winston";
 import {
-    type ExecutionContext as StrategyExecutionContext,
-    type StrategyExecutionResult,
-    type ResourceUsage,
+    type LLMMessage,
     type LLMRequest,
     type LLMResponse,
-    type LLMMessage,
-    type AvailableResources,
-    type StrategyFeedback,
+    type ResourceUsage,
+    type ExecutionContext as StrategyExecutionContext,
+    type StrategyExecutionResult,
     StrategyType,
 } from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { type Logger } from "winston";
+import { type EventBus } from "../../../events/types.js";
 import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
 import { type ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { type ValidationEngine } from "../engine/validationEngine.js";
-import { MinimalStrategyBase, type StrategyConfig, type ExecutionMetadata } from "./shared/index.js";
+import { type ExecutionMetadata, MinimalStrategyBase, type StrategyConfig } from "./shared/index.js";
 
 /**
  * ConversationalStrategy - Enhanced with shared base class patterns
@@ -41,7 +39,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
     private readonly llmService: LLMIntegrationService;
     private toolOrchestrator?: ToolOrchestrator;
     private validationEngine?: ValidationEngine;
-    
+
     // Conversational-specific configuration
     private static readonly MAX_CONVERSATION_TURNS = 10;
     private static readonly CONVERSATION_CONTEXT_WINDOW = 5;
@@ -49,7 +47,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
 
     constructor(
         logger: Logger,
-        eventBus: EventBus,
+        eventBus: IEventBus,
         config: StrategyConfig = {},
         toolOrchestrator?: ToolOrchestrator,
         validationEngine?: ValidationEngine,
@@ -58,7 +56,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
             timeoutMs: ConversationalStrategy.TURN_TIMEOUT_MS * ConversationalStrategy.MAX_CONVERSATION_TURNS,
             ...config,
         });
-        
+
         this.llmService = new LLMIntegrationService(logger);
         this.toolOrchestrator = toolOrchestrator;
         this.validationEngine = validationEngine;
@@ -98,7 +96,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         metadata: ExecutionMetadata,
     ): Promise<StrategyExecutionResult> {
         this.validateContext(context);
-        
+
         let totalTokensUsed = 0;
 
         this.logger.info("[ConversationalStrategy] Starting conversational execution", {
@@ -109,27 +107,27 @@ export class ConversationalStrategy extends MinimalStrategyBase {
 
         // Legacy pattern: Build conversation request with context awareness
         const conversationRequest = await this.buildConversationRequest(context);
-        
+
         // Legacy pattern: Multi-turn conversation support (adapted for single context)
         const response = await this.executeConversationalReasoning(conversationRequest, context);
         totalTokensUsed += response.tokensUsed;
-        
+
         // Legacy pattern: Tool execution if required
         let finalResponse = response;
         if (this.requiresToolExecution(response)) {
             finalResponse = await this.handleToolExecution(response, context);
             totalTokensUsed += finalResponse.tokensUsed;
         }
-        
+
         // Legacy pattern: Extract outputs from conversation
         const outputs = await this.extractOutputsFromConversation(finalResponse, context);
-        
+
         // New capability: Validate outputs
         const validatedOutputs = await this.validateOutputs(outputs, context);
-        
+
         // Calculate execution time from metadata
         const executionTime = Date.now() - metadata.startTime.getTime();
-        
+
         // Calculate comprehensive resource usage
         const resourceUsage = this.calculateConversationalResourceUsage(finalResponse, executionTime, totalTokensUsed);
 
@@ -158,7 +156,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         if (config?.strategy === "conversational" || config?.executionStrategy === "conversational") {
             return true;
         }
-        
+
         // Legacy pattern: Handle web routines (often used for searches and discussions)
         if (stepType === "RoutineWeb" || stepType === "web") {
             return true;
@@ -190,7 +188,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         const messageLength = this.estimateMessageLength(context);
         const complexity = this.assessConversationComplexity(context);
         const historyLength = context.history?.recentSteps?.length || 0;
-        
+
         // Base estimates from legacy performance data:
         // - Simple conversations: ~500-1000 tokens
         // - Complex conversations: ~1500-3000 tokens
@@ -199,18 +197,18 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         const complexityMultiplier = 1 + (complexity * 0.5);
         const historyMultiplier = 1 + (historyLength * 0.1);
         const estimatedTokens = Math.ceil(baseTokens * complexityMultiplier * historyMultiplier);
-        
+
         // API calls: 1 for conversation, +1 if tools are likely needed
         const apiCalls = this.requiresToolsEstimate(context) ? 2 : 1;
-        
+
         // Compute time: legacy shows 5-30 seconds depending on complexity
         const baseComputeTime = 8000; // 8 seconds
         const computeTime = Math.ceil(baseComputeTime * complexityMultiplier);
-        
+
         // Cost estimation based on token usage
         const costPerToken = 0.00002; // GPT-4o-mini pricing
         const cost = estimatedTokens * costPerToken * apiCalls;
-        
+
         return {
             tokens: estimatedTokens,
             apiCalls,
@@ -228,13 +226,13 @@ export class ConversationalStrategy extends MinimalStrategyBase {
     private async buildConversationRequest(context: StrategyExecutionContext): Promise<LLMRequest> {
         // Legacy: Build system message with context awareness
         const systemMessage = await this.buildSystemMessage(context);
-        
+
         // Legacy: Build message history from context
         const messages = this.buildMessageHistory(context);
-        
+
         // Legacy: Prepare tools if available
         const tools = this.prepareTools(context);
-        
+
         return {
             model: context.config.model as string || "gpt-4o-mini",
             messages: [
@@ -259,17 +257,17 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         const name = context.config.name as string || "Conversational Task";
         const description = context.config.description as string || "";
         const instructions = context.config.instructions as string || "";
-        
+
         let systemMessage = `You are engaging in a conversational task: "${name}"\n\n`;
-        
+
         if (description) {
             systemMessage += `Description: ${description}\n\n`;
         }
-        
+
         if (instructions) {
             systemMessage += `Instructions:\n${instructions}\n\n`;
         }
-        
+
         // Legacy: Add conversation guidelines
         systemMessage += "Conversation Guidelines:\n";
         systemMessage += "- Engage naturally and helpfully with the user\n";
@@ -277,7 +275,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         systemMessage += "- Ask clarifying questions when needed\n";
         systemMessage += "- Signal when the conversation objectives are met\n";
         systemMessage += "- Be concise but thorough in responses\n\n";
-        
+
         // Legacy: Add expected outputs
         const expectedOutputs = context.config.expectedOutputs as Record<string, any> || {};
         if (Object.keys(expectedOutputs).length > 0) {
@@ -290,7 +288,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
                 systemMessage += "\n";
             }
         }
-        
+
         return systemMessage;
     }
 
@@ -300,59 +298,59 @@ export class ConversationalStrategy extends MinimalStrategyBase {
      */
     private buildMessageHistory(context: StrategyExecutionContext): LLMMessage[] {
         const messages: LLMMessage[] = [];
-        
+
         // Legacy: Build initial user message from inputs
         const initialMessage = this.buildInitialMessage(context);
         if (initialMessage) {
             messages.push(initialMessage);
         }
-        
+
         // Legacy: Add conversation history from recent steps
         const history = context.history?.recentSteps || [];
         const recentMessages = history.slice(-ConversationalStrategy.CONVERSATION_CONTEXT_WINDOW);
-        
+
         for (const step of recentMessages) {
             messages.push({
                 role: "user",
                 content: this.formatStepAsMessage(step),
             });
         }
-        
+
         return messages;
     }
-    
+
     /**
      * LEGACY PATTERN: Build initial message from inputs
      * Extracted from legacy ConversationalStrategy.buildInitialMessage()
      */
     private buildInitialMessage(context: StrategyExecutionContext): LLMMessage | null {
         const inputs = context.inputs;
-        
+
         // Legacy: Look for message, prompt, or question input
         const messageText = inputs.message || inputs.prompt || inputs.question;
-        
+
         if (!messageText) {
             // If no direct message, create from all inputs
             const inputText = Object.entries(inputs)
                 .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
                 .join("\n");
-            
+
             if (inputText.trim()) {
                 return {
                     role: "user",
                     content: `Please help me with this task. Here are the inputs:\n${inputText}`,
                 };
             }
-            
+
             return null;
         }
-        
+
         return {
             role: "user",
             content: String(messageText),
         };
     }
-    
+
     /**
      * LEGACY PATTERN: Execute conversational reasoning with enhanced error handling
      * Enhanced from legacy ConversationalStrategy.executeConversationTurn()
@@ -427,7 +425,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
                 toolCalls: [],
             };
         }
-        
+
         // Legacy: Graceful fallback response
         return {
             content: "I apologize, but I encountered an issue processing your request. Please try rephrasing your question or contact support if the problem persists.",
@@ -437,7 +435,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
             toolCalls: [],
         };
     }
-    
+
     /**
      * Check if error is retryable (legacy pattern)
      */
@@ -449,11 +447,11 @@ export class ConversationalStrategy extends MinimalStrategyBase {
             "network",
             "connection",
         ];
-        
+
         const errorMessage = error.message.toLowerCase();
         return retryablePatterns.some(pattern => errorMessage.includes(pattern));
     }
-    
+
     /**
      * Estimate token usage for requests
      */
@@ -473,40 +471,40 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         const outputs: Record<string, unknown> = {};
         const expectedOutputs = context.config.expectedOutputs as Record<string, any> || {};
         const outputKeys = Object.keys(expectedOutputs);
-        
+
         // Legacy: For single output, use the entire conversation
         if (outputKeys.length === 1) {
             outputs[outputKeys[0]] = response.content;
             return outputs;
         }
-        
+
         // Legacy: For multiple outputs, try structured extraction
         if (outputKeys.length > 1) {
             for (const key of outputKeys) {
                 const outputName = expectedOutputs[key].name || key;
-                
+
                 // Legacy: Look for labeled sections
                 const sectionRegex = new RegExp(`${outputName}:?\\s*([^\\n]+(?:\\n(?!\\w+:)[^\\n]+)*)`, "i");
                 const match = response.content.match(sectionRegex);
-                
+
                 if (match) {
                     outputs[key] = match[1].trim();
                 }
             }
         }
-        
+
         // Legacy: If no structured outputs found, use the full response
         if (Object.keys(outputs).length === 0) {
             outputs.result = response.content;
         }
-        
+
         // Always include reasoning and confidence
         outputs.reasoning = response.reasoning;
         outputs.confidence = response.confidence;
-        
+
         return outputs;
     }
-    
+
 
     /**
      * Enhanced confidence calculation with legacy patterns
@@ -521,16 +519,16 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         if (response.content.length < 50) {
             confidence *= 0.8; // Penalize very short responses
         }
-        
+
         if (response.content.includes("I don't know") || response.content.includes("unclear")) {
             confidence *= 0.7; // Penalize uncertainty indicators
         }
-        
+
         // Adjust based on context constraints
         if (context.constraints?.requiredConfidence) {
             confidence = Math.min(confidence, 0.9); // Cap if requirements are strict
         }
-        
+
         // Bonus for successful tool usage
         if (response.toolCalls && response.toolCalls.length > 0) {
             confidence *= 1.1; // Small bonus for tool integration
@@ -553,14 +551,14 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         const config = context.config;
         return typeof config.creativity === "number" ? config.creativity : 0.7;
     }
-    
+
     /**
      * LEGACY PATTERN: Format step as message for conversation history
      */
     private formatStepAsMessage(step: any): string {
         return `Previous step ${step.stepId}: ${step.result || "completed"}`;
     }
-    
+
     /**
      * LEGACY PATTERN: Prepare tools for LLM request
      */
@@ -575,23 +573,23 @@ export class ConversationalStrategy extends MinimalStrategyBase {
             },
         }));
     }
-    
+
     /**
      * Check if response requires tool execution
      */
     private requiresToolExecution(response: ConversationalResponse): boolean {
         return response.toolCalls && response.toolCalls.length > 0;
     }
-    
+
     /**
      * Estimate if tools are likely needed for this context
      */
     private requiresToolsEstimate(context: StrategyExecutionContext): boolean {
         const stepType = context.stepType.toLowerCase();
         const description = (context.config.description as string || "").toLowerCase();
-        
+
         const toolKeywords = ["search", "calculate", "analyze", "fetch", "api", "data", "query"];
-        return toolKeywords.some(keyword => 
+        return toolKeywords.some(keyword =>
             stepType.includes(keyword) || description.includes(keyword),
         );
     }
@@ -601,23 +599,23 @@ export class ConversationalStrategy extends MinimalStrategyBase {
      */
     private assessConversationComplexity(context: StrategyExecutionContext): number {
         let complexity = 0.5; // Base complexity
-        
+
         // Input complexity
         const inputCount = Object.keys(context.inputs).length;
         complexity += Math.min(inputCount * 0.1, 0.3);
-        
+
         // History complexity
         const historyLength = context.history?.recentSteps?.length || 0;
         complexity += Math.min(historyLength * 0.05, 0.2);
-        
+
         // Context constraints
         if (context.constraints?.requiredConfidence && context.constraints.requiredConfidence > 0.8) {
             complexity += 0.1;
         }
-        
+
         return Math.min(complexity, 1.0);
     }
-    
+
     /**
      * Estimate message length for resource calculation
      */
@@ -626,7 +624,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         const configLength = JSON.stringify(context.config).length;
         return inputLength + configLength;
     }
-    
+
     /**
      * Calculate conversational-specific resource usage
      */
@@ -638,7 +636,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         // Conversational strategies typically use more tokens and credits
         const baseCredits = Math.ceil(totalTokensUsed * 0.001); // Token-based pricing
         const timeBonus = Math.ceil(executionTime / 10000); // Time-based component
-        
+
         return {
             credits: Math.max(baseCredits + timeBonus, 1),
             tokens: totalTokensUsed,
@@ -646,9 +644,9 @@ export class ConversationalStrategy extends MinimalStrategyBase {
             memory: Math.ceil(totalTokensUsed * 0.001), // Rough memory estimate based on tokens
         };
     }
-    
-    
-    
+
+
+
     /**
      * Handle tool execution using the shared ToolOrchestrator
      */
@@ -659,7 +657,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         this.logger.debug("[ConversationalStrategy] Tool execution requested", {
             toolCalls: response.toolCalls?.length || 0,
         });
-        
+
         if (!this.toolOrchestrator) {
             this.logger.warn("[ConversationalStrategy] No tool orchestrator available, skipping tool execution");
             return response;
@@ -685,7 +683,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
                 });
 
                 toolResults.push(`Tool ${toolCall.name}: ${JSON.stringify(result)}`);
-                
+
                 // Estimate token usage for tool result
                 additionalTokensUsed += Math.ceil(JSON.stringify(result).length / 4);
             } catch (error) {
@@ -705,7 +703,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
             tokensUsed: response.tokensUsed + additionalTokensUsed,
         };
     }
-    
+
     /**
      * Validate outputs against expected schema
      */
@@ -716,7 +714,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         this.logger.debug("[ConversationalStrategy] Validating outputs", {
             outputKeys: Object.keys(outputs),
         });
-        
+
         if (!this.validationEngine) {
             this.logger.warn("[ConversationalStrategy] No validation engine available, skipping validation");
             return outputs;
@@ -746,7 +744,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
             return outputs;
         }
     }
-    
+
     /**
      * Handle execution error with retry capability
      */
@@ -769,7 +767,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
                 outcome: "failure",
                 performanceScore: 0,
                 issues: [error.message],
-                improvements: this.isRetryableError(error) 
+                improvements: this.isRetryableError(error)
                     ? ["Retry with different parameters"]
                     : ["Check input format and constraints"],
             },

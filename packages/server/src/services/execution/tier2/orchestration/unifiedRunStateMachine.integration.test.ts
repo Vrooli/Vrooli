@@ -11,14 +11,14 @@
  * - Multiple execution strategies
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { UnifiedRunStateMachine } from "./unifiedRunStateMachine.js";
-import { NavigatorRegistry } from "../navigation/navigatorRegistry.js";
-import { MOISEGate } from "../validation/moiseGate.js";
-import { getRunStateStore } from "../state/runStateStore.js";
-import type { Logger } from "winston";
-import type { EventBus } from "../../cross-cutting/events/eventBus.js";
 import type { TierCommunicationInterface } from "@vrooli/shared";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Logger } from "winston";
+import type { EventBus } from "../../../events/eventBus.js";
+import { NavigatorRegistry } from "../navigation/navigatorRegistry.js";
+import { getRunStateStore } from "../state/runStateStore.js";
+import { MOISEGate } from "../validation/moiseGate.js";
+import { UnifiedRunStateMachine } from "./unifiedRunStateMachine.js";
 
 // Mock dependencies
 const mockLogger = {
@@ -144,7 +144,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
         navigatorRegistry = new NavigatorRegistry(mockLogger);
         moiseGate = new MOISEGate(mockLogger);
         stateStore = getRunStateStore();
-        
+
         // Mock state store
         stateStore.initialize = vi.fn().mockResolvedValue(undefined);
         stateStore.getRun = vi.fn();
@@ -167,7 +167,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
             // Test that the navigator can identify start events
             const navigator = navigatorRegistry.getNavigator("native");
             expect(navigator.canNavigate(prosConsEvaluatorRoutine)).toBe(true);
-            
+
             const startLocations = navigator.getAllStartLocations(prosConsEvaluatorRoutine);
             expect(startLocations).toHaveLength(1);
             expect(startLocations[0].nodeId).toBe("start");
@@ -196,7 +196,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
             // Test parallel opportunity identification
             const opportunities = await (stateMachine as any).identifyParallelOpportunities(context);
             expect(opportunities.length).toBeGreaterThan(0);
-            
+
             // Should identify the parallel gateway as an opportunity
             const parallelOpp = opportunities.find(opp => opp.sourceLocationId === "analyzeParallel");
             expect(parallelOpp).toBeDefined();
@@ -206,7 +206,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
         it("should calculate total steps for complex workflows", async () => {
             const context = {
                 runId: "test-run",
-                routineId: "pros-cons-eval", 
+                routineId: "pros-cons-eval",
                 routine: prosConsEvaluatorRoutine,
                 navigator: navigatorRegistry.getNavigator("native"),
                 currentLocation: { id: "test-1", routineId: "pros-cons-eval", nodeId: "start" },
@@ -224,7 +224,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
         it("should support conditional sequence flows", async () => {
             const navigator = navigatorRegistry.getNavigator("native");
             const location = { id: "test-1", routineId: "yes-man-avoid", nodeId: "checkComplexity" };
-            
+
             // Should be able to get next locations based on conditions
             const nextLocations = await navigator.getNextLocations(location, { complexity: "simple" });
             expect(nextLocations.length).toBeGreaterThan(0);
@@ -233,11 +233,11 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
         it("should handle gateway decision logic", async () => {
             const navigator = navigatorRegistry.getNavigator("native");
             const location = { id: "test-1", routineId: "pros-cons-eval", nodeId: "validateResults" };
-            
+
             // Test condition-based navigation
             const nextWithConclusive = await navigator.getNextLocations(location, { conclusive: true });
             const nextWithoutConclusive = await navigator.getNextLocations(location, { conclusive: false });
-            
+
             // Should route differently based on condition
             expect(nextWithConclusive).not.toEqual(nextWithoutConclusive);
         });
@@ -254,7 +254,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
         it("should handle complex routine configurations", async () => {
             // Test that the state machine can handle the routine example configurations
             const navigator = navigatorRegistry.getNavigator("native");
-            
+
             expect(navigator.canNavigate(prosConsEvaluatorRoutine)).toBe(true);
             expect(navigator.canNavigate(yesManAvoidanceRoutine)).toBe(true);
         });
@@ -279,7 +279,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
             } as any;
 
             (stateMachine as any).updateContextWithResults(context, mockResult);
-            
+
             expect(context.outputs.recommendation).toBe("Option A");
             expect(context.resourceUsage.creditsUsed).toBe("10");
             expect(context.completedSteps).toContain(context.currentLocation?.id);
@@ -312,7 +312,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
         it("should validate execution permissions through MOISE+ gate", async () => {
             const stepInfo = {
                 id: "analyzeOption1",
-                name: "Analyze Option 1", 
+                name: "Analyze Option 1",
                 type: "evaluation",
                 description: "Evaluate pros and cons of option 1",
             };
@@ -338,7 +338,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
     describe("Error Handling and Recovery", () => {
         it("should handle navigator errors gracefully", async () => {
             const invalidRoutine = { __version: "invalid" };
-            
+
             const navigator = navigatorRegistry.getNavigator("native");
             expect(navigator.canNavigate(invalidRoutine)).toBe(false);
         });

@@ -38,6 +38,16 @@ export class IOProcessor {
         inputs: Record<string, unknown>,
         runContext: RoutineContextImpl,
     ): Promise<Record<string, unknown>> {
+        if (!inputs) {
+            throw new Error("Inputs parameter is required");
+        }
+        if (!runContext) {
+            throw new Error("RunContext parameter is required");
+        }
+        if (!runContext.runId) {
+            throw new Error("RunContext must have a valid runId");
+        }
+
         this.logger.debug("[IOProcessor] Building input payload", {
             inputKeys: Object.keys(inputs),
             runId: runContext.runId,

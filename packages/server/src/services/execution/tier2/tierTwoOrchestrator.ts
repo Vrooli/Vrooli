@@ -1,10 +1,10 @@
 // AI_CHECK: STARTUP_ERRORS=4 | LAST: 2025-06-25 | FIXED: Import/export mismatch causing module not found error
 import { type Logger } from "winston";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { type IEventBus } from "../../events/types.js";
 import { BaseComponent } from "../shared/BaseComponent.js";
 // Socket events now handled through unified event system
-import { NavigatorRegistry } from "./navigation/navigatorRegistry.js";
 import { EventTypes } from "../../events/index.js";
+import { NavigatorRegistry } from "./navigation/navigatorRegistry.js";
 import { UnifiedRunStateMachine } from "./orchestration/unifiedRunStateMachine.js";
 // Legacy components removed - functionality consolidated in UnifiedRunStateMachine
 import {
@@ -14,11 +14,10 @@ import {
     type TierCapabilities,
     type TierCommunicationInterface,
     type TierExecutionRequest,
-    RunState,
 } from "@vrooli/shared";
+import { type ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import { type IRunStateStore, getRunStateStore } from "./state/runStateStore.js";
 import { MOISEGate } from "./validation/moiseGate.js";
-import { type ISwarmContextManager } from "../shared/SwarmContextManager.js";
 
 /**
  * Tier Two Orchestrator - Main Entry Point for Tier 2 Process Intelligence
@@ -61,10 +60,10 @@ import { type ISwarmContextManager } from "../shared/SwarmContextManager.js";
  */
 export class TierTwoOrchestrator extends BaseComponent implements TierCommunicationInterface {
     private readonly tier3Executor: TierCommunicationInterface;
-    
+
     // Core unified architecture - single comprehensive state machine
     private readonly unifiedStateMachine: UnifiedRunStateMachine;
-    
+
     // Shared dependencies used by unified state machine
     private readonly navigatorRegistry: NavigatorRegistry;
     private readonly moiseGate: MOISEGate;
@@ -72,7 +71,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
     private readonly contextManager?: ISwarmContextManager;
 
 
-    constructor(logger: Logger, eventBus: EventBus, tier3Executor: TierCommunicationInterface, contextManager?: ISwarmContextManager) {
+    constructor(logger: Logger, eventBus: IEventBus, tier3Executor: TierCommunicationInterface, contextManager?: ISwarmContextManager) {
         super(logger, eventBus, "TierTwoOrchestrator");
         this.tier3Executor = tier3Executor;
         this.contextManager = contextManager;
@@ -238,7 +237,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
     async cancelRun(runId: string, reason?: string): Promise<void> {
         // Use unified state machine run orchestrator
         const runOrchestrator = this.unifiedStateMachine.getRunOrchestrator();
-        
+
         // Check if run exists
         const run = await runOrchestrator.getRunState(runId);
         if (!run) {
@@ -286,7 +285,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
             const { runId, stepId, outputs } = event.data;
             // Use unified state machine run orchestrator
             const runOrchestrator = this.unifiedStateMachine.getRunOrchestrator();
-            
+
             // Update run progress
             await runOrchestrator.updateProgress(runId, {
                 currentStepId: stepId,
@@ -299,7 +298,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
             const { runId, stepId, error } = event.data;
             // Use unified state machine run orchestrator
             const runOrchestrator = this.unifiedStateMachine.getRunOrchestrator();
-            
+
             // Fail the run
             await runOrchestrator.failRun(runId, `Step ${stepId} failed: ${error}`);
         });

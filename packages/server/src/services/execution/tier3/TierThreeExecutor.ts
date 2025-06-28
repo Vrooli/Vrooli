@@ -4,22 +4,20 @@ import {
     type ExecutionResult,
     ExecutionStatus,
     generatePK,
+    isStepExecutionInput,
+    isValidStepType,
+    isValidStrategy,
     type StepExecutionInput,
     StrategyType as StrategyTypeEnum,
     type TierCapabilities,
     type TierCommunicationInterface,
     type TierExecutionRequest,
-    isStepExecutionInput,
-    isValidStrategy,
-    isValidStepType,
-    type ValidStrategy,
     type ValidStepType,
+    type ValidStrategy,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { EventTypes, EventUtils, type IEventBus } from "../../events/index.js";
 import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
-import { type IEventBus, type ExecutionEvent, EventUtils, EventTypes } from "../../events/index.js";
-import { nanoid } from "@vrooli/shared";
 import { BaseTierExecutor } from "../shared/BaseTierExecutor.js";
 // Socket events now handled through unified event system
 import { ContextExporter } from "./context/contextExporter.js";
@@ -45,7 +43,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
     // Track active executions for interface compliance
     private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; context: ExecutionContext }> = new Map();
 
-    constructor(logger: Logger, eventBus: EventBus) {
+    constructor(logger: Logger, eventBus: IEventBus) {
         super(logger, eventBus, "TierThreeExecutor", "tier3");
 
         // Get unified event system for proper event emission
@@ -221,101 +219,101 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
         });
 
         this.logger.info("[TierThreeExecutor] Starting tier execution", {
-                executionId,
-                stepId: input.stepId,
-                stepType: input.stepType,
-                strategy: input.strategy,
-                toolName: input.toolName,
+            executionId,
+            stepId: input.stepId,
+            stepType: input.stepType,
+            strategy: input.strategy,
+            toolName: input.toolName,
+        });
+
+        // Create execution context with type-safe transformation
+        const executionContext = this.createExecutionContext(request);
+
+        // Emit step started event
+        await this.emitStepEvent(EventTypes.STEP_STARTED, executionContext, {
+            strategy: input.strategy,
+            toolName: input.toolName,
+            parameters: input.parameters,
+        });
+
+        let result: ExecutionResult<TOutput>;
+        try {
+            // Execute the step
+            result = await this.executeStep(executionContext);
+
+            // Update execution status
+            this.activeExecutions.set(executionId, {
+                status: ExecutionStatus.COMPLETED,
+                startTime: this.activeExecutions.get(executionId)?.startTime || new Date(),
+                context,
             });
 
-            // Create execution context with type-safe transformation
-            const executionContext = this.createExecutionContext(request);
-
-            // Emit step started event
-            await this.emitStepEvent(EventTypes.STEP_STARTED, executionContext, {
+            // Emit step completed event
+            await this.emitStepEvent(EventTypes.STEP_COMPLETED, executionContext, {
                 strategy: input.strategy,
                 toolName: input.toolName,
                 parameters: input.parameters,
+                result: {
+                    status: result.status,
+                    output: result.output,
+                    creditsUsed: result.creditsUsed,
+                    duration: result.duration,
+                },
             });
 
-            let result: ExecutionResult<TOutput>;
-            try {
-                // Execute the step
-                result = await this.executeStep(executionContext);
+        } catch (executionError) {
+            // Update execution status to failed
+            this.activeExecutions.set(executionId, {
+                status: ExecutionStatus.FAILED,
+                startTime: this.activeExecutions.get(executionId)?.startTime || new Date(),
+                context,
+            });
 
-                // Update execution status
-                this.activeExecutions.set(executionId, {
-                    status: ExecutionStatus.COMPLETED,
-                    startTime: this.activeExecutions.get(executionId)?.startTime || new Date(),
-                    context,
-                });
+            // Emit step failed event (reliable delivery for errors)
+            await this.emitStepEvent(EventTypes.STEP_FAILED, executionContext, {
+                strategy: input.strategy,
+                toolName: input.toolName,
+                parameters: input.parameters,
+                error: {
+                    name: (executionError as Error).name,
+                    message: (executionError as Error).message,
+                    stack: (executionError as Error).stack,
+                },
+            }, "reliable");
 
-                // Emit step completed event
-                await this.emitStepEvent(EventTypes.STEP_COMPLETED, executionContext, {
-                    strategy: input.strategy,
-                    toolName: input.toolName,
-                    parameters: input.parameters,
-                    result: {
-                        status: result.status,
-                        output: result.output,
-                        creditsUsed: result.creditsUsed,
-                        duration: result.duration,
+            // Re-throw to maintain existing error handling
+            throw executionError;
+        }
+
+        // Emit config update through unified event system (if swarmId is available)
+        if (context.swarmId) {
+            await this.publishUnifiedEvent(EventTypes.CONFIG_SWARM_UPDATED, {
+                entityType: "swarm",
+                entityId: context.swarmId,
+                config: {
+                    records: [{
+                        id: generatePK().toString(),
+                        routine_id: input.stepId,
+                        routine_name: input.toolName || `${input.stepType} execution`,
+                        params: input.parameters,
+                        output_resource_ids: [], // TODO: Extract from result
+                        caller_bot_id: context.userId,
+                        created_at: new Date().toISOString(),
+                    }],
+                    stats: {
+                        totalToolCalls: 1, // Increment would need to be tracked
+                        totalCredits: allocation.maxCredits,
+                        lastProcessingCycleEndedAt: Date.now(),
                     },
-                });
+                },
+            }, {
+                deliveryGuarantee: "fire-and-forget",
+                priority: "medium",
+                conversationId: context.conversationId || context.swarmId,
+            });
+        }
 
-            } catch (executionError) {
-                // Update execution status to failed
-                this.activeExecutions.set(executionId, {
-                    status: ExecutionStatus.FAILED,
-                    startTime: this.activeExecutions.get(executionId)?.startTime || new Date(),
-                    context,
-                });
-
-                // Emit step failed event (reliable delivery for errors)
-                await this.emitStepEvent(EventTypes.STEP_FAILED, executionContext, {
-                    strategy: input.strategy,
-                    toolName: input.toolName,
-                    parameters: input.parameters,
-                    error: {
-                        name: (executionError as Error).name,
-                        message: (executionError as Error).message,
-                        stack: (executionError as Error).stack,
-                    },
-                }, "reliable");
-
-                // Re-throw to maintain existing error handling
-                throw executionError;
-            }
-
-            // Emit config update through unified event system (if swarmId is available)
-            if (context.swarmId) {
-                await this.publishUnifiedEvent(EventTypes.CONFIG_SWARM_UPDATED, {
-                    entityType: "swarm",
-                    entityId: context.swarmId,
-                    config: {
-                        records: [{
-                            id: generatePK().toString(),
-                            routine_id: input.stepId,
-                            routine_name: input.toolName || `${input.stepType} execution`,
-                            params: input.parameters,
-                            output_resource_ids: [], // TODO: Extract from result
-                            caller_bot_id: context.userId,
-                            created_at: new Date().toISOString(),
-                        }],
-                        stats: {
-                            totalToolCalls: 1, // Increment would need to be tracked
-                            totalCredits: allocation.maxCredits,
-                            lastProcessingCycleEndedAt: Date.now(),
-                        },
-                    },
-                }, {
-                    deliveryGuarantee: "fire-and-forget",
-                    priority: "medium",
-                    conversationId: context.conversationId || context.swarmId,
-                });
-            }
-
-            return result as ExecutionResult<TOutput>;
+        return result as ExecutionResult<TOutput>;
     }
 
     /**
@@ -328,7 +326,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
 
         // Validate and transform strategy
         const strategy = this.validateStrategy(input.strategy);
-        
+
         // Validate and transform step type
         const stepType = this.validateStepType(input.stepType);
 
@@ -421,7 +419,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
         error: unknown,
     ): Record<string, unknown> {
         const baseContext = super.getAdditionalErrorContext(request, error);
-        
+
         if (isStepExecutionInput(request.input)) {
             return {
                 ...baseContext,

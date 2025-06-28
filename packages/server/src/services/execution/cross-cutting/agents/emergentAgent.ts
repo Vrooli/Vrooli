@@ -1,5 +1,5 @@
 import { type Logger } from "winston";
-import { type AgentResponse, type IntelligentEvent } from "../events/eventBus.js";
+import { type AgentResponse, type IntelligentEvent } from "../../../events/types.js";
 
 /**
  * Emergent Agent - Base infrastructure for goal-driven intelligent agents

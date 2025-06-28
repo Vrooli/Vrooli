@@ -8,23 +8,23 @@
 // Base classes for common patterns
 export {
     BaseStateMachine,
-    BaseStates, type BaseEvent, type BaseState, type ManagedTaskStateMachine
+    BaseStates, type BaseEvent, type BaseState, type ManagedTaskStateMachine,
 } from "./BaseStateMachine.js";
 
 export {
     BaseTierExecutor,
-    TierResourceUtils, type ExecutionMetrics, type TierErrorContext
+    TierResourceUtils, type ExecutionMetrics, type TierErrorContext,
 } from "./BaseTierExecutor.js";
 
 export {
     BaseResourceManager,
-    SimpleResourceManager, type AllocationResult, type ResourceAllocation, type ResourceLimits, type ResourceRequest
+    SimpleResourceManager, type AllocationResult, type ResourceAllocation, type ResourceLimits, type ResourceRequest,
 } from "./BaseResourceManager.js";
 
 // Context validation utilities
 export {
     ContextValidationError, ContextValidator,
-    ContextValidatorFactory, type ValidationError, type ValidationResult, type ValidationWarning
+    ContextValidatorFactory, type ValidationError, type ValidationResult, type ValidationWarning,
 } from "./contextValidator.js";
 
 // Socket events now handled through unified event system
@@ -33,22 +33,19 @@ export {
 // SwarmContextManager - Unified swarm state management
 export {
     SwarmContextManager,
-    type ISwarmContextManager
+    type ISwarmContextManager,
 } from "./SwarmContextManager.js";
 
 export {
-    isContextUpdateEvent, isResourcePool, isUnifiedSwarmContext, type BlackboardItem, type BlackboardState, type ContextQuery, type ContextSubscription, type ContextUpdateEvent, type ContextValidationResult, type MOISEPolicy, type ResourcePolicy, type ResourcePool, type SecurityPolicy, type SwarmConfiguration, type SwarmExecutionState, type ResourceAllocation as SwarmResourceAllocation, type UnifiedSwarmContext
+    type BlackboardItem, type BlackboardState, type ContextQuery, type ContextSubscription, type ContextUpdateEvent, type ContextValidationResult, type MOISEPolicy, type ResourcePolicy, type ResourcePool, type SecurityPolicy, type SwarmConfiguration, type SwarmExecutionState, type ResourceAllocation as SwarmResourceAllocation, type UnifiedSwarmContext,
 } from "./UnifiedSwarmContext.js";
 
 export {
     ResourceFlowProtocol,
-    type ResourceFlowConfig
 } from "./ResourceFlowProtocol.js";
 
 export {
     ContextSubscriptionManager,
-    type IContextSubscriptionManager, type NotificationBatch, type SubscriptionFilter
+    type SubscriptionFilter,
 } from "./ContextSubscriptionManager.js";
 
-// Note: Tier-specific context types should be imported directly from their respective tiers
-// to avoid circular dependencies. Do not re-export them here.

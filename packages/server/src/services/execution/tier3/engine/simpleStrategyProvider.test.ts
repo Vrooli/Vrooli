@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { type Logger } from "winston";
 import {
     type ExecutionContext,
     type StrategyFactoryConfig,
     StrategyType as StrategyTypeEnum,
     generatePK,
 } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type Logger } from "winston";
+import { type EventBus } from "../../../events/eventBus.js";
 import { SimpleStrategyProvider } from "./simpleStrategyProvider.js";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 
 describe("SimpleStrategyProvider", () => {
     let provider: SimpleStrategyProvider;

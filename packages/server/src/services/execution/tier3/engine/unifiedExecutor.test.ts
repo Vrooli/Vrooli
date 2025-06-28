@@ -1,15 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { UnifiedExecutor } from "./unifiedExecutor.js";
-import { EventBus } from "../../cross-cutting/events/eventBus.js";
-import { mockLogger } from "../../../../__test/logger.mock.js";
-import { mockStrategies } from "../../../../__test/fixtures/execution/strategyFixtures.js";
-import { mockTools } from "../../../../__test/fixtures/execution/toolFixtures.js";
-import { 
-    type ExecutionContext, 
+import {
     type ExecutionStrategy,
-    type StrategyExecutionResult,
     type StepInput,
 } from "@vrooli/shared";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockStrategies } from "../../../../__test/fixtures/execution/strategyFixtures.js";
+import { mockTools } from "../../../../__test/fixtures/execution/toolFixtures.js";
+import { mockLogger } from "../../../../__test/logger.mock.js";
+import { EventBus } from "../../../events/eventBus.js";
+import { UnifiedExecutor } from "./unifiedExecutor.js";
 
 describe("UnifiedExecutor", () => {
     let unifiedExecutor: UnifiedExecutor;
@@ -20,7 +18,7 @@ describe("UnifiedExecutor", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         eventBus = new EventBus(mockLogger);
-        
+
         // Mock tool registry
         mockToolRegistry = {
             getTool: vi.fn().mockImplementation((name: string) => {
@@ -385,7 +383,7 @@ describe("UnifiedExecutor", () => {
                     routineId: "test-routine",
                     inputs: { query: "Calculate 2+2" },
                     userId: "test-user",
-                    metadata: { 
+                    metadata: {
                         strategy: "conversational",
                         previousExecutions: 0,
                     },
@@ -404,7 +402,7 @@ describe("UnifiedExecutor", () => {
                     routineId: "test-routine",
                     inputs: { query: "Calculate 2+2" },
                     userId: "test-user",
-                    metadata: { 
+                    metadata: {
                         strategy: "deterministic",
                         previousExecutions: 10,
                         optimized: true,

@@ -550,7 +550,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         const state = await this.conversationBridge.getConversationState(conversationId);
         
         if (!state) {
-            // This should not happen anymore as TierOneCoordinator creates the conversation
+            // This should not happen anymore as SwarmCoordinator creates the conversation
             // But log a warning and return a minimal state to avoid crashes
             this.logger.warn(`[SwarmStateMachine] Conversation ${conversationId} not found, this shouldn't happen`);
             return {
@@ -579,7 +579,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         if (leaderId) {
             return convoState.participants.find(p => p.id === leaderId) || null;
         }
-        // Return first participant (which should be the leader bot added by TierOneCoordinator)
+        // Return first participant (which should be the leader bot added by SwarmCoordinator)
         return convoState.participants[0] || null;
     }
 

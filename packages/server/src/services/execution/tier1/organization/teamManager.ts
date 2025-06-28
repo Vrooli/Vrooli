@@ -1,11 +1,11 @@
 // AI_CHECK: STARTUP_ERRORS=2 | LAST: 2025-06-25
-import { type Logger } from "winston";
 import {
-    type TeamFormation,
     type SwarmAgent,
     SwarmEventType as SwarmEventTypeEnum,
+    type TeamFormation,
 } from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { type Logger } from "winston";
+import { type EventBus } from "../../../events/types.js";
 import { BaseComponent } from "../../shared/BaseComponent.js";
 
 /**
@@ -31,7 +31,7 @@ export class TeamManager extends BaseComponent {
     private readonly teams: Map<string, TeamFormation> = new Map();
     private readonly agentRegistry: Map<string, SwarmAgent> = new Map();
 
-    constructor(logger: Logger, eventBus: EventBus) {
+    constructor(logger: Logger, eventBus: IEventBus) {
         super(logger, eventBus, "TeamManager");
         this.subscribeToBasicEvents();
     }
@@ -98,7 +98,7 @@ export class TeamManager extends BaseComponent {
     ): Promise<void> {
         const team = await this.getTeam(swarmId);
         const originalAgentCount = team.agents.length;
-        
+
         // Apply updates
         Object.assign(team, updates);
 
@@ -215,7 +215,7 @@ export class TeamManager extends BaseComponent {
     async cleanup(): Promise<void> {
         this.teams.clear();
         this.agentRegistry.clear();
-        
+
         await this.publishUnifiedEvent("swarm.team.manager.shutdown", {
             type: SwarmEventTypeEnum.TEAM_MANAGER_SHUTDOWN,
             timestamp: new Date(),

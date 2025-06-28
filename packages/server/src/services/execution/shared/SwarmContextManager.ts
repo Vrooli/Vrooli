@@ -19,7 +19,7 @@
  * ```
  * SwarmContextManager (This Class - Central Authority)
  *         ↓ provides unified state to
- * Tier 1: SwarmStateMachine + TierOneCoordinator  
+ * Tier 1: SwarmStateMachine + SwarmCoordinator  
  * Tier 2: UnifiedRunStateMachine + TierTwoOrchestrator
  * Tier 3: TierThreeExecutor + ValidationEngine
  *         ↓ all subscribe to live updates via
@@ -58,7 +58,9 @@ import {
 } from "@vrooli/shared";
 import { type Redis as RedisClient } from "ioredis";
 import { type Logger } from "winston";
-import { CacheService } from "../../../redisConn.js";
+import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { EventTypes, EventUtils, type IEventBus } from "../../events/index.js";
+import { SwarmSocketEmitter } from "../../swarmSocketEmitter.js";
 import {
     type ContextQuery,
     type ContextSubscription,
@@ -152,6 +154,8 @@ export class SwarmContextManager implements ISwarmContextManager {
     private readonly logger: Logger;
     private redis: RedisClient | null = null;
     private readonly config: SwarmContextManagerConfig;
+    private readonly unifiedEventBus: IEventBus | null;
+    private readonly swarmEmitter: SwarmSocketEmitter | null;
 
     // Subscription management
     private readonly subscriptions = new Map<string, ContextSubscription>();
@@ -175,9 +179,12 @@ export class SwarmContextManager implements ISwarmContextManager {
     };
 
     constructor(
+        redis: RedisClient,
         logger: Logger,
         config: Partial<SwarmContextManagerConfig> = {},
+        swarmEmitter?: SwarmSocketEmitter,
     ) {
+        this.redis = redis;
         this.logger = logger;
         this.config = {
             contextTTL: 86400 * 7, // 7 days
@@ -190,21 +197,33 @@ export class SwarmContextManager implements ISwarmContextManager {
             ...config,
         };
 
-        // Redis will be initialized in start() - using null until then
+        // Initialize unified event system for direct event emission (Phase 2 of adapter migration)
+        this.unifiedEventBus = getUnifiedEventSystem();
 
-        this.logger.info("[SwarmContextManager] Initialized with emergent capabilities enabled", {
+        // Phase 3: Initialize socket service for direct socket emission (replaces SocketEventAdapter)
+        this.swarmEmitter = swarmEmitter || SwarmSocketEmitter.get();
+
+        // Redis connection provided via constructor
+
+        this.logger.info("[SwarmContextManager] Initialized with emergent capabilities, direct event emission, and direct socket integration enabled", {
             config: this.config,
+            unifiedEventBusAvailable: this.unifiedEventBus !== null,
+            socketServiceAvailable: this.swarmEmitter !== null,
         });
     }
 
     /**
-     * Start the context manager and initialize Redis connections
+     * Initialize the context manager (alias for start() for backward compatibility)
+     */
+    async initialize(): Promise<void> {
+        return this.start();
+    }
+
+    /**
+     * Start the context manager and setup pub/sub handlers
      */
     async start(): Promise<void> {
         try {
-            // Initialize Redis connection
-            this.redis = await CacheService.get().raw();
-
             // Setup pub/sub subscription handler for live updates
             await this.setupPubSubHandler();
 
@@ -1093,13 +1112,15 @@ export class SwarmContextManager implements ISwarmContextManager {
 
     private async publishUpdateEvent(event: ContextUpdateEvent): Promise<void> {
         try {
-            const redis = this.ensureRedisConnected();
-            const channel = `${this.config.pubsubChannelPrefix}${event.swarmId}`;
-            const message = JSON.stringify(event);
+            // Phase 2: Direct unified event emission (replaces ExecutionEventBusAdapter)
+            if (this.unifiedEventBus) {
+                await this.emitUnifiedSwarmStateEvent(event);
+            }
 
-            await redis.publish(channel, message);
+            // Phase 3: Direct socket emission (replaces SocketEventAdapter)
+            await this.emitDirectSocketEvents(event);
 
-            // Notify local subscriptions
+            // Notify local subscriptions (maintained for local state management)
             await this.notifySubscriptions(event);
 
         } catch (error) {
@@ -1137,6 +1158,307 @@ export class SwarmContextManager implements ISwarmContextManager {
                     error: error instanceof Error ? error.message : String(error),
                 });
             }
+        }
+    }
+
+    /**
+     * Emit unified events directly (Phase 2: replaces ExecutionEventBusAdapter)
+     * 
+     * This method implements the direct event emission pattern from the migration plan,
+     * enabling emergent capabilities without complex adapter layers.
+     */
+    private async emitUnifiedSwarmStateEvent(contextEvent: ContextUpdateEvent): Promise<void> {
+        if (!this.unifiedEventBus) {
+            this.logger.warn("[SwarmContextManager] Unified event bus not available for direct emission");
+            return;
+        }
+
+        try {
+            // Emit swarm state update event
+            const swarmStateEvent = EventUtils.createBaseEvent(
+                EventTypes.STATE_SWARM_UPDATED,
+                {
+                    entityType: "swarm",
+                    entityId: contextEvent.swarmId,
+                    previousVersion: contextEvent.previousVersion,
+                    newVersion: contextEvent.newVersion,
+                    changes: contextEvent.changes.map(change => ({
+                        path: change.path,
+                        oldValue: change.oldValue,
+                        newValue: change.newValue,
+                        changeType: change.type,
+                    })),
+                    emergent: contextEvent.emergent,
+                    reason: contextEvent.reason,
+                    updatedBy: contextEvent.updatedBy,
+                    timestamp: contextEvent.timestamp.toISOString(),
+                },
+                EventUtils.createEventSource(1, "SwarmContextManager"),
+                EventUtils.createEventMetadata(
+                    "fire-and-forget",
+                    contextEvent.emergent ? "high" : "medium",
+                    {
+                        tags: ["swarm", "state", "context", contextEvent.emergent ? "emergent" : "standard"],
+                        conversationId: contextEvent.swarmId, // Use swarmId as conversationId for routing
+                    },
+                ),
+            );
+
+            await this.unifiedEventBus.publish(swarmStateEvent);
+
+            // Also emit specific change events for fine-grained subscriptions
+            for (const change of contextEvent.changes) {
+                await this.emitChangeSpecificEvent(contextEvent, change);
+            }
+
+            this.logger.debug("[SwarmContextManager] Emitted unified swarm state events", {
+                swarmId: contextEvent.swarmId,
+                eventType: EventTypes.STATE_SWARM_UPDATED,
+                changesCount: contextEvent.changes.length,
+                emergent: contextEvent.emergent,
+            });
+
+        } catch (error) {
+            this.logger.error("[SwarmContextManager] Failed to emit unified events", {
+                swarmId: contextEvent.swarmId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            // Don't re-throw - this shouldn't break the core context update
+        }
+    }
+
+    /**
+     * Emit change-specific events for fine-grained agent subscriptions
+     */
+    private async emitChangeSpecificEvent(contextEvent: ContextUpdateEvent, change: any): Promise<void> {
+        if (!this.unifiedEventBus) return;
+
+        // Determine event type based on change path
+        let eventType = EventTypes.STATE_SWARM_UPDATED;
+        if (change.path.startsWith("resources.")) {
+            eventType = EventTypes.RESOURCE_SWARM_UPDATED;
+        } else if (change.path.startsWith("policy.")) {
+            eventType = EventTypes.CONFIG_SWARM_UPDATED;
+        } else if (change.path.startsWith("executionState.")) {
+            eventType = EventTypes.STATE_RUN_UPDATED;
+        }
+
+        const changeEvent = EventUtils.createBaseEvent(
+            eventType,
+            {
+                entityType: "swarm",
+                entityId: contextEvent.swarmId,
+                changePath: change.path,
+                oldValue: change.oldValue,
+                newValue: change.newValue,
+                changeType: change.type,
+                emergent: contextEvent.emergent,
+                reason: contextEvent.reason,
+                updatedBy: contextEvent.updatedBy,
+            },
+            EventUtils.createEventSource(1, "SwarmContextManager"),
+            EventUtils.createEventMetadata(
+                "fire-and-forget",
+                "low",
+                {
+                    tags: ["swarm", "change", change.path.split(".")[0]],
+                    conversationId: contextEvent.swarmId,
+                },
+            ),
+        );
+
+        await this.unifiedEventBus.publish(changeEvent);
+    }
+
+    /**
+     * Emit socket events directly (Phase 3: replaces SocketEventAdapter)
+     * 
+     * This method implements direct socket emission from SwarmContextManager,
+     * eliminating the 525-line SocketEventAdapter complexity.
+     */
+    private async emitDirectSocketEvents(contextEvent: ContextUpdateEvent): Promise<void> {
+        if (!this.swarmEmitter) {
+            this.logger.debug("[SwarmContextManager] Socket service not available for direct emission");
+            return;
+        }
+
+        try {
+            // Get the conversation ID for socket room targeting
+            const conversationId = await this.getConversationIdFromContext(contextEvent.swarmId);
+            if (!conversationId) {
+                this.logger.debug("[SwarmContextManager] No conversation ID found for socket emission", {
+                    swarmId: contextEvent.swarmId,
+                });
+                return;
+            }
+
+            // Emit socket events based on change types
+            for (const change of contextEvent.changes) {
+                await this.emitSocketEventForChange(conversationId, contextEvent, change);
+            }
+
+            this.logger.debug("[SwarmContextManager] Emitted direct socket events", {
+                swarmId: contextEvent.swarmId,
+                conversationId,
+                changesCount: contextEvent.changes.length,
+            });
+
+        } catch (error) {
+            this.logger.error("[SwarmContextManager] Failed to emit direct socket events", {
+                swarmId: contextEvent.swarmId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            // Don't re-throw - socket emission failures shouldn't break core functionality
+        }
+    }
+
+    /**
+     * Emit specific socket event based on change type
+     */
+    private async emitSocketEventForChange(
+        conversationId: string,
+        contextEvent: ContextUpdateEvent,
+        change: any,
+    ): Promise<void> {
+        if (!this.swarmEmitter) return;
+
+        const { swarmId } = contextEvent;
+
+        // Handle different types of changes with direct socket emission
+        if (change.path.startsWith("executionState.")) {
+            // State changes
+            await this.emitSwarmStateSocketEvent(conversationId, swarmId, change);
+        } else if (change.path.startsWith("resources.")) {
+            // Resource changes
+            await this.emitSwarmResourceSocketEvent(conversationId, swarmId, change, contextEvent);
+        } else if (change.path.startsWith("policy.organizational.")) {
+            // Team/organizational changes
+            await this.emitSwarmTeamSocketEvent(conversationId, swarmId, change);
+        } else if (change.path.startsWith("policy.") || change.path.startsWith("config.")) {
+            // Configuration changes
+            await this.emitSwarmConfigSocketEvent(conversationId, swarmId, change);
+        }
+    }
+
+    /**
+     * Emit swarm state socket events
+     */
+    private async emitSwarmStateSocketEvent(
+        conversationId: string,
+        swarmId: string,
+        change: any,
+    ): Promise<void> {
+        if (!this.swarmEmitter) return;
+
+        // Map internal state to socket-compatible state
+        const socketState = this.mapToSocketState(change.newValue);
+        const message = change.path.includes("statusMessage") ? change.newValue : undefined;
+
+        this.swarmEmitter.emitSwarmStateUpdate(conversationId, swarmId, socketState, message);
+    }
+
+    /**
+     * Emit swarm resource socket events
+     */
+    private async emitSwarmResourceSocketEvent(
+        conversationId: string,
+        swarmId: string,
+        _change: any,
+        _contextEvent: ContextUpdateEvent,
+    ): Promise<void> {
+        if (!this.swarmEmitter) return;
+
+        // Get current context to build resource payload
+        const context = await this.getContext(swarmId);
+        if (!context) return;
+
+        // Build swarm-compatible resource object for socket emission
+        const swarmResourceData = {
+            id: swarmId,
+            state: context.executionState.currentStatus,
+            resources: {
+                allocated: { amount: context.resources.total.credits },
+                consumed: { amount: context.resources.total.credits - context.resources.available.credits },
+                remaining: { amount: context.resources.available.credits },
+            },
+        } as any;
+
+        this.swarmEmitter.emitSwarmResourceUpdate(conversationId, swarmId, swarmResourceData);
+    }
+
+    /**
+     * Emit swarm team socket events
+     */
+    private async emitSwarmTeamSocketEvent(
+        conversationId: string,
+        swarmId: string,
+        change: any,
+    ): Promise<void> {
+        if (!this.swarmEmitter) return;
+
+        // Extract team information from the change
+        const teamId = change.path.includes("teamId") ? change.newValue : undefined;
+        const swarmLeader = change.path.includes("leader") ? change.newValue : undefined;
+        const subtaskLeaders = change.path.includes("subtaskLeaders") ? change.newValue : undefined;
+
+        this.swarmEmitter.emitSwarmTeamUpdate(conversationId, swarmId, teamId, swarmLeader, subtaskLeaders);
+    }
+
+    /**
+     * Emit swarm config socket events
+     */
+    private async emitSwarmConfigSocketEvent(
+        conversationId: string,
+        swarmId: string,
+        change: any,
+    ): Promise<void> {
+        if (!this.swarmEmitter) return;
+
+        // Build config update from the change
+        const configUpdate = {
+            [change.path]: change.newValue,
+        } as any;
+
+        this.swarmEmitter.emitSwarmConfigUpdate(conversationId, configUpdate);
+    }
+
+    /**
+     * Map internal execution state to socket-compatible state
+     */
+    private mapToSocketState(internalState: string): any {
+        // Direct mapping without complex adapter logic (replaces 50+ lines in SocketEventAdapter)
+        const stateMap: Record<string, string> = {
+            "UNINITIALIZED": "Initializing",
+            "STARTING": "Initializing", 
+            "RUNNING": "Running",
+            "IDLE": "PAUSED", // Map IDLE to PAUSED for socket compatibility
+            "PAUSED": "Paused",
+            "STOPPED": "TERMINATED", // Map STOPPED to TERMINATED for socket compatibility
+            "FAILED": "Failed",
+            "TERMINATED": "Cancelled",
+        };
+
+        return stateMap[internalState] || "Running";
+    }
+
+    /**
+     * Get conversation ID from swarm context for socket room targeting
+     */
+    private async getConversationIdFromContext(swarmId: string): Promise<string | null> {
+        try {
+            const context = await this.getContext(swarmId);
+            if (!context) return null;
+
+            // Get conversation ID from blackboard or use swarmId as fallback
+            const conversationId = context.blackboard.get("conversationId") as string;
+            return conversationId || swarmId;
+
+        } catch (error) {
+            this.logger.warn("[SwarmContextManager] Failed to get conversation ID for socket emission", {
+                swarmId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return swarmId; // Fallback to swarmId
         }
     }
 

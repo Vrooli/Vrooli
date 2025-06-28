@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { BaseStateMachine, BaseStates, type BaseState, type BaseEvent, type ManagedTaskStateMachine } from "./BaseStateMachine.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Logger } from "winston";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { type EventBus } from "../../events/types.js";
+import { BaseStateMachine, BaseStates, type BaseEvent, type BaseState } from "./BaseStateMachine.js";
 
 /**
  * BaseStateMachine Infrastructure Tests
@@ -29,7 +29,7 @@ class TestStateMachine extends BaseStateMachine<BaseState, BaseEvent> {
 
     constructor(
         logger: Logger,
-        eventBus: EventBus,
+        eventBus: IEventBus,
         taskId: string,
         initialState: BaseState = BaseStates.UNINITIALIZED,
     ) {
@@ -61,7 +61,7 @@ class TestStateMachine extends BaseStateMachine<BaseState, BaseEvent> {
     // Protected methods implementation for testing
     protected async processEvent(event: BaseEvent): Promise<void> {
         this.processEventCalls.push({ event, timestamp: new Date() });
-        
+
         if (this.shouldFailProcessing) {
             throw new Error(`Processing failed for event: ${event.type}`);
         }
@@ -83,11 +83,11 @@ class TestStateMachine extends BaseStateMachine<BaseState, BaseEvent> {
     }
 
     protected async onStop(mode: "graceful" | "force", reason?: string): Promise<unknown> {
-        this.lifecycleEvents.push({ 
-            type: `stop_${mode}`, 
-            timestamp: new Date(), 
+        this.lifecycleEvents.push({
+            type: `stop_${mode}`,
+            timestamp: new Date(),
         });
-        
+
         return {
             mode,
             reason,
@@ -127,7 +127,7 @@ class TestStateMachine extends BaseStateMachine<BaseState, BaseEvent> {
 
 describe("BaseStateMachine Infrastructure", () => {
     let logger: Logger;
-    let eventBus: EventBus;
+    let eventBus: IEventBus;
     let stateMachine: TestStateMachine;
 
     beforeEach(() => {
@@ -166,8 +166,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should initialize with custom initial state", () => {
             const customStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "custom-task",
                 BaseStates.IDLE,
             );
@@ -181,7 +181,7 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should handle concurrent state access safely", async () => {
             // Start multiple state reading operations concurrently
-            const stateReads = Array.from({ length: 10 }, () => 
+            const stateReads = Array.from({ length: 10 }, () =>
                 Promise.resolve(stateMachine.getState()),
             );
 
@@ -198,8 +198,8 @@ describe("BaseStateMachine Infrastructure", () => {
         it("should queue events and process them in order", async () => {
             // Start with IDLE state to enable processing
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "event-queue-task",
                 BaseStates.IDLE,
             );
@@ -220,20 +220,20 @@ describe("BaseStateMachine Infrastructure", () => {
 
             const processedEvents = idleStateMachine.getProcessEventCalls();
             expect(processedEvents).toHaveLength(3);
-            
+
             // Verify order
             expect(processedEvents[0].event.type).toBe("event_1");
             expect(processedEvents[1].event.type).toBe("event_2");
             expect(processedEvents[2].event.type).toBe("event_3");
-            
+
             await idleStateMachine.stop("force");
         });
 
         it("should transition to RUNNING state during event processing", async () => {
             // Start with IDLE state
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "idle-task",
                 BaseStates.IDLE,
             );
@@ -243,32 +243,32 @@ describe("BaseStateMachine Infrastructure", () => {
 
             // Should transition to RUNNING during processing
             await new Promise(resolve => setTimeout(resolve, 5));
-            
+
             // Eventually should return to IDLE
             await new Promise(resolve => setTimeout(resolve, 50));
             expect(idleStateMachine.getState()).toBe(BaseStates.IDLE);
-            
+
             await idleStateMachine.stop("force");
         });
 
         it("should return to IDLE state after processing all events", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "idle-task",
                 BaseStates.IDLE,
             );
 
             await idleStateMachine.handleEvent({ type: "test_event" });
-            
+
             // Wait for processing to complete
             await new Promise(resolve => setTimeout(resolve, 50));
-            
+
             expect(idleStateMachine.getState()).toBe(BaseStates.IDLE);
             expect(idleStateMachine.getLifecycleEvents()).toContainEqual(
                 expect.objectContaining({ type: "idle" }),
             );
-            
+
             await idleStateMachine.stop("force");
         });
 
@@ -284,8 +284,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should handle concurrent event submissions safely", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "concurrent-task",
                 BaseStates.IDLE,
             );
@@ -296,13 +296,13 @@ describe("BaseStateMachine Infrastructure", () => {
             );
 
             await Promise.all(eventPromises);
-            
+
             // Wait for processing
             await new Promise(resolve => setTimeout(resolve, 100));
 
             const processedEvents = idleStateMachine.getProcessEventCalls();
             expect(processedEvents).toHaveLength(5);
-            
+
             await idleStateMachine.stop("force");
         });
     });
@@ -312,8 +312,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         beforeEach(() => {
             runningStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "running-task",
                 BaseStates.RUNNING,
             );
@@ -337,8 +337,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should pause from IDLE state", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "idle-task",
                 BaseStates.IDLE,
             );
@@ -347,7 +347,7 @@ describe("BaseStateMachine Infrastructure", () => {
 
             expect(result).toBe(true);
             expect(idleStateMachine.getState()).toBe(BaseStates.PAUSED);
-            
+
             await idleStateMachine.stop("force");
         });
 
@@ -387,27 +387,27 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should schedule drain after resume", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "resume-task",
                 BaseStates.IDLE,
             );
 
             await idleStateMachine.pause();
-            
+
             // Queue an event while paused
             await idleStateMachine.handleEvent({ type: "queued_while_paused" });
-            
+
             // Resume should trigger processing
             await idleStateMachine.resume();
-            
+
             // Wait for processing
             await new Promise(resolve => setTimeout(resolve, 50));
-            
+
             const processedEvents = idleStateMachine.getProcessEventCalls();
             expect(processedEvents).toHaveLength(1);
             expect(processedEvents[0].event.type).toBe("queued_while_paused");
-            
+
             await idleStateMachine.stop("force");
         });
     });
@@ -415,8 +415,8 @@ describe("BaseStateMachine Infrastructure", () => {
     describe("Lifecycle Management - Stop", () => {
         it("should stop gracefully from valid states", async () => {
             const runningStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "stop-task",
                 BaseStates.RUNNING,
             );
@@ -443,8 +443,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should not gracefully stop from invalid states", async () => {
             const failedStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "failed-task",
                 BaseStates.FAILED,
             );
@@ -459,14 +459,14 @@ describe("BaseStateMachine Infrastructure", () => {
         it("should handle already stopped state", async () => {
             // Start with stoppable state
             const runningStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "already-stopped-task",
                 BaseStates.RUNNING,
             );
-            
+
             await runningStateMachine.stop("graceful");
-            
+
             const result = await runningStateMachine.stop("graceful");
 
             expect(result.success).toBe(true);
@@ -475,8 +475,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should support ManagedTaskStateMachine stop interface", async () => {
             const runningStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "managed-stop-task",
                 BaseStates.RUNNING,
             );
@@ -489,8 +489,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should clean up resources on stop", async () => {
             const runningStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "cleanup-task",
                 BaseStates.RUNNING,
             );
@@ -503,7 +503,7 @@ describe("BaseStateMachine Infrastructure", () => {
 
             // Events should be ignored after stop
             await runningStateMachine.handleEvent({ type: "ignored_event" });
-            
+
             // Only the original events should be processed
             await new Promise(resolve => setTimeout(resolve, 50));
             const processedEvents = runningStateMachine.getProcessEventCalls();
@@ -514,8 +514,8 @@ describe("BaseStateMachine Infrastructure", () => {
     describe("Error Handling and Recovery", () => {
         it("should handle non-fatal processing errors gracefully", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "error-handling-task",
                 BaseStates.IDLE,
             );
@@ -524,20 +524,20 @@ describe("BaseStateMachine Infrastructure", () => {
             idleStateMachine.setShouldReportFatalError(false); // Non-fatal
 
             await idleStateMachine.handleEvent({ type: "failing_event" });
-            
+
             // Wait for processing
             await new Promise(resolve => setTimeout(resolve, 50));
 
             // Should continue processing after non-fatal error
             expect(idleStateMachine.getState()).toBe(BaseStates.IDLE);
-            
+
             await idleStateMachine.stop("force");
         });
 
         it("should transition to FAILED state on fatal errors", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "fatal-error-task",
                 BaseStates.IDLE,
             );
@@ -546,12 +546,12 @@ describe("BaseStateMachine Infrastructure", () => {
             idleStateMachine.setShouldReportFatalError(true); // Fatal
 
             await idleStateMachine.handleEvent({ type: "fatal_event" });
-            
+
             // Wait for processing
             await new Promise(resolve => setTimeout(resolve, 50));
 
             expect(idleStateMachine.getState()).toBe(BaseStates.FAILED);
-            
+
             await idleStateMachine.stop("force");
         });
 
@@ -564,8 +564,8 @@ describe("BaseStateMachine Infrastructure", () => {
             }
 
             const failingStateMachine = new FailingStopStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "failing-stop-task",
                 BaseStates.RUNNING,
             );
@@ -579,8 +579,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should use error handler for consistent error processing", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "error-wrapper-task",
                 BaseStates.IDLE,
             );
@@ -588,7 +588,7 @@ describe("BaseStateMachine Infrastructure", () => {
             idleStateMachine.setShouldFailProcessing(true);
 
             await idleStateMachine.handleEvent({ type: "error_test" });
-            
+
             // Wait for processing
             await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -685,50 +685,50 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should handle scheduled drain with delay", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "delayed-drain-task",
                 BaseStates.IDLE,
             );
 
             await idleStateMachine.handleEvent({ type: "delayed_event" });
-            
+
             // Schedule drain with delay
             idleStateMachine.testScheduleDrain(10);
-            
+
             // Event should not be processed immediately
             expect(idleStateMachine.getProcessEventCalls()).toHaveLength(0);
-            
+
             // Wait for delayed processing
             await new Promise(resolve => setTimeout(resolve, 50));
-            
+
             expect(idleStateMachine.getProcessEventCalls()).toHaveLength(1);
-            
+
             await idleStateMachine.stop("force");
         });
 
         it("should cancel pending drain when paused", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "pause-drain-task",
                 BaseStates.IDLE,
             );
 
             await idleStateMachine.handleEvent({ type: "pausable_event" });
-            
+
             // Schedule drain with delay
             idleStateMachine.testScheduleDrain(100);
-            
+
             // Pause immediately
             await idleStateMachine.pause();
-            
+
             // Wait longer than the scheduled delay
             await new Promise(resolve => setTimeout(resolve, 150));
-            
+
             // Event should not be processed due to pause
             expect(idleStateMachine.getProcessEventCalls()).toHaveLength(0);
-            
+
             await idleStateMachine.stop("force");
         });
     });
@@ -736,8 +736,8 @@ describe("BaseStateMachine Infrastructure", () => {
     describe("Thread Safety and Concurrency", () => {
         it("should handle concurrent pause/resume operations safely", async () => {
             const runningStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "concurrent-lifecycle-task",
                 BaseStates.RUNNING,
             );
@@ -751,18 +751,18 @@ describe("BaseStateMachine Infrastructure", () => {
             // At least one operation should succeed, but results depend on timing
             const atLeastOneSucceeded = pauseResult || resumeResult;
             expect(atLeastOneSucceeded).toBe(true);
-            
+
             // Final state should be consistent
             const finalState = runningStateMachine.getState();
             expect([BaseStates.RUNNING, BaseStates.IDLE, BaseStates.PAUSED]).toContain(finalState);
-            
+
             await runningStateMachine.stop("force");
         });
 
         it("should prevent concurrent drain operations", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "concurrent-drain-task",
                 BaseStates.IDLE,
             );
@@ -784,14 +784,14 @@ describe("BaseStateMachine Infrastructure", () => {
             // All events should be processed exactly once
             const processedEvents = idleStateMachine.getProcessEventCalls();
             expect(processedEvents).toHaveLength(3);
-            
+
             await idleStateMachine.stop("force");
         });
 
         it("should handle concurrent stop operations safely", async () => {
             const runningStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "concurrent-stop-task",
                 BaseStates.RUNNING,
             );
@@ -818,15 +818,15 @@ describe("BaseStateMachine Infrastructure", () => {
     describe("Memory Management and Resource Cleanup", () => {
         it("should clean up timeouts on disposal", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "cleanup-timeout-task",
                 BaseStates.IDLE,
             );
 
             // Schedule a drain with delay to create timeout
             idleStateMachine.testScheduleDrain(1000);
-            
+
             // Stop immediately to trigger cleanup
             await idleStateMachine.stop("force");
 
@@ -836,8 +836,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should prevent memory leaks from event queue", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "memory-test-task",
                 BaseStates.IDLE,
             );
@@ -853,7 +853,7 @@ describe("BaseStateMachine Infrastructure", () => {
 
             // Events should be ignored after termination
             await idleStateMachine.handleEvent({ type: "ignored_after_stop" });
-            
+
             // Processing should be limited to what was processed before stop
             const processedEvents = idleStateMachine.getProcessEventCalls();
             expect(processedEvents.length).toBeLessThan(eventCount);
@@ -861,8 +861,8 @@ describe("BaseStateMachine Infrastructure", () => {
 
         it("should dispose of resources properly", async () => {
             const idleStateMachine = new TestStateMachine(
-                logger, 
-                eventBus, 
+                logger,
+                eventBus,
                 "disposal-task",
                 BaseStates.IDLE,
             );
@@ -871,7 +871,7 @@ describe("BaseStateMachine Infrastructure", () => {
 
             // Verify disposed state prevents further operations
             await idleStateMachine.handleEvent({ type: "post_disposal" });
-            
+
             expect(idleStateMachine.getProcessEventCalls()).toHaveLength(0);
         });
     });

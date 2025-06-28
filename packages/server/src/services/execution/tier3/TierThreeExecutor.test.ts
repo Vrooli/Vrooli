@@ -1,14 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { TierThreeExecutor } from "./TierThreeExecutor.js";
-import { type Logger } from "winston";
-import { EventBus } from "../cross-cutting/events/eventBus.js";
 import {
     type ExecutionContext,
     type TierExecutionRequest,
-    ExecutionStatus,
     StrategyType,
     generatePK,
 } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type Logger } from "winston";
+import { EventBus } from "../../events/types.js";
+import { TierThreeExecutor } from "./TierThreeExecutor.js";
 
 /**
  * TierThreeExecutor Tests - Execution Intelligence Layer
@@ -28,7 +27,7 @@ import {
 
 describe("TierThreeExecutor - Adaptive Execution Intelligence", () => {
     let logger: Logger;
-    let eventBus: EventBus;
+    let eventBus: IEventBus;
     let executor: TierThreeExecutor;
 
     beforeEach(() => {
@@ -39,7 +38,7 @@ describe("TierThreeExecutor - Adaptive Execution Intelligence", () => {
             debug: vi.fn(),
         } as unknown as Logger;
         eventBus = new EventBus(logger);
-        
+
         executor = new TierThreeExecutor(logger, eventBus);
     });
 
@@ -87,23 +86,23 @@ describe("TierThreeExecutor - Adaptive Execution Intelligence", () => {
                         email: `user${i}@example.com`,
                     },
                 };
-                
+
                 const result = await executor.executeStep(context);
                 executions.push(result);
             }
 
             // Strategy should evolve from conversational to more deterministic
             const strategies = executions.map(r => r.metadata?.strategy);
-            
+
             // First execution likely conversational
             expect(strategies[0]).toBe(StrategyType.CONVERSATIONAL);
-            
+
             // Later executions may evolve to reasoning or deterministic
             const evolvedStrategies = strategies.slice(2);
-            const hasEvolved = evolvedStrategies.some(s => 
+            const hasEvolved = evolvedStrategies.some(s =>
                 s === StrategyType.REASONING || s === StrategyType.DETERMINISTIC,
             );
-            
+
             // Infrastructure enables evolution, but doesn't force it
             expect(hasEvolved || strategies.every(s => s === StrategyType.CONVERSATIONAL)).toBe(true);
         });
@@ -222,7 +221,7 @@ describe("TierThreeExecutor - Adaptive Execution Intelligence", () => {
             // Both should complete but with different approaches
             expect(results[0].status).toBe("completed");
             expect(results[1].status).toBe("completed");
-            
+
             // Different tools lead to different execution paths
             expect(results[0].metadata?.toolsUsed).not.toEqual(results[1].metadata?.toolsUsed);
         });

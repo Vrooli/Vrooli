@@ -1,13 +1,13 @@
-import { type Logger } from "winston";
 import {
-    type ExecutionContext,
-    type StrategyExecutionResult,
-    type ResourceUsage,
     StrategyType,
+    type ExecutionContext,
+    type ResourceUsage,
+    type StrategyExecutionResult,
 } from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/index.js";
+import { type Logger } from "winston";
+import { type EventBus } from "../../../events/types.js";
 import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
+import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/index.js";
 
 /**
  * MINIMAL REASONING STRATEGY
@@ -35,7 +35,7 @@ export class ReasoningStrategy extends MinimalStrategyBase {
 
     private readonly llmService: LLMIntegrationService;
 
-    constructor(logger: Logger, eventBus: EventBus) {
+    constructor(logger: Logger, eventBus: IEventBus) {
         super(logger, eventBus);
         this.llmService = new LLMIntegrationService(logger);
     }
@@ -157,13 +157,13 @@ Please provide your reasoning and the required outputs in a clear, structured fo
         // Simple output extraction - agents can develop sophisticated parsing
         const outputs: Record<string, unknown> = {};
         const expectedOutputs = Object.keys(context.stepData?.outputs || {});
-        
+
         // Basic attempt to extract outputs from response
         for (const outputKey of expectedOutputs) {
             // Simple pattern matching - agents can improve this
             const pattern = new RegExp(`${outputKey}[:\\s]*(.+?)(?=\\n|$)`, "i");
             const match = response.match(pattern);
-            
+
             if (match && match[1]) {
                 outputs[outputKey] = match[1].trim();
             } else {
@@ -180,9 +180,9 @@ Please provide your reasoning and the required outputs in a clear, structured fo
      * Simple heuristic - agents can develop sophisticated selection logic
      */
     isApplicable(context: ExecutionContext): boolean {
-        return context.stepType === "reasoning" || 
-               context.stepType === "analysis" ||
-               context.stepType === "decision";
+        return context.stepType === "reasoning" ||
+            context.stepType === "analysis" ||
+            context.stepType === "decision";
     }
 
     // Feedback is handled by MinimalStrategyBase

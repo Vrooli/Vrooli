@@ -1,13 +1,11 @@
-import { type Logger } from "winston";
 import {
     type AvailableResources,
+    type BudgetReservation,
     type ExecutionConstraints,
     type ExecutionResourceUsage,
-    type BudgetReservation,
-    generatePK,
 } from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { type ResourceAmount } from "../../cross-cutting/resources/resourceManager.js";
+import { type Logger } from "winston";
+import { type IEventBus } from "../../../events/types.js";
 import { StepResourceAdapter } from "../../cross-cutting/resources/adapters.js";
 import { BaseTierResourceManager } from "../../shared/BaseTierResourceManager.js";
 
@@ -30,7 +28,7 @@ export interface BudgetReservationResult {
  * emerge from resource agents analyzing the events emitted by the unified manager.
  */
 export class ResourceManager extends BaseTierResourceManager<StepResourceAdapter> {
-    constructor(logger: Logger, eventBus: EventBus) {
+    constructor(logger: Logger, eventBus: IEventBus) {
         super(logger, eventBus, 3);
     }
 
@@ -63,14 +61,14 @@ export class ResourceManager extends BaseTierResourceManager<StepResourceAdapter
                     apiCalls: 100,
                 },
             );
-            
+
             if (!canExecute) {
                 return {
                     approved: false,
                     reason: "Insufficient resources or rate limit exceeded",
                 };
             }
-            
+
             // Allocate resources for user
             const allocation = await this.unifiedManager.allocate(
                 userId,
@@ -81,7 +79,7 @@ export class ResourceManager extends BaseTierResourceManager<StepResourceAdapter
                     memory: 512 * 1024 * 1024,
                 },
             );
-            
+
             // Convert to BudgetReservation
             const budgetReservation: BudgetReservation = {
                 id: allocation.id,
@@ -94,7 +92,7 @@ export class ResourceManager extends BaseTierResourceManager<StepResourceAdapter
                     swarmId,
                 },
             };
-            
+
             return {
                 approved: true,
                 reservation: budgetReservation,
@@ -115,7 +113,7 @@ export class ResourceManager extends BaseTierResourceManager<StepResourceAdapter
     ): Promise<void> {
         // Get userId from step metadata or use a default
         const userId = "system"; // Should be passed from context
-        
+
         await this.adapter.trackStepExecution(
             userId,
             stepId,
@@ -169,7 +167,7 @@ export class ResourceManager extends BaseTierResourceManager<StepResourceAdapter
                 { credits: amount },
                 durationMs,
             );
-            
+
             return {
                 id: allocation.id,
                 credits: allocation.resources.credits || 0,

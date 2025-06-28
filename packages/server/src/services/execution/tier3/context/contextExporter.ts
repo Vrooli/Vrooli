@@ -1,6 +1,6 @@
-import { type Logger } from "winston";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { type ResourceUsage, type StrategyType } from "@vrooli/shared";
+import { type Logger } from "winston";
+import { type EventBus } from "../../../events/types.js";
 import { type ExecutionRunContext } from "./runContext.js";
 
 /**
@@ -41,11 +41,11 @@ interface ContextSyncEvent {
  * between tiers while ensuring consistent state propagation.
  */
 export class ContextExporter {
-    private readonly eventBus: EventBus;
+    private readonly eventBus: IEventBus;
     private readonly logger: Logger;
     private readonly exportChannel = "execution.context.sync";
 
-    constructor(eventBus: EventBus, logger: Logger) {
+    constructor(eventBus: IEventBus, logger: Logger) {
         this.eventBus = eventBus;
         this.logger = logger;
     }

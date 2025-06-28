@@ -62,18 +62,16 @@
  * Events include tier identification, execution metrics, and error context.
  */
 
-import { type Logger } from "winston";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
-import { BaseComponent } from "./BaseComponent.js";
 import {
-    type TierExecutionRequest,
-    type ExecutionResult,
-    type ExecutionContext,
     type CoreResourceAllocation,
-    type ExecutionResourceUsage,
-    ResourceTracker,
+    type ExecutionResult,
     ResourceAggregator,
+    ResourceTracker,
+    type TierExecutionRequest,
 } from "@vrooli/shared";
+import { type Logger } from "winston";
+import { type IEventBus } from "../../events/types.js";
+import { BaseComponent } from "./BaseComponent.js";
 
 /**
  * Tier-specific error context
@@ -108,8 +106,8 @@ export abstract class BaseTierExecutor extends BaseComponent {
     protected readonly activeExecutions = new Map<string, ExecutionMetrics>();
 
     constructor(
-        logger: Logger, 
-        eventBus: EventBus, 
+        logger: Logger,
+        eventBus: IEventBus,
         componentName: string,
         tierName: "tier1" | "tier2" | "tier3",
     ) {
@@ -335,14 +333,14 @@ export abstract class BaseTierExecutor extends BaseComponent {
      * Get additional error context specific to tier (override in subclasses)
      */
     protected getAdditionalErrorContext(
-        request: TierExecutionRequest<any>, 
+        request: TierExecutionRequest<any>,
         error: unknown,
     ): Record<string, unknown> {
         return {
             hasAllocation: !!request.allocation,
             hasOptions: !!request.options,
-            inputKeys: typeof request.input === "object" && request.input !== null 
-                ? Object.keys(request.input) 
+            inputKeys: typeof request.input === "object" && request.input !== null
+                ? Object.keys(request.input)
                 : [],
         };
     }

@@ -1,10 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SwarmStateMachine } from "./swarmStateMachine.js";
-import { EventBus } from "../../cross-cutting/events/eventBus.js";
-import { mockLogger } from "../../../../__test/logger.mock.js";
+import { type SwarmConfig, type SwarmMetadata } from "@vrooli/shared";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockSwarmCoordination, mockTeamFormation } from "../../../../__test/fixtures/execution/swarmFixtures.js";
-import { mockEvents } from "../../../../__test/fixtures/execution/eventFixtures.js";
-import { type SwarmMetadata, type SwarmConfig } from "@vrooli/shared";
+import { mockLogger } from "../../../../__test/logger.mock.js";
+import { EventBus } from "../../../events/eventBus.js";
+import { SwarmStateMachine } from "./swarmStateMachine.js";
 
 describe("SwarmStateMachine", () => {
     let swarmStateMachine: SwarmStateMachine;
@@ -116,7 +115,7 @@ describe("SwarmStateMachine", () => {
 
         it("should process external message created event", async () => {
             await swarmStateMachine.start();
-            
+
             // Using actual event type from implementation, not fixture
             const event = {
                 type: "external_message_created",
@@ -133,7 +132,7 @@ describe("SwarmStateMachine", () => {
 
         it("should emit events to event bus", async () => {
             const emitSpy = vi.spyOn(eventBus, "emit");
-            
+
             await swarmStateMachine.start();
 
             // Check that swarm_started event was emitted
@@ -186,8 +185,8 @@ describe("SwarmStateMachine", () => {
             const metadata: SwarmMetadata = {
                 goal: mockTeam.goal,
                 resources: mockTeam.resourceRequirements,
-                agents: mockTeam.agents.map(a => ({ 
-                    id: a.id, 
+                agents: mockTeam.agents.map(a => ({
+                    id: a.id,
                     role: a.role,
                 })),
                 startTime: new Date().toISOString(),

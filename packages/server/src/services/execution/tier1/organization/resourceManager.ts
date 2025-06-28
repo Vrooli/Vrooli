@@ -3,7 +3,7 @@ import {
     type ResourceType,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { type IEventBus } from "../../../events/types.js";
 import { SwarmResourceAdapter } from "../../cross-cutting/resources/adapters.js";
 import { type ResourceAmount } from "../../cross-cutting/resources/resourceManager.js";
 import { BaseTierResourceManager } from "../../shared/BaseTierResourceManager.js";
@@ -105,7 +105,7 @@ export class ResourceManager extends BaseTierResourceManager<SwarmResourceAdapte
     private readonly HIGH_UTILIZATION_THRESHOLD = 0.8;
     private readonly UTILIZATION_PENALTY = 0.7;
 
-    constructor(logger: Logger, eventBus: EventBus) {
+    constructor(logger: Logger, eventBus: IEventBus) {
         super(logger, eventBus, 1);
     }
 

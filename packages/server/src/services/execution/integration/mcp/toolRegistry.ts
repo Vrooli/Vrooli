@@ -8,10 +8,10 @@ import { type Logger } from "winston";
 import { type ConversationStateStore } from "../../../conversation/chatStore.js";
 import { CompositeToolRunner, McpToolRunner, OpenAIToolRunner } from "../../../conversation/toolRunner.js";
 import { type ToolMeta } from "../../../conversation/types.js";
+import { type IEventBus } from "../../../events/types.js";
 import { ToolRegistry as MCPToolRegistry } from "../../../mcp/registry.js";
 import { SwarmTools } from "../../../mcp/tools.js";
 import { type Tool, type ToolResponse } from "../../../mcp/types.js";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { MONITORING_TOOL_DEFINITIONS, createMonitoringToolInstances } from "../tools/index.js";
 
 /**
@@ -107,7 +107,7 @@ export class IntegratedToolRegistry {
      */
     initializeMonitoringTools(
         user: SessionUser,
-        eventBus: EventBus,
+        eventBus: IEventBus,
     ): void {
         this.monitoringToolInstances = createMonitoringToolInstances(
             user,

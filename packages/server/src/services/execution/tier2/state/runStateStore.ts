@@ -183,9 +183,9 @@ export interface IModernRunStateStore {
      * ## Usage Example:
      * ```typescript
      * const context = await stateStore.getRunContext(runId);
-     * console.log(`Run ${context.runId} is at location ${context.currentLocation.id}`);
-     * console.log(`Variables: ${JSON.stringify(context.variables)}`);
-     * console.log(`Progress: ${context.progress.percentComplete}%`);
+     * logger.info(`Run ${context.runId} is at location ${context.currentLocation.id}`);
+     * logger.debug(`Variables: ${JSON.stringify(context.variables)}`);
+     * logger.info(`Progress: ${context.progress.percentComplete}%`);
      * ```
      */
     getRunContext(runId: string): Promise<RunExecutionContext>;
@@ -1113,6 +1113,25 @@ let runStateStore: RedisRunStateStore | null = null;
 
 /**
  * Get the run state store instance
+ * 
+ * @deprecated Singleton pattern violations being replaced by dependency injection through SwarmContextManager.
+ * 
+ * **Issues with Singleton Pattern:**
+ * - Testing difficulties due to global state
+ * - Initialization order dependencies
+ * - Cannot be easily mocked or replaced in tests
+ * - Violates dependency injection principles
+ * 
+ * **Replacement:**
+ * Dependency injection through SwarmContextManager:
+ * ```typescript
+ * // Instead of: const store = await getRunStateStore();
+ * // Use: const context = await swarmContextManager.getContext(swarmId);
+ * ```
+ * 
+ * **Migration Timeline:**
+ * - Phase 2 (Weeks 3-4): Replace with SwarmContextManager dependency injection
+ * - Phase 3 (Weeks 5-6): Remove singleton pattern completely
  */
 export async function getRunStateStore(): Promise<RedisRunStateStore> {
     if (!runStateStore) {

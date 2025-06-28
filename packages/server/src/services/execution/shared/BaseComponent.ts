@@ -15,7 +15,6 @@ import { nanoid } from "@vrooli/shared";
 import { type Logger } from "winston";
 import { EventUtils, type IEventBus } from "../../events/index.js";
 import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
@@ -41,7 +40,7 @@ export abstract class BaseComponent implements IBaseComponent {
 
     constructor(
         protected readonly logger: Logger,
-        protected readonly eventBus: EventBus,
+        protected readonly eventBus: IEventBus,
         componentName?: string,
     ) {
         this.componentName = componentName || this.constructor.name;
@@ -234,14 +233,14 @@ export abstract class BaseComponent implements IBaseComponent {
 export class ComponentFactory {
     constructor(
         private readonly logger: Logger,
-        private readonly eventBus: EventBus,
+        private readonly eventBus: IEventBus,
     ) { }
 
     /**
      * Create a component instance with automatic initialization
      */
     async create<T extends BaseComponent>(
-        ComponentClass: new (logger: Logger, eventBus: EventBus, ...args: any[]) => T,
+        ComponentClass: new (logger: Logger, eventBus: IEventBus, ...args: any[]) => T,
         ...additionalArgs: any[]
     ): Promise<T> {
         const component = new ComponentClass(this.logger, this.eventBus, ...additionalArgs);
@@ -258,7 +257,7 @@ export class ComponentFactory {
      */
     async createBatch<T extends BaseComponent>(
         componentSpecs: Array<{
-            ComponentClass: new (logger: Logger, eventBus: EventBus, ...args: any[]) => T;
+            ComponentClass: new (logger: Logger, eventBus: IEventBus, ...args: any[]) => T;
             args?: any[];
         }>,
     ): Promise<T[]> {

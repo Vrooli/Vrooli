@@ -11,7 +11,7 @@ import type {
     Permission,
 } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
-import { type RedisEventBus } from "../events/eventBus.js";
+import { type IEventBus } from "../../../events/types.js";
 
 /**
  * Security Validator
@@ -21,9 +21,9 @@ import { type RedisEventBus } from "../events/eventBus.js";
  * Those capabilities emerge from agent analysis.
  */
 export class SecurityValidator {
-    private readonly eventBus: RedisEventBus;
+    private readonly eventBus: IEventBus;
     
-    constructor(eventBus: RedisEventBus) {
+    constructor(eventBus: IEventBus) {
         this.eventBus = eventBus;
     }
 

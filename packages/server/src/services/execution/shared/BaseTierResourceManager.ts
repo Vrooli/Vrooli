@@ -8,7 +8,7 @@
  */
 
 import { type Logger } from "winston";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { type IEventBus } from "../../events/types.js";
 import { RateLimiter } from "../cross-cutting/resources/rateLimiter.js";
 import { ResourceManager as UnifiedResourceManager } from "../cross-cutting/resources/resourceManager.js";
 import { ResourcePoolManager } from "../cross-cutting/resources/resourcePool.js";
@@ -25,7 +25,7 @@ import {
  */
 export abstract class BaseTierResourceManager<TAdapter extends TierResourceAdapter = TierResourceAdapter> {
     protected readonly logger: Logger;
-    protected readonly eventBus: EventBus;
+    protected readonly eventBus: IEventBus;
     protected readonly unifiedManager: UnifiedResourceManager;
     protected readonly adapter: TAdapter;
     protected readonly errorHandler: ComponentErrorHandler;
@@ -40,7 +40,7 @@ export abstract class BaseTierResourceManager<TAdapter extends TierResourceAdapt
 
     constructor(
         logger: Logger,
-        eventBus: EventBus,
+        eventBus: IEventBus,
         tier: 1 | 2 | 3,
         customConfig?: Partial<TierResourceConfig>,
     ) {

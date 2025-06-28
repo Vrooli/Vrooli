@@ -5,7 +5,7 @@ import {
     type StrategyExecutionResult,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { type EventBus } from "../../../events/types.js";
 import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { ValidationEngine } from "../engine/validationEngine.js";
 import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/strategyBase.js";
@@ -84,7 +84,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
     private static readonly TRANSFORMATION_COST = 2;
     private static readonly MINIMAL_COST = 1;
 
-    constructor(logger: Logger, eventBus: EventBus) {
+    constructor(logger: Logger, eventBus: IEventBus) {
         super(logger, eventBus);
         this.toolOrchestrator = new ToolOrchestrator(logger);
         this.validationEngine = new ValidationEngine(logger);

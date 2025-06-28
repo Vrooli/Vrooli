@@ -7,9 +7,14 @@ import {
 } from "@vrooli/shared";
 import { type Logger } from "winston";
 import { logger } from "../../../events/logger.js";
+import { CacheService } from "../../../redisConn.js";
 import { CachedConversationStateStore, PrismaChatStore } from "../../conversation/chatStore.js";
-import { getEventBus, type RedisEventBus } from "../cross-cutting/events/eventBus.js";
-import { TierOneCoordinator } from "../tier1/tierOneCoordinator.js";
+import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { type IEventBus } from "../../events/types.js";
+import { ContextSubscriptionManager } from "../shared/ContextSubscriptionManager.js";
+import { SwarmContextManager, type ISwarmContextManager } from "../shared/SwarmContextManager.js";
+import { SwarmCoordinator } from "../tier1/coordination/swarmCoordinator.js";
+import { createConversationBridge } from "../tier1/intelligence/conversationBridge.js";
 import { ResourceManager as Tier1ResourceManager } from "../tier1/organization/resourceManager.js";
 import { InMemoryRunStateStore } from "../tier2/state/inMemoryRunStateStore.js";
 import { RedisRunStateStore, type IRunStateStore } from "../tier2/state/runStateStore.js";
@@ -20,9 +25,6 @@ import { ConversationalStrategy } from "../tier3/strategies/conversationalStrate
 import { DeterministicStrategy } from "../tier3/strategies/deterministicStrategy.js";
 import { ReasoningStrategy } from "../tier3/strategies/reasoningStrategy.js";
 import { IntegratedToolRegistry } from "./mcp/toolRegistry.js";
-import { SwarmContextManager, type ISwarmContextManager } from "../shared/SwarmContextManager.js";
-import { ContextSubscriptionManager } from "../shared/ContextSubscriptionManager.js";
-import { CacheService } from "../../../redisConn.js";
 
 /**
  * Strategy factory interface for creating execution strategies
@@ -64,7 +66,7 @@ export interface ExecutionArchitectureOptions {
  * execution architecture that external systems can use.
  * 
  * The architecture consists of:
- * - Tier 1: Coordination Intelligence (TierOneCoordinator with optional SwarmContextManager)
+ * - Tier 1: Coordination Intelligence (SwarmCoordinator with SwarmContextManager integration)
  * - Tier 2: Process Intelligence (Routine execution)
  * - Tier 3: Execution Intelligence (Step execution)
  * 
@@ -85,7 +87,7 @@ export class ExecutionArchitecture {
     private tier2: TierCommunicationInterface | null = null;
     private tier3: TierCommunicationInterface | null = null;
 
-    private eventBus: RedisEventBus | null = null;
+    private eventBus: IEventBus | null = null;
     private runStateStore: IRunStateStore | null = null;
     private toolRegistry: IntegratedToolRegistry | null = null;
     private conversationStore: CachedConversationStateStore | null = null;
@@ -180,18 +182,22 @@ export class ExecutionArchitecture {
         this.logger.debug("[ExecutionArchitecture] Initializing shared services");
 
         // Initialize EventBus
-        this.eventBus = getEventBus();
-        await this.eventBus.start();
+        this.eventBus = getUnifiedEventSystem();
+        if (this.eventBus) {
+            await this.eventBus.start();
+        } else {
+            this.logger.warn("[ExecutionArchitecture] Unified event system not available");
+        }
 
         // Initialize state management based on configuration
         if (this.options.useModernStateManagement) {
             this.logger.info("[ExecutionArchitecture] Using modern SwarmContextManager for state management");
-            
+
             // Initialize modern state management components
             const redis = await CacheService.get().raw();
             this.contextSubscriptionManager = new ContextSubscriptionManager(redis, this.logger);
             await this.contextSubscriptionManager.initialize();
-            
+
             this.swarmContextManager = new SwarmContextManager(redis, this.logger);
             await this.swarmContextManager.initialize();
         } else {
@@ -297,12 +303,12 @@ export class ExecutionArchitecture {
             throw new Error("Tier 3 must be initialized before Tier 2");
         }
 
-        // Create Tier 2 with dependency on Tier 3
+        // Create Tier 2 with dependency on Tier 3 and SwarmContextManager
         this.tier2 = new TierTwoOrchestrator(
             this.logger,
             this.eventBus!,
-            this.runStateStore!,
             this.tier3,
+            this.swarmContextManager || undefined, // Pass SwarmContextManager if available
         );
 
         this.logger.debug("[ExecutionArchitecture] Tier 2 initialized");
@@ -318,16 +324,24 @@ export class ExecutionArchitecture {
             throw new Error("Tier 2 must be initialized before Tier 1");
         }
 
-        // Create Tier 1 with dependency on Tier 2 and optional SwarmContextManager
-        this.tier1 = new TierOneCoordinator(
+        if (!this.swarmContextManager) {
+            throw new Error("SwarmContextManager must be initialized for Tier 1");
+        }
+
+        // Create conversation bridge for AI coordination
+        const conversationBridge = createConversationBridge(this.logger);
+
+        // Create Tier 1 with SwarmCoordinator (direct implementation)
+        this.tier1 = new SwarmCoordinator(
             this.logger,
-            this.eventBus!,
+            this.swarmContextManager,
+            conversationBridge,
             this.tier2,
-            this.swarmContextManager || undefined, // Pass SwarmContextManager if available
         );
 
-        this.logger.debug("[ExecutionArchitecture] Tier 1 initialized", {
-            hasSwarmContextManager: !!this.swarmContextManager,
+        this.logger.debug("[ExecutionArchitecture] Tier 1 initialized with SwarmCoordinator", {
+            hasSwarmContextManager: true,
+            architecture: "direct-coordination",
         });
     }
 

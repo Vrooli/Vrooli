@@ -1,6 +1,37 @@
 /**
  * ConversationBridge - Bridge between SwarmStateMachine and conversation/responseEngine
  * 
+ * @deprecated This component is deprecated as part of the SwarmContextManager architecture redesign.
+ * 
+ * **Why Deprecated:**
+ * - 248 lines of legacy conversation system bridging
+ * - Couples to old conversation patterns with manual message transformation
+ * - Adds unnecessary abstraction layer between tiers
+ * - Manual coordination patterns that violate event-driven architecture
+ * 
+ * **Replacement Strategy:**
+ * Event-driven conversation integration through unified event bus and SwarmContextManager:
+ * - Direct event emission to conversation components
+ * - Unified context management eliminates bridge complexity
+ * - Agent-driven conversation coordination through emergent capabilities
+ * - 80% reduction in code complexity (248 lines → ~50 lines)
+ * 
+ * **Migration Timeline:**
+ * - Phase 2 (Weeks 3-4): Event-driven conversation integration
+ * - Phase 3 (Weeks 5-6): Complete removal of bridge pattern
+ * 
+ * **Migration Guide:**
+ * Replace ConversationBridge.generateResponse() calls with:
+ * ```typescript
+ * await this.publishUnifiedEvent(EventTypes.CONVERSATION_REQUEST, {
+ *   prompt,
+ *   systemMessage,
+ *   conversationId
+ * });
+ * ```
+ * 
+ * See SwarmContextManager redesign documentation for complete migration details.
+ * 
  * This provides a simple interface for the SwarmStateMachine to generate AI responses
  * and execute tools through the existing conversation infrastructure.
  */

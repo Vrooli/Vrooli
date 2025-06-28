@@ -15,17 +15,17 @@
  * It ONLY executes strategies and emits events.
  */
 
-import { type Logger } from "winston";
 import {
-    type ExecutionContext as StrategyExecutionContext,
     type ExecutionStrategy,
+    type ResourceUsage,
+    type ExecutionContext as StrategyExecutionContext,
     type StrategyExecutionResult,
     type StrategyFeedback,
     type StrategyPerformance,
-    type ResourceUsage,
     type StrategyType,
 } from "@vrooli/shared";
-import { type EventBus } from "../../../cross-cutting/events/eventBus.js";
+import { type Logger } from "winston";
+import { type EventBus } from "../../../../events/eventBus.js";
 import { EventTypes, EventUtils, type IEventBus } from "../../../events/index.js";
 import { getUnifiedEventSystem } from "../../../events/initialization/eventSystemService.js";
 import { ErrorHandler, type ComponentErrorHandler } from "../../../shared/ErrorHandler.js";
@@ -66,17 +66,17 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
 
     constructor(
         protected readonly logger: Logger,
-        eventBus: EventBus,
+        eventBus: IEventBus,
         config: MinimalStrategyConfig = {},
     ) {
         this.config = {
             maxRetries: config.maxRetries || 3,
             timeoutMs: config.timeoutMs || 300000, // 5 minutes
         };
-        
+
         // Get unified event system for modern event publishing
         this.unifiedEventBus = getUnifiedEventSystem();
-        
+
         // Initialize error handler with unified event system
         const errorHandler = new ErrorHandler(logger);
         this.errorHandler = errorHandler.createComponentHandler(`Strategy:${this.name}`);
@@ -106,7 +106,7 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
             try {
                 // Strategy-specific execution
                 result = await this.executeStrategy(context, metadata);
-                
+
                 // Success - emit and return
                 metadata.endTime = new Date();
                 await this.emitExecutionEvent(executionId, "completed", context, metadata, result);
@@ -115,11 +115,11 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
             } catch (error) {
                 lastError = error instanceof Error ? error : new Error(String(error));
                 metadata.errors.push(lastError.message);
-                
+
                 // Emit retry event
                 if (attempt < this.config.maxRetries! - 1) {
                     await this.emitExecutionEvent(executionId, "retrying", context, metadata, undefined, lastError);
-                    
+
                     // Basic exponential backoff
                     await this.delay(Math.pow(2, attempt) * 1000);
                 }
@@ -129,7 +129,7 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
         // All retries failed
         metadata.endTime = new Date();
         await this.emitExecutionEvent(executionId, "failed", context, metadata, undefined, lastError);
-        
+
         throw lastError || new Error("Strategy execution failed");
     }
 
@@ -160,10 +160,10 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
                     tags: ["strategy", "feedback", "quality"],
                 }),
             );
-            
+
             await this.unifiedEventBus.publish(event);
         }
-        
+
         // Agents will analyze feedback and evolve strategies
     }
 
@@ -230,16 +230,16 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
         result?: StrategyExecutionResult,
         error?: Error,
     ): Promise<void> {
-        const duration = metadata.endTime 
+        const duration = metadata.endTime
             ? metadata.endTime.getTime() - metadata.startTime.getTime()
             : Date.now() - metadata.startTime.getTime();
 
         if (this.unifiedEventBus) {
             const eventType = event === "started" ? EventTypes.STRATEGY_STARTED :
-                            event === "completed" ? EventTypes.STRATEGY_COMPLETED :
-                            event === "failed" ? EventTypes.STRATEGY_FAILED :
-                            EventTypes.STRATEGY_RETRYING;
-            
+                event === "completed" ? EventTypes.STRATEGY_COMPLETED :
+                    event === "failed" ? EventTypes.STRATEGY_FAILED :
+                        EventTypes.STRATEGY_RETRYING;
+
             const strategyEvent = EventUtils.createBaseEvent(
                 eventType,
                 {
@@ -271,7 +271,7 @@ export abstract class MinimalStrategyBase implements ExecutionStrategy {
                     },
                 ),
             );
-            
+
             await this.unifiedEventBus.publish(strategyEvent);
         }
     }

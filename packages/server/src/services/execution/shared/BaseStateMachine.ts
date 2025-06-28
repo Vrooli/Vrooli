@@ -1,6 +1,26 @@
 /**
  * Base State Machine
  * 
+ * @deprecated Manual synchronization patterns in this class are being replaced by event-driven coordination.
+ * 
+ * **Deprecated Patterns:**
+ * - Manual `processingLock` boolean flags (line 62) - Race condition handling anti-pattern
+ * - Non-distributed coordination patterns that don't scale across multiple instances
+ * - In-memory state management without distributed consistency guarantees
+ * 
+ * **Replacement Strategy:**
+ * Event-driven coordination through SwarmContextManager:
+ * - Redis-based distributed locks replace in-memory processingLock
+ * - Event-driven state changes eliminate manual synchronization needs
+ * - Atomic context updates provide consistency without explicit locking
+ * 
+ * **Migration Timeline:**
+ * - Phase 2 (Weeks 3-4): Migrate to event-driven coordination patterns
+ * - Phase 3 (Weeks 5-6): Remove manual synchronization anti-patterns
+ * 
+ * **Note:** This class will continue to exist for base functionality, but deprecated synchronization 
+ * patterns will be replaced with SwarmContextManager coordination.
+ * 
  * Abstract base class for all state machines in the execution architecture.
  * Provides common functionality for state management, event queuing, and lifecycle control.
  * 
@@ -8,11 +28,11 @@
  * Subclasses implement specific state transitions and event handling logic.
  */
 
-import { type Logger } from "winston";
-import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
-import { type IEventBus, EventUtils } from "../../events/index.js";
-import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 import { generatePK } from "@vrooli/shared";
+import { type Logger } from "winston";
+import { EventUtils, type IEventBus } from "../../events/index.js";
+import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
  * Common states shared by all state machines
@@ -66,7 +86,7 @@ export abstract class BaseStateMachine<
     protected readonly componentName: string;
     protected readonly errorHandler: ComponentErrorHandler;
     protected readonly maxQueueSize: number = 1000; // Prevent unbounded growth
-    
+
     constructor(
         protected readonly logger: Logger,
         initialState: TState = BaseStates.UNINITIALIZED as TState,
@@ -74,10 +94,10 @@ export abstract class BaseStateMachine<
     ) {
         this.state = initialState;
         this.componentName = componentName || this.constructor.name;
-        
+
         // Get unified event system for modern event publishing
         this.unifiedEventBus = getUnifiedEventSystem();
-        
+
         // Create error handler for consistent error management
         this.errorHandler = new ErrorHandler(logger, null).createComponentHandler(this.componentName);
     }
@@ -116,14 +136,14 @@ export abstract class BaseStateMachine<
                 droppedEventType: this.eventQueue[0]?.type,
                 newEventType: event.type,
             });
-            
+
             // Drop oldest events to make room (FIFO eviction)
             const dropCount = Math.floor(this.maxQueueSize * 0.1); // Drop 10% of queue
             this.eventQueue.splice(0, dropCount);
         }
 
         this.eventQueue.push(event);
-        
+
         // If idle, start processing
         if (this.state === BaseStates.IDLE as TState) {
             this.scheduleDrain();
@@ -135,7 +155,7 @@ export abstract class BaseStateMachine<
      */
     public async pause(): Promise<boolean> {
         const pausableStates = [BaseStates.RUNNING, BaseStates.IDLE] as TState[];
-        
+
         if (pausableStates.includes(this.state)) {
             this.clearPendingDrainTimeout();
             this.state = BaseStates.PAUSED as TState;
@@ -143,7 +163,7 @@ export abstract class BaseStateMachine<
             await this.onPause();
             return true;
         }
-        
+
         this.logger.warn(`[${this.constructor.name}] Cannot pause from state ${this.state}`);
         return false;
     }
@@ -159,7 +179,7 @@ export abstract class BaseStateMachine<
             this.scheduleDrain();
             return true;
         }
-        
+
         this.logger.warn(`[${this.constructor.name}] Cannot resume from state ${this.state}`);
         return false;
     }
@@ -256,7 +276,7 @@ export abstract class BaseStateMachine<
      */
     protected async drain(): Promise<void> {
         const drainableStates = [BaseStates.RUNNING, BaseStates.IDLE] as TState[];
-        
+
         if (!drainableStates.includes(this.state) || this.disposed) {
             this.logger.debug(`[${this.constructor.name}] Cannot drain in state ${this.state}`);
             return;
@@ -272,13 +292,13 @@ export abstract class BaseStateMachine<
 
         while (this.eventQueue.length > 0 && !this.disposed) {
             const event = this.eventQueue.shift()!;
-            
+
             const result = await this.errorHandler.wrap(
                 () => this.processEvent(event),
                 "processEvent",
                 { eventType: event.type },
             );
-            
+
             if (!result.success) {
                 const errorResult = result as { success: false; error: Error };
                 // Let subclass decide if error is fatal
@@ -291,7 +311,7 @@ export abstract class BaseStateMachine<
         }
 
         this.processingLock = false;
-        
+
         if (!this.disposed && this.eventQueue.length === 0) {
             this.state = BaseStates.IDLE as TState;
             await this.onIdle();
@@ -314,15 +334,15 @@ export abstract class BaseStateMachine<
         if (delayMs > 0) {
             this.pendingDrainTimeout = setTimeout(() => {
                 this.pendingDrainTimeout = null;
-                this.drain().catch(err => 
+                this.drain().catch(err =>
                     this.logger.error(`[${this.constructor.name}] Error in scheduled drain`, {
                         error: err instanceof Error ? err.message : String(err),
                     }),
                 );
             }, delayMs);
         } else {
-            setImmediate(() => 
-                this.drain().catch(err => 
+            setImmediate(() =>
+                this.drain().catch(err =>
                     this.logger.error(`[${this.constructor.name}] Error in immediate drain`, {
                         error: err instanceof Error ? err.message : String(err),
                     }),
@@ -416,26 +436,6 @@ export abstract class BaseStateMachine<
                 deliveryGuarantee: "reliable",
             },
         );
-    }
-
-    /**
-     * Common error handling wrapper for event processing (deprecated - use errorHandler.execute instead)
-     * @deprecated Use this.errorHandler.execute() directly for new code
-     */
-    protected async withEventErrorHandling<T>(
-        operation: string,
-        fn: () => Promise<T>,
-        fallback?: (error: unknown) => T,
-    ): Promise<T> {
-        const result = await this.errorHandler.wrap(fn, operation);
-        if (!result.success) {
-            const errorResult = result as { success: false; error: Error };
-            if (fallback) {
-                return fallback(errorResult.error);
-            }
-            throw errorResult.error;
-        }
-        return result.data;
     }
 
     /**

@@ -5,17 +5,17 @@
  * and execution patterns across all three tiers.
  */
 
-import { describe, it, expect, beforeEach, vi, type MockedFunction } from "vitest";
-import { type Logger } from "winston";
-import { BaseTierExecutor, type ExecutionMetrics, type TierErrorContext } from "./BaseTierExecutor.js";
-import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import {
-    type TierExecutionRequest,
-    type ExecutionResult,
-    type ExecutionContext,
     type CoreResourceAllocation,
+    type ExecutionContext,
+    type ExecutionResult,
     type StepExecutionInput,
+    type TierExecutionRequest,
 } from "@vrooli/shared";
+import { beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
+import { type Logger } from "winston";
+import { type EventBus } from "../../events/types.js";
+import { BaseTierExecutor } from "./BaseTierExecutor.js";
 
 // Mock implementations
 class MockEventBus {
@@ -35,7 +35,7 @@ class TestTierExecutor extends BaseTierExecutor {
 
     constructor(
         logger: Logger,
-        eventBus: EventBus,
+        eventBus: IEventBus,
         executeImpl?: MockedFunction<any>,
     ) {
         super(logger, eventBus, "TestTierExecutor", "tier3");
@@ -220,7 +220,7 @@ describe("BaseTierExecutor", () => {
                 const metrics = executor.getExecutionMetrics(request.context.executionId);
                 expect(metrics).toBeDefined();
                 expect(metrics?.phase).toBe("execution");
-                
+
                 return {
                     success: true,
                     result: "test",
@@ -274,7 +274,7 @@ describe("BaseTierExecutor", () => {
             // Should still complete successfully
             const result = await executor.testExecuteWithErrorHandling(request, mockImpl);
             expect(result.success).toBe(true);
-            
+
             // The error from event publishing should not affect the result
         });
     });
@@ -539,14 +539,14 @@ describe("BaseTierExecutor", () => {
 
         it("should handle errors during cleanup", async () => {
             const request = createRequest();
-            
+
             // Create an executor that will throw during result validation
             class FaultyTestTierExecutor extends TestTierExecutor {
                 protected validateResult(result: ExecutionResult<any>, request: TierExecutionRequest<any>): void {
                     throw new Error("Validation error");
                 }
             }
-            
+
             const faultyExecutor = new FaultyTestTierExecutor(
                 mockLogger as unknown as Logger,
                 mockEventBus as unknown as EventBus,

@@ -1,17 +1,24 @@
-import { type Logger } from "winston";
 import {
-    SwarmStatus,
     RunStatus,
+    SwarmStatus,
     nanoid,
+    type RoutineExecutionInput,
+    type SwarmCoordinationInput,
+    type TierExecutionRequest,
 } from "@vrooli/shared";
-import { TierOneCoordinator } from "./tier1/index.js";
+import { type Logger } from "winston";
+import { DbProvider } from "../../db/provider.js";
+import { CacheService } from "../../redisConn.js";
+import { getUnifiedEventSystem } from "../events/initialization/eventSystemService.js";
+import { type IEventBus } from "../events/types.js";
+import { AuthIntegrationService } from "./integration/authIntegrationService.js";
+import { RoutineStorageService } from "./integration/routineStorageService.js";
+import { RunPersistenceService } from "./integration/runPersistenceService.js";
+import { SwarmContextManager } from "./shared/SwarmContextManager.js";
+import { SwarmCoordinator } from "./tier1/coordination/index.js";
+import { createConversationBridge } from "./tier1/intelligence/conversationBridge.js";
 import { TierTwoOrchestrator } from "./tier2/index.js";
 import { TierThreeExecutor } from "./tier3/index.js";
-import { getEventBus } from "./cross-cutting/events/eventBus.js";
-import { RunPersistenceService } from "./integration/runPersistenceService.js";
-import { RoutineStorageService } from "./integration/routineStorageService.js";
-import { AuthIntegrationService } from "./integration/authIntegrationService.js";
-import { DbProvider } from "../../db/provider.js";
 
 /**
  * Main service entry point for the three-tier execution architecture
@@ -21,33 +28,54 @@ import { DbProvider } from "../../db/provider.js";
  */
 export class SwarmExecutionService {
     private readonly logger: Logger;
-    private readonly eventBus: ReturnType<typeof getEventBus>;
-    private readonly tierOne: TierOneCoordinator;
+    private readonly eventBus: IEventBus | null;
+    private readonly tierOne: SwarmCoordinator;
     private readonly tierTwo: TierTwoOrchestrator;
     private readonly tierThree: TierThreeExecutor;
     private readonly persistenceService: RunPersistenceService;
     private readonly routineService: RoutineStorageService;
     private readonly authService: AuthIntegrationService;
+    private readonly contextManager: SwarmContextManager;
+    private readonly conversationBridge: ReturnType<typeof createConversationBridge>;
 
     constructor(logger: Logger) {
         this.logger = logger;
-        
+
         // Get unified event bus for cross-tier communication
-        this.eventBus = getEventBus();
-        
+        this.eventBus = getUnifiedEventSystem();
+
         // Get PrismaClient from DbProvider
         const prisma = DbProvider.get();
-        
+
         // Initialize integration services with proper dependencies
         this.persistenceService = new RunPersistenceService(prisma, logger);
         this.routineService = new RoutineStorageService(prisma, logger);
         this.authService = new AuthIntegrationService(prisma, logger, this.eventBus);
-        
+
+        // Initialize SwarmContextManager for modern state management
+        this.contextManager = new SwarmContextManager(
+            CacheService.get().raw() as any, // Redis client
+            logger,
+        );
+
+        // Initialize conversation bridge for AI coordination
+        this.conversationBridge = createConversationBridge(logger);
+
         // Initialize tiers in dependency order (tier 3 -> tier 2 -> tier 1)
         this.tierThree = new TierThreeExecutor(logger, this.eventBus);
-        this.tierTwo = new TierTwoOrchestrator(logger, this.eventBus, this.tierThree);
-        this.tierOne = new TierOneCoordinator(logger, this.eventBus, this.tierTwo);
-        
+        this.tierTwo = new TierTwoOrchestrator(
+            logger,
+            this.eventBus,
+            this.tierThree,
+            this.contextManager, // Pass SwarmContextManager to Tier 2
+        );
+        this.tierOne = new SwarmCoordinator(
+            logger,
+            this.contextManager,
+            this.conversationBridge,
+            this.tierTwo,
+        );
+
         // Start all services
         this.initialize();
     }
@@ -58,7 +86,7 @@ export class SwarmExecutionService {
     private initialize(): void {
         // Subscribe to tier events
         this.setupEventHandlers();
-        
+
         this.logger.info("[SwarmExecutionService] Initialized three-tier execution architecture");
     }
 
@@ -104,19 +132,53 @@ export class SwarmExecutionService {
                 throw new Error("User does not have permission to create swarms");
             }
 
-            // Start swarm through Tier 1
-            await this.tierOne.startSwarm({
-                swarmId: config.swarmId,
-                name: config.name,
-                description: config.description,
+            // Create SwarmCoordinationInput
+            const swarmInput: SwarmCoordinationInput = {
                 goal: config.goal,
-                resources: config.resources,
-                config: config.config,
-                userId: config.userId,
-                organizationId: config.organizationId,
-                parentSwarmId: config.parentSwarmId, // NEW: Pass through parent relationship
-                leaderBotId: config.leaderBotId, // Pass through leader bot ID
-            });
+                availableAgents: config.resources.tools.map((tool, index) => ({
+                    id: `agent-${index}`,
+                    name: tool.name,
+                    capabilities: [tool.description],
+                    currentLoad: 0,
+                    maxConcurrentTasks: config.config.parallelExecutionLimit,
+                })),
+                teamConfiguration: {
+                    preferredTeamSize: Math.min(config.resources.tools.length, 5),
+                    requiredSkills: config.resources.tools.map(t => t.name),
+                    collaborationStyle: "collaborative",
+                },
+            };
+
+            // Create execution request for Tier 1
+            const request: TierExecutionRequest<SwarmCoordinationInput> = {
+                context: {
+                    executionId: config.swarmId,
+                    swarmId: config.parentSwarmId || config.swarmId,
+                    userId: config.userId,
+                    timestamp: new Date(),
+                    correlationId: nanoid(),
+                    organizationId: config.organizationId,
+                },
+                input: swarmInput,
+                allocation: {
+                    maxCredits: config.resources.maxCredits.toString(),
+                    maxDurationMs: config.resources.maxTime,
+                    maxMemoryMB: 1024,
+                    maxConcurrentSteps: config.config.parallelExecutionLimit,
+                },
+                options: {
+                    priority: "medium",
+                    timeout: config.resources.maxTime,
+                    emergentCapabilities: true,
+                },
+            };
+
+            // Execute through Tier 1
+            const result = await this.tierOne.execute(request);
+
+            if (result.status !== "completed") {
+                throw new Error(result.error?.message || "Failed to start swarm");
+            }
 
             return { swarmId: config.swarmId };
 
@@ -183,14 +245,52 @@ export class SwarmExecutionService {
                 updatedAt: new Date(),
             });
 
-            // Start run through Tier 1 (which will delegate to Tier 2)
-            await this.tierOne.requestRunExecution({
-                swarmId: config.swarmId,
-                runId: config.runId,
-                routineVersionId: config.routineVersionId,
-                inputs: config.inputs,
-                config: config.config,
-            });
+            // Create RoutineExecutionInput
+            const routineInput: RoutineExecutionInput = {
+                routineId: config.routineVersionId,
+                parameters: config.inputs,
+                workflow: {
+                    steps: [], // Will be loaded by Tier 2
+                    dependencies: [],
+                },
+            };
+
+            // Get swarm context to determine resource allocation
+            const swarmContext = await this.contextManager.getContext(config.swarmId);
+            if (!swarmContext) {
+                throw new Error(`Swarm ${config.swarmId} not found`);
+            }
+
+            // Create execution request for routine
+            const request: TierExecutionRequest<RoutineExecutionInput> = {
+                context: {
+                    executionId: config.runId,
+                    swarmId: config.swarmId,
+                    userId: config.userId,
+                    timestamp: new Date(),
+                    correlationId: nanoid(),
+                    routineId: config.routineVersionId,
+                },
+                input: routineInput,
+                allocation: {
+                    maxCredits: swarmContext.resources.available.credits,
+                    maxDurationMs: config.config.timeout,
+                    maxMemoryMB: 512,
+                    maxConcurrentSteps: config.config.maxSteps,
+                },
+                options: {
+                    priority: "medium",
+                    timeout: config.config.timeout,
+                    strategy: config.config.strategy,
+                },
+            };
+
+            // Execute through Tier 1 (which will delegate to Tier 2)
+            const result = await this.tierOne.execute(request);
+
+            if (result.status !== "completed") {
+                throw new Error(result.error?.message || "Failed to execute run");
+            }
 
             return { runId: config.runId };
 
@@ -202,7 +302,7 @@ export class SwarmExecutionService {
 
             // Update run status to failed
             await this.persistenceService.updateRunStatus(config.runId, RunStatus.Failed);
-            
+
             throw error;
         }
     }
@@ -219,7 +319,26 @@ export class SwarmExecutionService {
         errors?: string[];
     }> {
         try {
-            return await this.tierOne.getSwarmStatus(swarmId);
+            const executionStatus = await this.tierOne.getExecutionStatus(swarmId);
+
+            // Map ExecutionStatus to SwarmStatus
+            const statusMap: Record<string, SwarmStatus> = {
+                "pending": SwarmStatus.Pending,
+                "running": SwarmStatus.Running,
+                "paused": SwarmStatus.Paused,
+                "completed": SwarmStatus.Completed,
+                "failed": SwarmStatus.Failed,
+                "cancelled": SwarmStatus.Cancelled,
+            };
+
+            return {
+                status: statusMap[executionStatus.status] || SwarmStatus.Unknown,
+                progress: executionStatus.progress,
+                currentPhase: executionStatus.metadata?.currentPhase as string,
+                activeRuns: executionStatus.metadata?.activeRuns as number,
+                completedRuns: executionStatus.metadata?.completedRuns as number,
+                errors: executionStatus.error ? [executionStatus.error.message] : undefined,
+            };
         } catch (error) {
             this.logger.error("[SwarmExecutionService] Failed to get swarm status", {
                 swarmId,
@@ -293,7 +412,7 @@ export class SwarmExecutionService {
         message?: string;
     }> {
         try {
-            await this.tierOne.cancelSwarm(swarmId, userId, reason);
+            await this.tierOne.cancelExecution(swarmId);
             return { success: true, message: "Swarm cancelled successfully" };
         } catch (error) {
             this.logger.error("[SwarmExecutionService] Failed to cancel swarm", {
@@ -317,10 +436,10 @@ export class SwarmExecutionService {
         try {
             // Update run status
             await this.persistenceService.updateRunState(runId, "CANCELLED");
-            
+
             // Cancel through Tier 2
             await this.tierTwo.cancelRun(runId, reason);
-            
+
             return { success: true, message: "Run cancelled successfully" };
         } catch (error) {
             this.logger.error("[SwarmExecutionService] Failed to cancel run", {
@@ -341,7 +460,7 @@ export class SwarmExecutionService {
         // Handle run completion events
         this.eventBus.on("run.completed", async (event) => {
             const { runId, outputs } = event.data;
-            
+
             // Update run status AND outputs
             await this.persistenceService.updateRunState(runId, "COMPLETED");
             await this.persistenceService.updateRunOutputs(runId, outputs);
@@ -372,7 +491,7 @@ export class SwarmExecutionService {
      */
     async shutdown(): Promise<void> {
         this.logger.info("[SwarmExecutionService] Shutting down three-tier execution architecture");
-        
+
         // Shutdown all tiers
         await Promise.all([
             this.tierOne.shutdown(),

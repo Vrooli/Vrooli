@@ -6,10 +6,10 @@ import {
     type ToolResource,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
+import { type EventBus } from "../../../events/types.js";
 import { EventTypes, EventUtils, type IEventBus } from "../../../events/index.js";
 import { getUnifiedEventSystem } from "../../../events/initialization/eventSystemService.js";
 import { type Tool } from "../../../mcp/types.js";
-import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import {
     IntegratedToolRegistry,
     convertToolResourceToTool,
@@ -50,7 +50,7 @@ export interface ToolApprovalStatus {
  * while providing consistent execution patterns and resource management.
  */
 export class ToolOrchestrator {
-    private readonly eventBus: EventBus;
+    private readonly eventBus: IEventBus;
     private readonly logger: Logger;
     private readonly errorHandler: ComponentErrorHandler;
     private readonly unifiedEventBus: IEventBus | null;
@@ -70,7 +70,7 @@ export class ToolOrchestrator {
     // Event subscription tracking for cleanup
     private toolExecutionSubscriptionId?: string;
 
-    constructor(eventBus: EventBus, logger: Logger, toolRegistry?: IntegratedToolRegistry) {
+    constructor(eventBus: IEventBus, logger: Logger, toolRegistry?: IntegratedToolRegistry) {
         this.eventBus = eventBus;
         this.logger = logger;
         this.errorHandler = new ErrorHandler(logger).createComponentHandler("ToolOrchestrator");

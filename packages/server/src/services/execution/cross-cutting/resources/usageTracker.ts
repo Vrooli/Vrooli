@@ -4,7 +4,7 @@ import {
     generatePK,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type EventBus } from "../events/eventBus.js";
+import { type IEventBus } from "../../../events/types.js";
 
 /**
  * Usage tracking configuration
@@ -71,7 +71,7 @@ export interface UsageSummary {
  */
 export class UsageTracker {
     private readonly logger: Logger;
-    private readonly eventBus?: EventBus;
+    private readonly eventBus?: IEventBus;
     private readonly config: UsageTrackerConfig;
     private readonly records: UsageRecord[] = [];
     private readonly aggregated: Map<ResourceType, AggregatedUsage> = new Map();
@@ -81,7 +81,7 @@ export class UsageTracker {
     constructor(
         config: UsageTrackerConfig,
         logger: Logger,
-        eventBus?: EventBus,
+        eventBus?: IEventBus,
     ) {
         this.config = config;
         this.logger = logger;
