@@ -1,0 +1,269 @@
+{
+  "id": "7829564732190847865",
+  "publicId": "note-to-task-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847866",
+      "publicId": "note-to-task-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Extracts actionable tasks from unstructured notes",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Parse Note Content",
+                "description": "Analyzes note structure and identifies sections",
+                "subroutineId": "TODO: Need note parsing subroutine",
+                "inputMap": {
+                  "noteContent": "rawNotes",
+                  "noteType": "contentFormat",
+                  "context": "meetingContext"
+                },
+                "outputMap": {
+                  "parsedContent": "structuredNotes",
+                  "sectionMapping": "noteSegments",
+                  "metadata": "noteProperties"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Extract Action Items",
+                "description": "Identifies tasks, follow-ups, and commitments",
+                "subroutineId": "TODO: Need action extraction subroutine",
+                "inputMap": {
+                  "structuredNotes": "parsedContent",
+                  "actionKeywords": "taskIndicators",
+                  "contextClues": "semanticMarkers"
+                },
+                "outputMap": {
+                  "actionItems": "extractedTasks",
+                  "assignmentMap": "taskOwners",
+                  "confidenceScores": "extractionCertainty"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Enrich Task Details",
+                "description": "Adds context, deadlines, and priorities to tasks",
+                "subroutineId": "TODO: Need task enrichment subroutine",
+                "inputMap": {
+                  "extractedTasks": "actionItems",
+                  "noteProperties": "metadata",
+                  "inferenceRules": "enrichmentLogic"
+                },
+                "outputMap": {
+                  "enrichedTasks": "detailedActions",
+                  "inferredDeadlines": "suggestedDates",
+                  "priorityAssignments": "taskImportance"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Resolve Ambiguities",
+                "description": "Clarifies unclear or incomplete task descriptions",
+                "subroutineId": "TODO: Need ambiguity resolution subroutine",
+                "inputMap": {
+                  "detailedActions": "enrichedTasks",
+                  "extractionCertainty": "confidenceScores",
+                  "clarificationRules": "resolutionStrategies"
+                },
+                "outputMap": {
+                  "clarifiedTasks": "unambiguousTasks",
+                  "clarificationNeeded": "uncertainItems",
+                  "assumptions": "inferenceNotes"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Format Task List",
+                "description": "Structures tasks into standard format",
+                "subroutineId": "TODO: Need task formatting subroutine",
+                "inputMap": {
+                  "unambiguousTasks": "clarifiedTasks",
+                  "formatTemplate": "taskStructure",
+                  "groupingCriteria": "organizationRules"
+                },
+                "outputMap": {
+                  "formattedTasks": "standardTasks",
+                  "taskCategories": "groupedActions",
+                  "summaryStats": "taskMetrics"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Task Report",
+                "description": "Creates comprehensive task list with metadata",
+                "subroutineId": "TODO: Need report generation subroutine",
+                "inputMap": {
+                  "standardTasks": "formattedTasks",
+                  "uncertainItems": "clarificationNeeded",
+                  "reportFormat": "outputPreferences"
+                },
+                "outputMap": {
+                  "taskReport": "completeTaskList",
+                  "reviewSummary": "extractionSummary",
+                  "integrationReady": "exportableTasks"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "notes": "rawNotes",
+                "type": "noteType",
+                "context": "sourceContext",
+                "preferences": "extractionSettings"
+              },
+              "outputMap": {
+                "completeTaskList": "taskOutcome",
+                "exportableTasks": "integrationFormat",
+                "extractionSummary": "processSummary",
+                "groupedActions": "organizedTasks"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "notes",
+                "id": "notes_input",
+                "label": "Raw Notes",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Meeting minutes, brainstorm notes, or conversation transcript"
+              },
+              {
+                "fieldName": "type",
+                "id": "type_input",
+                "label": "Note Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["meeting-minutes", "brainstorm", "conversation", "email-thread", "project-notes", "mixed"]
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Note Context",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Meeting details, participants, project info"
+              },
+              {
+                "fieldName": "extractionDepth",
+                "id": "extraction_depth_input",
+                "label": "Extraction Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": ["explicit-only", "balanced", "aggressive", "comprehensive"]
+              },
+              {
+                "fieldName": "defaultOwner",
+                "id": "default_owner_input",
+                "label": "Default Task Owner",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Assign to this person if owner unclear"
+              },
+              {
+                "fieldName": "priorities",
+                "id": "priorities_input",
+                "label": "Priority Assignment",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "infer",
+                "options": ["all-normal", "infer", "all-high", "by-deadline"]
+              },
+              {
+                "fieldName": "groupBy",
+                "id": "group_by_input",
+                "label": "Task Grouping",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "owner",
+                "options": ["owner", "priority", "deadline", "category", "none"]
+              },
+              {
+                "fieldName": "includeContext",
+                "id": "include_context_input",
+                "label": "Include Context",
+                "type": "Switch",
+                "isRequired": false,
+                "defaultValue": true
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskOutcome",
+                "id": "task_outcome_output",
+                "label": "Extracted Task List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "integrationFormat",
+                "id": "integration_format_output",
+                "label": "Export-Ready Tasks",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "processSummary",
+                "id": "process_summary_output",
+                "label": "Extraction Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "organizedTasks",
+                "id": "organized_tasks_output",
+                "label": "Grouped Task Categories",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "deterministic",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847867",
+          "language": "en",
+          "name": "Note-to-Task Converter",
+          "description": "Parses unstructured notes to extract actionable tasks. Analyzes content, identifies action items, enriches with context, resolves ambiguities, formats tasks, and generates comprehensive task lists ready for project management systems.",
+          "instructions": "Paste meeting minutes or notes. Select note type and extraction depth. Configure task ownership and priority settings. The routine will extract all actionable items, organize them, and create a structured task list with assignments and deadlines."
+        }
+      ]
+    }
+  ]
+}

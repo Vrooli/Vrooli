@@ -1,0 +1,268 @@
+{
+  "id": "7829564732190847823",
+  "publicId": "expense-track-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847824",
+      "publicId": "expense-track-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Expense tracking, categorization, and spending analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Import & Parse Expenses",
+                "description": "Loads expense data from various sources",
+                "subroutineId": "TODO: Need expense import subroutine",
+                "inputMap": {
+                  "expenseData": "transactionSources",
+                  "importFormat": "dataFormats",
+                  "dateRange": "analysisePeriod"
+                },
+                "outputMap": {
+                  "parsedTransactions": "cleanExpenseData",
+                  "dataQuality": "importReport",
+                  "duplicateHandling": "deduplicationLog"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Categorize Transactions",
+                "description": "Intelligently assigns categories to expenses",
+                "subroutineId": "TODO: Need categorization subroutine",
+                "inputMap": {
+                  "cleanExpenseData": "parsedTransactions",
+                  "categoryRules": "classificationLogic",
+                  "merchantDatabase": "vendorCategories"
+                },
+                "outputMap": {
+                  "categorizedExpenses": "classifiedTransactions",
+                  "categoryBreakdown": "spendingCategories",
+                  "uncategorizedItems": "manualReviewList"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Analyze Spending Patterns",
+                "description": "Identifies trends and spending behaviors",
+                "subroutineId": "TODO: Need pattern analysis subroutine",
+                "inputMap": {
+                  "classifiedTransactions": "categorizedExpenses",
+                  "temporalAnalysis": "timeBasedPatterns",
+                  "behaviorModeling": "spendingHabits"
+                },
+                "outputMap": {
+                  "spendingTrends": "patternAnalysis",
+                  "recurringExpenses": "subscriptionDetection",
+                  "anomalies": "unusualSpending"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Compare to Budget",
+                "description": "Evaluates spending against budget targets",
+                "subroutineId": "TODO: Need budget comparison subroutine",
+                "inputMap": {
+                  "spendingCategories": "categoryBreakdown",
+                  "budgetTargets": "plannedSpending",
+                  "alertThresholds": "warningLevels"
+                },
+                "outputMap": {
+                  "budgetVariance": "overUnderAnalysis",
+                  "categoryAlerts": "budgetWarnings",
+                  "projectedOverruns": "forecastedExcess"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Generate Insights & Advice",
+                "description": "Creates actionable recommendations for savings",
+                "subroutineId": "TODO: Need insight generation subroutine",
+                "inputMap": {
+                  "patternAnalysis": "spendingTrends",
+                  "budgetWarnings": "categoryAlerts",
+                  "savingsGoals": "financialObjectives"
+                },
+                "outputMap": {
+                  "savingsOpportunities": "costReductions",
+                  "behaviorRecommendations": "spendingAdvice",
+                  "optimizationStrategies": "budgetOptimization"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Create Reports & Dashboards",
+                "description": "Compiles visual reports and tracking dashboards",
+                "subroutineId": "TODO: Need report generation subroutine",
+                "inputMap": {
+                  "overUnderAnalysis": "budgetVariance",
+                  "costReductions": "savingsOpportunities",
+                  "reportPreferences": "visualizationStyle"
+                },
+                "outputMap": {
+                  "expenseReport": "summaryDocument",
+                  "interactiveDashboard": "trackingInterface",
+                  "exportableData": "shareableReports"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "expenses": "transactionSources",
+                "budget": "plannedSpending",
+                "period": "analysisePeriod",
+                "goals": "financialObjectives"
+              },
+              "outputMap": {
+                "summaryDocument": "expenseAnalysis",
+                "trackingInterface": "expenseDashboard",
+                "spendingAdvice": "recommendations",
+                "budgetOptimization": "savingsPlan"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "expenses",
+                "id": "expenses_input",
+                "label": "Expense Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Transaction list, bank statements, or expense records"
+              },
+              {
+                "fieldName": "dataSource",
+                "id": "data_source_input",
+                "label": "Data Source Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["bank-statement", "credit-card", "manual-entry", "expense-app", "csv-upload", "mixed-sources"]
+              },
+              {
+                "fieldName": "period",
+                "id": "period_input",
+                "label": "Analysis Period",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["current-month", "last-month", "last-quarter", "last-6-months", "year-to-date", "custom-range"]
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Budget Targets",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Monthly or category-specific budget limits"
+              },
+              {
+                "fieldName": "expenseType",
+                "id": "expense_type_input",
+                "label": "Expense Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "personal",
+                "options": ["personal", "household", "business", "project", "travel", "mixed"]
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Financial Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Savings targets, spending reduction goals"
+              },
+              {
+                "fieldName": "categories",
+                "id": "categories_input",
+                "label": "Custom Categories",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Specific expense categories to track"
+              },
+              {
+                "fieldName": "alertPreferences",
+                "id": "alert_preferences_input",
+                "label": "Alert Sensitivity",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": ["minimal", "balanced", "detailed", "aggressive"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "expenseAnalysis",
+                "id": "expense_analysis_output",
+                "label": "Complete Expense Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "expenseDashboard",
+                "id": "expense_dashboard_output",
+                "label": "Interactive Tracking Dashboard",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Spending Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "savingsPlan",
+                "id": "savings_plan_output",
+                "label": "Budget Optimization Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "deterministic",
+          "2": "reasoning",
+          "3": "deterministic",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847825",
+          "language": "en",
+          "name": "Expense Tracker & Analyzer",
+          "description": "Comprehensive expense management system that imports transactions, categorizes spending, analyzes patterns, compares to budgets, generates savings insights, and creates visual reports for better financial control.",
+          "instructions": "Upload expense data and specify the analysis period. Include budget targets and financial goals. Choose data source type and expense categories. The routine will categorize expenses, analyze patterns, identify savings opportunities, and create tracking dashboards."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,267 @@
+{
+  "id": "7829564732190847910",
+  "publicId": "problem-reframe-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847911",
+      "publicId": "problem-reframe-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creative problem reframing and perspective shifting",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Current Problem Frame",
+                "description": "Examines how the problem is currently understood and defined",
+                "subroutineId": "TODO: Need problem analysis subroutine",
+                "inputMap": {
+                  "problemStatement": "currentDefinition",
+                  "stakeholderViews": "perspectivesInput",
+                  "contextualFactors": "situationalElements"
+                },
+                "outputMap": {
+                  "problemAnalysis": "frameAnalysis",
+                  "underlyingAssumptions": "hiddenBiases",
+                  "constraintIdentification": "limitingFactors"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Deconstruct Problem Elements",
+                "description": "Breaks down the problem into fundamental components",
+                "subroutineId": "TODO: Need problem deconstruction subroutine",
+                "inputMap": {
+                  "frameAnalysis": "problemAnalysis",
+                  "hiddenBiases": "underlyingAssumptions",
+                  "scopeBoundaries": "problemBounds"
+                },
+                "outputMap": {
+                  "coreElements": "fundamentalComponents",
+                  "causalRelationships": "causeEffectChains",
+                  "systemDynamics": "interactionPatterns"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Generate Alternative Frames",
+                "description": "Creates multiple new ways to view and understand the problem",
+                "subroutineId": "TODO: Need reframing generation subroutine",
+                "inputMap": {
+                  "fundamentalComponents": "coreElements",
+                  "causeEffectChains": "causalRelationships",
+                  "reframingTechniques": "perspectiveMethods"
+                },
+                "outputMap": {
+                  "alternativeFrames": "newPerspectives",
+                  "frameVariations": "perspectiveRange",
+                  "creativeTwists": "unconventionalAngles"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Explore Solution Spaces",
+                "description": "Investigates solution possibilities under each new frame",
+                "subroutineId": "TODO: Need solution exploration subroutine",
+                "inputMap": {
+                  "newPerspectives": "alternativeFrames",
+                  "perspectiveRange": "frameVariations",
+                  "solutionConstraints": "feasibilityLimits"
+                },
+                "outputMap": {
+                  "solutionOptions": "emergentSolutions",
+                  "innovativeApproaches": "creativeStrategies",
+                  "resourceRequirements": "implementationNeeds"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Evaluate Frame Effectiveness",
+                "description": "Assesses which reframes offer the most promising paths",
+                "subroutineId": "TODO: Need frame evaluation subroutine",
+                "inputMap": {
+                  "emergentSolutions": "solutionOptions",
+                  "creativeStrategies": "innovativeApproaches",
+                  "evaluationCriteria": "assessmentStandards"
+                },
+                "outputMap": {
+                  "frameRankings": "perspectiveValue",
+                  "solutionViability": "feasibilityAssessment",
+                  "implementationStrategy": "executionApproach"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Synthesize Insights",
+                "description": "Combines best elements from multiple frames into actionable insights",
+                "subroutineId": "TODO: Need insights synthesis subroutine",
+                "inputMap": {
+                  "perspectiveValue": "frameRankings",
+                  "feasibilityAssessment": "solutionViability",
+                  "synthesisCriteria": "integrationPrinciples"
+                },
+                "outputMap": {
+                  "reframedProblem": "transformedPerspective",
+                  "actionableInsights": "strategicRecommendations",
+                  "implementationGuidance": "executionPlan"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "problem": "currentDefinition",
+                "context": "situationalElements",
+                "goals": "desiredOutcomes",
+                "constraints": "limitingFactors"
+              },
+              "outputMap": {
+                "transformedPerspective": "reframingOutcome",
+                "strategicRecommendations": "actionableResults",
+                "executionPlan": "implementationStrategy",
+                "newPerspectives": "alternativeViews"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "problem",
+                "id": "problem_input",
+                "label": "Problem Statement",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Describe the problem as currently understood"
+              },
+              {
+                "fieldName": "problemType",
+                "id": "problem_type_input",
+                "label": "Problem Category",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["strategic", "operational", "creative", "interpersonal", "technical", "organizational", "market", "innovation"]
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Problem Context",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Circumstances, environment, and background factors"
+              },
+              {
+                "fieldName": "stakeholders",
+                "id": "stakeholders_input",
+                "label": "Key Stakeholders",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "People affected by or involved in the problem"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Desired Outcomes",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What success looks like when the problem is solved"
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Known Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Limitations, resources, time, or other restrictions"
+              },
+              {
+                "fieldName": "previousAttempts",
+                "id": "previous_attempts_input",
+                "label": "Previous Solutions Tried",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What has been attempted before and why it didn't work"
+              },
+              {
+                "fieldName": "reframingStyle",
+                "id": "reframing_style_input",
+                "label": "Reframing Approach",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": ["systematic", "creative", "comprehensive", "rapid", "radical"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reframingOutcome",
+                "id": "reframing_outcome_output",
+                "label": "Reframed Problem Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionableResults",
+                "id": "actionable_results_output",
+                "label": "Strategic Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationStrategy",
+                "id": "implementation_strategy_output",
+                "label": "Execution Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "alternativeViews",
+                "id": "alternative_views_output",
+                "label": "Alternative Perspectives",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "conversational",
+          "3": "conversational",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847912",
+          "language": "en",
+          "name": "Problem Reframer",
+          "description": "Creative problem reframing and perspective shifting system. Analyzes current problem frames, deconstructs elements, generates alternative perspectives, explores solution spaces, evaluates effectiveness, and synthesizes actionable insights.",
+          "instructions": "Describe your problem and its context. Include stakeholders and desired outcomes. Specify constraints and previous attempts. Choose reframing style. The routine will analyze the problem from multiple angles and generate fresh perspectives with actionable solutions."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,269 @@
+{
+  "id": "7829564732190847808",
+  "publicId": "data-viz-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847809",
+      "publicId": "data-viz-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Data analysis, summarization, and visualization system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Load & Validate Data",
+                "description": "Imports dataset and performs quality checks",
+                "subroutineId": "TODO: Need data loading subroutine",
+                "inputMap": {
+                  "dataSource": "inputDataset",
+                  "dataFormat": "fileStructure",
+                  "validationRules": "qualityChecks"
+                },
+                "outputMap": {
+                  "cleanedData": "validatedDataset",
+                  "dataProfile": "structureAnalysis",
+                  "qualityReport": "dataQualityMetrics"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Perform Statistical Analysis",
+                "description": "Calculates descriptive statistics and distributions",
+                "subroutineId": "TODO: Need statistical analysis subroutine",
+                "inputMap": {
+                  "validatedDataset": "cleanedData",
+                  "analysisDepth": "statisticalRequirements",
+                  "variableTypes": "dataClassification"
+                },
+                "outputMap": {
+                  "descriptiveStats": "summaryStatistics",
+                  "distributionAnalysis": "dataDistributions",
+                  "correlationMatrix": "variableRelationships"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Identify Key Patterns",
+                "description": "Discovers trends, outliers, and significant patterns",
+                "subroutineId": "TODO: Need pattern detection subroutine",
+                "inputMap": {
+                  "summaryStatistics": "descriptiveStats",
+                  "patternMethods": "analysisAlgorithms",
+                  "significanceThresholds": "detectionCriteria"
+                },
+                "outputMap": {
+                  "trendAnalysis": "temporalPatterns",
+                  "outlierDetection": "anomalousData",
+                  "clusteringResults": "dataGroupings"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Generate Visualizations",
+                "description": "Creates appropriate charts and graphs for insights",
+                "subroutineId": "TODO: Need visualization generation subroutine",
+                "inputMap": {
+                  "dataDistributions": "distributionAnalysis",
+                  "temporalPatterns": "trendAnalysis",
+                  "visualizationPrefs": "chartRequirements"
+                },
+                "outputMap": {
+                  "chartCollection": "visualizationSet",
+                  "interactivePlots": "dynamicGraphics",
+                  "visualizationCode": "reproducibleCharts"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Create Written Summary",
+                "description": "Generates plain language insights and explanations",
+                "subroutineId": "TODO: Need summary generation subroutine",
+                "inputMap": {
+                  "summaryStatistics": "descriptiveStats",
+                  "dataGroupings": "clusteringResults",
+                  "audienceLevel": "communicationStyle"
+                },
+                "outputMap": {
+                  "executiveSummary": "highlevelInsights",
+                  "detailedFindings": "comprehensiveAnalysis",
+                  "keyTakeaways": "actionableInsights"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Compile Analysis Report",
+                "description": "Assembles complete report with visuals and insights",
+                "subroutineId": "TODO: Need report compilation subroutine",
+                "inputMap": {
+                  "visualizationSet": "chartCollection",
+                  "comprehensiveAnalysis": "detailedFindings",
+                  "reportTemplate": "outputFormat"
+                },
+                "outputMap": {
+                  "analysisReport": "completeDocument",
+                  "dataDashboard": "interactiveSummary",
+                  "exportPackage": "shareableResults"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "data": "inputDataset",
+                "analysis": "statisticalRequirements",
+                "visualization": "chartRequirements",
+                "audience": "communicationStyle"
+              },
+              "outputMap": {
+                "completeDocument": "analysisOutcome",
+                "interactiveSummary": "dataDashboard",
+                "actionableInsights": "keyFindings",
+                "shareableResults": "exportPackage"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "data",
+                "id": "data_input",
+                "label": "Dataset",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Upload or paste your data (CSV, JSON, or table format)"
+              },
+              {
+                "fieldName": "dataType",
+                "id": "data_type_input",
+                "label": "Data Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["time-series", "cross-sectional", "categorical", "mixed", "survey-responses", "financial", "scientific", "business-metrics"]
+              },
+              {
+                "fieldName": "analysis",
+                "id": "analysis_input",
+                "label": "Analysis Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What insights are you looking for? What questions to answer?"
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["basic-summary", "standard-analysis", "advanced-statistics", "machine-learning", "comprehensive"]
+              },
+              {
+                "fieldName": "visualization",
+                "id": "visualization_input",
+                "label": "Visualization Preferences",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Preferred chart types, color schemes, and style preferences"
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "business",
+                "options": ["technical", "business", "academic", "general-public", "executive", "mixed"]
+              },
+              {
+                "fieldName": "outputFormat",
+                "id": "output_format_input",
+                "label": "Output Format",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "report-with-visuals",
+                "options": ["report-with-visuals", "dashboard-only", "presentation-slides", "jupyter-notebook", "raw-results"]
+              },
+              {
+                "fieldName": "interactivity",
+                "id": "interactivity_input",
+                "label": "Interactivity Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "static",
+                "options": ["static", "interactive-plots", "full-dashboard", "explorable-data"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "analysisOutcome",
+                "id": "analysis_outcome_output",
+                "label": "Complete Analysis Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "dataDashboard",
+                "id": "data_dashboard_output",
+                "label": "Interactive Data Dashboard",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyFindings",
+                "id": "key_findings_output",
+                "label": "Key Insights & Takeaways",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "exportPackage",
+                "id": "export_package_output",
+                "label": "Shareable Results Package",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "deterministic",
+          "2": "deterministic",
+          "3": "deterministic",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847810",
+          "language": "en",
+          "name": "Data Summarizer & Visualizer",
+          "description": "Comprehensive data analysis system that loads and validates datasets, performs statistical analysis, identifies patterns, generates visualizations, creates written summaries, and compiles complete analysis reports with actionable insights.",
+          "instructions": "Upload or provide your dataset and specify data type. Describe your analysis goals and visualization preferences. Choose analysis depth and target audience. The routine will analyze data, create visualizations, and generate comprehensive reports with key insights."
+        }
+      ]
+    }
+  ]
+}

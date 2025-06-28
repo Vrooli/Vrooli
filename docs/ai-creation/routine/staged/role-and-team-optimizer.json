@@ -1,0 +1,268 @@
+{
+  "id": "7829564732190847859",
+  "publicId": "role-optimize-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847860",
+      "publicId": "role-optimize-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Team structure optimization for swarm collaboration",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Current Structure",
+                "description": "Evaluates existing team roles and agent capabilities",
+                "subroutineId": "TODO: Need team analysis subroutine",
+                "inputMap": {
+                  "teamRoster": "currentAgents",
+                  "roleDefinitions": "agentCapabilities",
+                  "organizationChart": "teamHierarchy"
+                },
+                "outputMap": {
+                  "structureAnalysis": "teamAssessment",
+                  "roleMapping": "currentAssignments",
+                  "skillInventory": "capabilityMatrix"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Assess Performance Metrics",
+                "description": "Reviews task distribution and collaboration effectiveness",
+                "subroutineId": "TODO: Need performance assessment subroutine",
+                "inputMap": {
+                  "teamAssessment": "structureAnalysis",
+                  "taskHistory": "completedWork",
+                  "collaborationLogs": "interactionData"
+                },
+                "outputMap": {
+                  "performanceMetrics": "teamEfficiency",
+                  "workloadDistribution": "taskBalance",
+                  "bottleneckAnalysis": "constraintPoints"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Identify Optimization Opportunities",
+                "description": "Finds gaps, redundancies, and improvement areas",
+                "subroutineId": "TODO: Need optimization identification subroutine",
+                "inputMap": {
+                  "teamEfficiency": "performanceMetrics",
+                  "capabilityMatrix": "skillInventory",
+                  "futureRequirements": "upcomingNeeds"
+                },
+                "outputMap": {
+                  "optimizationTargets": "improvementAreas",
+                  "roleGaps": "missingCapabilities",
+                  "redundancies": "overlappingRoles"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Design Optimal Structure",
+                "description": "Creates improved team organization and role definitions",
+                "subroutineId": "TODO: Need structure design subroutine",
+                "inputMap": {
+                  "improvementAreas": "optimizationTargets",
+                  "teamConstraints": "organizationalLimits",
+                  "bestPractices": "teamPatterns"
+                },
+                "outputMap": {
+                  "proposedStructure": "newOrganization",
+                  "roleRedefinitions": "updatedRoles",
+                  "transitionPlan": "migrationSteps"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Plan Agent Changes",
+                "description": "Determines agent additions, modifications, or retirements",
+                "subroutineId": "TODO: Need agent planning subroutine",
+                "inputMap": {
+                  "newOrganization": "proposedStructure",
+                  "missingCapabilities": "roleGaps",
+                  "resourceBudget": "availableResources"
+                },
+                "outputMap": {
+                  "agentAdditions": "newAgentSpecs",
+                  "agentModifications": "roleUpdates",
+                  "agentRetirements": "decommissionList"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Implementation Roadmap",
+                "description": "Creates phased plan for team structure changes",
+                "subroutineId": "TODO: Need implementation planning subroutine",
+                "inputMap": {
+                  "migrationSteps": "transitionPlan",
+                  "changeTimeline": "implementationSchedule",
+                  "riskFactors": "transitionRisks"
+                },
+                "outputMap": {
+                  "implementationRoadmap": "changeManagement",
+                  "communicationPlan": "teamNotifications",
+                  "successMetrics": "optimizationKPIs"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "team": "currentAgents",
+                "performance": "teamMetrics",
+                "requirements": "projectNeeds",
+                "constraints": "organizationalLimits"
+              },
+              "outputMap": {
+                "changeManagement": "optimizationOutcome",
+                "newOrganization": "proposedTeamStructure",
+                "roleUpdates": "agentModifications",
+                "optimizationKPIs": "successMeasures"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "team",
+                "id": "team_input",
+                "label": "Current Team Structure",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Agent roster with roles and capabilities"
+              },
+              {
+                "fieldName": "performance",
+                "id": "performance_input",
+                "label": "Team Performance Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Task completion rates, collaboration metrics"
+              },
+              {
+                "fieldName": "optimizationFocus",
+                "id": "optimization_focus_input",
+                "label": "Optimization Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["efficiency", "specialization", "flexibility", "scalability", "innovation", "cost-reduction"]
+              },
+              {
+                "fieldName": "requirements",
+                "id": "requirements_input",
+                "label": "Future Project Needs",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Upcoming tasks, skills needed, growth plans"
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Organizational Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Budget limits, team size caps, technology constraints"
+              },
+              {
+                "fieldName": "changeAppetite",
+                "id": "change_appetite_input",
+                "label": "Change Tolerance",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": ["minimal", "moderate", "aggressive", "transformational"]
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Implementation Timeline",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "quarterly",
+                "options": ["immediate", "monthly", "quarterly", "annual"]
+              },
+              {
+                "fieldName": "preserveRoles",
+                "id": "preserve_roles_input",
+                "label": "Protected Roles",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Roles or agents that must be retained"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizationOutcome",
+                "id": "optimization_outcome_output",
+                "label": "Complete Optimization Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "proposedTeamStructure",
+                "id": "proposed_team_structure_output",
+                "label": "Recommended Team Organization",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "agentModifications",
+                "id": "agent_modifications_output",
+                "label": "Agent Role Updates",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "successMeasures",
+                "id": "success_measures_output",
+                "label": "Success Metrics & KPIs",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "deterministic",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847861",
+          "language": "en",
+          "name": "Role & Team Optimizer",
+          "description": "Evaluates and optimizes swarm team structure for improved collaboration. Analyzes current roles, assesses performance, identifies optimization opportunities, designs optimal structure, plans agent changes, and creates implementation roadmaps.",
+          "instructions": "Provide current team structure and performance data. Select optimization focus and change tolerance. Include future requirements and constraints. The routine will analyze team effectiveness and recommend organizational improvements with implementation plans."
+        }
+      ]
+    }
+  ]
+}

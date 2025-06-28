@@ -1,0 +1,270 @@
+{
+  "id": "7829564732190847877",
+  "publicId": "brainstorm-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847878",
+      "publicId": "brainstorm-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creative ideation and brainstorming facilitator",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Explore Topic Space",
+                "description": "Expands understanding of the brainstorm topic",
+                "subroutineId": "TODO: Need topic exploration subroutine",
+                "inputMap": {
+                  "brainstormPrompt": "ideationTopic",
+                  "contextInfo": "backgroundKnowledge",
+                  "explorationDepth": "expansionLevel"
+                },
+                "outputMap": {
+                  "topicMap": "conceptualSpace",
+                  "relatedConcepts": "adjacentIdeas",
+                  "inspirationSources": "creativeTriggers"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Generate Initial Ideas",
+                "description": "Creates diverse ideas using multiple techniques",
+                "subroutineId": "TODO: Need idea generation subroutine",
+                "inputMap": {
+                  "conceptualSpace": "topicMap",
+                  "ideationMethods": "creativeTechniques",
+                  "quantityTarget": "ideaVolume"
+                },
+                "outputMap": {
+                  "rawIdeas": "initialConcepts",
+                  "ideaSources": "generationMethods",
+                  "creativityMetrics": "diversityScores"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Apply Creative Techniques",
+                "description": "Uses SCAMPER, analogies, and other methods",
+                "subroutineId": "TODO: Need creative technique subroutine",
+                "inputMap": {
+                  "initialConcepts": "rawIdeas",
+                  "techniqueSelection": "methodChoice",
+                  "constraintSet": "creativeBoundaries"
+                },
+                "outputMap": {
+                  "enhancedIdeas": "expandedConcepts",
+                  "techniqueResults": "methodOutcomes",
+                  "crossPollination": "hybridIdeas"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Cluster & Categorize",
+                "description": "Groups similar ideas into themes",
+                "subroutineId": "TODO: Need idea clustering subroutine",
+                "inputMap": {
+                  "expandedConcepts": "enhancedIdeas",
+                  "clusteringCriteria": "groupingRules",
+                  "themePreferences": "categoryTypes"
+                },
+                "outputMap": {
+                  "ideaClusters": "themedGroups",
+                  "clusterLabels": "themeNames",
+                  "affinityMap": "relationshipDiagram"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Evaluate & Prioritize",
+                "description": "Assesses ideas for potential and feasibility",
+                "subroutineId": "TODO: Need idea evaluation subroutine",
+                "inputMap": {
+                  "themedGroups": "ideaClusters",
+                  "evaluationCriteria": "assessmentFactors",
+                  "scoringWeights": "priorityFactors"
+                },
+                "outputMap": {
+                  "evaluatedIdeas": "scoredConcepts",
+                  "topIdeas": "prioritizedList",
+                  "evaluationRationale": "scoringExplanation"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Package Results",
+                "description": "Organizes brainstorm output for action",
+                "subroutineId": "TODO: Need results packaging subroutine",
+                "inputMap": {
+                  "prioritizedList": "topIdeas",
+                  "themeNames": "clusterLabels",
+                  "presentationFormat": "outputStyle"
+                },
+                "outputMap": {
+                  "brainstormReport": "completeIdeation",
+                  "actionableIdeas": "implementationReady",
+                  "nextStepSuggestions": "followUpActions"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "prompt": "ideationTopic",
+                "constraints": "creativeBoundaries",
+                "preferences": "brainstormSettings",
+                "quantity": "targetIdeas"
+              },
+              "outputMap": {
+                "completeIdeation": "brainstormOutcome",
+                "implementationReady": "actionableIdeas",
+                "themedGroups": "organizedConcepts",
+                "followUpActions": "nextSteps"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prompt",
+                "id": "prompt_input",
+                "label": "Brainstorm Topic",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "What would you like to brainstorm about?"
+              },
+              {
+                "fieldName": "domain",
+                "id": "domain_input",
+                "label": "Domain/Field",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["business", "creative", "technical", "personal", "academic", "social", "general"]
+              },
+              {
+                "fieldName": "quantity",
+                "id": "quantity_input",
+                "label": "Target Ideas",
+                "type": "IntegerInput",
+                "isRequired": false,
+                "defaultValue": 20,
+                "placeholder": "How many ideas to generate"
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Budget, time, resources, or other limitations"
+              },
+              {
+                "fieldName": "techniques",
+                "id": "techniques_input",
+                "label": "Creative Techniques",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "mixed",
+                "options": ["divergent", "convergent", "lateral", "analogical", "systematic", "mixed"]
+              },
+              {
+                "fieldName": "wildnessLevel",
+                "id": "wildness_level_input",
+                "label": "Creativity Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": ["practical", "balanced", "creative", "wild", "moonshot"]
+              },
+              {
+                "fieldName": "preferences",
+                "id": "preferences_input",
+                "label": "Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Specific directions or areas to explore"
+              },
+              {
+                "fieldName": "groupingStyle",
+                "id": "grouping_style_input",
+                "label": "Grouping Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "theme",
+                "options": ["theme", "feasibility", "impact", "timeline", "resource", "random"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "brainstormOutcome",
+                "id": "brainstorm_outcome_output",
+                "label": "Complete Brainstorm Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionableIdeas",
+                "id": "actionable_ideas_output",
+                "label": "Implementation-Ready Ideas",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "organizedConcepts",
+                "id": "organized_concepts_output",
+                "label": "Themed Idea Groups",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "nextSteps",
+                "id": "next_steps_output",
+                "label": "Follow-Up Actions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "conversational",
+          "2": "conversational",
+          "3": "deterministic",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847879",
+          "language": "en",
+          "name": "Brainstorm Buddy",
+          "description": "Facilitates creative brainstorming sessions on any topic. Explores concept space, generates diverse ideas, applies creative techniques, clusters into themes, evaluates potential, and packages actionable results for implementation.",
+          "instructions": "Enter your brainstorm topic and domain. Set creativity level and target number of ideas. Include any constraints or preferences. The routine will generate diverse ideas, organize them into themes, and provide actionable recommendations."
+        }
+      ]
+    }
+  ]
+}

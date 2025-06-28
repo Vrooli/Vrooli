@@ -1,0 +1,267 @@
+{
+  "id": "7829564732190847850",
+  "publicId": "debug-assist-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847851",
+      "publicId": "debug-assist-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Code debugging and error resolution assistant",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Error Context",
+                "description": "Examines error messages, stack traces, and code context",
+                "subroutineId": "TODO: Need error analysis subroutine",
+                "inputMap": {
+                  "errorMessage": "problemDescription",
+                  "stackTrace": "executionPath",
+                  "codeContext": "surroundingCode"
+                },
+                "outputMap": {
+                  "errorAnalysis": "problemBreakdown",
+                  "contextMapping": "relevantCodeSections",
+                  "errorClassification": "issueCategory"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Identify Root Cause",
+                "description": "Traces error origin and determines underlying causes",
+                "subroutineId": "TODO: Need root cause analysis subroutine",
+                "inputMap": {
+                  "problemBreakdown": "errorAnalysis",
+                  "executionFlow": "programPath",
+                  "variableStates": "runtimeValues"
+                },
+                "outputMap": {
+                  "rootCause": "primaryIssue",
+                  "contributingFactors": "secondaryIssues",
+                  "causeExplanation": "technicalReasoning"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Generate Hypotheses",
+                "description": "Creates potential solutions and fix strategies",
+                "subroutineId": "TODO: Need solution generation subroutine",
+                "inputMap": {
+                  "primaryIssue": "rootCause",
+                  "codePatterns": "implementationStyle",
+                  "constraints": "technicalLimitations"
+                },
+                "outputMap": {
+                  "solutionHypotheses": "potentialFixes",
+                  "approachStrategies": "implementationPaths",
+                  "tradeoffAnalysis": "prosAndCons"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Test Solutions",
+                "description": "Validates fixes and verifies problem resolution",
+                "subroutineId": "TODO: Need solution testing subroutine",
+                "inputMap": {
+                  "potentialFixes": "solutionHypotheses",
+                  "testScenarios": "validationCases",
+                  "acceptanceCriteria": "successMetrics"
+                },
+                "outputMap": {
+                  "testResults": "validationOutcomes",
+                  "workingSolutions": "verifiedFixes",
+                  "edgeCaseAnalysis": "boundaryConditions"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Implement Best Fix",
+                "description": "Applies optimal solution with proper error handling",
+                "subroutineId": "TODO: Need implementation subroutine",
+                "inputMap": {
+                  "verifiedFixes": "workingSolutions",
+                  "codeStandards": "qualityGuidelines",
+                  "refactorNeeds": "improvementAreas"
+                },
+                "outputMap": {
+                  "implementedFix": "appliedSolution",
+                  "codeChanges": "modificationDetails",
+                  "preventionMeasures": "futureGuards"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Document Resolution",
+                "description": "Creates debugging report and prevention guidelines",
+                "subroutineId": "TODO: Need documentation subroutine",
+                "inputMap": {
+                  "appliedSolution": "implementedFix",
+                  "technicalReasoning": "causeExplanation",
+                  "learningPoints": "knowledgeGained"
+                },
+                "outputMap": {
+                  "debugReport": "resolutionSummary",
+                  "preventionGuide": "avoidanceStrategies",
+                  "knowledgeBase": "debuggingWisdom"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "error": "problemDescription",
+                "code": "affectedCode",
+                "environment": "executionContext",
+                "history": "previousAttempts"
+              },
+              "outputMap": {
+                "resolutionSummary": "debugOutcome",
+                "appliedSolution": "workingFix",
+                "avoidanceStrategies": "preventionGuide",
+                "debuggingWisdom": "lessonsLearned"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "error",
+                "id": "error_input",
+                "label": "Error Description",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Error message, stack trace, or problem description"
+              },
+              {
+                "fieldName": "errorType",
+                "id": "error_type_input",
+                "label": "Error Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["syntax", "runtime", "logic", "performance", "memory", "concurrency", "integration", "unknown"]
+              },
+              {
+                "fieldName": "code",
+                "id": "code_input",
+                "label": "Affected Code",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Code snippet or file where error occurs"
+              },
+              {
+                "fieldName": "language",
+                "id": "language_input",
+                "label": "Programming Language",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["javascript", "typescript", "python", "java", "csharp", "go", "rust", "cpp", "ruby", "php", "other"]
+              },
+              {
+                "fieldName": "environment",
+                "id": "environment_input",
+                "label": "Environment Details",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "OS, runtime version, dependencies, configuration"
+              },
+              {
+                "fieldName": "history",
+                "id": "history_input",
+                "label": "Previous Attempts",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What you've already tried to fix the issue"
+              },
+              {
+                "fieldName": "urgency",
+                "id": "urgency_input",
+                "label": "Urgency Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "normal",
+                "options": ["low", "normal", "high", "critical"]
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Fix Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Limitations on solutions (e.g., no library changes)"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "debugOutcome",
+                "id": "debug_outcome_output",
+                "label": "Complete Debug Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "workingFix",
+                "id": "working_fix_output",
+                "label": "Implemented Solution",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "preventionGuide",
+                "id": "prevention_guide_output",
+                "label": "Prevention Strategies",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "lessonsLearned",
+                "id": "lessons_learned_output",
+                "label": "Debugging Insights",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "deterministic",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847852",
+          "language": "en",
+          "name": "Debugging Assistant",
+          "description": "Intelligent debugging system that analyzes error context, identifies root causes, generates solution hypotheses, tests fixes, implements optimal solutions, and documents resolutions with prevention guidelines.",
+          "instructions": "Provide error description and affected code. Specify error type and programming language. Include environment details and previous attempts. The routine will analyze the issue, find root causes, test solutions, and provide working fixes with prevention strategies."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,269 @@
+{
+  "id": "7829564732190847841",
+  "publicId": "anomaly-detect-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847842",
+      "publicId": "anomaly-detect-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Data anomaly detection and pattern analysis system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Load & Profile Data",
+                "description": "Imports data and establishes baseline characteristics",
+                "subroutineId": "TODO: Need data profiling subroutine",
+                "inputMap": {
+                  "dataSource": "inputDataset",
+                  "dataTypes": "variableClassification",
+                  "timeRange": "analysisWindow"
+                },
+                "outputMap": {
+                  "loadedData": "processedDataset",
+                  "dataProfile": "statisticalBaseline",
+                  "qualityMetrics": "dataIntegrity"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Establish Normal Patterns",
+                "description": "Defines expected behavior and normal ranges",
+                "subroutineId": "TODO: Need pattern establishment subroutine",
+                "inputMap": {
+                  "processedDataset": "loadedData",
+                  "statisticalBaseline": "dataProfile",
+                  "confidenceLevel": "normalityThreshold"
+                },
+                "outputMap": {
+                  "normalPatterns": "baselineBehavior",
+                  "variabilityRanges": "acceptableDeviation",
+                  "seasonalPatterns": "cyclicalNorms"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Apply Detection Algorithms",
+                "description": "Runs multiple anomaly detection methods",
+                "subroutineId": "TODO: Need anomaly detection subroutine",
+                "inputMap": {
+                  "baselineBehavior": "normalPatterns",
+                  "detectionMethods": "algorithmSelection",
+                  "sensitivitySettings": "detectionThresholds"
+                },
+                "outputMap": {
+                  "statisticalAnomalies": "outlierDetection",
+                  "patternAnomalies": "unusualPatterns",
+                  "contextualAnomalies": "situationalOutliers"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Classify & Score Anomalies",
+                "description": "Categorizes anomalies by type and severity",
+                "subroutineId": "TODO: Need anomaly classification subroutine",
+                "inputMap": {
+                  "outlierDetection": "statisticalAnomalies",
+                  "unusualPatterns": "patternAnomalies",
+                  "severityCriteria": "impactAssessment"
+                },
+                "outputMap": {
+                  "anomalyClassification": "categorizedAnomalies",
+                  "severityScores": "riskRatings",
+                  "confidenceScores": "detectionCertainty"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Investigate Root Causes",
+                "description": "Analyzes potential causes and correlations",
+                "subroutineId": "TODO: Need root cause analysis subroutine",
+                "inputMap": {
+                  "categorizedAnomalies": "anomalyClassification",
+                  "contextualData": "environmentFactors",
+                  "historicalIncidents": "pastAnomalies"
+                },
+                "outputMap": {
+                  "rootCauseAnalysis": "causalFactors",
+                  "correlationMapping": "relatedEvents",
+                  "explanationHypotheses": "possibleCauses"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Reports & Alerts",
+                "description": "Creates actionable reports and notification alerts",
+                "subroutineId": "TODO: Need report generation subroutine",
+                "inputMap": {
+                  "riskRatings": "severityScores",
+                  "causalFactors": "rootCauseAnalysis",
+                  "alertingRules": "notificationCriteria"
+                },
+                "outputMap": {
+                  "anomalyReport": "detectionSummary",
+                  "alertNotifications": "priorityAlerts",
+                  "visualizations": "anomalyDashboard"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "data": "inputDataset",
+                "detection": "algorithmSelection",
+                "sensitivity": "detectionThresholds",
+                "context": "environmentFactors"
+              },
+              "outputMap": {
+                "detectionSummary": "anomalyOutcome",
+                "priorityAlerts": "alertSystem",
+                "anomalyDashboard": "visualAnalysis",
+                "possibleCauses": "explanations"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "data",
+                "id": "data_input",
+                "label": "Dataset",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Time-series or categorical data for anomaly detection"
+              },
+              {
+                "fieldName": "dataType",
+                "id": "data_type_input",
+                "label": "Data Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["time-series", "transactional", "sensor-data", "log-files", "network-traffic", "financial", "behavioral", "mixed"]
+              },
+              {
+                "fieldName": "detection",
+                "id": "detection_input",
+                "label": "Detection Methods",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["statistical", "machine-learning", "pattern-based", "threshold-based", "ensemble", "custom"]
+              },
+              {
+                "fieldName": "sensitivity",
+                "id": "sensitivity_input",
+                "label": "Detection Sensitivity",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["very-low", "low", "moderate", "high", "very-high"]
+              },
+              {
+                "fieldName": "timeWindow",
+                "id": "time_window_input",
+                "label": "Analysis Window",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "rolling",
+                "options": ["real-time", "hourly", "daily", "weekly", "monthly", "rolling", "custom"]
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Contextual Factors",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Environmental factors, known events, or business context"
+              },
+              {
+                "fieldName": "alertThreshold",
+                "id": "alert_threshold_input",
+                "label": "Alert Threshold",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "medium",
+                "options": ["low", "medium", "high", "critical-only"]
+              },
+              {
+                "fieldName": "explainability",
+                "id": "explainability_input",
+                "label": "Explanation Detail",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": ["minimal", "balanced", "detailed", "comprehensive"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "anomalyOutcome",
+                "id": "anomaly_outcome_output",
+                "label": "Complete Anomaly Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "alertSystem",
+                "id": "alert_system_output",
+                "label": "Priority Alerts & Notifications",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "visualAnalysis",
+                "id": "visual_analysis_output",
+                "label": "Anomaly Visualizations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "explanations",
+                "id": "explanations_output",
+                "label": "Root Cause Explanations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "deterministic",
+          "2": "deterministic",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847843",
+          "language": "en",
+          "name": "Anomaly Detector",
+          "description": "Advanced anomaly detection system that profiles data, establishes normal patterns, applies detection algorithms, classifies anomalies by severity, investigates root causes, and generates actionable alerts and visualizations.",
+          "instructions": "Upload your dataset and specify data type. Choose detection methods and sensitivity level. Include any contextual factors and alert preferences. The routine will identify anomalies, classify them by severity, analyze causes, and provide actionable insights."
+        }
+      ]
+    }
+  ]
+}

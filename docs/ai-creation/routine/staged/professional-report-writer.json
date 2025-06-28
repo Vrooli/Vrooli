@@ -1,0 +1,268 @@
+{
+  "id": "7829564732190847901",
+  "publicId": "report-writer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847902",
+      "publicId": "report-writer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Professional report writing from structured information",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Source Material",
+                "description": "Processes raw data and identifies key information",
+                "subroutineId": "TODO: Need source analysis subroutine",
+                "inputMap": {
+                  "sourceData": "rawInformation",
+                  "reportPurpose": "documentObjective",
+                  "targetAudience": "readerProfile"
+                },
+                "outputMap": {
+                  "dataAnalysis": "processedInformation",
+                  "keyFindings": "criticalInsights",
+                  "supportingEvidence": "corroboratingData"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Structure Report Framework",
+                "description": "Creates logical organization and flow",
+                "subroutineId": "TODO: Need structure creation subroutine",
+                "inputMap": {
+                  "processedInformation": "dataAnalysis",
+                  "reportType": "documentFormat",
+                  "organizationalLogic": "structuralApproach"
+                },
+                "outputMap": {
+                  "reportOutline": "documentStructure",
+                  "sectionPlan": "contentOrganization",
+                  "logicalFlow": "narrativeSequence"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Write Executive Summary",
+                "description": "Crafts compelling overview of key points",
+                "subroutineId": "TODO: Need executive summary subroutine",
+                "inputMap": {
+                  "criticalInsights": "keyFindings",
+                  "documentObjective": "reportPurpose",
+                  "summaryLength": "executiveBrevity"
+                },
+                "outputMap": {
+                  "executiveSummary": "reportOverview",
+                  "keyRecommendations": "primaryActions",
+                  "impactHighlights": "significantOutcomes"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Develop Main Sections",
+                "description": "Expands each section with detailed content",
+                "subroutineId": "TODO: Need content development subroutine",
+                "inputMap": {
+                  "contentOrganization": "sectionPlan",
+                  "corroboratingData": "supportingEvidence",
+                  "writingStyle": "professionalTone"
+                },
+                "outputMap": {
+                  "sectionContent": "detailedSections",
+                  "evidenceIntegration": "dataPresentation",
+                  "transitionElements": "sectionConnections"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Create Visual Elements",
+                "description": "Designs charts, tables, and formatting",
+                "subroutineId": "TODO: Need visual design subroutine",
+                "inputMap": {
+                  "dataPresentation": "evidenceIntegration",
+                  "visualPreferences": "presentationStyle",
+                  "audienceNeeds": "comprehensionLevel"
+                },
+                "outputMap": {
+                  "visualElements": "chartsAndTables",
+                  "formattingGuidance": "layoutDirection",
+                  "accessibilityFeatures": "inclusiveDesign"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Finalize Report",
+                "description": "Assembles complete document with polish",
+                "subroutineId": "TODO: Need report finalization subroutine",
+                "inputMap": {
+                  "reportOverview": "executiveSummary",
+                  "detailedSections": "sectionContent",
+                  "chartsAndTables": "visualElements"
+                },
+                "outputMap": {
+                  "finalReport": "completeDocument",
+                  "qualityAssurance": "editorialReview",
+                  "distributionFormat": "readyForSharing"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "data": "rawInformation",
+                "purpose": "documentObjective",
+                "audience": "readerProfile",
+                "format": "reportSpecifications"
+              },
+              "outputMap": {
+                "completeDocument": "reportOutcome",
+                "readyForSharing": "finalizedReport",
+                "primaryActions": "recommendations",
+                "chartsAndTables": "visualSupport"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "data",
+                "id": "data_input",
+                "label": "Source Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Raw data, findings, or information to report on"
+              },
+              {
+                "fieldName": "reportType",
+                "id": "report_type_input",
+                "label": "Report Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["business", "research", "technical", "financial", "academic", "project-status", "analysis", "recommendation"]
+              },
+              {
+                "fieldName": "purpose",
+                "id": "purpose_input",
+                "label": "Report Purpose",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Objectives and intended outcomes"
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Stakeholders, decision-makers, or readers"
+              },
+              {
+                "fieldName": "length",
+                "id": "length_input",
+                "label": "Report Length",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": ["brief", "standard", "comprehensive", "extensive"]
+              },
+              {
+                "fieldName": "tone",
+                "id": "tone_input",
+                "label": "Writing Tone",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "professional",
+                "options": ["formal", "professional", "conversational", "technical", "executive"]
+              },
+              {
+                "fieldName": "format",
+                "id": "format_input",
+                "label": "Format Requirements",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Formatting standards, templates, or style guides"
+              },
+              {
+                "fieldName": "includeVisuals",
+                "id": "include_visuals_input",
+                "label": "Include Visual Elements",
+                "type": "Switch",
+                "isRequired": false,
+                "defaultValue": true
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reportOutcome",
+                "id": "report_outcome_output",
+                "label": "Complete Report Document",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "finalizedReport",
+                "id": "finalized_report_output",
+                "label": "Distribution-Ready Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Key Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "visualSupport",
+                "id": "visual_support_output",
+                "label": "Charts & Visual Elements",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "conversational",
+          "3": "conversational",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847903",
+          "language": "en",
+          "name": "Report Writer",
+          "description": "Professional report writing from structured information. Analyzes source material, creates logical structure, writes executive summaries, develops detailed sections, designs visual elements, and produces complete distribution-ready reports.",
+          "instructions": "Provide source data and specify report type. Define purpose and target audience. Choose length and tone preferences. The routine will analyze information, structure content logically, and produce a professional report with visual elements."
+        }
+      ]
+    }
+  ]
+}

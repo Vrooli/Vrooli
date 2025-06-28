@@ -1,0 +1,269 @@
+{
+  "id": "7829564732190847793",
+  "publicId": "financial-independence-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847794",
+      "publicId": "financial-independence-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive financial independence and wealth building system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Assess Financial Current State",
+                "description": "Evaluates net worth, cash flow, and financial health metrics",
+                "subroutineId": "TODO: Need financial assessment subroutine",
+                "inputMap": {
+                  "financialProfile": "currentFinances",
+                  "incomeStreams": "revenueAnalysis",
+                  "expenseCategories": "spendingPatterns"
+                },
+                "outputMap": {
+                  "netWorthAnalysis": "wealthAssessment",
+                  "cashFlowAnalysis": "incomeExpenseBalance",
+                  "financialHealth": "stabilityMetrics"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Define Financial Independence Goals",
+                "description": "Sets specific FIRE targets and lifestyle objectives",
+                "subroutineId": "TODO: Need goal setting subroutine",
+                "inputMap": {
+                  "lifestyleGoals": "desiredLifestyle",
+                  "retirementVision": "futureAspiration",
+                  "timelinePreferences": "achievementSchedule"
+                },
+                "outputMap": {
+                  "independenceTarget": "fireNumber",
+                  "incomeRequirement": "passiveIncomeGoal",
+                  "timelineGoals": "achievementMilestones"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Optimize Spending & Savings",
+                "description": "Maximizes savings rate through expense optimization",
+                "subroutineId": "TODO: Need spending optimization subroutine",
+                "inputMap": {
+                  "spendingPatterns": "expenseCategories",
+                  "savingsCapacity": "optimizationPotential",
+                  "lifestyleBalance": "qualityMaintenance"
+                },
+                "outputMap": {
+                  "optimizedBudget": "efficientSpending",
+                  "savingsRate": "investmentCapacity",
+                  "expenseReductions": "costCuttingPlan"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Develop Investment Strategy",
+                "description": "Creates diversified portfolio aligned with risk tolerance and timeline",
+                "subroutineId": "TODO: Need investment planning subroutine",
+                "inputMap": {
+                  "investmentCapacity": "savingsRate",
+                  "riskProfile": "riskTolerance",
+                  "investmentKnowledge": "experienceLevel"
+                },
+                "outputMap": {
+                  "portfolioStrategy": "investmentPlan",
+                  "assetAllocation": "diversificationFramework",
+                  "investmentVehicles": "accountStrategy"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Build Multiple Income Streams",
+                "description": "Develops passive and active income diversification",
+                "subroutineId": "TODO: Need income diversification subroutine",
+                "inputMap": {
+                  "skillsAssets": "capabilityInventory",
+                  "marketOpportunities": "incomeOptions",
+                  "timeAvailability": "capacityConstraints"
+                },
+                "outputMap": {
+                  "incomeStreams": "diversifiedRevenue",
+                  "passiveIncomeBuilding": "automaticIncome",
+                  "sideHustleOptions": "activeIncomeBoosts"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Monitor Progress & Adjust",
+                "description": "Tracks progress and adapts strategy based on performance",
+                "subroutineId": "TODO: Need progress tracking subroutine",
+                "inputMap": {
+                  "performanceData": "progressMetrics",
+                  "marketChanges": "environmentalShifts",
+                  "lifeChanges": "personalAdjustments"
+                },
+                "outputMap": {
+                  "progressAssessment": "achievementTracking",
+                  "strategyAdjustments": "planModifications",
+                  "courseCorrections": "optimizationUpdates"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "individual": "currentFinances",
+                "goals": "desiredLifestyle",
+                "timeline": "achievementSchedule",
+                "resources": "availableAssets"
+              },
+              "outputMap": {
+                "achievementTracking": "financialIndependenceOutcome",
+                "planModifications": "adaptiveStrategy",
+                "investmentPlan": "wealthBuildingPlan",
+                "diversifiedRevenue": "incomePortfolio"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "individual",
+                "id": "individual_input",
+                "label": "Financial Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current income, expenses, assets, debts, and financial situation"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Financial Independence Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What does financial independence look like for you?"
+              },
+              {
+                "fieldName": "fireType",
+                "id": "fire_type_input",
+                "label": "FIRE Approach",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["lean-fire", "regular-fire", "fat-fire", "coast-fire", "barista-fire", "custom"]
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Target Timeline",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["5-years", "10-years", "15-years", "20-years", "25-years", "flexible"]
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Investment Risk Tolerance",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["very-conservative", "conservative", "moderate", "aggressive", "very-aggressive"]
+              },
+              {
+                "fieldName": "currentAge",
+                "id": "current_age_input",
+                "label": "Current Age",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "30-39",
+                "options": ["20-29", "30-39", "40-49", "50-59", "60+"]
+              },
+              {
+                "fieldName": "incomeStability",
+                "id": "income_stability_input",
+                "label": "Income Stability",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "stable",
+                "options": ["very-stable", "stable", "variable", "uncertain", "entrepreneurial"]
+              },
+              {
+                "fieldName": "investmentExperience",
+                "id": "investment_experience_input",
+                "label": "Investment Experience",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "beginner",
+                "options": ["beginner", "some-experience", "intermediate", "advanced", "expert"]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "financialIndependenceOutcome",
+                "id": "financial_independence_outcome_output",
+                "label": "Complete Financial Independence Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "adaptiveStrategy",
+                "id": "adaptive_strategy_output",
+                "label": "Adaptive Financial Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "wealthBuildingPlan",
+                "id": "wealth_building_plan_output",
+                "label": "Investment & Wealth Building Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "incomePortfolio",
+                "id": "income_portfolio_output",
+                "label": "Diversified Income Strategy",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847795",
+          "language": "en",
+          "name": "Comprehensive Financial Independence Planner",
+          "description": "Complete FIRE (Financial Independence, Retire Early) system that assesses current finances, defines independence goals, optimizes spending and savings, develops investment strategies, builds income streams, and tracks progress for wealth building and financial freedom.",
+          "instructions": "Describe your current financial situation and independence goals. Specify your FIRE approach, timeline, and risk tolerance. Include age, income stability, and investment experience. The routine will create a comprehensive plan with budgeting, investing, income diversification, and progress tracking strategies."
+        }
+      ]
+    }
+  ]
+}

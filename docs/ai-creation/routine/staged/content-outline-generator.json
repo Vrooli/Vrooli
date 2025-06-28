@@ -1,0 +1,269 @@
+{
+  "id": "7829564732190847874",
+  "publicId": "content-outline-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847875",
+      "publicId": "content-outline-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Structured outline creation for long-form content",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Topic & Purpose",
+                "description": "Understands content goals and target audience",
+                "subroutineId": "TODO: Need topic analysis subroutine",
+                "inputMap": {
+                  "topic": "contentSubject",
+                  "purpose": "contentGoals",
+                  "audience": "targetReaders"
+                },
+                "outputMap": {
+                  "topicAnalysis": "subjectBreakdown",
+                  "audienceProfile": "readerCharacteristics",
+                  "contentStrategy": "approachPlan"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Research Key Points",
+                "description": "Identifies main themes and supporting ideas",
+                "subroutineId": "TODO: Need content research subroutine",
+                "inputMap": {
+                  "subjectBreakdown": "topicAnalysis",
+                  "researchDepth": "coverageLevel",
+                  "sourcePreferences": "informationSources"
+                },
+                "outputMap": {
+                  "mainThemes": "coreTopics",
+                  "supportingPoints": "subtopics",
+                  "evidenceBase": "factualSupport"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Structure Hierarchy",
+                "description": "Organizes content into logical sections",
+                "subroutineId": "TODO: Need hierarchy structuring subroutine",
+                "inputMap": {
+                  "coreTopics": "mainThemes",
+                  "subtopics": "supportingPoints",
+                  "structureType": "organizationPattern"
+                },
+                "outputMap": {
+                  "hierarchicalStructure": "outlineTree",
+                  "sectionFlow": "logicalProgression",
+                  "depthLevels": "outlineDepth"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Balance Content",
+                "description": "Ensures appropriate coverage and pacing",
+                "subroutineId": "TODO: Need content balancing subroutine",
+                "inputMap": {
+                  "outlineTree": "hierarchicalStructure",
+                  "targetLength": "contentSize",
+                  "emphasisAreas": "focusPoints"
+                },
+                "outputMap": {
+                  "balancedOutline": "proportionedStructure",
+                  "sectionWeights": "coverageAllocation",
+                  "pacingGuide": "readingFlow"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Add Transitions",
+                "description": "Creates smooth connections between sections",
+                "subroutineId": "TODO: Need transition planning subroutine",
+                "inputMap": {
+                  "proportionedStructure": "balancedOutline",
+                  "logicalProgression": "sectionFlow",
+                  "transitionStyle": "connectionType"
+                },
+                "outputMap": {
+                  "connectedOutline": "flowingStructure",
+                  "transitionNotes": "bridgingElements",
+                  "narrativeArc": "storyProgression"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Finalize Outline",
+                "description": "Polishes and formats the complete outline",
+                "subroutineId": "TODO: Need outline finalization subroutine",
+                "inputMap": {
+                  "flowingStructure": "connectedOutline",
+                  "formatPreferences": "presentationStyle",
+                  "annotationLevel": "detailAmount"
+                },
+                "outputMap": {
+                  "finalOutline": "completeStructure",
+                  "sectionDescriptions": "contentGuidance",
+                  "writingPrompts": "startingPoints"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "topic": "contentSubject",
+                "type": "contentType",
+                "purpose": "contentGoals",
+                "audience": "targetReaders"
+              },
+              "outputMap": {
+                "completeStructure": "outlineOutcome",
+                "contentGuidance": "sectionDetails",
+                "startingPoints": "writingPrompts",
+                "storyProgression": "narrativeFlow"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "topic",
+                "id": "topic_input",
+                "label": "Content Topic",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Main subject or title of your content"
+              },
+              {
+                "fieldName": "type",
+                "id": "type_input",
+                "label": "Content Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["article", "blog-post", "report", "whitepaper", "book-chapter", "presentation", "course", "essay"]
+              },
+              {
+                "fieldName": "purpose",
+                "id": "purpose_input",
+                "label": "Content Purpose",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Goals, key messages, desired outcomes"
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Reader demographics, knowledge level, interests"
+              },
+              {
+                "fieldName": "length",
+                "id": "length_input",
+                "label": "Target Length",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "medium",
+                "options": ["short", "medium", "long", "comprehensive"]
+              },
+              {
+                "fieldName": "depth",
+                "id": "depth_input",
+                "label": "Outline Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": ["high-level", "standard", "detailed", "exhaustive"]
+              },
+              {
+                "fieldName": "structure",
+                "id": "structure_input",
+                "label": "Structure Pattern",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "logical",
+                "options": ["chronological", "logical", "problem-solution", "compare-contrast", "spatial", "importance"]
+              },
+              {
+                "fieldName": "includeResearch",
+                "id": "include_research_input",
+                "label": "Include Research Notes",
+                "type": "Switch",
+                "isRequired": false,
+                "defaultValue": true
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "outlineOutcome",
+                "id": "outline_outcome_output",
+                "label": "Complete Content Outline",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "sectionDetails",
+                "id": "section_details_output",
+                "label": "Section Descriptions & Guidance",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "writingPrompts",
+                "id": "writing_prompts_output",
+                "label": "Writing Starting Points",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "narrativeFlow",
+                "id": "narrative_flow_output",
+                "label": "Content Flow & Transitions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "deterministic",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847876",
+          "language": "en",
+          "name": "Content Outline Generator",
+          "description": "Creates structured outlines for long-form content. Analyzes topic and audience, researches key points, structures hierarchy, balances coverage, adds transitions, and produces comprehensive outlines with writing guidance.",
+          "instructions": "Provide your content topic, type, and purpose. Describe target audience and preferences. Select structure pattern and depth level. The routine will create a detailed outline with logical flow, section descriptions, and writing prompts."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,267 @@
+{
+  "id": "7829564732190847856",
+  "publicId": "memory-maint-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847857",
+      "publicId": "memory-maint-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Memory optimization and garbage collection for swarm knowledge base",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Memory Usage",
+                "description": "Scans vector store and identifies storage patterns",
+                "subroutineId": "TODO: Need memory analysis subroutine",
+                "inputMap": {
+                  "vectorStore": "embeddingDatabase",
+                  "retentionPolicy": "memoryRules",
+                  "usageMetrics": "accessFrequency"
+                },
+                "outputMap": {
+                  "memoryProfile": "storageAnalysis",
+                  "accessPatterns": "usageStatistics",
+                  "sizeMetrics": "memoryFootprint"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Identify Redundancies",
+                "description": "Finds duplicate or similar entries using clustering",
+                "subroutineId": "TODO: Need redundancy detection subroutine",
+                "inputMap": {
+                  "storageAnalysis": "memoryProfile",
+                  "similarityThreshold": "deduplicationLevel",
+                  "clusteringParams": "groupingCriteria"
+                },
+                "outputMap": {
+                  "redundantEntries": "duplicateList",
+                  "clusterMap": "similarityGroups",
+                  "consolidationCandidates": "mergeTargets"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Mark Outdated Content",
+                "description": "Identifies stale entries based on age and relevance",
+                "subroutineId": "TODO: Need staleness detection subroutine",
+                "inputMap": {
+                  "usageStatistics": "accessPatterns",
+                  "ageThresholds": "expirationRules",
+                  "relevanceScores": "importanceMetrics"
+                },
+                "outputMap": {
+                  "outdatedEntries": "staleContent",
+                  "archiveCandidates": "lowPriorityItems",
+                  "retentionScores": "keepabilityRatings"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Consolidate Knowledge",
+                "description": "Merges similar entries and updates references",
+                "subroutineId": "TODO: Need knowledge consolidation subroutine",
+                "inputMap": {
+                  "mergeTargets": "consolidationCandidates",
+                  "preservationRules": "mergeStrategy",
+                  "referenceMap": "linkageData"
+                },
+                "outputMap": {
+                  "consolidatedEntries": "mergedKnowledge",
+                  "updatedReferences": "remappedLinks",
+                  "spaceRecovered": "consolidationSavings"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Archive & Prune",
+                "description": "Moves or removes content based on retention policy",
+                "subroutineId": "TODO: Need archival subroutine",
+                "inputMap": {
+                  "staleContent": "outdatedEntries",
+                  "archivePolicy": "retentionRules",
+                  "backupRequirements": "preservationNeeds"
+                },
+                "outputMap": {
+                  "archivedContent": "coldStorage",
+                  "prunedEntries": "deletedItems",
+                  "freedSpace": "reclaimedMemory"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Optimize Indexes",
+                "description": "Rebuilds indexes for improved retrieval performance",
+                "subroutineId": "TODO: Need index optimization subroutine",
+                "inputMap": {
+                  "mergedKnowledge": "consolidatedEntries",
+                  "performanceTargets": "speedRequirements",
+                  "indexStrategy": "searchOptimization"
+                },
+                "outputMap": {
+                  "optimizedIndexes": "searchStructures",
+                  "performanceReport": "speedImprovements",
+                  "maintenanceLog": "optimizationRecord"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "vectorStore": "embeddingDatabase",
+                "policy": "retentionPolicy",
+                "thresholds": "cleanupCriteria",
+                "schedule": "maintenanceFrequency"
+              },
+              "outputMap": {
+                "optimizationRecord": "maintenanceOutcome",
+                "speedImprovements": "performanceGains",
+                "reclaimedMemory": "spaceRecovered",
+                "coldStorage": "archivedKnowledge"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "vectorStore",
+                "id": "vector_store_input",
+                "label": "Vector Embedding Store",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Reference to the swarm's vector database"
+              },
+              {
+                "fieldName": "policy",
+                "id": "policy_input",
+                "label": "Retention Policy",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Rules for keeping, archiving, or removing entries"
+              },
+              {
+                "fieldName": "aggressiveness",
+                "id": "aggressiveness_input",
+                "label": "Cleanup Aggressiveness",
+                "type": "Selector",
+                "isRequired": true,
+                "options": ["conservative", "balanced", "aggressive", "maximum"]
+              },
+              {
+                "fieldName": "thresholds",
+                "id": "thresholds_input",
+                "label": "Cleanup Thresholds",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Age limits, similarity scores, access frequency minimums"
+              },
+              {
+                "fieldName": "preserveCategories",
+                "id": "preserve_categories_input",
+                "label": "Protected Categories",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Types of knowledge to always preserve"
+              },
+              {
+                "fieldName": "schedule",
+                "id": "schedule_input",
+                "label": "Maintenance Schedule",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "weekly",
+                "options": ["daily", "weekly", "biweekly", "monthly", "on-demand"]
+              },
+              {
+                "fieldName": "backupFirst",
+                "id": "backup_first_input",
+                "label": "Backup Before Cleanup",
+                "type": "Switch",
+                "isRequired": false,
+                "defaultValue": true
+              },
+              {
+                "fieldName": "performanceTargets",
+                "id": "performance_targets_input",
+                "label": "Performance Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Target lookup speed, storage limits"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "maintenanceOutcome",
+                "id": "maintenance_outcome_output",
+                "label": "Complete Maintenance Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "performanceGains",
+                "id": "performance_gains_output",
+                "label": "Performance Improvements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "spaceRecovered",
+                "id": "space_recovered_output",
+                "label": "Memory Space Reclaimed",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "archivedKnowledge",
+                "id": "archived_knowledge_output",
+                "label": "Archived Content Reference",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "deterministic",
+          "2": "deterministic",
+          "3": "reasoning",
+          "4": "deterministic",
+          "5": "deterministic"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847858",
+          "language": "en",
+          "name": "Memory Maintenance",
+          "description": "Performs garbage collection and optimization of swarm's shared memory. Analyzes usage patterns, identifies redundancies, marks outdated content, consolidates knowledge, archives old data, and optimizes indexes for improved retrieval performance.",
+          "instructions": "Configure vector store reference and retention policy. Set cleanup aggressiveness and thresholds. Specify protected categories and maintenance schedule. The routine will optimize memory usage, improve lookup speed, and maintain knowledge base health."
+        }
+      ]
+    }
+  ]
+}
