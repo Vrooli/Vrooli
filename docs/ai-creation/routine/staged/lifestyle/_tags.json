@@ -1,0 +1,59 @@
+{
+  "category": "lifestyle",
+  "name": "Lifestyle & Wellness",
+  "description": "Health, family, home management",
+  "availableTags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "lifestyle-wellness",
+      "translations": [{
+        "id": "7829564732190847176",
+        "language": "en",
+        "description": "Lifestyle and wellness management"
+      }]
+    },
+    {
+      "id": "7829564732190847077",
+      "tag": "health-management",
+      "translations": [{
+        "id": "7829564732190847177",
+        "language": "en",
+        "description": "Health tracking and management"
+      }]
+    },
+    {
+      "id": "7829564732190847078",
+      "tag": "family-management",
+      "translations": [{
+        "id": "7829564732190847178",
+        "language": "en",
+        "description": "Family coordination and planning"
+      }]
+    },
+    {
+      "id": "7829564732190847079",
+      "tag": "home-management",
+      "translations": [{
+        "id": "7829564732190847179",
+        "language": "en",
+        "description": "Home maintenance and organization"
+      }]
+    },
+    {
+      "id": "7829564732190847080",
+      "tag": "travel-planning",
+      "translations": [{
+        "id": "7829564732190847180",
+        "language": "en",
+        "description": "Travel planning and itineraries"
+      }]
+    }
+  ],
+  "crossCuttingTags": [
+    "planning",
+    "coaching",
+    "automation",
+    "monitoring",
+    "optimization"
+  ]
+}

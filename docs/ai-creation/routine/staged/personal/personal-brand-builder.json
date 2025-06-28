@@ -1,0 +1,301 @@
+{
+  "id": "7829564732190847715",
+  "publicId": "brand-build-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847006",
+      "tag": "personal-development",
+      "translations": [
+        {
+          "id": "7829564732190847106",
+          "language": "en",
+          "description": "Personal growth and self-improvement"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847010",
+      "tag": "personal-branding",
+      "translations": [
+        {
+          "id": "7829564732190847110",
+          "language": "en",
+          "description": "Personal brand development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847716",
+      "publicId": "brand-build-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Strategic personal brand development and positioning",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Define Brand Identity",
+                "description": "Establishes core values, strengths, and unique positioning",
+                "subroutineId": "TODO: Need brand identity subroutine",
+                "inputMap": {
+                  "personalValues": "coreValues",
+                  "professionalGoals": "careerObjectives",
+                  "uniqueStrengths": "differentiators"
+                },
+                "outputMap": {
+                  "brandIdentity": "coreIdentity",
+                  "valueProposition": "uniqueOffering",
+                  "brandPersonality": "characterTraits"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Target Audience",
+                "description": "Identifies and profiles key audience segments",
+                "subroutineId": "TODO: Need audience analysis subroutine",
+                "inputMap": {
+                  "careerObjectives": "professionalGoals",
+                  "industryContext": "marketEnvironment",
+                  "networkingGoals": "relationshipTargets"
+                },
+                "outputMap": {
+                  "audienceSegments": "targetGroups",
+                  "audienceNeeds": "stakeholderPriorities",
+                  "communicationPreferences": "engagementStyles"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Craft Brand Messaging",
+                "description": "Develops consistent narrative and communication strategy",
+                "subroutineId": "TODO: Need messaging development subroutine",
+                "inputMap": {
+                  "coreIdentity": "brandIdentity",
+                  "uniqueOffering": "valueProposition",
+                  "targetGroups": "audienceSegments"
+                },
+                "outputMap": {
+                  "brandStory": "narrativeFramework",
+                  "keyMessages": "communicationPillars",
+                  "elevatorPitch": "concisePositioning"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Design Visual Identity",
+                "description": "Creates consistent visual brand elements and style",
+                "subroutineId": "TODO: Need visual design subroutine",
+                "inputMap": {
+                  "brandPersonality": "characterTraits",
+                  "professionalContext": "industryStandards",
+                  "platformRequirements": "channelSpecs"
+                },
+                "outputMap": {
+                  "visualStyle": "designDirection",
+                  "colorPalette": "brandColors",
+                  "imageGuidelines": "visualStandards"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Build Online Presence",
+                "description": "Develops digital platforms and content strategy",
+                "subroutineId": "TODO: Need digital presence subroutine",
+                "inputMap": {
+                  "narrativeFramework": "brandStory",
+                  "communicationPillars": "keyMessages",
+                  "platformStrategy": "channelSelection"
+                },
+                "outputMap": {
+                  "contentStrategy": "digitalPlan",
+                  "platformOptimization": "profileEnhancement",
+                  "contentCalendar": "publishingSchedule"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Implement Networking Strategy",
+                "description": "Activates relationship building and brand promotion",
+                "subroutineId": "TODO: Need networking strategy subroutine",
+                "inputMap": {
+                  "relationshipTargets": "networkingGoals",
+                  "concisePositioning": "elevatorPitch",
+                  "digitalPlan": "contentStrategy"
+                },
+                "outputMap": {
+                  "networkingPlan": "relationshipStrategy",
+                  "thoughtLeadership": "expertiseBuilding",
+                  "brandActivation": "promotionTactics"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "values": "coreValues",
+                "goals": "careerObjectives",
+                "strengths": "differentiators",
+                "audience": "relationshipTargets"
+              },
+              "outputMap": {
+                "coreIdentity": "personalBrand",
+                "digitalPlan": "onlineStrategy",
+                "relationshipStrategy": "networkingApproach",
+                "designDirection": "brandAssets"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "values",
+                "id": "values_input",
+                "label": "Core Values",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What values and principles are most important to you?"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Professional Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What are your career and professional objectives?"
+              },
+              {
+                "fieldName": "strengths",
+                "id": "strengths_input",
+                "label": "Unique Strengths",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What makes you uniquely valuable?"
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Who do you want to reach and influence?"
+              },
+              {
+                "fieldName": "industry",
+                "id": "industry_input",
+                "label": "Industry/Field",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "What industry or field are you in?"
+              },
+              {
+                "fieldName": "platforms",
+                "id": "platforms_input",
+                "label": "Preferred Platforms",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Which platforms do you want to focus on? (LinkedIn, Twitter, etc.)"
+              },
+              {
+                "fieldName": "brandStyle",
+                "id": "brand_style_input",
+                "label": "Brand Style Preference",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "professional",
+                "options": [
+                  "professional",
+                  "approachable",
+                  "authoritative",
+                  "creative",
+                  "innovative",
+                  "traditional",
+                  "disruptive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "personalBrand",
+                "id": "personal_brand_output",
+                "label": "Complete Personal Brand Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "onlineStrategy",
+                "id": "online_strategy_output",
+                "label": "Digital Presence Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "networkingApproach",
+                "id": "networking_approach_output",
+                "label": "Networking & Relationship Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "brandAssets",
+                "id": "brand_assets_output",
+                "label": "Brand Assets & Guidelines",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847717",
+          "language": "en",
+          "name": "Personal Brand Builder",
+          "description": "Strategic personal brand development system that defines identity, analyzes audiences, crafts messaging, designs visual elements, builds online presence, and implements networking strategies for professional success.",
+          "instructions": "Define your core values, professional goals, and unique strengths. Identify your target audience and preferred platforms. The routine will create a comprehensive personal brand strategy with messaging, visual guidelines, digital presence plan, and networking approach."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,329 @@
+{
+  "id": "7829564732190847820",
+  "publicId": "travel-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "lifestyle-wellness",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Lifestyle and wellness management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847080",
+      "tag": "travel-planning",
+      "translations": [
+        {
+          "id": "7829564732190847180",
+          "language": "en",
+          "description": "Travel planning and itineraries"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847821",
+      "publicId": "travel-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive travel planning and itinerary optimization",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Travel Requirements",
+                "description": "Gathers preferences, constraints, and trip objectives",
+                "subroutineId": "TODO: Need travel analysis subroutine",
+                "inputMap": {
+                  "destination": "travelLocation",
+                  "tripPurpose": "travelObjectives",
+                  "travelerProfiles": "groupComposition"
+                },
+                "outputMap": {
+                  "requirementsAnalysis": "tripParameters",
+                  "destinationInsights": "locationOverview",
+                  "preferenceMapping": "travelerNeeds"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Research Destinations",
+                "description": "Explores attractions, culture, and local information",
+                "subroutineId": "TODO: Need destination research subroutine",
+                "inputMap": {
+                  "locationOverview": "destinationInsights",
+                  "interestCategories": "activityPreferences",
+                  "researchDepth": "informationLevel"
+                },
+                "outputMap": {
+                  "attractionsList": "pointsOfInterest",
+                  "culturalInsights": "localKnowledge",
+                  "hiddenGems": "offBeatenPath"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Plan Transportation & Accommodation",
+                "description": "Arranges flights, hotels, and local transport",
+                "subroutineId": "TODO: Need booking planning subroutine",
+                "inputMap": {
+                  "tripParameters": "requirementsAnalysis",
+                  "budgetConstraints": "financialLimits",
+                  "comfortPreferences": "standardsLevel"
+                },
+                "outputMap": {
+                  "transportationPlan": "travelLogistics",
+                  "accommodationOptions": "lodgingArrangements",
+                  "bookingRecommendations": "reservationStrategy"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Create Daily Itinerary",
+                "description": "Designs day-by-day schedule with activities",
+                "subroutineId": "TODO: Need itinerary creation subroutine",
+                "inputMap": {
+                  "pointsOfInterest": "attractionsList",
+                  "travelLogistics": "transportationPlan",
+                  "pacePreference": "activityDensity"
+                },
+                "outputMap": {
+                  "dailySchedules": "dayByDayPlan",
+                  "routeOptimization": "efficientPaths",
+                  "timeAllocation": "activityDurations"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Add Practical Details",
+                "description": "Includes dining, budgets, and local tips",
+                "subroutineId": "TODO: Need practical details subroutine",
+                "inputMap": {
+                  "localKnowledge": "culturalInsights",
+                  "dietaryNeeds": "foodPreferences",
+                  "budgetTracking": "expenseManagement"
+                },
+                "outputMap": {
+                  "diningRecommendations": "restaurantGuide",
+                  "budgetBreakdown": "costEstimates",
+                  "localTips": "insiderAdvice"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Compile Travel Package",
+                "description": "Creates comprehensive travel documents and guides",
+                "subroutineId": "TODO: Need package compilation subroutine",
+                "inputMap": {
+                  "dayByDayPlan": "dailySchedules",
+                  "reservationStrategy": "bookingRecommendations",
+                  "insiderAdvice": "localTips"
+                },
+                "outputMap": {
+                  "completeItinerary": "travelDocument",
+                  "bookingChecklist": "reservationList",
+                  "travelResources": "helpfulMaterials"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "destination": "travelLocation",
+                "dates": "travelDates",
+                "budget": "financialLimits",
+                "preferences": "travelerInterests"
+              },
+              "outputMap": {
+                "travelDocument": "itineraryOutcome",
+                "reservationList": "bookingPlan",
+                "dayByDayPlan": "detailedSchedule",
+                "costEstimates": "budgetAnalysis"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "destination",
+                "id": "destination_input",
+                "label": "Travel Destination",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Where are you traveling to?"
+              },
+              {
+                "fieldName": "dates",
+                "id": "dates_input",
+                "label": "Travel Dates",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Start and end dates of your trip"
+              },
+              {
+                "fieldName": "tripType",
+                "id": "trip_type_input",
+                "label": "Trip Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "leisure-vacation",
+                  "business-travel",
+                  "adventure",
+                  "cultural-exploration",
+                  "family-trip",
+                  "romantic-getaway",
+                  "backpacking",
+                  "luxury-travel",
+                  "group-tour"
+                ]
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Travel Budget",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Total budget and spending preferences"
+              },
+              {
+                "fieldName": "groupSize",
+                "id": "group_size_input",
+                "label": "Number of Travelers",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "solo",
+                  "couple",
+                  "small-group",
+                  "family",
+                  "large-group"
+                ]
+              },
+              {
+                "fieldName": "preferences",
+                "id": "preferences_input",
+                "label": "Travel Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Activities, pace, accommodation style, dietary needs"
+              },
+              {
+                "fieldName": "activityLevel",
+                "id": "activity_level_input",
+                "label": "Activity Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "relaxed",
+                  "moderate",
+                  "active",
+                  "very-active",
+                  "extreme"
+                ]
+              },
+              {
+                "fieldName": "planningDetail",
+                "id": "planning_detail_input",
+                "label": "Planning Detail Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "flexible-outline",
+                  "balanced",
+                  "detailed-schedule",
+                  "minute-by-minute"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "itineraryOutcome",
+                "id": "itinerary_outcome_output",
+                "label": "Complete Travel Itinerary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bookingPlan",
+                "id": "booking_plan_output",
+                "label": "Booking & Reservation List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "detailedSchedule",
+                "id": "detailed_schedule_output",
+                "label": "Day-by-Day Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "budgetAnalysis",
+                "id": "budget_analysis_output",
+                "label": "Budget Breakdown & Estimates",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "conversational",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847822",
+          "language": "en",
+          "name": "Travel Itinerary Builder",
+          "description": "Comprehensive travel planning system that analyzes requirements, researches destinations, plans transportation and accommodation, creates daily itineraries, adds practical details, and compiles complete travel packages with budgets and local insights.",
+          "instructions": "Specify your destination and travel dates. Include trip type, budget, and group size. Add any preferences for activities and accommodation. The routine will research destinations, plan logistics, create daily schedules, and compile a complete travel package."
+        }
+      ]
+    }
+  ]
+}

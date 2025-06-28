@@ -1,0 +1,329 @@
+{
+  "id": "7829564732190847898",
+  "publicId": "project-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "productivity-optimization",
+      "translations": [
+        {
+          "id": "7829564732190847141",
+          "language": "en",
+          "description": "Productivity systems and optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847045",
+      "tag": "project-management",
+      "translations": [
+        {
+          "id": "7829564732190847145",
+          "language": "en",
+          "description": "Project planning and execution"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847899",
+      "publicId": "project-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive project planning and task decomposition",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Define Project Scope",
+                "description": "Clarifies objectives, deliverables, and boundaries",
+                "subroutineId": "TODO: Need scope definition subroutine",
+                "inputMap": {
+                  "projectGoal": "primaryObjective",
+                  "constraints": "limitingFactors",
+                  "stakeholders": "involvedParties"
+                },
+                "outputMap": {
+                  "projectScope": "definedBoundaries",
+                  "deliverables": "expectedOutputs",
+                  "successCriteria": "completionMetrics"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Break Down into Phases",
+                "description": "Organizes project into logical phases and milestones",
+                "subroutineId": "TODO: Need phase breakdown subroutine",
+                "inputMap": {
+                  "definedBoundaries": "projectScope",
+                  "expectedOutputs": "deliverables",
+                  "projectMethodology": "planningApproach"
+                },
+                "outputMap": {
+                  "projectPhases": "phaseStructure",
+                  "milestones": "keyCheckpoints",
+                  "phaseDeliverables": "interimOutputs"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Decompose into Tasks",
+                "description": "Creates detailed work breakdown structure",
+                "subroutineId": "TODO: Need task decomposition subroutine",
+                "inputMap": {
+                  "phaseStructure": "projectPhases",
+                  "interimOutputs": "phaseDeliverables",
+                  "taskGranularity": "detailLevel"
+                },
+                "outputMap": {
+                  "taskBreakdown": "workPackages",
+                  "taskHierarchy": "workStructure",
+                  "taskDependencies": "relationshipMapping"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Estimate Effort & Duration",
+                "description": "Calculates time and resource requirements",
+                "subroutineId": "TODO: Need estimation subroutine",
+                "inputMap": {
+                  "workPackages": "taskBreakdown",
+                  "resourceCapacity": "teamCapabilities",
+                  "estimationMethod": "calculationApproach"
+                },
+                "outputMap": {
+                  "effortEstimates": "taskDurations",
+                  "resourceRequirements": "teamNeeds",
+                  "criticalPath": "schedulePath"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Create Project Timeline",
+                "description": "Builds comprehensive schedule with dependencies",
+                "subroutineId": "TODO: Need timeline creation subroutine",
+                "inputMap": {
+                  "taskDurations": "effortEstimates",
+                  "relationshipMapping": "taskDependencies",
+                  "resourceConstraints": "availabilityLimits"
+                },
+                "outputMap": {
+                  "projectTimeline": "masterSchedule",
+                  "resourceSchedule": "allocationPlan",
+                  "riskIdentification": "scheduleRisks"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Project Plan",
+                "description": "Compiles comprehensive project documentation",
+                "subroutineId": "TODO: Need plan generation subroutine",
+                "inputMap": {
+                  "masterSchedule": "projectTimeline",
+                  "completionMetrics": "successCriteria",
+                  "planFormat": "documentationStyle"
+                },
+                "outputMap": {
+                  "projectPlan": "comprehensiveDocument",
+                  "executionGuidance": "implementationInstructions",
+                  "trackingFramework": "progressMonitoring"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "project": "primaryObjective",
+                "constraints": "limitingFactors",
+                "resources": "availableCapacity",
+                "timeline": "deadlineRequirements"
+              },
+              "outputMap": {
+                "comprehensiveDocument": "planningOutcome",
+                "implementationInstructions": "executionPlan",
+                "progressMonitoring": "trackingSystem",
+                "masterSchedule": "projectTimeline"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "project",
+                "id": "project_input",
+                "label": "Project Description",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Project goal, objectives, and overview"
+              },
+              {
+                "fieldName": "projectType",
+                "id": "project_type_input",
+                "label": "Project Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "software",
+                  "construction",
+                  "marketing",
+                  "research",
+                  "event",
+                  "product-launch",
+                  "process-improvement",
+                  "general"
+                ]
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Project Constraints",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Budget, timeline, resource, and scope limitations"
+              },
+              {
+                "fieldName": "resources",
+                "id": "resources_input",
+                "label": "Available Resources",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Team members, budget, tools, and capabilities"
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Target Timeline",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Desired start/end dates and key milestones"
+              },
+              {
+                "fieldName": "methodology",
+                "id": "methodology_input",
+                "label": "Project Methodology",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "traditional",
+                "options": [
+                  "traditional",
+                  "agile",
+                  "lean",
+                  "hybrid",
+                  "waterfall",
+                  "scrum"
+                ]
+              },
+              {
+                "fieldName": "detailLevel",
+                "id": "detail_level_input",
+                "label": "Planning Detail Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "detailed",
+                "options": [
+                  "high-level",
+                  "standard",
+                  "detailed",
+                  "comprehensive"
+                ]
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Tolerance",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "low",
+                  "moderate",
+                  "high",
+                  "very-high"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "planningOutcome",
+                "id": "planning_outcome_output",
+                "label": "Complete Project Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "executionPlan",
+                "id": "execution_plan_output",
+                "label": "Implementation Instructions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "trackingSystem",
+                "id": "tracking_system_output",
+                "label": "Progress Monitoring Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "projectTimeline",
+                "id": "project_timeline_output",
+                "label": "Master Project Schedule",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "deterministic",
+          "3": "deterministic",
+          "4": "deterministic",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847900",
+          "language": "en",
+          "name": "Project Planner & Task Breakdown",
+          "description": "Comprehensive project planning and task decomposition system. Defines scope, breaks into phases, decomposes into tasks, estimates effort, creates timelines, and generates complete project plans with tracking frameworks.",
+          "instructions": "Describe your project goals and constraints. Specify project type and available resources. Choose methodology and detail level. The routine will create a complete project plan with work breakdown structure, timeline, and progress tracking."
+        }
+      ]
+    }
+  ]
+}

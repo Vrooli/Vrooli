@@ -1,0 +1,336 @@
+{
+  "id": "7829564732190847847",
+  "publicId": "api-docs-gen-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847026",
+      "tag": "technical-tools",
+      "translations": [
+        {
+          "id": "7829564732190847126",
+          "language": "en",
+          "description": "Technical tools and utilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847029",
+      "tag": "api-documentation",
+      "translations": [
+        {
+          "id": "7829564732190847129",
+          "language": "en",
+          "description": "API documentation and design"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847848",
+      "publicId": "api-docs-gen-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - API documentation generation from code and specs",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze API Structure",
+                "description": "Parses code to identify endpoints, methods, and parameters",
+                "subroutineId": "TODO: Need API analysis subroutine",
+                "inputMap": {
+                  "codebase": "apiSourceCode",
+                  "apiType": "restOrGraphQL",
+                  "frameworkInfo": "techStackDetails"
+                },
+                "outputMap": {
+                  "apiStructure": "endpointInventory",
+                  "methodMapping": "httpMethods",
+                  "parameterSchema": "requestParameters"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Extract Type Information",
+                "description": "Identifies request/response types and data models",
+                "subroutineId": "TODO: Need type extraction subroutine",
+                "inputMap": {
+                  "endpointInventory": "apiStructure",
+                  "typeDefinitions": "dataModels",
+                  "validationRules": "schemaConstraints"
+                },
+                "outputMap": {
+                  "typeSystem": "completeTypeMap",
+                  "requestSchemas": "inputValidation",
+                  "responseSchemas": "outputFormats"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Generate Examples",
+                "description": "Creates realistic request/response examples",
+                "subroutineId": "TODO: Need example generation subroutine",
+                "inputMap": {
+                  "completeTypeMap": "typeSystem",
+                  "useCases": "commonScenarios",
+                  "testData": "sampleValues"
+                },
+                "outputMap": {
+                  "codeExamples": "implementationSamples",
+                  "curlCommands": "commandLineExamples",
+                  "responseExamples": "expectedOutputs"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Document Authentication",
+                "description": "Details authentication methods and security requirements",
+                "subroutineId": "TODO: Need auth documentation subroutine",
+                "inputMap": {
+                  "authMethods": "securitySchemes",
+                  "permissionModel": "accessControl",
+                  "securityHeaders": "requiredHeaders"
+                },
+                "outputMap": {
+                  "authDocumentation": "securityGuide",
+                  "permissionMatrix": "accessRights",
+                  "securityBestPractices": "implementationGuidance"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Create Error Reference",
+                "description": "Documents error codes, messages, and handling",
+                "subroutineId": "TODO: Need error documentation subroutine",
+                "inputMap": {
+                  "errorCodes": "statusCodes",
+                  "errorMessages": "responseMessages",
+                  "errorHandling": "recoveryStrategies"
+                },
+                "outputMap": {
+                  "errorReference": "troubleshootingGuide",
+                  "statusCodeGuide": "httpStatusMeanings",
+                  "debuggingTips": "commonIssues"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Compile Documentation",
+                "description": "Assembles complete API documentation in multiple formats",
+                "subroutineId": "TODO: Need documentation compiler subroutine",
+                "inputMap": {
+                  "implementationSamples": "codeExamples",
+                  "securityGuide": "authDocumentation",
+                  "formatPreferences": "outputFormats"
+                },
+                "outputMap": {
+                  "apiDocumentation": "completeReference",
+                  "interactiveSpec": "openAPISpec",
+                  "quickStartGuide": "gettingStarted"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "api": "apiSourceCode",
+                "type": "documentationType",
+                "audience": "targetDevelopers",
+                "format": "outputPreferences"
+              },
+              "outputMap": {
+                "completeReference": "documentationOutcome",
+                "openAPISpec": "machineReadableSpec",
+                "gettingStarted": "quickStartGuide",
+                "troubleshootingGuide": "errorHandling"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "api",
+                "id": "api_input",
+                "label": "API Source",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "API code, specification, or endpoint list"
+              },
+              {
+                "fieldName": "apiType",
+                "id": "api_type_input",
+                "label": "API Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "rest",
+                  "graphql",
+                  "grpc",
+                  "soap",
+                  "websocket",
+                  "webhook",
+                  "mixed"
+                ]
+              },
+              {
+                "fieldName": "type",
+                "id": "type_input",
+                "label": "Documentation Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "reference",
+                  "tutorial",
+                  "quickstart",
+                  "integration",
+                  "migration",
+                  "comprehensive"
+                ]
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "beginner",
+                  "intermediate",
+                  "advanced",
+                  "internal",
+                  "partner",
+                  "public"
+                ]
+              },
+              {
+                "fieldName": "framework",
+                "id": "framework_input",
+                "label": "Framework/Language",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "e.g., Express.js, Django, Spring Boot"
+              },
+              {
+                "fieldName": "format",
+                "id": "format_input",
+                "label": "Output Format",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "markdown",
+                "options": [
+                  "markdown",
+                  "html",
+                  "openapi",
+                  "postman",
+                  "swagger",
+                  "multiple"
+                ]
+              },
+              {
+                "fieldName": "branding",
+                "id": "branding_input",
+                "label": "Branding Guidelines",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Company name, style guide, tone preferences"
+              },
+              {
+                "fieldName": "includeExamples",
+                "id": "include_examples_input",
+                "label": "Example Detail Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "minimal",
+                  "basic",
+                  "comprehensive",
+                  "exhaustive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "documentationOutcome",
+                "id": "documentation_outcome_output",
+                "label": "Complete API Documentation",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "machineReadableSpec",
+                "id": "machine_readable_spec_output",
+                "label": "OpenAPI/Swagger Specification",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "quickStartGuide",
+                "id": "quick_start_guide_output",
+                "label": "Quick Start Guide",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "errorHandling",
+                "id": "error_handling_output",
+                "label": "Error Reference & Troubleshooting",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "deterministic",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847849",
+          "language": "en",
+          "name": "API Documentation Generator",
+          "description": "Automated API documentation system that analyzes code structure, extracts type information, generates examples, documents authentication, creates error references, and compiles comprehensive documentation in multiple formats.",
+          "instructions": "Provide API source code or specification. Select API type and documentation format. Specify target audience and output preferences. The routine will analyze your API, extract all details, and generate complete documentation with examples."
+        }
+      ]
+    }
+  ]
+}

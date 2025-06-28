@@ -1,0 +1,169 @@
+{
+  "id": "7829564732190847676",
+  "publicId": "learn-reflect-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847091",
+      "tag": "automation",
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "description": "Process automation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847677",
+      "publicId": "learn-reflect-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Guided learning reflection and metacognitive development",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "promptTemplate": "You are an expert learning coach and metacognitive specialist who helps people reflect deeply on their learning experiences to accelerate growth and understanding.\n\nLearning Experience Details:\n- Subject/Topic: {{input.learningSubject}}\n- Learning Activity: {{input.learningActivity}}\n- Duration: {{input.sessionLength}}\n- Difficulty Level: {{input.difficultyLevel}}\n- Learning Outcome: {{input.learningOutcome}}\n- Challenges Faced: {{input.challengesEncountered}}\n- Resources Used: {{input.resourcesUsed}}\n\nGuide the learner through a comprehensive reflection process that includes:\n\n1. **Experience Summary**:\n   - What was learned and how\n   - Key insights and breakthroughs\n   - Connections to prior knowledge\n   - Unexpected discoveries\n\n2. **Process Analysis**:\n   - What learning strategies worked well\n   - What approaches were less effective\n   - How attention and focus were maintained\n   - Role of different resources and tools\n\n3. **Challenge Exploration**:\n   - Specific difficulties encountered\n   - How obstacles were overcome\n   - What support was needed\n   - Emotional responses to challenges\n\n4. **Metacognitive Insights**:\n   - How you knew you were learning\n   - Moments of confusion and clarity\n   - Self-monitoring during the process\n   - Confidence levels throughout\n\n5. **Future Application**:\n   - How to apply this knowledge\n   - What to explore next\n   - Learning strategies to repeat or modify\n   - Questions that emerged\n\n6. **Growth Tracking**:\n   - Progress compared to previous sessions\n   - Skills developed beyond subject matter\n   - Learning habits that are improving\n   - Areas for continued development\n\nProvide thoughtful questions and prompts that encourage deep reflection and help the learner develop stronger metacognitive awareness for future learning experiences.",
+            "temperature": 0.7,
+            "model": "medium",
+            "systemMessage": "You are a thoughtful learning coach who helps people develop deeper self-awareness about their learning processes, leading to more effective and intentional learning experiences."
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "learningSubject",
+                "id": "learning_subject_input",
+                "label": "Learning Subject/Topic",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "What subject or topic did you study?"
+              },
+              {
+                "fieldName": "learningActivity",
+                "id": "learning_activity_input",
+                "label": "Learning Activity",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "What specific learning activity did you engage in?"
+              },
+              {
+                "fieldName": "sessionLength",
+                "id": "session_length_input",
+                "label": "Session Length",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "1-hour",
+                "options": [
+                  "15-min",
+                  "30-min",
+                  "1-hour",
+                  "2-hours",
+                  "3-hours",
+                  "half-day",
+                  "full-day",
+                  "multi-day"
+                ]
+              },
+              {
+                "fieldName": "difficultyLevel",
+                "id": "difficulty_level_input",
+                "label": "Difficulty Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "very-easy",
+                  "easy",
+                  "moderate",
+                  "challenging",
+                  "very-difficult"
+                ]
+              },
+              {
+                "fieldName": "learningOutcome",
+                "id": "learning_outcome_input",
+                "label": "Learning Outcome",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "What did you accomplish or learn?"
+              },
+              {
+                "fieldName": "challengesEncountered",
+                "id": "challenges_encountered_input",
+                "label": "Challenges Encountered",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "What difficulties or obstacles did you face?"
+              },
+              {
+                "fieldName": "resourcesUsed",
+                "id": "resources_used_input",
+                "label": "Resources Used",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Books, videos, courses, tools, people, etc."
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reflectionGuide",
+                "id": "reflection_guide_output",
+                "label": "Guided Reflection Questions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "learningInsights",
+                "id": "learning_insights_output",
+                "label": "Learning Insights Summary",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "improvementActions",
+                "id": "improvement_actions_output",
+                "label": "Learning Improvement Actions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "nextStepsRecommendations",
+                "id": "next_steps_recommendations_output",
+                "label": "Next Steps & Recommendations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847678",
+          "language": "en",
+          "name": "Learning Reflection Journal",
+          "description": "Guided learning reflection tool that helps develop metacognitive awareness through structured analysis of learning experiences. Promotes deeper understanding, identifies effective strategies, and accelerates future learning through thoughtful self-assessment.",
+          "instructions": "Describe your recent learning experience including the subject, activity, and any challenges faced. The routine will guide you through comprehensive reflection questions to extract insights, identify effective strategies, and plan improvements for future learning sessions."
+        }
+      ]
+    }
+  ]
+}

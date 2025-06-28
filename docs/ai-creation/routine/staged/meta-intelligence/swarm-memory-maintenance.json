@@ -1,0 +1,330 @@
+{
+  "id": "7829564732190847931",
+  "publicId": "memory-maint-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847001",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847101",
+          "language": "en",
+          "description": "System-level intelligence and self-improvement capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847002",
+      "tag": "memory-management",
+      "translations": [
+        {
+          "id": "7829564732190847102",
+          "language": "en",
+          "description": "Memory maintenance and optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847098",
+      "tag": "ai-agent",
+      "translations": [
+        {
+          "id": "7829564732190847198",
+          "language": "en",
+          "description": "AI agent orchestration"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847932",
+      "publicId": "memory-maint-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - AI swarm memory optimization and maintenance system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Memory Usage",
+                "description": "Examines current memory store utilization and access patterns",
+                "subroutineId": "TODO: Need memory analysis subroutine",
+                "inputMap": {
+                  "memoryStore": "vectorEmbeddings",
+                  "accessLogs": "retrievalPatterns",
+                  "usageTimeframe": "analysisWindow"
+                },
+                "outputMap": {
+                  "usageAnalysis": "memoryMetrics",
+                  "accessFrequency": "retrievalStats",
+                  "storageEfficiency": "utilizationRates"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Identify Redundant Entries",
+                "description": "Finds duplicate or near-duplicate memory entries for consolidation",
+                "subroutineId": "TODO: Need redundancy detection subroutine",
+                "inputMap": {
+                  "vectorEmbeddings": "memoryStore",
+                  "similarityThreshold": "deduplicationCriteria",
+                  "clusteringMethod": "groupingApproach"
+                },
+                "outputMap": {
+                  "duplicateGroups": "redundantClusters",
+                  "consolidationCandidates": "mergeableEntries",
+                  "uniqueContent": "distinctMemories"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Evaluate Content Relevance",
+                "description": "Assesses which memories remain valuable for future retrieval",
+                "subroutineId": "TODO: Need relevance evaluation subroutine",
+                "inputMap": {
+                  "memoryMetrics": "usageAnalysis",
+                  "retrievalStats": "accessFrequency",
+                  "retentionPolicies": "archivalCriteria"
+                },
+                "outputMap": {
+                  "relevanceScores": "contentValue",
+                  "outdatedEntries": "staleMemories",
+                  "criticalMemories": "highValueContent"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Optimize Memory Structure",
+                "description": "Reorganizes memory for improved retrieval performance",
+                "subroutineId": "TODO: Need structure optimization subroutine",
+                "inputMap": {
+                  "distinctMemories": "uniqueContent",
+                  "contentValue": "relevanceScores",
+                  "optimizationStrategy": "restructuringApproach"
+                },
+                "outputMap": {
+                  "optimizedStructure": "improvedOrganization",
+                  "indexingUpdates": "searchOptimizations",
+                  "performanceGains": "efficiencyImprovements"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Perform Cleanup Operations",
+                "description": "Executes memory consolidation and archival processes",
+                "subroutineId": "TODO: Need cleanup execution subroutine",
+                "inputMap": {
+                  "mergeableEntries": "consolidationCandidates",
+                  "staleMemories": "outdatedEntries",
+                  "archivalProcedures": "cleanupProtocols"
+                },
+                "outputMap": {
+                  "cleanupResults": "maintenanceOutcome",
+                  "archivedData": "preservedMemories",
+                  "spaceReclaimed": "storageOptimization"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Maintenance Report",
+                "description": "Documents maintenance activities and performance improvements",
+                "subroutineId": "TODO: Need reporting subroutine",
+                "inputMap": {
+                  "maintenanceOutcome": "cleanupResults",
+                  "efficiencyImprovements": "performanceGains",
+                  "reportingFormat": "documentationStyle"
+                },
+                "outputMap": {
+                  "maintenanceReport": "operationalSummary",
+                  "performanceMetrics": "improvementMeasures",
+                  "recommendedSchedule": "futureMaintenancePlan"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "memory": "vectorEmbeddings",
+                "policies": "retentionPolicies",
+                "timeframe": "analysisWindow",
+                "optimization": "maintenanceGoals"
+              },
+              "outputMap": {
+                "operationalSummary": "maintenanceOutcome",
+                "improvementMeasures": "performanceReport",
+                "futureMaintenancePlan": "schedulingRecommendations",
+                "improvedOrganization": "optimizedMemory"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "memory",
+                "id": "memory_input",
+                "label": "Memory Store Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Vector embeddings and memory entries to optimize"
+              },
+              {
+                "fieldName": "maintenanceType",
+                "id": "maintenance_type_input",
+                "label": "Maintenance Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "routine-cleanup",
+                  "deep-optimization",
+                  "emergency-cleanup",
+                  "storage-reclaim",
+                  "performance-tune"
+                ]
+              },
+              {
+                "fieldName": "policies",
+                "id": "policies_input",
+                "label": "Retention Policies",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Rules for what to keep, archive, or delete"
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Analysis Window",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "last-30-days",
+                "options": [
+                  "last-7-days",
+                  "last-30-days",
+                  "last-90-days",
+                  "full-history"
+                ]
+              },
+              {
+                "fieldName": "optimizationLevel",
+                "id": "optimization_level_input",
+                "label": "Optimization Intensity",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "conservative",
+                  "balanced",
+                  "aggressive",
+                  "maximum"
+                ]
+              },
+              {
+                "fieldName": "similarityThreshold",
+                "id": "similarity_threshold_input",
+                "label": "Similarity Threshold",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "0.95",
+                "options": [
+                  "0.90",
+                  "0.95",
+                  "0.98",
+                  "0.99"
+                ]
+              },
+              {
+                "fieldName": "preserveCritical",
+                "id": "preserve_critical_input",
+                "label": "Preserve Critical Memories",
+                "type": "Switch",
+                "isRequired": false,
+                "defaultValue": true
+              },
+              {
+                "fieldName": "performanceTarget",
+                "id": "performance_target_input",
+                "label": "Performance Target",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "storage-efficiency",
+                  "retrieval-speed",
+                  "balanced",
+                  "maximum-performance"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "maintenanceOutcome",
+                "id": "maintenance_outcome_output",
+                "label": "Complete Maintenance Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "performanceReport",
+                "id": "performance_report_output",
+                "label": "Performance Improvements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "schedulingRecommendations",
+                "id": "scheduling_recommendations_output",
+                "label": "Future Maintenance Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "optimizedMemory",
+                "id": "optimized_memory_output",
+                "label": "Optimized Memory Structure",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "deterministic",
+          "2": "reasoning",
+          "3": "deterministic",
+          "4": "deterministic",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847933",
+          "language": "en",
+          "name": "Memory Maintenance",
+          "description": "AI swarm memory optimization and maintenance system. Analyzes memory usage, identifies redundant entries, evaluates content relevance, optimizes structure, performs cleanup operations, and generates comprehensive maintenance reports.",
+          "instructions": "Provide memory store data and set maintenance type. Configure retention policies and optimization level. Set similarity thresholds and performance targets. The routine will analyze, optimize, and clean up memory while preserving critical information."
+        }
+      ]
+    }
+  ]
+}

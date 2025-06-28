@@ -1,0 +1,272 @@
+{
+  "id": "7829564732190847565",
+  "publicId": "daily-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "productivity-optimization",
+      "translations": [
+        {
+          "id": "7829564732190847141",
+          "language": "en",
+          "description": "Productivity systems and optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847091",
+      "tag": "automation",
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "description": "Process automation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847566",
+      "publicId": "daily-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates optimized daily schedules with time blocking",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Prioritize Tasks",
+                "description": "Sorts tasks by importance, urgency, and deadlines",
+                "subroutineId": "TODO: Need deterministic task prioritizer subroutine",
+                "inputMap": {
+                  "taskList": "allTasks",
+                  "deadlines": "taskDeadlines",
+                  "priorities": "taskPriorities"
+                },
+                "outputMap": {
+                  "prioritizedTasks": "sortedTasks",
+                  "criticalPath": "urgentItems",
+                  "scoringRationale": "priorityExplanation"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Calendar Constraints",
+                "description": "Identifies fixed commitments and available time blocks",
+                "subroutineId": "TODO: Need deterministic calendar analyzer subroutine",
+                "inputMap": {
+                  "calendarEvents": "existingEvents",
+                  "workingHours": "availableHours",
+                  "breakPreferences": "breakSettings"
+                },
+                "outputMap": {
+                  "availableSlots": "freeTimeBlocks",
+                  "constraints": "schedulingConstraints",
+                  "totalAvailableTime": "availableMinutes"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Generate Time Blocks",
+                "description": "Allocates tasks to time slots optimally",
+                "subroutineId": "TODO: Need deterministic time block scheduler subroutine",
+                "inputMap": {
+                  "prioritizedTasks": "sortedTasks",
+                  "availableSlots": "freeTimeBlocks",
+                  "constraints": "schedulingConstraints",
+                  "energyLevels": "energyPatterns"
+                },
+                "outputMap": {
+                  "timeBlockSchedule": "dailySchedule",
+                  "conflictWarnings": "schedulingConflicts",
+                  "bufferRecommendations": "bufferTime"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Create Final Agenda",
+                "description": "Compiles the complete daily agenda with recommendations",
+                "subroutineId": "TODO: Need generation subroutine for agenda formatting",
+                "inputMap": {
+                  "timeBlockSchedule": "dailySchedule",
+                  "prioritizedTasks": "sortedTasks",
+                  "bufferRecommendations": "bufferTime",
+                  "focusPreferences": "focusSettings"
+                },
+                "outputMap": {
+                  "formattedAgenda": "finalAgenda",
+                  "dailyInsights": "productivityTips",
+                  "focusBlocks": "deepWorkPeriods"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "taskList": "allTasks",
+                "calendarEvents": "existingEvents",
+                "deadlines": "taskDeadlines",
+                "priorities": "taskPriorities",
+                "energyLevels": "energyPatterns",
+                "availableHours": "workingHours",
+                "breakPreferences": "breakSettings",
+                "focusPreferences": "focusSettings"
+              },
+              "outputMap": {
+                "finalAgenda": "timeBlockedSchedule",
+                "sortedTasks": "prioritizedTaskList",
+                "schedulingConflicts": "conflictWarnings",
+                "productivityTips": "dailyRecommendations"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskList",
+                "id": "task_list_input",
+                "label": "Tasks for Today",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of tasks with estimated durations"
+              },
+              {
+                "fieldName": "calendarEvents",
+                "id": "calendar_events_input",
+                "label": "Existing Calendar Events",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Fixed appointments and meetings"
+              },
+              {
+                "fieldName": "deadlines",
+                "id": "deadlines_input",
+                "label": "Task Deadlines",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Due dates and times for tasks"
+              },
+              {
+                "fieldName": "priorities",
+                "id": "priorities_input",
+                "label": "Task Priorities",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Importance ratings for each task"
+              },
+              {
+                "fieldName": "energyLevels",
+                "id": "energy_levels_input",
+                "label": "Energy Level Patterns",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Your typical energy levels throughout the day"
+              },
+              {
+                "fieldName": "workingHours",
+                "id": "working_hours_input",
+                "label": "Available Working Hours",
+                "type": "TextInput",
+                "isRequired": false,
+                "defaultValue": "9:00 AM - 5:00 PM"
+              },
+              {
+                "fieldName": "breakSettings",
+                "id": "break_preferences_input",
+                "label": "Break Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Preferred break frequency and duration"
+              },
+              {
+                "fieldName": "focusSettings",
+                "id": "focus_preferences_input",
+                "label": "Focus Time Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Preferences for deep work blocks"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeBlockedSchedule",
+                "id": "final_agenda_output",
+                "label": "Time-Blocked Daily Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "prioritizedTaskList",
+                "id": "prioritized_tasks_output",
+                "label": "Prioritized Task List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "conflictWarnings",
+                "id": "conflict_warnings_output",
+                "label": "Scheduling Conflicts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "dailyRecommendations",
+                "id": "productivity_tips_output",
+                "label": "Daily Productivity Recommendations",
+                "type": "TextInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "deterministic",
+          "2": "deterministic",
+          "3": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847567",
+          "language": "en",
+          "name": "Daily Agenda Planner",
+          "description": "Compiles a prioritized daily schedule by analyzing tasks, appointments, and deadlines. Uses time-blocking to arrange tasks optimally while accounting for energy levels, breaks, and focus time preferences.",
+          "instructions": "Provide your task list for the day along with any existing calendar events and constraints. You can optionally include task priorities, deadlines, energy patterns, and preferences for breaks and focus time. The routine will generate an optimized time-blocked schedule that balances productivity with well-being."
+        }
+      ]
+    }
+  ]
+}

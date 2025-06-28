@@ -1,0 +1,276 @@
+{
+  "id": "7829564732190847598",
+  "publicId": "research-syn-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "research-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Research and information gathering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847022",
+      "tag": "multi-source-synthesis",
+      "translations": [
+        {
+          "id": "7829564732190847122",
+          "language": "en",
+          "description": "Synthesizing information from multiple sources"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847096",
+      "tag": "synthesis",
+      "translations": [
+        {
+          "id": "7829564732190847196",
+          "language": "en",
+          "description": "Information synthesis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847599",
+      "publicId": "research-syn-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive research with multi-source synthesis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Define Research Scope",
+                "description": "Clarifies research objectives and parameters",
+                "subroutineId": "TODO: Need reasoning subroutine for scope definition",
+                "inputMap": {
+                  "researchTopic": "originalTopic",
+                  "scopeParameters": "researchScope",
+                  "qualityRequirements": "qualityStandards"
+                },
+                "outputMap": {
+                  "refinedQueries": "searchQueries",
+                  "inclusionCriteria": "sourceCriteria",
+                  "researchPlan": "methodologyPlan"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Gather Information",
+                "description": "Searches multiple sources for relevant information",
+                "subroutineId": "web-research-v1",
+                "inputMap": {
+                  "primaryQuery": "searchQueries",
+                  "searchDepth": "researchScope",
+                  "preferredSources": "sourcePreferences"
+                },
+                "outputMap": {
+                  "researchBrief": "rawFindings",
+                  "sourceLinks": "allSources",
+                  "credibilityNotes": "sourceQuality"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Evaluate Source Credibility",
+                "description": "Assesses reliability and bias of sources",
+                "subroutineId": "TODO: Need reasoning subroutine for credibility assessment",
+                "inputMap": {
+                  "allSources": "sourceLinks",
+                  "sourceQuality": "credibilityNotes",
+                  "qualityStandards": "qualityRequirements"
+                },
+                "outputMap": {
+                  "credibilityRatings": "sourceRatings",
+                  "biasAnalysis": "sourceBiases",
+                  "filteredSources": "reliableSources"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Extract Key Information",
+                "description": "Pulls out relevant data points from each source",
+                "subroutineId": "TODO: Need reasoning subroutine for information extraction",
+                "inputMap": {
+                  "rawFindings": "allFindings",
+                  "filteredSources": "reliableSources",
+                  "researchPlan": "methodologyPlan"
+                },
+                "outputMap": {
+                  "extractedData": "keyDataPoints",
+                  "quotations": "importantQuotes",
+                  "conflictingInfo": "discrepancies"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Synthesize Findings",
+                "description": "Combines information into unified analysis",
+                "subroutineId": "TODO: Need reasoning subroutine for synthesis",
+                "inputMap": {
+                  "extractedData": "keyDataPoints",
+                  "conflictingInfo": "discrepancies",
+                  "credibilityRatings": "sourceRatings"
+                },
+                "outputMap": {
+                  "synthesis": "unifiedAnalysis",
+                  "commonThemes": "thematicFindings",
+                  "controversies": "disputedPoints"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Research Report",
+                "description": "Creates structured report with citations",
+                "subroutineId": "TODO: Need generation subroutine for report writing",
+                "inputMap": {
+                  "synthesis": "unifiedAnalysis",
+                  "commonThemes": "thematicFindings",
+                  "controversies": "disputedPoints",
+                  "quotations": "importantQuotes",
+                  "filteredSources": "reliableSources"
+                },
+                "outputMap": {
+                  "researchReport": "finalReport",
+                  "executiveSummary": "summary",
+                  "bibliography": "citations"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "researchTopic": "originalTopic",
+                "scopeParameters": "researchScope",
+                "qualityRequirements": "qualityStandards",
+                "sourcePreferences": "preferredSources"
+              },
+              "outputMap": {
+                "finalReport": "researchReport",
+                "summary": "executiveSummary",
+                "citations": "sourceCitations",
+                "thematicFindings": "keyFindings"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchTopic",
+                "id": "research_topic_input",
+                "label": "Research Topic",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Topic or question to research"
+              },
+              {
+                "fieldName": "scopeParameters",
+                "id": "scope_parameters_input",
+                "label": "Research Scope",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Boundaries and focus areas for research"
+              },
+              {
+                "fieldName": "qualityRequirements",
+                "id": "quality_requirements_input",
+                "label": "Quality Requirements",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "academic",
+                "options": [
+                  "basic",
+                  "professional",
+                  "academic",
+                  "peer-reviewed"
+                ]
+              },
+              {
+                "fieldName": "sourcePreferences",
+                "id": "source_preferences_input",
+                "label": "Preferred Sources",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "List of preferred source types or domains"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchReport",
+                "id": "research_report_output",
+                "label": "Research Report",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "sourceCitations",
+                "id": "source_citations_output",
+                "label": "Source Citations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyFindings",
+                "id": "key_findings_output",
+                "label": "Key Findings",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847600",
+          "language": "en",
+          "name": "Research Synthesis Workflow",
+          "description": "Comprehensive research routine that gathers information from multiple sources, evaluates credibility, synthesizes findings, and produces structured reports with proper citations. Handles both academic and business research needs.",
+          "instructions": "Provide your research topic along with optional scope parameters, quality requirements, and source preferences. The routine will conduct thorough research, evaluate sources, synthesize findings, and generate a comprehensive report with executive summary and citations."
+        }
+      ]
+    }
+  ]
+}

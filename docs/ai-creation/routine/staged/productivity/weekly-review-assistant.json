@@ -1,0 +1,277 @@
+{
+  "id": "7829564732190847607",
+  "publicId": "weekly-rev-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "productivity-optimization",
+      "translations": [
+        {
+          "id": "7829564732190847141",
+          "language": "en",
+          "description": "Productivity systems and optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847608",
+      "publicId": "weekly-rev-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Guides weekly reflection and planning sessions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Aggregate Week's Data",
+                "description": "Collects all completed tasks and activities from the past week",
+                "subroutineId": "TODO: Need data collection subroutine for weekly aggregation",
+                "inputMap": {
+                  "weekData": "pastWeekTasks",
+                  "completedItems": "finishedTasks",
+                  "pendingItems": "unfinishedTasks"
+                },
+                "outputMap": {
+                  "weeklyStats": "aggregatedStats",
+                  "completionRate": "successMetrics",
+                  "timeAnalysis": "timeSpentBreakdown"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Accomplishments",
+                "description": "Identifies key achievements and successes",
+                "subroutineId": "TODO: Need reasoning subroutine for accomplishment analysis",
+                "inputMap": {
+                  "completedItems": "finishedTasks",
+                  "weeklyStats": "aggregatedStats",
+                  "goalAlignment": "weeklyGoals"
+                },
+                "outputMap": {
+                  "keyAchievements": "majorWins",
+                  "progressMetrics": "goalProgress",
+                  "successPatterns": "whatWorked"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Identify Challenges",
+                "description": "Analyzes what didn't work and why",
+                "subroutineId": "TODO: Need reasoning subroutine for challenge identification",
+                "inputMap": {
+                  "pendingItems": "unfinishedTasks",
+                  "timeAnalysis": "timeSpentBreakdown",
+                  "reflectionNotes": "userReflections"
+                },
+                "outputMap": {
+                  "challenges": "identifiedChallenges",
+                  "blockers": "obstaclesFound",
+                  "improvementAreas": "areasToImprove"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Extract Lessons Learned",
+                "description": "Synthesizes insights from the week's experiences",
+                "subroutineId": "TODO: Need reasoning subroutine for lesson extraction",
+                "inputMap": {
+                  "successPatterns": "whatWorked",
+                  "challenges": "identifiedChallenges",
+                  "reflectionNotes": "userReflections"
+                },
+                "outputMap": {
+                  "lessonsLearned": "weeklyInsights",
+                  "behaviorPatterns": "recurringThemes",
+                  "actionableInsights": "improvementIdeas"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Plan Next Week",
+                "description": "Uses insights to plan the upcoming week",
+                "subroutineId": "task-prior-v1",
+                "inputMap": {
+                  "taskList": "upcomingTasks",
+                  "importance": "taskPriorities",
+                  "deadlines": "taskDeadlines"
+                },
+                "outputMap": {
+                  "prioritizedTasks": "nextWeekPriorities",
+                  "criticalPath": "focusAreas"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Review Summary",
+                "description": "Creates comprehensive weekly review document",
+                "subroutineId": "TODO: Need generation subroutine for review compilation",
+                "inputMap": {
+                  "keyAchievements": "majorWins",
+                  "lessonsLearned": "weeklyInsights",
+                  "nextWeekPriorities": "upcomingPriorities",
+                  "actionableInsights": "improvementIdeas"
+                },
+                "outputMap": {
+                  "weeklyReview": "reviewDocument",
+                  "executiveSummary": "weekSummary",
+                  "actionPlan": "nextWeekPlan"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "pastWeekTaskData": "pastWeekTasks",
+                "completedTasks": "finishedTasks",
+                "pendingTasks": "unfinishedTasks",
+                "reflections": "userReflections",
+                "upcomingTasks": "nextWeekTasks"
+              },
+              "outputMap": {
+                "reviewDocument": "weekSummary",
+                "majorWins": "accomplishmentReport",
+                "upcomingPriorities": "nextWeekPriorities",
+                "nextWeekPlan": "actionPlan"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "pastWeekTaskData",
+                "id": "past_week_data_input",
+                "label": "Past Week's Task Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "All tasks and activities from the past week"
+              },
+              {
+                "fieldName": "completedTasks",
+                "id": "completed_tasks_input",
+                "label": "Completed Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Tasks that were finished this week"
+              },
+              {
+                "fieldName": "pendingTasks",
+                "id": "pending_tasks_input",
+                "label": "Pending Tasks",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Tasks that weren't completed"
+              },
+              {
+                "fieldName": "reflections",
+                "id": "reflections_input",
+                "label": "Personal Reflections",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Your thoughts on the week"
+              },
+              {
+                "fieldName": "upcomingTasks",
+                "id": "upcoming_tasks_input",
+                "label": "Next Week's Tasks",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Tasks planned for next week"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "weekSummary",
+                "id": "week_summary_output",
+                "label": "Week Summary",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "accomplishmentReport",
+                "id": "accomplishment_report_output",
+                "label": "Accomplishment Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "nextWeekPriorities",
+                "id": "next_week_priorities_output",
+                "label": "Next Week's Priorities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Action Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "deterministic",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847609",
+          "language": "en",
+          "name": "Weekly Review Assistant",
+          "description": "Guides weekly reflection and planning sessions by aggregating completed tasks, summarizing accomplishments, identifying challenges, extracting lessons, and helping plan the upcoming week.",
+          "instructions": "Provide your past week's task data including completed and pending items, along with any personal reflections. The routine will analyze your week, identify wins and challenges, extract lessons learned, and help you plan priorities for the upcoming week."
+        }
+      ]
+    }
+  ]
+}

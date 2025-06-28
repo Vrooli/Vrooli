@@ -1,0 +1,178 @@
+{
+  "id": "7829564732190847727",
+  "publicId": "negotiate-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847091",
+      "tag": "automation",
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "description": "Process automation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847728",
+      "publicId": "negotiate-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Strategic negotiation preparation and tactical guidance",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "promptTemplate": "You are an expert negotiation strategist and conflict resolution specialist with extensive experience in various negotiation contexts including business deals, salary negotiations, contract discussions, and interpersonal agreements.\n\nNegotiation Context:\n- Negotiation Type: {{input.negotiationType}}\n- Your Position: {{input.yourPosition}}\n- Other Party: {{input.otherParty}}\n- Stakes/Importance: {{input.negotiationStakes}}\n- Key Issues: {{input.keyIssues}}\n- Your BATNA: {{input.bestAlternative}}\n- Timeline: {{input.negotiationTimeline}}\n\nDevelop a comprehensive negotiation strategy that includes:\n\n1. **Preparation Framework**:\n   - Situation analysis and stakeholder mapping\n   - Interest identification (yours and theirs)\n   - Power dynamics assessment\n   - Research recommendations\n   - Documentation and evidence gathering\n\n2. **Strategic Positioning**:\n   - Opening position strategy\n   - Concession planning\n   - Value creation opportunities\n   - BATNA strengthening\n   - Relationship management approach\n\n3. **Tactical Approaches**:\n   - Communication techniques\n   - Questioning strategies\n   - Active listening tactics\n   - Emotional regulation methods\n   - Deadlock resolution techniques\n\n4. **Negotiation Flow Plan**:\n   - Opening moves and tone setting\n   - Information exchange strategy\n   - Bargaining phase tactics\n   - Closing and agreement techniques\n   - Implementation planning\n\n5. **Contingency Planning**:\n   - Common obstacles and responses\n   - Escalation management\n   - Walking away criteria\n   - Relationship preservation strategies\n   - Post-negotiation follow-up\n\n6. **Practice Scenarios**:\n   - Role-play exercises\n   - Difficult conversation rehearsal\n   - Pressure situation preparation\n   - Confidence building techniques\n\nAdapt the strategy based on negotiation type, relationship dynamics, cultural considerations, and power balance. Emphasize win-win outcomes while protecting your core interests.",
+            "temperature": 0.6,
+            "model": "medium",
+            "systemMessage": "You are a master negotiation strategist who helps people prepare for and execute successful negotiations while maintaining relationships and achieving mutually beneficial outcomes."
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "negotiationType",
+                "id": "negotiation_type_input",
+                "label": "Negotiation Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "salary-raise",
+                  "job-offer",
+                  "contract-terms",
+                  "business-deal",
+                  "vendor-pricing",
+                  "real-estate",
+                  "partnership-agreement",
+                  "conflict-resolution",
+                  "resource-allocation",
+                  "project-scope",
+                  "deadline-extension",
+                  "personal-relationship",
+                  "other"
+                ]
+              },
+              {
+                "fieldName": "yourPosition",
+                "id": "your_position_input",
+                "label": "Your Position & Goals",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "What are you trying to achieve in this negotiation?"
+              },
+              {
+                "fieldName": "otherParty",
+                "id": "other_party_input",
+                "label": "Other Party Information",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Who are you negotiating with? What might they want?"
+              },
+              {
+                "fieldName": "negotiationStakes",
+                "id": "negotiation_stakes_input",
+                "label": "Stakes & Importance",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "low-stakes",
+                  "moderate-stakes",
+                  "high-stakes",
+                  "critical-importance"
+                ]
+              },
+              {
+                "fieldName": "keyIssues",
+                "id": "key_issues_input",
+                "label": "Key Issues to Negotiate",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What specific points need to be negotiated?"
+              },
+              {
+                "fieldName": "bestAlternative",
+                "id": "best_alternative_input",
+                "label": "Your BATNA (Best Alternative)",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "What happens if this negotiation fails?"
+              },
+              {
+                "fieldName": "negotiationTimeline",
+                "id": "negotiation_timeline_input",
+                "label": "Timeline & Urgency",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "flexible",
+                "options": [
+                  "immediate",
+                  "this-week",
+                  "this-month",
+                  "flexible",
+                  "long-term"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "negotiationStrategy",
+                "id": "negotiation_strategy_output",
+                "label": "Complete Negotiation Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "preparationPlan",
+                "id": "preparation_plan_output",
+                "label": "Preparation & Research Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "tacticalGuidance",
+                "id": "tactical_guidance_output",
+                "label": "Tactical Approaches & Techniques",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practiceScenarios",
+                "id": "practice_scenarios_output",
+                "label": "Practice Scenarios & Rehearsal",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847729",
+          "language": "en",
+          "name": "Negotiation Strategy Builder",
+          "description": "Expert negotiation preparation system that analyzes situations, develops strategic positioning, provides tactical guidance, creates practice scenarios, and builds confidence for successful negotiations while maintaining relationships.",
+          "instructions": "Specify your negotiation type, position, and goals. Describe the other party and key issues. The routine will create a comprehensive negotiation strategy with preparation plan, tactical approaches, practice scenarios, and confidence-building techniques."
+        }
+      ]
+    }
+  ]
+}

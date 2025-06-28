@@ -1,0 +1,340 @@
+{
+  "id": "7829564732190847814",
+  "publicId": "study-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847046",
+      "tag": "learning-education",
+      "translations": [
+        {
+          "id": "7829564732190847146",
+          "language": "en",
+          "description": "Learning and educational systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847095",
+      "tag": "optimization",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Performance optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847815",
+      "publicId": "study-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Personalized study session planning and optimization",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Assess Study Requirements",
+                "description": "Evaluates material scope, difficulty, and learning objectives",
+                "subroutineId": "TODO: Need study assessment subroutine",
+                "inputMap": {
+                  "subjectMatter": "studyContent",
+                  "learningGoals": "objectives",
+                  "currentKnowledge": "baselineLevel"
+                },
+                "outputMap": {
+                  "contentAnalysis": "materialBreakdown",
+                  "difficultyMapping": "complexityAssessment",
+                  "gapIdentification": "knowledgeGaps"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Time & Energy",
+                "description": "Maps available time slots and energy patterns",
+                "subroutineId": "TODO: Need time analysis subroutine",
+                "inputMap": {
+                  "schedule": "availableTime",
+                  "energyPatterns": "productivityCycles",
+                  "commitments": "otherObligations"
+                },
+                "outputMap": {
+                  "timeMapping": "studyWindows",
+                  "energyOptimization": "peakPeriods",
+                  "scheduleIntegration": "timeAllocation"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Design Study Structure",
+                "description": "Creates optimal session structure with techniques",
+                "subroutineId": "TODO: Need structure design subroutine",
+                "inputMap": {
+                  "materialBreakdown": "contentAnalysis",
+                  "learningStyle": "preferredMethods",
+                  "retentionGoals": "memoryObjectives"
+                },
+                "outputMap": {
+                  "sessionStructure": "studyBlocks",
+                  "techniqueSelection": "learningMethods",
+                  "breakSchedule": "restIntervals"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Create Practice Activities",
+                "description": "Develops active learning exercises and assessments",
+                "subroutineId": "TODO: Need practice design subroutine",
+                "inputMap": {
+                  "studyBlocks": "sessionStructure",
+                  "knowledgeGaps": "gapIdentification",
+                  "testingMethods": "assessmentTypes"
+                },
+                "outputMap": {
+                  "practiceExercises": "activeLearningSets",
+                  "selfAssessments": "knowledgeChecks",
+                  "reviewQuestions": "consolidationTools"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Optimize Memory Retention",
+                "description": "Implements spaced repetition and memory techniques",
+                "subroutineId": "TODO: Need retention optimization subroutine",
+                "inputMap": {
+                  "learningMethods": "techniqueSelection",
+                  "forgettingCurve": "retentionScience",
+                  "reviewSchedule": "repetitionTiming"
+                },
+                "outputMap": {
+                  "spacedRepetition": "reviewSchedule",
+                  "memoryTechniques": "mnemonicStrategies",
+                  "consolidationPlan": "retentionStrategy"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Build Progress Tracking",
+                "description": "Creates monitoring system for learning progress",
+                "subroutineId": "TODO: Need progress tracking subroutine",
+                "inputMap": {
+                  "objectives": "learningGoals",
+                  "knowledgeChecks": "selfAssessments",
+                  "milestones": "progressMarkers"
+                },
+                "outputMap": {
+                  "trackingSystem": "progressMonitoring",
+                  "performanceMetrics": "learningAnalytics",
+                  "adjustmentTriggers": "adaptationPoints"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "subject": "studyContent",
+                "goals": "objectives",
+                "time": "availableTime",
+                "style": "learningPreferences"
+              },
+              "outputMap": {
+                "studyBlocks": "studyPlan",
+                "reviewSchedule": "retentionPlan",
+                "progressMonitoring": "trackingSystem",
+                "activeLearningSets": "practiceActivities"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "subject",
+                "id": "subject_input",
+                "label": "Study Subject",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "What are you studying?"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Learning Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What do you need to achieve? Exam prep, skill mastery, etc."
+              },
+              {
+                "fieldName": "studyType",
+                "id": "study_type_input",
+                "label": "Study Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "exam-preparation",
+                  "skill-acquisition",
+                  "language-learning",
+                  "concept-mastery",
+                  "project-research",
+                  "certification-prep",
+                  "review-session",
+                  "new-material"
+                ]
+              },
+              {
+                "fieldName": "time",
+                "id": "time_input",
+                "label": "Available Time",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "How much time do you have? Daily availability, total deadline"
+              },
+              {
+                "fieldName": "deadline",
+                "id": "deadline_input",
+                "label": "Study Deadline",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "1-day",
+                  "3-days",
+                  "1-week",
+                  "2-weeks",
+                  "1-month",
+                  "3-months",
+                  "ongoing"
+                ]
+              },
+              {
+                "fieldName": "style",
+                "id": "style_input",
+                "label": "Learning Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "mixed",
+                "options": [
+                  "visual",
+                  "auditory",
+                  "reading-writing",
+                  "kinesthetic",
+                  "mixed",
+                  "interactive"
+                ]
+              },
+              {
+                "fieldName": "difficulty",
+                "id": "difficulty_input",
+                "label": "Material Difficulty",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "beginner",
+                  "easy",
+                  "moderate",
+                  "challenging",
+                  "advanced"
+                ]
+              },
+              {
+                "fieldName": "energyPattern",
+                "id": "energy_pattern_input",
+                "label": "Peak Study Times",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "varies",
+                "options": [
+                  "early-morning",
+                  "morning",
+                  "afternoon",
+                  "evening",
+                  "late-night",
+                  "varies"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "studyPlan",
+                "id": "study_plan_output",
+                "label": "Complete Study Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "retentionPlan",
+                "id": "retention_plan_output",
+                "label": "Memory Retention Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "trackingSystem",
+                "id": "tracking_system_output",
+                "label": "Progress Tracking System",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practiceActivities",
+                "id": "practice_activities_output",
+                "label": "Practice Exercises & Assessments",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847816",
+          "language": "en",
+          "name": "Study Session Planner",
+          "description": "Personalized study planning system that assesses requirements, analyzes time and energy patterns, designs optimal session structures, creates practice activities, optimizes retention through spaced repetition, and builds progress tracking systems.",
+          "instructions": "Describe what you're studying and your learning goals. Specify study type, available time, and deadline. Include your learning style and energy patterns. The routine will create a personalized study plan with sessions, practice activities, and retention strategies."
+        }
+      ]
+    }
+  ]
+}

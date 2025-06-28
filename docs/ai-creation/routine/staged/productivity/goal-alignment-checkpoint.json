@@ -1,0 +1,253 @@
+{
+  "id": "7829564732190847580",
+  "publicId": "goal-align-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "productivity-optimization",
+      "translations": [
+        {
+          "id": "7829564732190847141",
+          "language": "en",
+          "description": "Productivity systems and optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847581",
+      "publicId": "goal-align-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Reviews progress and ensures alignment with goals",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Gather Current Status",
+                "description": "Collects current task status and team member updates",
+                "subroutineId": "TODO: Need data collection subroutine for status gathering",
+                "inputMap": {
+                  "currentGoals": "goalsAndOKRs",
+                  "projectTimeline": "timeline",
+                  "teamMembers": "teamList"
+                },
+                "outputMap": {
+                  "currentStatus": "aggregatedStatus",
+                  "taskProgress": "progressMetrics",
+                  "teamUpdates": "memberReports"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Goal Alignment",
+                "description": "Checks if current tasks align with overall mission",
+                "subroutineId": "TODO: Need reasoning subroutine for alignment analysis",
+                "inputMap": {
+                  "currentStatus": "aggregatedStatus",
+                  "currentGoals": "goalsAndOKRs",
+                  "taskProgress": "progressMetrics"
+                },
+                "outputMap": {
+                  "alignmentScore": "alignmentMetrics",
+                  "misalignedTasks": "deviations",
+                  "gapAnalysis": "coverageGaps"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Calculate Progress Metrics",
+                "description": "Computes progress against timeline and milestones",
+                "subroutineId": "TODO: Need deterministic calculation subroutine",
+                "inputMap": {
+                  "taskProgress": "progressMetrics",
+                  "projectTimeline": "timeline",
+                  "teamUpdates": "memberReports"
+                },
+                "outputMap": {
+                  "progressReport": "overallProgress",
+                  "milestoneStatus": "milestoneTracking",
+                  "velocityMetrics": "teamVelocity"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Identify Course Corrections",
+                "description": "Determines necessary adjustments based on analysis",
+                "subroutineId": "TODO: Need reasoning subroutine for correction planning",
+                "inputMap": {
+                  "alignmentScore": "alignmentMetrics",
+                  "misalignedTasks": "deviations",
+                  "progressReport": "overallProgress",
+                  "gapAnalysis": "coverageGaps"
+                },
+                "outputMap": {
+                  "corrections": "recommendedAdjustments",
+                  "reprioritization": "newPriorities",
+                  "resourceNeeds": "resourceReallocation"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Generate Action Plan",
+                "description": "Creates actionable recommendations and triggers",
+                "subroutineId": "TODO: Need generation subroutine for action planning",
+                "inputMap": {
+                  "corrections": "recommendedAdjustments",
+                  "reprioritization": "newPriorities",
+                  "resourceNeeds": "resourceReallocation",
+                  "progressReport": "overallProgress"
+                },
+                "outputMap": {
+                  "actionPlan": "coordinationPlan",
+                  "priorityUpdates": "updatedPriorities",
+                  "triggerActions": "automatedTriggers"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "currentGoals": "goalsAndOKRs",
+                "taskStatusReports": "statusReports",
+                "projectTimeline": "timeline",
+                "teamMemberUpdates": "teamUpdates"
+              },
+              "outputMap": {
+                "overallProgress": "progressReport",
+                "alignmentMetrics": "alignmentAnalysis",
+                "recommendedAdjustments": "courseCorrections",
+                "updatedPriorities": "priorityUpdates"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentGoals",
+                "id": "current_goals_input",
+                "label": "Current Goals/OKRs",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of current goals and key results"
+              },
+              {
+                "fieldName": "taskStatusReports",
+                "id": "task_status_input",
+                "label": "Task Status Reports",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current status of all active tasks"
+              },
+              {
+                "fieldName": "projectTimeline",
+                "id": "project_timeline_input",
+                "label": "Project Timeline",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Project milestones and deadlines"
+              },
+              {
+                "fieldName": "teamMemberUpdates",
+                "id": "team_updates_input",
+                "label": "Team Member Updates",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Updates from team members"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "progressReport",
+                "id": "progress_report_output",
+                "label": "Progress Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "alignmentAnalysis",
+                "id": "alignment_analysis_output",
+                "label": "Alignment Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "courseCorrections",
+                "id": "course_corrections_output",
+                "label": "Recommended Course Corrections",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priorityUpdates",
+                "id": "priority_updates_output",
+                "label": "Updated Priorities",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "reasoning",
+          "2": "deterministic",
+          "3": "reasoning",
+          "4": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847582",
+          "language": "en",
+          "name": "Goal Alignment & Progress Checkpoint",
+          "description": "Regularly reviews team progress against goals and ensures current tasks align with overall mission. Identifies misalignments and suggests course corrections including task reprioritization and resource reallocation.",
+          "instructions": "Provide current goals/OKRs, task status reports, project timeline, and team updates. The routine will analyze alignment, calculate progress, identify necessary corrections, and generate an action plan with updated priorities."
+        }
+      ]
+    }
+  ]
+}

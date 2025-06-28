@@ -1,0 +1,192 @@
+{
+  "id": "7829564732190847670",
+  "publicId": "study-sched-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847091",
+      "tag": "automation",
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "description": "Process automation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847671",
+      "publicId": "study-sched-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Optimized study scheduling with spaced repetition",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "inputTemplate": {
+              "subjects": "{{input.studySubjects}}",
+              "schedule": "{{input.availableTime}}",
+              "deadlines": "{{input.examDates}}",
+              "difficulty": "{{input.subjectDifficulty}}",
+              "preferences": "{{input.learningPreferences}}",
+              "energy": "{{input.energyPatterns}}"
+            },
+            "outputMapping": {
+              "optimizedSchedule": "result.schedule",
+              "spacedRepetition": "result.repetition",
+              "timeAllocation": "result.allocation",
+              "studyStrategies": "result.strategies",
+              "progressTracking": "result.tracking",
+              "adjustmentRules": "result.adjustments"
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "studySubjects",
+                "id": "study_subjects_input",
+                "label": "Study Subjects",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of subjects/topics to study with importance levels"
+              },
+              {
+                "fieldName": "availableTime",
+                "id": "available_time_input",
+                "label": "Available Study Time",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Weekly schedule with available study blocks"
+              },
+              {
+                "fieldName": "examDates",
+                "id": "exam_dates_input",
+                "label": "Exam/Deadline Dates",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Important dates and deadlines for each subject"
+              },
+              {
+                "fieldName": "subjectDifficulty",
+                "id": "subject_difficulty_input",
+                "label": "Subject Difficulty Levels",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Rate difficulty of each subject (1-5 scale)"
+              },
+              {
+                "fieldName": "learningPreferences",
+                "id": "learning_preferences_input",
+                "label": "Learning Preferences",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "mixed",
+                "options": [
+                  "visual",
+                  "auditory",
+                  "kinesthetic",
+                  "reading-writing",
+                  "mixed",
+                  "spaced-repetition-focused"
+                ]
+              },
+              {
+                "fieldName": "energyPatterns",
+                "id": "energy_patterns_input",
+                "label": "Energy Patterns",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "When are you most/least productive during the day?"
+              },
+              {
+                "fieldName": "studyGoals",
+                "id": "study_goals_input",
+                "label": "Study Goals",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "mastery",
+                "options": [
+                  "exam-prep",
+                  "mastery",
+                  "review",
+                  "catch-up",
+                  "maintenance",
+                  "exploration"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizedSchedule",
+                "id": "optimized_schedule_output",
+                "label": "Optimized Study Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "spacedRepetition",
+                "id": "spaced_repetition_output",
+                "label": "Spaced Repetition Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timeAllocation",
+                "id": "time_allocation_output",
+                "label": "Time Allocation Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "studyStrategies",
+                "id": "study_strategies_output",
+                "label": "Recommended Study Strategies",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "progressTracking",
+                "id": "progress_tracking_output",
+                "label": "Progress Tracking Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "adjustmentRules",
+                "id": "adjustment_rules_output",
+                "label": "Schedule Adjustment Guidelines",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847672",
+          "language": "en",
+          "name": "Study Schedule Optimizer",
+          "description": "Advanced study scheduling system that optimizes time allocation based on subject difficulty, deadlines, energy patterns, and learning preferences. Includes spaced repetition scheduling and adaptive adjustment mechanisms for maximum learning efficiency.",
+          "instructions": "Input your study subjects, available time, and exam dates. Specify subject difficulty levels and learning preferences. The routine will create an optimized study schedule with spaced repetition, strategic time allocation, and progress tracking mechanisms tailored to your needs."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,322 @@
+{
+  "id": "7829564732190847880",
+  "publicId": "what-if-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847039",
+      "tag": "scenario-planning",
+      "translations": [
+        {
+          "id": "7829564732190847139",
+          "language": "en",
+          "description": "Scenario analysis and planning"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847881",
+      "publicId": "what-if-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Hypothetical scenario exploration and outcome prediction",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Define Scenario",
+                "description": "Clarifies the hypothetical situation and variables",
+                "subroutineId": "TODO: Need scenario definition subroutine",
+                "inputMap": {
+                  "scenarioDescription": "hypotheticalSituation",
+                  "changeVariables": "whatIfFactors",
+                  "baselineContext": "currentState"
+                },
+                "outputMap": {
+                  "scenarioModel": "structuredScenario",
+                  "variableMap": "changeParameters",
+                  "assumptions": "scenarioAssumptions"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Identify Impact Areas",
+                "description": "Determines what aspects would be affected",
+                "subroutineId": "TODO: Need impact identification subroutine",
+                "inputMap": {
+                  "structuredScenario": "scenarioModel",
+                  "systemContext": "environmentFactors",
+                  "stakeholders": "affectedParties"
+                },
+                "outputMap": {
+                  "impactDomains": "affectedAreas",
+                  "causalChains": "rippleEffects",
+                  "stakeholderImpacts": "partyEffects"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Project Outcomes",
+                "description": "Predicts likely results in each impact area",
+                "subroutineId": "TODO: Need outcome projection subroutine",
+                "inputMap": {
+                  "affectedAreas": "impactDomains",
+                  "changeParameters": "variableMap",
+                  "projectionMethods": "forecastingApproach"
+                },
+                "outputMap": {
+                  "outcomeProjections": "scenarioResults",
+                  "probabilityRanges": "likelihoodEstimates",
+                  "timelineEstimates": "temporalProgression"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Analyze Consequences",
+                "description": "Evaluates benefits, drawbacks, and risks",
+                "subroutineId": "TODO: Need consequence analysis subroutine",
+                "inputMap": {
+                  "scenarioResults": "outcomeProjections",
+                  "evaluationCriteria": "assessmentFramework",
+                  "riskTolerance": "acceptableRisks"
+                },
+                "outputMap": {
+                  "benefitAnalysis": "positiveOutcomes",
+                  "riskAssessment": "negativeOutcomes",
+                  "tradeoffMatrix": "costBenefitBalance"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Compare Alternatives",
+                "description": "Contrasts scenario with other options",
+                "subroutineId": "TODO: Need alternative comparison subroutine",
+                "inputMap": {
+                  "costBenefitBalance": "tradeoffMatrix",
+                  "alternativeScenarios": "otherOptions",
+                  "decisionCriteria": "comparisonFactors"
+                },
+                "outputMap": {
+                  "comparativeAnalysis": "scenarioComparison",
+                  "relativeAdvantages": "competitivePosition",
+                  "decisionMatrix": "choiceFramework"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Recommendations",
+                "description": "Provides insights and action suggestions",
+                "subroutineId": "TODO: Need recommendation generation subroutine",
+                "inputMap": {
+                  "scenarioComparison": "comparativeAnalysis",
+                  "likelihoodEstimates": "probabilityRanges",
+                  "strategicGoals": "decisionObjectives"
+                },
+                "outputMap": {
+                  "recommendations": "actionGuidance",
+                  "contingencyPlans": "backupStrategies",
+                  "monitoringPlan": "trackingFramework"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "scenario": "hypotheticalSituation",
+                "variables": "changeFactors",
+                "context": "currentEnvironment",
+                "goals": "decisionObjectives"
+              },
+              "outputMap": {
+                "actionGuidance": "scenarioOutcome",
+                "scenarioResults": "projectedFuture",
+                "choiceFramework": "decisionSupport",
+                "trackingFramework": "monitoringPlan"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "scenario",
+                "id": "scenario_input",
+                "label": "What-If Scenario",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Describe the hypothetical situation"
+              },
+              {
+                "fieldName": "scenarioType",
+                "id": "scenario_type_input",
+                "label": "Scenario Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "business",
+                  "personal",
+                  "financial",
+                  "strategic",
+                  "operational",
+                  "market",
+                  "technology",
+                  "social"
+                ]
+              },
+              {
+                "fieldName": "variables",
+                "id": "variables_input",
+                "label": "Change Variables",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What factors are changing in this scenario?"
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Time Horizon",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "medium-term",
+                "options": [
+                  "immediate",
+                  "short-term",
+                  "medium-term",
+                  "long-term",
+                  "generational"
+                ]
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Current Context",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Baseline situation and environment"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Decision Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What are you trying to achieve or avoid?"
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "quick",
+                  "standard",
+                  "comprehensive",
+                  "exhaustive"
+                ]
+              },
+              {
+                "fieldName": "includeAlternatives",
+                "id": "include_alternatives_input",
+                "label": "Compare Alternatives",
+                "type": "Switch",
+                "isRequired": false,
+                "defaultValue": true
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "scenarioOutcome",
+                "id": "scenario_outcome_output",
+                "label": "Complete Scenario Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "projectedFuture",
+                "id": "projected_future_output",
+                "label": "Outcome Projections",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "decisionSupport",
+                "id": "decision_support_output",
+                "label": "Decision Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "monitoringPlan",
+                "id": "monitoring_plan_output",
+                "label": "Tracking & Monitoring Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "deterministic",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847882",
+          "language": "en",
+          "name": "What-If Scenario Planner",
+          "description": "Explores hypothetical scenarios and their potential outcomes. Defines scenarios, identifies impact areas, projects outcomes, analyzes consequences, compares alternatives, and generates actionable recommendations with monitoring plans.",
+          "instructions": "Describe your what-if scenario and key variables. Specify scenario type and timeframe. Include current context and decision goals. The routine will project outcomes, analyze consequences, and provide recommendations with contingency plans."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,259 @@
+{
+  "id": "7829564732190847586",
+  "publicId": "fact-check-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "research-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Research and information gathering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847023",
+      "tag": "fact-checking",
+      "translations": [
+        {
+          "id": "7829564732190847123",
+          "language": "en",
+          "description": "Fact verification and validation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847587",
+      "publicId": "fact-check-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Verifies claims with credible source citations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Parse and Decompose Claims",
+                "description": "Breaks complex claims into individual verifiable facts",
+                "subroutineId": "TODO: Need reasoning subroutine for claim decomposition",
+                "inputMap": {
+                  "claimText": "originalClaim",
+                  "claimContext": "contextInfo"
+                },
+                "outputMap": {
+                  "decomposedClaims": "individualFacts",
+                  "claimStructure": "factHierarchy",
+                  "keyTerms": "searchableTerms"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Search for Evidence",
+                "description": "Searches for credible sources supporting or refuting each fact",
+                "subroutineId": "web-research-v1",
+                "inputMap": {
+                  "primaryQuery": "individualFacts",
+                  "searchDepth": "credibilityStandards",
+                  "preferredSources": "trustedDomains"
+                },
+                "outputMap": {
+                  "searchResults": "evidenceSources",
+                  "sourceLinks": "citations",
+                  "credibilityNotes": "sourceCredibility"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Evaluate Evidence Quality",
+                "description": "Assesses the credibility and relevance of found sources",
+                "subroutineId": "TODO: Need reasoning subroutine for evidence evaluation",
+                "inputMap": {
+                  "evidenceSources": "searchResults",
+                  "sourceCredibility": "credibilityNotes",
+                  "originalClaims": "individualFacts"
+                },
+                "outputMap": {
+                  "evidenceQuality": "qualityScores",
+                  "supportingEvidence": "proEvidence",
+                  "contradictingEvidence": "contraEvidence"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Synthesize Verdict",
+                "description": "Combines evidence to determine truth value of claims",
+                "subroutineId": "TODO: Need reasoning subroutine for verdict synthesis",
+                "inputMap": {
+                  "supportingEvidence": "proEvidence",
+                  "contradictingEvidence": "contraEvidence",
+                  "evidenceQuality": "qualityScores",
+                  "decomposedClaims": "individualFacts"
+                },
+                "outputMap": {
+                  "factCheckVerdict": "truthValue",
+                  "confidenceScore": "certaintyLevel",
+                  "nuancedExplanation": "contextualAnalysis"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Generate Report",
+                "description": "Creates comprehensive fact-check report with citations",
+                "subroutineId": "TODO: Need generation subroutine for report creation",
+                "inputMap": {
+                  "factCheckVerdict": "truthValue",
+                  "confidenceScore": "certaintyLevel",
+                  "supportingEvidence": "proEvidence",
+                  "contradictingEvidence": "contraEvidence",
+                  "citations": "sourceLinks"
+                },
+                "outputMap": {
+                  "factCheckReport": "finalReport",
+                  "executiveSummary": "briefSummary",
+                  "citationList": "formattedCitations"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "claim": "originalClaim",
+                "context": "contextInfo",
+                "credibilityStandards": "standards",
+                "trustedSources": "trustedDomains"
+              },
+              "outputMap": {
+                "finalReport": "factCheckReport",
+                "briefSummary": "executiveSummary",
+                "formattedCitations": "sourceCitations",
+                "certaintyLevel": "confidenceRating"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "claim",
+                "id": "claim_input",
+                "label": "Claim to Verify",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Enter the statement or claim to fact-check"
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Context Information",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Additional context about when/where the claim was made"
+              },
+              {
+                "fieldName": "credibilityStandards",
+                "id": "credibility_standards_input",
+                "label": "Credibility Standards",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "high",
+                "options": [
+                  "basic",
+                  "moderate",
+                  "high",
+                  "academic"
+                ]
+              },
+              {
+                "fieldName": "trustedSources",
+                "id": "trusted_sources_input",
+                "label": "Trusted Source Domains",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "List of preferred credible sources (optional)"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "factCheckReport",
+                "id": "fact_check_report_output",
+                "label": "Fact Check Report",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "sourceCitations",
+                "id": "source_citations_output",
+                "label": "Source Citations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "confidenceRating",
+                "id": "confidence_rating_output",
+                "label": "Confidence Rating",
+                "type": "IntegerInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847588",
+          "language": "en",
+          "name": "Fact-Checking Agent",
+          "description": "Verifies the truth of claims by finding credible sources. Breaks claims into checkable facts, searches for evidence, evaluates source credibility, and provides a comprehensive report with confidence ratings.",
+          "instructions": "Provide the claim or statement you want to verify, along with any relevant context. You can set credibility standards and specify trusted sources. The routine will decompose the claim, search for evidence, and produce a detailed fact-check report with citations and confidence ratings."
+        }
+      ]
+    }
+  ]
+}

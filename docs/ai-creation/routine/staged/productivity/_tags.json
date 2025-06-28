@@ -1,0 +1,60 @@
+{
+  "category": "productivity",
+  "name": "Productivity Engineering",
+  "description": "Task management, time optimization, workflow automation",
+  "availableTags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "productivity-optimization",
+      "translations": [{
+        "id": "7829564732190847141",
+        "language": "en",
+        "description": "Productivity systems and optimization"
+      }]
+    },
+    {
+      "id": "7829564732190847042",
+      "tag": "task-prioritization",
+      "translations": [{
+        "id": "7829564732190847142",
+        "language": "en",
+        "description": "Task prioritization and management"
+      }]
+    },
+    {
+      "id": "7829564732190847043",
+      "tag": "time-blocking",
+      "translations": [{
+        "id": "7829564732190847143",
+        "language": "en",
+        "description": "Time blocking and scheduling"
+      }]
+    },
+    {
+      "id": "7829564732190847044",
+      "tag": "workflow-optimization",
+      "translations": [{
+        "id": "7829564732190847144",
+        "language": "en",
+        "description": "Workflow automation and efficiency"
+      }]
+    },
+    {
+      "id": "7829564732190847045",
+      "tag": "project-management",
+      "translations": [{
+        "id": "7829564732190847145",
+        "language": "en",
+        "description": "Project planning and execution"
+      }]
+    }
+  ],
+  "crossCuttingTags": [
+    "automation",
+    "optimization",
+    "planning",
+    "analysis",
+    "monitoring",
+    "ai-agent"
+  ]
+}

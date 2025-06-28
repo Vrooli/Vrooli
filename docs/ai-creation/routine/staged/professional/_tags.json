@@ -1,0 +1,59 @@
+{
+  "category": "professional",
+  "name": "Professional Mastery",
+  "description": "Career development, leadership, team building",
+  "availableTags": [
+    {
+      "id": "7829564732190847011",
+      "tag": "professional-growth",
+      "translations": [{
+        "id": "7829564732190847111",
+        "language": "en",
+        "description": "Career and professional development"
+      }]
+    },
+    {
+      "id": "7829564732190847012",
+      "tag": "career-navigation",
+      "translations": [{
+        "id": "7829564732190847112",
+        "language": "en",
+        "description": "Career planning and transitions"
+      }]
+    },
+    {
+      "id": "7829564732190847013",
+      "tag": "interview-prep",
+      "translations": [{
+        "id": "7829564732190847113",
+        "language": "en",
+        "description": "Interview preparation and coaching"
+      }]
+    },
+    {
+      "id": "7829564732190847014",
+      "tag": "leadership",
+      "translations": [{
+        "id": "7829564732190847114",
+        "language": "en",
+        "description": "Leadership development and skills"
+      }]
+    },
+    {
+      "id": "7829564732190847015",
+      "tag": "team-building",
+      "translations": [{
+        "id": "7829564732190847115",
+        "language": "en",
+        "description": "Team formation and optimization"
+      }]
+    }
+  ],
+  "crossCuttingTags": [
+    "coaching",
+    "planning",
+    "optimization",
+    "analysis",
+    "generation"
+  ]
+}

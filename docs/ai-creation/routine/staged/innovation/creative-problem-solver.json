@@ -1,0 +1,332 @@
+{
+  "id": "7829564732190847772",
+  "publicId": "creative-solve-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847016",
+      "tag": "innovation-creativity",
+      "translations": [
+        {
+          "id": "7829564732190847116",
+          "language": "en",
+          "description": "Innovation and creative thinking"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847017",
+      "tag": "problem-solving",
+      "translations": [
+        {
+          "id": "7829564732190847117",
+          "language": "en",
+          "description": "Creative problem-solving frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847773",
+      "publicId": "creative-solve-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive creative problem-solving and innovation system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Define & Frame the Problem",
+                "description": "Clarifies the challenge and explores different problem perspectives",
+                "subroutineId": "TODO: Need problem framing subroutine",
+                "inputMap": {
+                  "problemDescription": "challengeContext",
+                  "stakeholderPerspectives": "viewpointVariety",
+                  "constraintsLimitations": "boundaryConditions"
+                },
+                "outputMap": {
+                  "problemDefinition": "clarifiedChallenge",
+                  "alternativeFramings": "perspectiveOptions",
+                  "successCriteria": "solutionGoals"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Gather Insights & Research",
+                "description": "Collects relevant information and analogous solutions",
+                "subroutineId": "TODO: Need insight gathering subroutine",
+                "inputMap": {
+                  "clarifiedChallenge": "problemDefinition",
+                  "knowledgeDomains": "relevantFields",
+                  "analogySources": "inspirationAreas"
+                },
+                "outputMap": {
+                  "researchFindings": "informationBase",
+                  "analogousPatterns": "solutionAnalogies",
+                  "expertInsights": "specialistKnowledge"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Generate Creative Ideas",
+                "description": "Uses divergent thinking techniques to produce solution concepts",
+                "subroutineId": "TODO: Need idea generation subroutine",
+                "inputMap": {
+                  "informationBase": "researchFindings",
+                  "creativityTechniques": "ideationMethods",
+                  "inspirationSources": "stimulusInputs"
+                },
+                "outputMap": {
+                  "ideaCollection": "conceptRepository",
+                  "novelApproaches": "innovativeSolutions",
+                  "hybridCombinations": "mergedConcepts"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Evaluate & Refine Solutions",
+                "description": "Assesses ideas against criteria and improves promising concepts",
+                "subroutineId": "TODO: Need solution evaluation subroutine",
+                "inputMap": {
+                  "conceptRepository": "ideaCollection",
+                  "solutionGoals": "successCriteria",
+                  "feasibilityFactors": "implementationReality"
+                },
+                "outputMap": {
+                  "evaluatedOptions": "rankedSolutions",
+                  "refinedConcepts": "improvedIdeas",
+                  "implementationViability": "feasibilityAssessment"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Prototype & Test Solutions",
+                "description": "Creates rapid prototypes and validates solution effectiveness",
+                "subroutineId": "TODO: Need prototyping subroutine",
+                "inputMap": {
+                  "rankedSolutions": "evaluatedOptions",
+                  "prototypingResources": "testingCapabilities",
+                  "validationCriteria": "testingFramework"
+                },
+                "outputMap": {
+                  "prototypeResults": "testingOutcomes",
+                  "validatedSolutions": "provenConcepts",
+                  "iterationNeeds": "refinementRequirements"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Plan Implementation & Scale",
+                "description": "Develops execution strategy and scaling approach",
+                "subroutineId": "TODO: Need implementation planning subroutine",
+                "inputMap": {
+                  "provenConcepts": "validatedSolutions",
+                  "resourceAvailability": "implementationCapacity",
+                  "scalingGoals": "expansionObjectives"
+                },
+                "outputMap": {
+                  "implementationPlan": "executionStrategy",
+                  "scalingFramework": "growthPlan",
+                  "riskMitigation": "contingencyStrategy"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "challenge": "challengeContext",
+                "context": "boundaryConditions",
+                "resources": "availableAssets",
+                "timeline": "solutionTimeframe"
+              },
+              "outputMap": {
+                "executionStrategy": "problemSolution",
+                "growthPlan": "scalingStrategy",
+                "clarifiedChallenge": "problemInsight",
+                "conceptRepository": "innovativeIdeas"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "challenge",
+                "id": "challenge_input",
+                "label": "Problem Description",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe the problem or challenge you need to solve"
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Problem Context",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Background, stakeholders, constraints, and environmental factors"
+              },
+              {
+                "fieldName": "problemType",
+                "id": "problem_type_input",
+                "label": "Problem Category",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "business-strategy",
+                  "product-design",
+                  "process-improvement",
+                  "technical-challenge",
+                  "interpersonal-conflict",
+                  "resource-optimization",
+                  "innovation-opportunity",
+                  "system-failure",
+                  "creative-block",
+                  "other"
+                ]
+              },
+              {
+                "fieldName": "urgency",
+                "id": "urgency_input",
+                "label": "Solution Urgency",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "immediate",
+                  "1-week",
+                  "1-month",
+                  "3-months",
+                  "6-months",
+                  "long-term"
+                ]
+              },
+              {
+                "fieldName": "resources",
+                "id": "resources_input",
+                "label": "Available Resources",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Budget, team, tools, time, and other assets available"
+              },
+              {
+                "fieldName": "successMetrics",
+                "id": "success_metrics_input",
+                "label": "Success Criteria",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "How will you measure if the solution works?"
+              },
+              {
+                "fieldName": "creativityLevel",
+                "id": "creativity_level_input",
+                "label": "Innovation Requirement",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "conventional",
+                  "moderate",
+                  "high-innovation",
+                  "breakthrough",
+                  "disruptive"
+                ]
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Tolerance",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "very-low",
+                  "low",
+                  "moderate",
+                  "high",
+                  "very-high"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "problemSolution",
+                "id": "problem_solution_output",
+                "label": "Complete Problem Solution",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "scalingStrategy",
+                "id": "scaling_strategy_output",
+                "label": "Implementation & Scaling Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "problemInsight",
+                "id": "problem_insight_output",
+                "label": "Problem Analysis & Insights",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "innovativeIdeas",
+                "id": "innovative_ideas_output",
+                "label": "Creative Solution Repository",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "conversational",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847774",
+          "language": "en",
+          "name": "Creative Problem Solver",
+          "description": "Comprehensive innovation system that defines problems, gathers insights, generates creative ideas, evaluates solutions, prototypes concepts, and plans implementation for effective creative problem-solving and breakthrough innovation.",
+          "instructions": "Describe your problem and provide context including stakeholders and constraints. Specify problem category, urgency, and available resources. The routine will frame the challenge, research solutions, generate creative ideas, evaluate options, and create implementation plans."
+        }
+      ]
+    }
+  ]
+}

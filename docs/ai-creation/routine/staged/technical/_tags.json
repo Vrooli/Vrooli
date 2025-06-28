@@ -1,0 +1,59 @@
+{
+  "category": "technical",
+  "name": "Technical Excellence",
+  "description": "Code, APIs, data processing, automation",
+  "availableTags": [
+    {
+      "id": "7829564732190847026",
+      "tag": "technical-tools",
+      "translations": [{
+        "id": "7829564732190847126",
+        "language": "en",
+        "description": "Technical tools and utilities"
+      }]
+    },
+    {
+      "id": "7829564732190847027",
+      "tag": "code-generation",
+      "translations": [{
+        "id": "7829564732190847127",
+        "language": "en",
+        "description": "Code generation and scaffolding"
+      }]
+    },
+    {
+      "id": "7829564732190847028",
+      "tag": "debugging",
+      "translations": [{
+        "id": "7829564732190847128",
+        "language": "en",
+        "description": "Debugging and troubleshooting"
+      }]
+    },
+    {
+      "id": "7829564732190847029",
+      "tag": "api-documentation",
+      "translations": [{
+        "id": "7829564732190847129",
+        "language": "en",
+        "description": "API documentation and design"
+      }]
+    },
+    {
+      "id": "7829564732190847030",
+      "tag": "data-processing",
+      "translations": [{
+        "id": "7829564732190847130",
+        "language": "en",
+        "description": "Data transformation and processing"
+      }]
+    }
+  ],
+  "crossCuttingTags": [
+    "automation",
+    "analysis",
+    "generation",
+    "optimization",
+    "real-time"
+  ]
+}

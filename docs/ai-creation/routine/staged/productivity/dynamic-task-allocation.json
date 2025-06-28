@@ -1,0 +1,253 @@
+{
+  "id": "7829564732190847592",
+  "publicId": "task-alloc-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "productivity-optimization",
+      "translations": [
+        {
+          "id": "7829564732190847141",
+          "language": "en",
+          "description": "Productivity systems and optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847042",
+      "tag": "task-prioritization",
+      "translations": [
+        {
+          "id": "7829564732190847142",
+          "language": "en",
+          "description": "Task prioritization and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847098",
+      "tag": "ai-agent",
+      "translations": [
+        {
+          "id": "7829564732190847198",
+          "language": "en",
+          "description": "AI agent orchestration"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847593",
+      "publicId": "task-alloc-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Maps tasks to best-suited agents dynamically",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Task Requirements",
+                "description": "Breaks down task into required skills and resources",
+                "subroutineId": "TODO: Need reasoning subroutine for task decomposition",
+                "inputMap": {
+                  "newTask": "taskDescription",
+                  "taskMetadata": "taskProperties",
+                  "taskConstraints": "constraints"
+                },
+                "outputMap": {
+                  "requiredSkills": "skillRequirements",
+                  "resourceNeeds": "resourceRequirements",
+                  "taskComplexity": "complexityScore"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Assess Agent Capabilities",
+                "description": "Evaluates available agents and their current workload",
+                "subroutineId": "TODO: Need deterministic agent assessment subroutine",
+                "inputMap": {
+                  "agentProfiles": "agentSkillProfiles",
+                  "workloadData": "currentWorkloads",
+                  "availability": "agentAvailability"
+                },
+                "outputMap": {
+                  "agentCapabilities": "skillMatrix",
+                  "workloadScores": "utilizationMetrics",
+                  "availableAgents": "eligibleAgents"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Match Tasks to Agents",
+                "description": "Finds optimal agent-task matches based on multiple factors",
+                "subroutineId": "TODO: Need deterministic matching algorithm subroutine",
+                "inputMap": {
+                  "requiredSkills": "skillRequirements",
+                  "agentCapabilities": "skillMatrix",
+                  "workloadScores": "utilizationMetrics",
+                  "taskComplexity": "complexityScore"
+                },
+                "outputMap": {
+                  "matchScores": "agentMatchScores",
+                  "topCandidates": "bestMatches",
+                  "matchRationale": "selectionReasons"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Balance Workload",
+                "description": "Ensures fair distribution across the swarm",
+                "subroutineId": "TODO: Need deterministic workload balancing subroutine",
+                "inputMap": {
+                  "topCandidates": "bestMatches",
+                  "workloadScores": "utilizationMetrics",
+                  "teamBalance": "balancePreferences"
+                },
+                "outputMap": {
+                  "finalAssignment": "selectedAgent",
+                  "workloadImpact": "newUtilization",
+                  "balanceScore": "distributionMetrics"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Generate Delegation Plan",
+                "description": "Creates detailed assignment with context and expectations",
+                "subroutineId": "TODO: Need generation subroutine for delegation planning",
+                "inputMap": {
+                  "finalAssignment": "selectedAgent",
+                  "newTask": "taskDescription",
+                  "matchRationale": "selectionReasons",
+                  "resourceNeeds": "resourceRequirements"
+                },
+                "outputMap": {
+                  "delegationPlan": "assignmentDetails",
+                  "taskBriefing": "agentInstructions",
+                  "successCriteria": "expectedOutcomes"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "newTaskDescription": "taskDescription",
+                "agentSkillProfiles": "agentProfiles",
+                "currentWorkloadData": "currentWorkloads",
+                "balancePreferences": "teamBalance"
+              },
+              "outputMap": {
+                "assignmentDetails": "taskAssignments",
+                "agentInstructions": "delegationPlan",
+                "distributionMetrics": "workloadBalanceReport",
+                "selectedAgent": "assignedAgent"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "newTaskDescription",
+                "id": "new_task_input",
+                "label": "New Task Description",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe the task to be allocated"
+              },
+              {
+                "fieldName": "agentSkillProfiles",
+                "id": "agent_profiles_input",
+                "label": "Agent Skill Profiles",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Skills and capabilities of available agents"
+              },
+              {
+                "fieldName": "currentWorkloadData",
+                "id": "current_workload_input",
+                "label": "Current Workload Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current task assignments and utilization"
+              },
+              {
+                "fieldName": "balancePreferences",
+                "id": "balance_preferences_input",
+                "label": "Workload Balance Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Preferences for workload distribution"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskAssignments",
+                "id": "task_assignments_output",
+                "label": "Task Assignments",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "delegationPlan",
+                "id": "delegation_plan_output",
+                "label": "Delegation Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "workloadBalanceReport",
+                "id": "workload_balance_output",
+                "label": "Workload Balance Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "assignedAgent",
+                "id": "assigned_agent_output",
+                "label": "Assigned Agent",
+                "type": "TextInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "deterministic",
+          "2": "deterministic",
+          "3": "deterministic",
+          "4": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847594",
+          "language": "en",
+          "name": "Dynamic Task Allocation",
+          "description": "Maps incoming tasks to best-suited agents in the swarm. Considers agent skills, current workload, and task requirements for optimal distribution. Flags tasks for human intervention if no suitable agent is available.",
+          "instructions": "Provide the new task description along with agent skill profiles and current workload data. The routine will analyze requirements, assess capabilities, find optimal matches, balance workload, and generate a detailed delegation plan."
+        }
+      ]
+    }
+  ]
+}

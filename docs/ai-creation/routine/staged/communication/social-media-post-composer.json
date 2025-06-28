@@ -1,0 +1,328 @@
+{
+  "id": "7829564732190847889",
+  "publicId": "social-post-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847051",
+      "tag": "communication-content",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Communication and content systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847055",
+      "tag": "social-media",
+      "translations": [
+        {
+          "id": "7829564732190847155",
+          "language": "en",
+          "description": "Social media planning and content"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847890",
+      "publicId": "social-post-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Multi-platform social media content creation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Content & Audience",
+                "description": "Understands source content and target audience",
+                "subroutineId": "TODO: Need content analysis subroutine",
+                "inputMap": {
+                  "sourceContent": "originalMaterial",
+                  "targetAudience": "audienceProfile",
+                  "brandVoice": "communicationStyle"
+                },
+                "outputMap": {
+                  "contentAnalysis": "materialBreakdown",
+                  "audienceInsights": "targetCharacteristics",
+                  "keyMessages": "corePoints"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Adapt for Platforms",
+                "description": "Customizes content for each social platform",
+                "subroutineId": "TODO: Need platform adaptation subroutine",
+                "inputMap": {
+                  "materialBreakdown": "contentAnalysis",
+                  "platformList": "targetPlatforms",
+                  "platformRequirements": "formatConstraints"
+                },
+                "outputMap": {
+                  "platformVariations": "adaptedContent",
+                  "formatOptimizations": "platformSpecificEdits",
+                  "characterLimits": "lengthAdjustments"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Generate Engaging Hooks",
+                "description": "Creates attention-grabbing opening lines",
+                "subroutineId": "TODO: Need hook generation subroutine",
+                "inputMap": {
+                  "corePoints": "keyMessages",
+                  "engagementStyle": "hookStrategy",
+                  "targetCharacteristics": "audienceInsights"
+                },
+                "outputMap": {
+                  "hookVariations": "openingLines",
+                  "engagementTactics": "attentionGrabbers",
+                  "curiosityDrivers": "intrigue"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Add Hashtags & Keywords",
+                "description": "Optimizes discoverability with relevant tags",
+                "subroutineId": "TODO: Need hashtag optimization subroutine",
+                "inputMap": {
+                  "adaptedContent": "platformVariations",
+                  "topicTags": "relevantHashtags",
+                  "trendingTopics": "popularTags"
+                },
+                "outputMap": {
+                  "hashtagSuggestions": "discoveryTags",
+                  "keywordOptimization": "searchableTerms",
+                  "trendAlignment": "timingTags"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Create Call-to-Actions",
+                "description": "Designs compelling CTAs for engagement",
+                "subroutineId": "TODO: Need CTA creation subroutine",
+                "inputMap": {
+                  "engagementGoals": "desiredActions",
+                  "audienceProfile": "targetAudience",
+                  "contentObjectives": "postPurpose"
+                },
+                "outputMap": {
+                  "ctaVariations": "actionPrompts",
+                  "engagementInvitations": "participationRequests",
+                  "conversionTriggers": "responseDrivers"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Finalize Post Variations",
+                "description": "Assembles complete posts with scheduling suggestions",
+                "subroutineId": "TODO: Need post finalization subroutine",
+                "inputMap": {
+                  "openingLines": "hookVariations",
+                  "discoveryTags": "hashtagSuggestions",
+                  "actionPrompts": "ctaVariations"
+                },
+                "outputMap": {
+                  "finalPosts": "completeSocialContent",
+                  "postingSchedule": "timingRecommendations",
+                  "variationSet": "alternativeVersions"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "content": "originalMaterial",
+                "platforms": "targetPlatforms",
+                "audience": "targetAudience",
+                "goals": "contentObjectives"
+              },
+              "outputMap": {
+                "completeSocialContent": "socialMediaOutcome",
+                "timingRecommendations": "schedulingGuide",
+                "alternativeVersions": "postVariations",
+                "discoveryTags": "hashtagStrategy"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "content",
+                "id": "content_input",
+                "label": "Source Content",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Topic, article, or content to adapt for social media"
+              },
+              {
+                "fieldName": "platforms",
+                "id": "platforms_input",
+                "label": "Target Platforms",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Twitter, LinkedIn, Instagram, Facebook, etc."
+              },
+              {
+                "fieldName": "contentType",
+                "id": "content_type_input",
+                "label": "Content Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "promotional",
+                  "educational",
+                  "entertainment",
+                  "news",
+                  "personal",
+                  "behind-scenes",
+                  "user-generated",
+                  "announcement"
+                ]
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Demographics, interests, and characteristics"
+              },
+              {
+                "fieldName": "tone",
+                "id": "tone_input",
+                "label": "Brand Voice/Tone",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "professional",
+                "options": [
+                  "professional",
+                  "casual",
+                  "friendly",
+                  "authoritative",
+                  "playful",
+                  "inspirational",
+                  "conversational"
+                ]
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Content Goals",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "engagement",
+                "options": [
+                  "awareness",
+                  "engagement",
+                  "traffic",
+                  "leads",
+                  "sales",
+                  "community",
+                  "education"
+                ]
+              },
+              {
+                "fieldName": "hashtags",
+                "id": "hashtags_input",
+                "label": "Preferred Hashtags",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Specific hashtags to include or avoid"
+              },
+              {
+                "fieldName": "variationCount",
+                "id": "variation_count_input",
+                "label": "Number of Variations",
+                "type": "IntegerInput",
+                "isRequired": false,
+                "defaultValue": 3,
+                "placeholder": "How many post variations to create"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "socialMediaOutcome",
+                "id": "social_media_outcome_output",
+                "label": "Complete Social Media Posts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "schedulingGuide",
+                "id": "scheduling_guide_output",
+                "label": "Posting Schedule Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "postVariations",
+                "id": "post_variations_output",
+                "label": "Alternative Post Versions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "hashtagStrategy",
+                "id": "hashtag_strategy_output",
+                "label": "Hashtag & Keyword Strategy",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "deterministic",
+          "2": "conversational",
+          "3": "deterministic",
+          "4": "conversational",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847891",
+          "language": "en",
+          "name": "Social Media Post Composer",
+          "description": "Creates engaging social media posts from source content. Analyzes content and audience, adapts for multiple platforms, generates hooks, optimizes hashtags, creates CTAs, and produces complete posts with scheduling recommendations.",
+          "instructions": "Provide source content and target platforms. Specify content type and brand voice. Include audience information and goals. The routine will create platform-optimized posts with engaging hooks, relevant hashtags, and compelling calls-to-action."
+        }
+      ]
+    }
+  ]
+}

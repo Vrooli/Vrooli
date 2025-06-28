@@ -1,0 +1,197 @@
+{
+  "id": "7829564732190847688",
+  "publicId": "risk-assess-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847091",
+      "tag": "automation",
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "description": "Process automation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847689",
+      "publicId": "risk-assess-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive project risk identification and mitigation planning",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "inputTemplate": {
+              "projectDetails": "{{input.projectDescription}}",
+              "scope": "{{input.projectScope}}",
+              "timeline": "{{input.projectTimeline}}",
+              "resources": "{{input.availableResources}}",
+              "stakeholders": "{{input.stakeholderInfo}}",
+              "industry": "{{input.industryContext}}",
+              "complexity": "{{input.complexityLevel}}"
+            },
+            "outputMapping": {
+              "identifiedRisks": "result.risks",
+              "riskPrioritization": "result.priorities",
+              "mitigationStrategies": "result.mitigation",
+              "contingencyPlans": "result.contingencies",
+              "monitoringPlan": "result.monitoring",
+              "riskRegister": "result.register"
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectDescription",
+                "id": "project_description_input",
+                "label": "Project Description",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe the project, its objectives, and key deliverables"
+              },
+              {
+                "fieldName": "projectScope",
+                "id": "project_scope_input",
+                "label": "Project Scope",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "What's included and excluded from the project?"
+              },
+              {
+                "fieldName": "projectTimeline",
+                "id": "project_timeline_input",
+                "label": "Project Timeline",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Key milestones, deadlines, and project duration"
+              },
+              {
+                "fieldName": "availableResources",
+                "id": "available_resources_input",
+                "label": "Available Resources",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Budget, team size, tools, technology, external support"
+              },
+              {
+                "fieldName": "stakeholderInfo",
+                "id": "stakeholder_info_input",
+                "label": "Stakeholder Information",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Key stakeholders, their expectations, and influence levels"
+              },
+              {
+                "fieldName": "industryContext",
+                "id": "industry_context_input",
+                "label": "Industry/Domain Context",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Industry-specific factors, regulations, market conditions"
+              },
+              {
+                "fieldName": "complexityLevel",
+                "id": "complexity_level_input",
+                "label": "Project Complexity",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "medium",
+                "options": [
+                  "low",
+                  "medium",
+                  "high",
+                  "very-high"
+                ]
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Tolerance",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "conservative",
+                  "moderate",
+                  "aggressive",
+                  "variable"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "identifiedRisks",
+                "id": "identified_risks_output",
+                "label": "Identified Risk Catalog",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "riskPrioritization",
+                "id": "risk_prioritization_output",
+                "label": "Risk Priority Matrix",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "mitigationStrategies",
+                "id": "mitigation_strategies_output",
+                "label": "Risk Mitigation Strategies",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contingencyPlans",
+                "id": "contingency_plans_output",
+                "label": "Contingency Plans",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "monitoringPlan",
+                "id": "monitoring_plan_output",
+                "label": "Risk Monitoring Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "riskRegister",
+                "id": "risk_register_output",
+                "label": "Complete Risk Register",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847690",
+          "language": "en",
+          "name": "Project Risk Assessor",
+          "description": "Comprehensive project risk management tool that identifies potential risks, prioritizes by impact and probability, develops mitigation strategies, creates contingency plans, and establishes monitoring frameworks for proactive risk management.",
+          "instructions": "Describe your project including scope, timeline, and available resources. Provide stakeholder information and industry context. The routine will identify potential risks, prioritize them, develop mitigation strategies, and create a complete risk management framework for your project."
+        }
+      ]
+    }
+  ]
+}

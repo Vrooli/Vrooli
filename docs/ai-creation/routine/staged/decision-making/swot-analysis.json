@@ -1,0 +1,330 @@
+{
+  "id": "7829564732190847886",
+  "publicId": "swot-analysis-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847040",
+      "tag": "swot-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847140",
+          "language": "en",
+          "description": "SWOT analysis framework"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847887",
+      "publicId": "swot-analysis-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - SWOT analysis for strategic planning",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Identify Strengths",
+                "description": "Catalogs internal advantages and capabilities",
+                "subroutineId": "TODO: Need strengths identification subroutine",
+                "inputMap": {
+                  "entityDescription": "organizationProfile",
+                  "internalFactors": "capabilitiesInventory",
+                  "competitiveContext": "marketPosition"
+                },
+                "outputMap": {
+                  "strengthsList": "internalAdvantages",
+                  "coreCompetencies": "keyCapabilities",
+                  "uniqueAssets": "distinctiveResources"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Identify Weaknesses",
+                "description": "Examines internal limitations and gaps",
+                "subroutineId": "TODO: Need weaknesses identification subroutine",
+                "inputMap": {
+                  "organizationProfile": "entityDescription",
+                  "performanceGaps": "deficiencyAreas",
+                  "competitorComparison": "benchmarkAnalysis"
+                },
+                "outputMap": {
+                  "weaknessesList": "internalLimitations",
+                  "skillGaps": "capabilityDeficits",
+                  "resourceConstraints": "limitingFactors"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Identify Opportunities",
+                "description": "Discovers external favorable conditions",
+                "subroutineId": "TODO: Need opportunities identification subroutine",
+                "inputMap": {
+                  "marketPosition": "competitiveContext",
+                  "industryTrends": "externalTrends",
+                  "strategicGoals": "objectiveAlignment"
+                },
+                "outputMap": {
+                  "opportunitiesList": "externalAdvantages",
+                  "marketTrends": "favorableConditions",
+                  "growthPotential": "expansionAreas"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Identify Threats",
+                "description": "Analyzes external risks and challenges",
+                "subroutineId": "TODO: Need threats identification subroutine",
+                "inputMap": {
+                  "externalTrends": "industryTrends",
+                  "competitiveThreats": "rivalryFactors",
+                  "riskFactors": "environmentalChallenges"
+                },
+                "outputMap": {
+                  "threatsList": "externalRisks",
+                  "competitiveRisks": "marketThreats",
+                  "environmentalRisks": "externalChallenges"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Analyze Strategic Combinations",
+                "description": "Explores interactions between SWOT elements",
+                "subroutineId": "TODO: Need strategic combination subroutine",
+                "inputMap": {
+                  "internalAdvantages": "strengthsList",
+                  "externalAdvantages": "opportunitiesList",
+                  "strategicOptions": "combinationMatrix"
+                },
+                "outputMap": {
+                  "soStrategies": "strengthOpportunityActions",
+                  "woStrategies": "weaknessOpportunityActions",
+                  "stStrategies": "strengthThreatActions",
+                  "wtStrategies": "weaknessThreatActions"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Strategic Insights",
+                "description": "Creates actionable recommendations and priorities",
+                "subroutineId": "TODO: Need strategic insights subroutine",
+                "inputMap": {
+                  "strengthOpportunityActions": "soStrategies",
+                  "strategicPriorities": "focusAreas",
+                  "implementationCapacity": "executionConstraints"
+                },
+                "outputMap": {
+                  "strategicRecommendations": "actionPlan",
+                  "priorityActions": "immediateSteps",
+                  "swotMatrix": "completeAnalysis"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "entity": "organizationProfile",
+                "context": "analysisContext",
+                "goals": "strategicObjectives",
+                "timeframe": "planningHorizon"
+              },
+              "outputMap": {
+                "completeAnalysis": "swotOutcome",
+                "actionPlan": "strategicGuidance",
+                "immediateSteps": "priorityActions",
+                "strengthOpportunityActions": "keyStrategies"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "entity",
+                "id": "entity_input",
+                "label": "Entity/Organization",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Business, project, or situation to analyze"
+              },
+              {
+                "fieldName": "entityType",
+                "id": "entity_type_input",
+                "label": "Entity Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "business",
+                  "project",
+                  "product",
+                  "service",
+                  "personal",
+                  "team",
+                  "department",
+                  "startup"
+                ]
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Analysis Context",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Industry, market, or situational context"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Strategic Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Objectives and desired outcomes"
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Planning Timeframe",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "1-year",
+                "options": [
+                  "6-months",
+                  "1-year",
+                  "2-years",
+                  "3-years",
+                  "5-years"
+                ]
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "quick",
+                  "standard",
+                  "comprehensive",
+                  "exhaustive"
+                ]
+              },
+              {
+                "fieldName": "perspective",
+                "id": "perspective_input",
+                "label": "Analysis Perspective",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "internal",
+                "options": [
+                  "internal",
+                  "external",
+                  "stakeholder",
+                  "competitor",
+                  "customer"
+                ]
+              },
+              {
+                "fieldName": "includeStrategies",
+                "id": "include_strategies_input",
+                "label": "Include Strategic Options",
+                "type": "Switch",
+                "isRequired": false,
+                "defaultValue": true
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "swotOutcome",
+                "id": "swot_outcome_output",
+                "label": "Complete SWOT Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "strategicGuidance",
+                "id": "strategic_guidance_output",
+                "label": "Strategic Action Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priorityActions",
+                "id": "priority_actions_output",
+                "label": "Priority Action Items",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyStrategies",
+                "id": "key_strategies_output",
+                "label": "Key Strategic Options",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847888",
+          "language": "en",
+          "name": "SWOT Analysis Assistant",
+          "description": "Performs comprehensive SWOT analysis for strategic planning. Identifies strengths, weaknesses, opportunities, and threats, analyzes strategic combinations, and generates actionable recommendations with priority actions.",
+          "instructions": "Describe the entity or situation to analyze. Provide context including industry and market factors. Set goals and timeframe for analysis. The routine will conduct thorough SWOT analysis and provide strategic recommendations."
+        }
+      ]
+    }
+  ]
+}

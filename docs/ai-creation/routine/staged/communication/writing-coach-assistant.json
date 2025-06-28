@@ -1,0 +1,329 @@
+{
+  "id": "7829564732190847928",
+  "publicId": "essay-coach-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847051",
+      "tag": "communication-content",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Communication and content systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847929",
+      "publicId": "essay-coach-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Essay writing coaching and improvement system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Essay Structure",
+                "description": "Examines organization, flow, and structural elements of the essay",
+                "subroutineId": "TODO: Need structure analysis subroutine",
+                "inputMap": {
+                  "essayText": "writingContent",
+                  "assignmentRequirements": "academicCriteria",
+                  "structuralGuidelines": "organizationStandards"
+                },
+                "outputMap": {
+                  "structureAnalysis": "organizationalAssessment",
+                  "flowEvaluation": "coherenceReview",
+                  "structuralWeaknesses": "organizationIssues"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Evaluate Content Quality",
+                "description": "Assesses argument strength, evidence, and depth of analysis",
+                "subroutineId": "TODO: Need content evaluation subroutine",
+                "inputMap": {
+                  "writingContent": "essayText",
+                  "academicCriteria": "assignmentRequirements",
+                  "qualityStandards": "contentExpectations"
+                },
+                "outputMap": {
+                  "contentAssessment": "argumentStrength",
+                  "evidenceEvaluation": "supportQuality",
+                  "analyticalDepth": "criticalThinking"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Review Writing Mechanics",
+                "description": "Checks grammar, style, clarity, and technical writing elements",
+                "subroutineId": "TODO: Need mechanics review subroutine",
+                "inputMap": {
+                  "organizationalAssessment": "structureAnalysis",
+                  "writingStyle": "stylisticElements",
+                  "technicalAccuracy": "grammarAndClarity"
+                },
+                "outputMap": {
+                  "mechanicsReview": "technicalAssessment",
+                  "stylisticFeedback": "writingStyleAdvice",
+                  "clarityIssues": "communicationProblems"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Identify Improvement Areas",
+                "description": "Pinpoints specific areas needing enhancement or revision",
+                "subroutineId": "TODO: Need improvement identification subroutine",
+                "inputMap": {
+                  "argumentStrength": "contentAssessment",
+                  "organizationIssues": "structuralWeaknesses",
+                  "communicationProblems": "clarityIssues"
+                },
+                "outputMap": {
+                  "improvementPriorities": "revisionFocus",
+                  "strengthsToMaintain": "positiveElements",
+                  "specificSuggestions": "targetedRecommendations"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Generate Coaching Feedback",
+                "description": "Creates detailed, constructive feedback with specific guidance",
+                "subroutineId": "TODO: Need feedback generation subroutine",
+                "inputMap": {
+                  "revisionFocus": "improvementPriorities",
+                  "targetedRecommendations": "specificSuggestions",
+                  "coachingStyle": "feedbackApproach"
+                },
+                "outputMap": {
+                  "detailedFeedback": "comprehensiveReview",
+                  "improvementStrategies": "enhancementMethods",
+                  "actionableSteps": "revisionPlan"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Create Development Plan",
+                "description": "Develops personalized writing improvement roadmap",
+                "subroutineId": "TODO: Need development planning subroutine",
+                "inputMap": {
+                  "comprehensiveReview": "detailedFeedback",
+                  "enhancementMethods": "improvementStrategies",
+                  "learningGoals": "developmentObjectives"
+                },
+                "outputMap": {
+                  "developmentPlan": "improvementRoadmap",
+                  "practiceExercises": "skillBuilding",
+                  "progressTracking": "improvementMetrics"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "essay": "writingContent",
+                "assignment": "academicCriteria",
+                "level": "writingLevel",
+                "goals": "learningObjectives"
+              },
+              "outputMap": {
+                "improvementRoadmap": "coachingOutcome",
+                "skillBuilding": "practiceRecommendations",
+                "comprehensiveReview": "feedbackReport",
+                "revisionPlan": "nextSteps"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "essay",
+                "id": "essay_input",
+                "label": "Essay Text",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "The essay draft you want feedback on"
+              },
+              {
+                "fieldName": "assignment",
+                "id": "assignment_input",
+                "label": "Assignment Requirements",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Prompt, rubric, and specific requirements"
+              },
+              {
+                "fieldName": "essayType",
+                "id": "essay_type_input",
+                "label": "Essay Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "argumentative",
+                  "analytical",
+                  "expository",
+                  "narrative",
+                  "descriptive",
+                  "compare-contrast",
+                  "cause-effect",
+                  "research-paper"
+                ]
+              },
+              {
+                "fieldName": "level",
+                "id": "level_input",
+                "label": "Academic Level",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "middle-school",
+                  "high-school",
+                  "college-freshman",
+                  "college-upper",
+                  "graduate",
+                  "professional"
+                ]
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Areas to Focus On",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Specific aspects you want help with (structure, arguments, style, etc.)"
+              },
+              {
+                "fieldName": "feedbackStyle",
+                "id": "feedback_style_input",
+                "label": "Feedback Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "encouraging",
+                  "balanced",
+                  "detailed",
+                  "critical",
+                  "developmental"
+                ]
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Learning Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What writing skills you want to improve"
+              },
+              {
+                "fieldName": "timeToRevise",
+                "id": "time_to_revise_input",
+                "label": "Time Available for Revision",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "minimal",
+                  "moderate",
+                  "extensive",
+                  "unlimited"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "coachingOutcome",
+                "id": "coaching_outcome_output",
+                "label": "Complete Writing Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practiceRecommendations",
+                "id": "practice_recommendations_output",
+                "label": "Skill-Building Exercises",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "feedbackReport",
+                "id": "feedback_report_output",
+                "label": "Detailed Feedback & Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "nextSteps",
+                "id": "next_steps_output",
+                "label": "Revision Action Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "conversational",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847930",
+          "language": "en",
+          "name": "Essay Writing Coach",
+          "description": "Comprehensive essay writing coaching and improvement system. Analyzes essay structure, evaluates content quality, reviews writing mechanics, identifies improvement areas, generates constructive feedback, and creates personalized development plans.",
+          "instructions": "Provide your essay draft and assignment requirements. Specify essay type and academic level. Include focus areas and learning goals. The routine will analyze your writing comprehensively and provide detailed feedback with actionable improvement strategies."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,335 @@
+{
+  "id": "7829564732190847802",
+  "publicId": "adv-prioritize-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "productivity-optimization",
+      "translations": [
+        {
+          "id": "7829564732190847141",
+          "language": "en",
+          "description": "Productivity systems and optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847042",
+      "tag": "task-prioritization",
+      "translations": [
+        {
+          "id": "7829564732190847142",
+          "language": "en",
+          "description": "Task prioritization and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847095",
+      "tag": "optimization",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Performance optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847803",
+      "publicId": "adv-prioritize-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Advanced task prioritization with multiple frameworks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Gather Task Inventory",
+                "description": "Collects all tasks with metadata and dependencies",
+                "subroutineId": "TODO: Need task collection subroutine",
+                "inputMap": {
+                  "taskSources": "inputChannels",
+                  "projectBacklogs": "taskRepositories",
+                  "incomingRequests": "newTasks"
+                },
+                "outputMap": {
+                  "taskInventory": "completeTaskList",
+                  "taskMetadata": "detailedAttributes",
+                  "dependencyMap": "taskRelationships"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Apply Prioritization Frameworks",
+                "description": "Uses multiple methods to score and rank tasks",
+                "subroutineId": "TODO: Need framework application subroutine",
+                "inputMap": {
+                  "completeTaskList": "taskInventory",
+                  "priorityFrameworks": "scoringMethods",
+                  "contextualFactors": "environmentalVariables"
+                },
+                "outputMap": {
+                  "eisenhowerMatrix": "urgencyImportance",
+                  "riceScores": "reachImpactConfidenceEffort",
+                  "weightedScoring": "multiCriteriaRanking"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Analyze Resource Constraints",
+                "description": "Evaluates available resources against task requirements",
+                "subroutineId": "TODO: Need resource analysis subroutine",
+                "inputMap": {
+                  "resourceAvailability": "capacityInventory",
+                  "taskRequirements": "resourceNeeds",
+                  "timeConstraints": "scheduleFactors"
+                },
+                "outputMap": {
+                  "resourceMapping": "allocationPossibilities",
+                  "capacityAnalysis": "utilizationForecast",
+                  "constraintImpact": "limitationEffects"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Consider Strategic Alignment",
+                "description": "Aligns tasks with organizational goals and objectives",
+                "subroutineId": "TODO: Need alignment assessment subroutine",
+                "inputMap": {
+                  "organizationalGoals": "strategicObjectives",
+                  "taskOutcomes": "expectedResults",
+                  "valueGeneration": "benefitAnalysis"
+                },
+                "outputMap": {
+                  "alignmentScores": "strategicFit",
+                  "valuePrioritization": "outcomeRanking",
+                  "goalContribution": "objectiveImpact"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Generate Priority Sequence",
+                "description": "Creates final prioritized task list with rationale",
+                "subroutineId": "TODO: Need sequencing subroutine",
+                "inputMap": {
+                  "multiCriteriaRanking": "weightedScoring",
+                  "allocationPossibilities": "resourceMapping",
+                  "strategicFit": "alignmentScores"
+                },
+                "outputMap": {
+                  "prioritizedList": "taskSequence",
+                  "executionSchedule": "workPlan",
+                  "rationaleDocument": "priorityExplanation"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Create Adaptive Framework",
+                "description": "Establishes system for dynamic reprioritization",
+                "subroutineId": "TODO: Need adaptation framework subroutine",
+                "inputMap": {
+                  "taskSequence": "prioritizedList",
+                  "changeTriggers": "reprioritizationEvents",
+                  "feedbackLoops": "performanceMonitoring"
+                },
+                "outputMap": {
+                  "adaptiveSystem": "dynamicFramework",
+                  "triggerDefinitions": "changeConditions",
+                  "monitoringDashboard": "priorityTracking"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "tasks": "inputChannels",
+                "resources": "capacityInventory",
+                "goals": "strategicObjectives",
+                "methods": "scoringMethods"
+              },
+              "outputMap": {
+                "taskSequence": "prioritizationOutcome",
+                "workPlan": "executionSchedule",
+                "dynamicFramework": "adaptiveSystem",
+                "priorityTracking": "monitoringSystem"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "tasks",
+                "id": "tasks_input",
+                "label": "Task Inventory",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of all tasks with descriptions, deadlines, and requirements"
+              },
+              {
+                "fieldName": "resources",
+                "id": "resources_input",
+                "label": "Available Resources",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Team capacity, budget, tools, and time available"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Strategic Objectives",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Organizational goals and key results to align with"
+              },
+              {
+                "fieldName": "methods",
+                "id": "methods_input",
+                "label": "Prioritization Methods",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "eisenhower-matrix",
+                  "rice-scoring",
+                  "moscow-method",
+                  "value-effort-matrix",
+                  "weighted-scoring",
+                  "hybrid-approach"
+                ]
+              },
+              {
+                "fieldName": "timeHorizon",
+                "id": "time_horizon_input",
+                "label": "Planning Horizon",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "daily",
+                  "weekly",
+                  "sprint",
+                  "monthly",
+                  "quarterly",
+                  "annual"
+                ]
+              },
+              {
+                "fieldName": "taskVolume",
+                "id": "task_volume_input",
+                "label": "Number of Tasks",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "10-50",
+                "options": [
+                  "1-10",
+                  "10-50",
+                  "50-100",
+                  "100-500",
+                  "500+"
+                ]
+              },
+              {
+                "fieldName": "complexityLevel",
+                "id": "complexity_level_input",
+                "label": "Task Complexity",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "mixed",
+                "options": [
+                  "simple",
+                  "moderate",
+                  "complex",
+                  "mixed",
+                  "highly-complex"
+                ]
+              },
+              {
+                "fieldName": "changeFrequency",
+                "id": "change_frequency_input",
+                "label": "Priority Change Frequency",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "weekly",
+                "options": [
+                  "daily",
+                  "weekly",
+                  "bi-weekly",
+                  "monthly",
+                  "rarely"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizationOutcome",
+                "id": "prioritization_outcome_output",
+                "label": "Complete Priority Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "executionSchedule",
+                "id": "execution_schedule_output",
+                "label": "Task Execution Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "adaptiveSystem",
+                "id": "adaptive_system_output",
+                "label": "Dynamic Prioritization Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "monitoringSystem",
+                "id": "monitoring_system_output",
+                "label": "Priority Tracking Dashboard",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "reasoning",
+          "2": "deterministic",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847804",
+          "language": "en",
+          "name": "Advanced Task Prioritizer",
+          "description": "Comprehensive prioritization system that gathers task inventory, applies multiple frameworks (Eisenhower, RICE, MoSCoW), analyzes resources, considers strategic alignment, generates priority sequences, and creates adaptive reprioritization systems.",
+          "instructions": "Provide your task inventory with details and dependencies. Include available resources and strategic objectives. Select prioritization methods and planning horizon. The routine will analyze tasks, apply frameworks, and create a prioritized execution plan with monitoring."
+        }
+      ]
+    }
+  ]
+}

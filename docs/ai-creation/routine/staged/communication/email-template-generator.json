@@ -1,0 +1,198 @@
+{
+  "id": "7829564732190847661",
+  "publicId": "email-temp-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847091",
+      "tag": "automation",
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "description": "Process automation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847662",
+      "publicId": "email-temp-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Professional email template creation for various purposes",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "promptTemplate": "You are a professional communications expert specializing in crafting effective email templates for business and personal use.\n\nEmail Details:\n- Purpose: {{input.emailPurpose}}\n- Recipient: {{input.recipientType}}\n- Tone: {{input.toneStyle}}\n- Industry/Context: {{input.industryContext}}\n- Key Message: {{input.keyMessage}}\n- Call to Action: {{input.callToAction}}\n- Urgency Level: {{input.urgencyLevel}}\n\nCreate a professional email template that includes:\n\n1. **Subject Line Options**:\n   - 3-5 compelling subject line variations\n   - Clear, specific, and action-oriented\n   - Optimized for open rates\n   - Appropriate urgency indicators if needed\n\n2. **Email Structure**:\n   - Professional greeting appropriate to relationship\n   - Clear, concise opening that states purpose\n   - Well-organized body with logical flow\n   - Strong call-to-action\n   - Professional closing and signature placeholder\n\n3. **Content Guidelines**:\n   - Appropriate tone and formality level\n   - Clear, scannable formatting\n   - Compelling but not pushy language\n   - Respect for recipient's time\n   - Professional courtesy phrases\n\n4. **Customization Notes**:\n   - Personalization opportunities\n   - Variable fields for easy customization\n   - Alternative phrasings for different contexts\n   - Tips for adaptation\n\nAdapt the template based on email type (sales, follow-up, introduction, meeting request, proposal, networking, etc.) and ensure it follows email best practices for engagement and professionalism.",
+            "temperature": 0.6,
+            "model": "medium",
+            "systemMessage": "You are an expert business communication specialist who creates professional, effective email templates that achieve their intended purpose while maintaining appropriate tone and professionalism."
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailPurpose",
+                "id": "email_purpose_input",
+                "label": "Email Purpose",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "sales-outreach",
+                  "follow-up",
+                  "meeting-request",
+                  "introduction",
+                  "proposal-submission",
+                  "networking",
+                  "thank-you",
+                  "apology",
+                  "announcement",
+                  "reminder",
+                  "feedback-request",
+                  "collaboration-request",
+                  "job-application",
+                  "customer-service",
+                  "project-update"
+                ]
+              },
+              {
+                "fieldName": "recipientType",
+                "id": "recipient_type_input",
+                "label": "Recipient Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "new-prospect",
+                  "existing-client",
+                  "colleague",
+                  "manager",
+                  "direct-report",
+                  "vendor",
+                  "partner",
+                  "investor",
+                  "job-recruiter",
+                  "industry-contact",
+                  "customer",
+                  "unknown-contact"
+                ]
+              },
+              {
+                "fieldName": "toneStyle",
+                "id": "tone_style_input",
+                "label": "Tone & Style",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "formal",
+                  "professional",
+                  "friendly-professional",
+                  "casual",
+                  "conversational",
+                  "direct",
+                  "persuasive",
+                  "consultative",
+                  "authoritative",
+                  "collaborative"
+                ]
+              },
+              {
+                "fieldName": "industryContext",
+                "id": "industry_context_input",
+                "label": "Industry/Context",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Industry, company type, or specific context"
+              },
+              {
+                "fieldName": "keyMessage",
+                "id": "key_message_input",
+                "label": "Key Message",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Main point or message you want to convey"
+              },
+              {
+                "fieldName": "callToAction",
+                "id": "call_to_action_input",
+                "label": "Desired Call to Action",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "What do you want the recipient to do next?"
+              },
+              {
+                "fieldName": "urgencyLevel",
+                "id": "urgency_level_input",
+                "label": "Urgency Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "normal",
+                "options": [
+                  "low",
+                  "normal",
+                  "high",
+                  "urgent"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailTemplate",
+                "id": "email_template_output",
+                "label": "Complete Email Template",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "subjectLineOptions",
+                "id": "subject_line_options_output",
+                "label": "Subject Line Variations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "customizationTips",
+                "id": "customization_tips_output",
+                "label": "Customization Guidelines",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bestPractices",
+                "id": "best_practices_output",
+                "label": "Email Best Practices",
+                "type": "TextInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847663",
+          "language": "en",
+          "name": "Email Template Generator",
+          "description": "Creates professional email templates for various business and personal purposes. Generates subject line options, structured content, and customization guidelines tailored to specific recipients, purposes, and tone requirements.",
+          "instructions": "Select your email purpose, recipient type, and desired tone. Provide the key message and call to action. The routine will generate a complete email template with subject line variations, professional formatting, and customization tips for maximum effectiveness."
+        }
+      ]
+    }
+  ]
+}

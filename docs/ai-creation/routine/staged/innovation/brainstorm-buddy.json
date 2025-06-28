@@ -1,0 +1,273 @@
+{
+  "id": "7829564732190847640",
+  "publicId": "brainstorm-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847016",
+      "tag": "innovation-creativity",
+      "translations": [
+        {
+          "id": "7829564732190847116",
+          "language": "en",
+          "description": "Innovation and creative thinking"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847018",
+      "tag": "brainstorming",
+      "translations": [
+        {
+          "id": "7829564732190847118",
+          "language": "en",
+          "description": "Ideation and brainstorming facilitation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847641",
+      "publicId": "brainstorm-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Interactive brainstorming facilitation with idea generation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Define Challenge & Context",
+                "description": "Clarifies the problem or opportunity and establishes constraints",
+                "subroutineId": "TODO: Need reasoning subroutine for problem clarification",
+                "inputMap": {
+                  "challengeDescription": "problemStatement",
+                  "contextInfo": "situationalContext",
+                  "constraints": "limitations"
+                },
+                "outputMap": {
+                  "clarifiedChallenge": "refinedProblem",
+                  "scopeBoundaries": "definedScope",
+                  "successCriteria": "goalMetrics"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Generate Initial Ideas",
+                "description": "Creates diverse initial concepts using various brainstorming techniques",
+                "subroutineId": "TODO: Need generation subroutine for creative ideation",
+                "inputMap": {
+                  "clarifiedChallenge": "refinedProblem",
+                  "brainstormingStyle": "ideationMethod",
+                  "diversityLevel": "creativityScope"
+                },
+                "outputMap": {
+                  "initialIdeas": "generatedConcepts",
+                  "ideaCategories": "conceptGroups",
+                  "wildIdeas": "unconventionalThoughts"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Expand & Build Ideas",
+                "description": "Develops promising concepts and creates variations",
+                "subroutineId": "TODO: Need expansion subroutine for idea development",
+                "inputMap": {
+                  "initialIdeas": "generatedConcepts",
+                  "userFeedback": "selectedConcepts",
+                  "buildingTechniques": "expansionMethods"
+                },
+                "outputMap": {
+                  "expandedIdeas": "developedConcepts",
+                  "ideaCombinations": "hybridSolutions",
+                  "implementationHints": "feasibilityNotes"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Challenge & Provoke",
+                "description": "Introduces provocative questions and alternative perspectives",
+                "subroutineId": "TODO: Need reasoning subroutine for critical thinking",
+                "inputMap": {
+                  "expandedIdeas": "developedConcepts",
+                  "assumptionChecking": "currentAssumptions",
+                  "perspectiveShifts": "alternativeViewpoints"
+                },
+                "outputMap": {
+                  "challengedAssumptions": "questionedBeliefs",
+                  "newPerspectives": "freshAngles",
+                  "disruptiveIdeas": "paradigmShifts"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Organize & Prioritize",
+                "description": "Structures ideas and identifies most promising concepts",
+                "subroutineId": "TODO: Need organization subroutine for idea clustering",
+                "inputMap": {
+                  "allIdeas": "combinedConcepts",
+                  "evaluationCriteria": "selectionFactors",
+                  "prioritizationMethod": "rankingApproach"
+                },
+                "outputMap": {
+                  "organizedIdeas": "structuredConcepts",
+                  "topIdeas": "prioritizedSolutions",
+                  "nextSteps": "actionPlan"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "challenge": "problemStatement",
+                "context": "situationalContext",
+                "style": "ideationMethod",
+                "criteria": "selectionFactors"
+              },
+              "outputMap": {
+                "structuredConcepts": "brainstormingResults",
+                "prioritizedSolutions": "topRecommendations",
+                "actionPlan": "implementationGuidance",
+                "paradigmShifts": "innovativeInsights"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "challenge",
+                "id": "challenge_input",
+                "label": "Challenge or Opportunity",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe the problem you're trying to solve or opportunity to explore"
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Context & Background",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Relevant background information, stakeholders, or constraints"
+              },
+              {
+                "fieldName": "style",
+                "id": "style_input",
+                "label": "Brainstorming Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "divergent",
+                "options": [
+                  "divergent",
+                  "convergent",
+                  "lateral",
+                  "analytical",
+                  "creative",
+                  "systematic"
+                ]
+              },
+              {
+                "fieldName": "criteria",
+                "id": "criteria_input",
+                "label": "Evaluation Criteria",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "How should ideas be evaluated? (feasibility, impact, resources, etc.)"
+              },
+              {
+                "fieldName": "timeConstraint",
+                "id": "time_constraint_input",
+                "label": "Time Constraint",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "quick",
+                  "moderate",
+                  "thorough",
+                  "extensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "brainstormingResults",
+                "id": "brainstorming_results_output",
+                "label": "Complete Brainstorming Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "topRecommendations",
+                "id": "top_recommendations_output",
+                "label": "Top Solution Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationGuidance",
+                "id": "implementation_guidance_output",
+                "label": "Implementation Guidance",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "innovativeInsights",
+                "id": "innovative_insights_output",
+                "label": "Innovative Insights & Paradigm Shifts",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "conversational",
+          "2": "conversational",
+          "3": "reasoning",
+          "4": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847642",
+          "language": "en",
+          "name": "Brainstorm Buddy",
+          "description": "Interactive brainstorming facilitator that guides creative problem-solving sessions. Generates diverse ideas, challenges assumptions, builds on concepts, and organizes results into actionable recommendations.",
+          "instructions": "Describe your challenge or opportunity along with any relevant context. Choose your preferred brainstorming style and evaluation criteria. The routine will facilitate a structured ideation session, generate creative solutions, and provide prioritized recommendations with implementation guidance."
+        }
+      ]
+    }
+  ]
+}

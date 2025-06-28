@@ -1,0 +1,318 @@
+{
+  "id": "7829564732190847667",
+  "publicId": "comp-analysis-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "research-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Research and information gathering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847024",
+      "tag": "competitive-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847124",
+          "language": "en",
+          "description": "Competitive intelligence and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847668",
+      "publicId": "comp-analysis-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive competitive landscape analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Identify Competitors",
+                "description": "Maps direct, indirect, and potential competitors in the market",
+                "subroutineId": "TODO: Need competitor identification subroutine",
+                "inputMap": {
+                  "businessDescription": "companyProfile",
+                  "marketSegment": "targetMarket",
+                  "geographicScope": "marketScope"
+                },
+                "outputMap": {
+                  "directCompetitors": "primaryRivals",
+                  "indirectCompetitors": "alternativeSolutions",
+                  "emergingCompetitors": "potentialThreats"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Product Offerings",
+                "description": "Compares product features, pricing, and positioning",
+                "subroutineId": "TODO: Need product analysis subroutine",
+                "inputMap": {
+                  "competitorList": "identifiedCompetitors",
+                  "productCategories": "analysisScope",
+                  "featureMatrix": "comparisonCriteria"
+                },
+                "outputMap": {
+                  "productComparison": "featureAnalysis",
+                  "pricingAnalysis": "marketPricing",
+                  "positioningMap": "marketPositioning"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Evaluate Market Presence",
+                "description": "Assesses brand strength, marketing strategies, and market share",
+                "subroutineId": "TODO: Need market presence analysis subroutine",
+                "inputMap": {
+                  "competitorList": "identifiedCompetitors",
+                  "marketData": "industryMetrics",
+                  "brandMetrics": "visibilityMeasures"
+                },
+                "outputMap": {
+                  "marketShare": "shareAnalysis",
+                  "brandStrength": "brandEquity",
+                  "marketingTactics": "promotionalStrategies"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Assess Strengths & Weaknesses",
+                "description": "Identifies competitive advantages and vulnerabilities",
+                "subroutineId": "TODO: Need strengths/weaknesses analysis subroutine",
+                "inputMap": {
+                  "productComparison": "featureAnalysis",
+                  "marketShare": "shareAnalysis",
+                  "customerFeedback": "reputationData"
+                },
+                "outputMap": {
+                  "competitorStrengths": "advantageAreas",
+                  "competitorWeaknesses": "vulnerabilityGaps",
+                  "opportunityGaps": "marketOpenings"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Analyze Competitive Strategies",
+                "description": "Studies business models, go-to-market approaches, and strategic focus",
+                "subroutineId": "TODO: Need strategy analysis subroutine",
+                "inputMap": {
+                  "competitorList": "identifiedCompetitors",
+                  "marketingTactics": "promotionalStrategies",
+                  "businessModels": "revenueApproaches"
+                },
+                "outputMap": {
+                  "strategicPatterns": "competitiveStrategies",
+                  "innovationTrends": "developmentDirections",
+                  "marketTrends": "industryMovement"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Generate Strategic Recommendations",
+                "description": "Develops actionable insights and competitive positioning recommendations",
+                "subroutineId": "TODO: Need recommendation generation subroutine",
+                "inputMap": {
+                  "opportunityGaps": "marketOpenings",
+                  "strategicPatterns": "competitiveStrategies",
+                  "businessGoals": "objectiveTargets"
+                },
+                "outputMap": {
+                  "strategicRecommendations": "actionableInsights",
+                  "competitivePositioning": "differentiationStrategy",
+                  "monitoringPlan": "ongoingTracking"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "business": "companyProfile",
+                "market": "targetMarket",
+                "scope": "analysisScope",
+                "goals": "objectiveTargets"
+              },
+              "outputMap": {
+                "actionableInsights": "competitiveIntelligence",
+                "featureAnalysis": "productBenchmark",
+                "differentiationStrategy": "positioningGuidance",
+                "ongoingTracking": "monitoringFramework"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "business",
+                "id": "business_input",
+                "label": "Business/Product Description",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe your business, product, or service"
+              },
+              {
+                "fieldName": "market",
+                "id": "market_input",
+                "label": "Target Market",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Who are your target customers and what market do you serve?"
+              },
+              {
+                "fieldName": "scope",
+                "id": "scope_input",
+                "label": "Analysis Scope",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "direct-competitors-only",
+                  "direct-and-indirect",
+                  "comprehensive-landscape",
+                  "emerging-threats-focus",
+                  "specific-product-category"
+                ]
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Business Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What are you trying to achieve? (market share, differentiation, etc.)"
+              },
+              {
+                "fieldName": "geographicScope",
+                "id": "geographic_scope_input",
+                "label": "Geographic Scope",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "national",
+                "options": [
+                  "local",
+                  "regional",
+                  "national",
+                  "international",
+                  "global"
+                ]
+              },
+              {
+                "fieldName": "industryStage",
+                "id": "industry_stage_input",
+                "label": "Industry Stage",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "mature",
+                "options": [
+                  "emerging",
+                  "growth",
+                  "mature",
+                  "declining",
+                  "transforming"
+                ]
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": [
+                  "high-level",
+                  "standard",
+                  "detailed",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "competitiveIntelligence",
+                "id": "competitive_intelligence_output",
+                "label": "Complete Competitive Intelligence Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "productBenchmark",
+                "id": "product_benchmark_output",
+                "label": "Product & Feature Benchmark",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "positioningGuidance",
+                "id": "positioning_guidance_output",
+                "label": "Strategic Positioning Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "monitoringFramework",
+                "id": "monitoring_framework_output",
+                "label": "Competitive Monitoring Framework",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847669",
+          "language": "en",
+          "name": "Competitive Analysis Framework",
+          "description": "Comprehensive competitive intelligence system that identifies competitors, analyzes products and strategies, evaluates market presence, assesses strengths/weaknesses, and generates strategic positioning recommendations with ongoing monitoring frameworks.",
+          "instructions": "Describe your business and target market, then specify the analysis scope and goals. The routine will systematically analyze your competitive landscape, benchmark products and features, evaluate market positioning, and provide strategic recommendations for competitive advantage."
+        }
+      ]
+    }
+  ]
+}

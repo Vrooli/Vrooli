@@ -1,0 +1,326 @@
+{
+  "id": "7829564732190847916",
+  "publicId": "subscription-mgr-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847031",
+      "tag": "financial-management",
+      "translations": [
+        {
+          "id": "7829564732190847131",
+          "language": "en",
+          "description": "Financial management and optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847035",
+      "tag": "expense-tracking",
+      "translations": [
+        {
+          "id": "7829564732190847135",
+          "language": "en",
+          "description": "Expense tracking and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847093",
+      "tag": "monitoring",
+      "translations": [
+        {
+          "id": "7829564732190847193",
+          "language": "en",
+          "description": "Monitoring and tracking"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847917",
+      "publicId": "subscription-mgr-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Subscription and recurring billing management system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Inventory Current Subscriptions",
+                "description": "Catalogs all active subscriptions and recurring payments",
+                "subroutineId": "TODO: Need subscription inventory subroutine",
+                "inputMap": {
+                  "subscriptionData": "serviceList",
+                  "paymentMethods": "billingAccounts",
+                  "timeRange": "analysisWindow"
+                },
+                "outputMap": {
+                  "subscriptionInventory": "catalogedServices",
+                  "costBreakdown": "spendingAnalysis",
+                  "renewalCalendar": "upcomingCharges"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Usage Patterns",
+                "description": "Evaluates how frequently each subscription is actually used",
+                "subroutineId": "TODO: Need usage analysis subroutine",
+                "inputMap": {
+                  "catalogedServices": "subscriptionInventory",
+                  "usageData": "serviceUtilization",
+                  "usageThresholds": "minimumValueCriteria"
+                },
+                "outputMap": {
+                  "usageMetrics": "utilizationAnalysis",
+                  "valueAssessment": "serviceWorthiness",
+                  "underutilizedServices": "lowValueSubscriptions"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Calculate Cost Efficiency",
+                "description": "Determines cost per usage and value proposition for each service",
+                "subroutineId": "TODO: Need cost efficiency subroutine",
+                "inputMap": {
+                  "spendingAnalysis": "costBreakdown",
+                  "utilizationAnalysis": "usageMetrics",
+                  "budgetConstraints": "spendingLimits"
+                },
+                "outputMap": {
+                  "efficiencyRatings": "costValueAnalysis",
+                  "budgetImpact": "financialBurden",
+                  "optimizationOpportunities": "savingsPotential"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Identify Redundancies",
+                "description": "Finds overlapping services and consolidation opportunities",
+                "subroutineId": "TODO: Need redundancy detection subroutine",
+                "inputMap": {
+                  "serviceWorthiness": "valueAssessment",
+                  "featureComparison": "serviceCapabilities",
+                  "consolidationPreferences": "simplificationGoals"
+                },
+                "outputMap": {
+                  "redundantServices": "duplicateOfferings",
+                  "consolidationOptions": "mergingOpportunities",
+                  "preferredServices": "bestInCategory"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Generate Recommendations",
+                "description": "Creates actionable suggestions for subscription optimization",
+                "subroutineId": "TODO: Need recommendation engine subroutine",
+                "inputMap": {
+                  "savingsPotential": "optimizationOpportunities",
+                  "lowValueSubscriptions": "underutilizedServices",
+                  "mergingOpportunities": "consolidationOptions"
+                },
+                "outputMap": {
+                  "cancellationSuggestions": "servicesToCancel",
+                  "downgradePlans": "tierOptimization",
+                  "switchingRecommendations": "betterAlternatives"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Create Management Plan",
+                "description": "Develops comprehensive subscription management strategy",
+                "subroutineId": "TODO: Need management planning subroutine",
+                "inputMap": {
+                  "servicesToCancel": "cancellationSuggestions",
+                  "tierOptimization": "downgradePlans",
+                  "upcomingCharges": "renewalCalendar"
+                },
+                "outputMap": {
+                  "managementPlan": "subscriptionStrategy",
+                  "actionTimeline": "implementationSchedule",
+                  "monitoringSystem": "ongoingTracking"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "subscriptions": "serviceList",
+                "usage": "serviceUtilization",
+                "budget": "spendingLimits",
+                "goals": "optimizationObjectives"
+              },
+              "outputMap": {
+                "subscriptionStrategy": "managementOutcome",
+                "implementationSchedule": "actionPlan",
+                "ongoingTracking": "monitoringFramework",
+                "costValueAnalysis": "efficiencyReport"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "subscriptions",
+                "id": "subscriptions_input",
+                "label": "Current Subscriptions",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of services, costs, and billing frequencies"
+              },
+              {
+                "fieldName": "usage",
+                "id": "usage_input",
+                "label": "Usage Information",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "How often you use each service or estimated usage"
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Budget Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Target spending limits or reduction goals"
+              },
+              {
+                "fieldName": "subscriptionType",
+                "id": "subscription_type_input",
+                "label": "Focus Area",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "all-subscriptions",
+                  "streaming-media",
+                  "software-tools",
+                  "news-publications",
+                  "cloud-services",
+                  "fitness-health",
+                  "productivity-apps"
+                ]
+              },
+              {
+                "fieldName": "optimizationGoal",
+                "id": "optimization_goal_input",
+                "label": "Primary Goal",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "reduce-costs",
+                  "eliminate-redundancy",
+                  "improve-usage",
+                  "simplify-management",
+                  "maximize-value"
+                ]
+              },
+              {
+                "fieldName": "paymentMethods",
+                "id": "payment_methods_input",
+                "label": "Payment Methods",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Credit cards, bank accounts used for subscriptions"
+              },
+              {
+                "fieldName": "cancellationPreferences",
+                "id": "cancellation_preferences_input",
+                "label": "Cancellation Approach",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "gradual",
+                "options": [
+                  "immediate",
+                  "gradual",
+                  "trial-based",
+                  "conservative"
+                ]
+              },
+              {
+                "fieldName": "valueThreshold",
+                "id": "value_threshold_input",
+                "label": "Value Threshold",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "strict",
+                  "moderate",
+                  "lenient",
+                  "keep-all"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "managementOutcome",
+                "id": "management_outcome_output",
+                "label": "Complete Subscription Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Implementation Timeline",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "monitoringFramework",
+                "id": "monitoring_framework_output",
+                "label": "Ongoing Tracking System",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "efficiencyReport",
+                "id": "efficiency_report_output",
+                "label": "Cost-Value Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "reasoning",
+          "2": "deterministic",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847918",
+          "language": "en",
+          "name": "Subscription Manager",
+          "description": "Comprehensive subscription and recurring billing management system. Inventories current subscriptions, analyzes usage patterns, calculates cost efficiency, identifies redundancies, generates optimization recommendations, and creates management plans.",
+          "instructions": "List your current subscriptions with costs and usage information. Set budget constraints and optimization goals. Choose focus area and cancellation preferences. The routine will analyze your subscriptions and provide actionable recommendations for cost savings and simplification."
+        }
+      ]
+    }
+  ]
+}

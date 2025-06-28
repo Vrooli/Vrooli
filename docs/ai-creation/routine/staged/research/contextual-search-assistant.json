@@ -1,0 +1,314 @@
+{
+  "id": "7829564732190847868",
+  "publicId": "context-search-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "research-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Research and information gathering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847091",
+      "tag": "automation",
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "description": "Process automation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847869",
+      "publicId": "context-search-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - AI-powered search within specific contexts or datasets",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Process Query",
+                "description": "Analyzes and expands the search query",
+                "subroutineId": "TODO: Need query processing subroutine",
+                "inputMap": {
+                  "userQuery": "naturalLanguageQuery",
+                  "searchContext": "contextualScope",
+                  "queryHistory": "previousSearches"
+                },
+                "outputMap": {
+                  "processedQuery": "expandedSearch",
+                  "searchIntents": "queryUnderstanding",
+                  "keyTerms": "extractedConcepts"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Generate Embeddings",
+                "description": "Creates vector representations for semantic search",
+                "subroutineId": "TODO: Need embedding generation subroutine",
+                "inputMap": {
+                  "expandedSearch": "processedQuery",
+                  "embeddingModel": "vectorizationMethod",
+                  "contextualWeights": "relevanceFactors"
+                },
+                "outputMap": {
+                  "queryEmbeddings": "searchVectors",
+                  "semanticExpansion": "relatedConcepts",
+                  "embeddingMetadata": "vectorProperties"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Search Knowledge Base",
+                "description": "Performs similarity search in vector store",
+                "subroutineId": "TODO: Need vector search subroutine",
+                "inputMap": {
+                  "searchVectors": "queryEmbeddings",
+                  "knowledgeBase": "contextDataset",
+                  "searchThreshold": "similarityMinimum"
+                },
+                "outputMap": {
+                  "searchResults": "matchedDocuments",
+                  "relevanceScores": "similarityRatings",
+                  "resultMetadata": "documentProperties"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Rank & Filter Results",
+                "description": "Orders results by relevance and applies filters",
+                "subroutineId": "TODO: Need result ranking subroutine",
+                "inputMap": {
+                  "matchedDocuments": "searchResults",
+                  "similarityRatings": "relevanceScores",
+                  "filterCriteria": "refinementRules"
+                },
+                "outputMap": {
+                  "rankedResults": "orderedMatches",
+                  "filteredSet": "relevantDocuments",
+                  "rankingExplanation": "scoreJustification"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Extract Key Information",
+                "description": "Pulls relevant excerpts from matched content",
+                "subroutineId": "TODO: Need information extraction subroutine",
+                "inputMap": {
+                  "relevantDocuments": "filteredSet",
+                  "extractedConcepts": "keyTerms",
+                  "excerptLength": "snippetSize"
+                },
+                "outputMap": {
+                  "relevantExcerpts": "keyPassages",
+                  "contextualSnippets": "surroundingText",
+                  "highlightedTerms": "matchedPhrases"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Synthesize Answer",
+                "description": "Combines findings into coherent response",
+                "subroutineId": "TODO: Need answer synthesis subroutine",
+                "inputMap": {
+                  "keyPassages": "relevantExcerpts",
+                  "queryUnderstanding": "searchIntents",
+                  "synthesisStrategy": "answerApproach"
+                },
+                "outputMap": {
+                  "synthesizedAnswer": "unifiedResponse",
+                  "sourceReferences": "citationList",
+                  "confidenceLevel": "answerCertainty"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "query": "naturalLanguageQuery",
+                "context": "contextDataset",
+                "preferences": "searchPreferences",
+                "filters": "refinementCriteria"
+              },
+              "outputMap": {
+                "unifiedResponse": "searchOutcome",
+                "citationList": "sourceReferences",
+                "orderedMatches": "fullResults",
+                "answerCertainty": "confidenceScore"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "query",
+                "id": "query_input",
+                "label": "Search Query",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Natural language question or search terms"
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Context Dataset",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Knowledge base, document collection, or data source"
+              },
+              {
+                "fieldName": "searchType",
+                "id": "search_type_input",
+                "label": "Search Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "semantic",
+                  "keyword",
+                  "hybrid",
+                  "exact-match",
+                  "fuzzy"
+                ]
+              },
+              {
+                "fieldName": "resultCount",
+                "id": "result_count_input",
+                "label": "Max Results",
+                "type": "IntegerInput",
+                "isRequired": false,
+                "defaultValue": 10,
+                "placeholder": "Number of results to return"
+              },
+              {
+                "fieldName": "preferences",
+                "id": "preferences_input",
+                "label": "Search Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Recency bias, source preferences, etc."
+              },
+              {
+                "fieldName": "filters",
+                "id": "filters_input",
+                "label": "Filter Criteria",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Date ranges, categories, authors, etc."
+              },
+              {
+                "fieldName": "answerStyle",
+                "id": "answer_style_input",
+                "label": "Answer Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "brief",
+                  "comprehensive",
+                  "technical",
+                  "simple",
+                  "bullet-points"
+                ]
+              },
+              {
+                "fieldName": "includeSources",
+                "id": "include_sources_input",
+                "label": "Include Sources",
+                "type": "Switch",
+                "isRequired": false,
+                "defaultValue": true
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "searchOutcome",
+                "id": "search_outcome_output",
+                "label": "Synthesized Answer",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "sourceReferences",
+                "id": "source_references_output",
+                "label": "Source Citations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "fullResults",
+                "id": "full_results_output",
+                "label": "Complete Search Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "confidenceScore",
+                "id": "confidence_score_output",
+                "label": "Answer Confidence Level",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "deterministic",
+          "2": "deterministic",
+          "3": "deterministic",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847870",
+          "language": "en",
+          "name": "Contextual Search Assistant",
+          "description": "AI-powered search within specific contexts or datasets. Processes natural language queries, generates embeddings for semantic search, finds relevant content, ranks results, extracts key information, and synthesizes coherent answers with citations.",
+          "instructions": "Enter your search query in natural language. Provide the context dataset or knowledge base. Select search type and preferences. The routine will find relevant information, synthesize an answer, and provide source references."
+        }
+      ]
+    }
+  ]
+}

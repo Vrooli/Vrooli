@@ -104,7 +104,13 @@ cd ../..
 
 # Import routines using CLI
 vrooli auth login  # First time only
+
+# Import all routines
 vrooli routine import-dir ./docs/ai-creation/routine/staged/
+
+# Or import by category
+vrooli routine import-dir ./docs/ai-creation/routine/staged/productivity/
+vrooli routine import-dir ./docs/ai-creation/routine/staged/personal/
 ```
 
 #### Option B: Using Shell Script (Automated)

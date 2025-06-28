@@ -1,0 +1,59 @@
+{
+  "category": "financial",
+  "name": "Financial Intelligence",
+  "description": "Budgeting, investments, financial planning",
+  "availableTags": [
+    {
+      "id": "7829564732190847031",
+      "tag": "financial-management",
+      "translations": [{
+        "id": "7829564732190847131",
+        "language": "en",
+        "description": "Financial management and optimization"
+      }]
+    },
+    {
+      "id": "7829564732190847032",
+      "tag": "budget-optimization",
+      "translations": [{
+        "id": "7829564732190847132",
+        "language": "en",
+        "description": "Budget planning and optimization"
+      }]
+    },
+    {
+      "id": "7829564732190847033",
+      "tag": "investment-analysis",
+      "translations": [{
+        "id": "7829564732190847133",
+        "language": "en",
+        "description": "Investment portfolio analysis"
+      }]
+    },
+    {
+      "id": "7829564732190847034",
+      "tag": "financial-planning",
+      "translations": [{
+        "id": "7829564732190847134",
+        "language": "en",
+        "description": "Long-term financial planning"
+      }]
+    },
+    {
+      "id": "7829564732190847035",
+      "tag": "expense-tracking",
+      "translations": [{
+        "id": "7829564732190847135",
+        "language": "en",
+        "description": "Expense tracking and analysis"
+      }]
+    }
+  ],
+  "crossCuttingTags": [
+    "monitoring",
+    "analysis",
+    "planning",
+    "optimization",
+    "automation"
+  ]
+}

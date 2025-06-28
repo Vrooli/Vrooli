@@ -1,0 +1,59 @@
+{
+  "category": "infrastructure",
+  "name": "Infrastructure & Operations",
+  "description": "Systems, processes, team coordination",
+  "availableTags": [
+    {
+      "id": "7829564732190847056",
+      "tag": "infrastructure-operations",
+      "translations": [{
+        "id": "7829564732190847156",
+        "language": "en",
+        "description": "Infrastructure and operational systems"
+      }]
+    },
+    {
+      "id": "7829564732190847057",
+      "tag": "system-monitoring",
+      "translations": [{
+        "id": "7829564732190847157",
+        "language": "en",
+        "description": "System monitoring and health"
+      }]
+    },
+    {
+      "id": "7829564732190847058",
+      "tag": "process-optimization",
+      "translations": [{
+        "id": "7829564732190847158",
+        "language": "en",
+        "description": "Process improvement and optimization"
+      }]
+    },
+    {
+      "id": "7829564732190847059",
+      "tag": "team-coordination",
+      "translations": [{
+        "id": "7829564732190847159",
+        "language": "en",
+        "description": "Team collaboration and coordination"
+      }]
+    },
+    {
+      "id": "7829564732190847060",
+      "tag": "resource-management",
+      "translations": [{
+        "id": "7829564732190847160",
+        "language": "en",
+        "description": "Resource allocation and management"
+      }]
+    }
+  ],
+  "crossCuttingTags": [
+    "monitoring",
+    "automation",
+    "optimization",
+    "analysis",
+    "ai-agent"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "category": "innovation",
+  "name": "Innovation & Creativity",
+  "description": "Creative problem-solving, brainstorming, design thinking",
+  "availableTags": [
+    {
+      "id": "7829564732190847016",
+      "tag": "innovation-creativity",
+      "translations": [{
+        "id": "7829564732190847116",
+        "language": "en",
+        "description": "Innovation and creative thinking"
+      }]
+    },
+    {
+      "id": "7829564732190847017",
+      "tag": "problem-solving",
+      "translations": [{
+        "id": "7829564732190847117",
+        "language": "en",
+        "description": "Creative problem-solving frameworks"
+      }]
+    },
+    {
+      "id": "7829564732190847018",
+      "tag": "brainstorming",
+      "translations": [{
+        "id": "7829564732190847118",
+        "language": "en",
+        "description": "Ideation and brainstorming facilitation"
+      }]
+    },
+    {
+      "id": "7829564732190847019",
+      "tag": "design-thinking",
+      "translations": [{
+        "id": "7829564732190847119",
+        "language": "en",
+        "description": "Design thinking methodology"
+      }]
+    },
+    {
+      "id": "7829564732190847020",
+      "tag": "creative-mentorship",
+      "translations": [{
+        "id": "7829564732190847120",
+        "language": "en",
+        "description": "Creative skill development and mentoring"
+      }]
+    }
+  ],
+  "crossCuttingTags": [
+    "generation",
+    "coaching",
+    "planning",
+    "analysis",
+    "synthesis"
+  ]
+}

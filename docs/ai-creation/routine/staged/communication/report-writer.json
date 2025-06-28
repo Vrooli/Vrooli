@@ -1,0 +1,308 @@
+{
+  "id": "7829564732190847643",
+  "publicId": "report-writer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847051",
+      "tag": "communication-content",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Communication and content systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847053",
+      "tag": "report-writing",
+      "translations": [
+        {
+          "id": "7829564732190847153",
+          "language": "en",
+          "description": "Professional report creation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847644",
+      "publicId": "report-writer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive report generation from data and findings",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Data & Sources",
+                "description": "Processes raw data and source materials to extract key insights",
+                "subroutineId": "TODO: Need analysis subroutine for data processing",
+                "inputMap": {
+                  "rawData": "sourceData",
+                  "dataTypes": "informationFormats",
+                  "analysisDepth": "processingLevel"
+                },
+                "outputMap": {
+                  "processedData": "analyzedInformation",
+                  "keyFindings": "primaryInsights",
+                  "dataQuality": "reliabilityAssessment"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Structure Report Framework",
+                "description": "Creates logical report structure based on type and audience",
+                "subroutineId": "TODO: Need planning subroutine for document structure",
+                "inputMap": {
+                  "reportType": "documentFormat",
+                  "targetAudience": "readerProfile",
+                  "keyFindings": "primaryInsights"
+                },
+                "outputMap": {
+                  "reportOutline": "documentStructure",
+                  "sectionPriorities": "contentHierarchy",
+                  "narrativeFlow": "storyArc"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Write Executive Summary",
+                "description": "Crafts compelling executive summary with key recommendations",
+                "subroutineId": "TODO: Need generation subroutine for executive writing",
+                "inputMap": {
+                  "keyFindings": "primaryInsights",
+                  "recommendations": "actionItems",
+                  "audienceLevel": "executiveContext"
+                },
+                "outputMap": {
+                  "executiveSummary": "summarySection",
+                  "keyMessages": "corePoints",
+                  "callToAction": "recommendedActions"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Develop Main Content",
+                "description": "Writes detailed sections with supporting evidence and analysis",
+                "subroutineId": "TODO: Need generation subroutine for detailed writing",
+                "inputMap": {
+                  "reportOutline": "documentStructure",
+                  "processedData": "analyzedInformation",
+                  "writingStyle": "toneAndVoice"
+                },
+                "outputMap": {
+                  "mainContent": "bodyText",
+                  "supportingEvidence": "dataSupport",
+                  "transitionFlow": "sectionConnections"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Create Visual Elements",
+                "description": "Generates charts, tables, and visual aids to support findings",
+                "subroutineId": "TODO: Need visualization subroutine for data presentation",
+                "inputMap": {
+                  "processedData": "analyzedInformation",
+                  "visualNeeds": "chartRequirements",
+                  "reportFormat": "presentationStyle"
+                },
+                "outputMap": {
+                  "chartSpecs": "visualDesigns",
+                  "tableLayouts": "dataDisplays",
+                  "infographicElements": "graphicalSupport"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Compile & Format Final Report",
+                "description": "Assembles all components into professional final document",
+                "subroutineId": "TODO: Need formatting subroutine for document assembly",
+                "inputMap": {
+                  "allContent": "compiledSections",
+                  "formatRequirements": "styleGuide",
+                  "qualityChecks": "reviewCriteria"
+                },
+                "outputMap": {
+                  "finalReport": "completeDocument",
+                  "formatValidation": "styleCompliance",
+                  "deliveryPackage": "outputFiles"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "data": "sourceData",
+                "type": "documentFormat",
+                "audience": "readerProfile",
+                "purpose": "reportObjective"
+              },
+              "outputMap": {
+                "completeDocument": "finalReport",
+                "primaryInsights": "keyFindings",
+                "recommendedActions": "actionPlan",
+                "visualDesigns": "supportingVisuals"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "data",
+                "id": "data_input",
+                "label": "Source Data & Materials",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Raw data, research findings, or source materials for the report"
+              },
+              {
+                "fieldName": "type",
+                "id": "type_input",
+                "label": "Report Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "business-analysis",
+                  "research-findings",
+                  "project-status",
+                  "market-research",
+                  "technical-documentation",
+                  "financial-analysis",
+                  "performance-review",
+                  "compliance-audit",
+                  "feasibility-study",
+                  "executive-briefing"
+                ]
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Who will read this report? (executives, technical team, stakeholders, etc.)"
+              },
+              {
+                "fieldName": "purpose",
+                "id": "purpose_input",
+                "label": "Report Purpose",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "What decision or action should this report support?"
+              },
+              {
+                "fieldName": "length",
+                "id": "length_input",
+                "label": "Desired Length",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": [
+                  "brief",
+                  "standard",
+                  "comprehensive",
+                  "executive-summary-only"
+                ]
+              },
+              {
+                "fieldName": "format",
+                "id": "format_input",
+                "label": "Output Format",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "professional",
+                "options": [
+                  "professional",
+                  "academic",
+                  "technical",
+                  "executive",
+                  "presentation-ready"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "finalReport",
+                "id": "final_report_output",
+                "label": "Complete Report Document",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyFindings",
+                "id": "key_findings_output",
+                "label": "Key Findings Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Recommended Actions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "supportingVisuals",
+                "id": "supporting_visuals_output",
+                "label": "Visual Elements & Charts",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "deterministic",
+          "5": "deterministic"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847645",
+          "language": "en",
+          "name": "Report Writer",
+          "description": "Comprehensive report generation system that transforms raw data into professional documents. Analyzes information, structures content, creates visuals, and produces executive-ready reports tailored to specific audiences and purposes.",
+          "instructions": "Provide your source data, specify the report type and target audience, and describe the report's purpose. The routine will analyze your data, create a structured document with executive summary, detailed sections, supporting visuals, and actionable recommendations formatted for professional presentation."
+        }
+      ]
+    }
+  ]
+}

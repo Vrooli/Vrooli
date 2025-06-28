@@ -1,0 +1,333 @@
+{
+  "id": "7829564732190847778",
+  "publicId": "personal-dev-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847006",
+      "tag": "personal-development",
+      "translations": [
+        {
+          "id": "7829564732190847106",
+          "language": "en",
+          "description": "Personal growth and self-improvement"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847095",
+      "tag": "optimization",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Performance optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847779",
+      "publicId": "personal-dev-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive personal growth and development planning system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Conduct Self-Assessment",
+                "description": "Evaluates current strengths, weaknesses, values, and life satisfaction",
+                "subroutineId": "TODO: Need self-assessment subroutine",
+                "inputMap": {
+                  "currentLifeState": "personalProfile",
+                  "valuesBeliefs": "coreValues",
+                  "satisfactionLevels": "lifeAreas"
+                },
+                "outputMap": {
+                  "selfAwareness": "personalInsights",
+                  "strengthsWeaknesses": "capabilityMap",
+                  "valuesAlignment": "valuesClarification"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Define Vision & Life Goals",
+                "description": "Creates compelling future vision and sets meaningful long-term objectives",
+                "subroutineId": "TODO: Need vision setting subroutine",
+                "inputMap": {
+                  "personalInsights": "selfAwareness",
+                  "lifeAspirations": "futureDesires",
+                  "priorityAreas": "focusDomains"
+                },
+                "outputMap": {
+                  "lifeVision": "futureState",
+                  "coreGoals": "primaryObjectives",
+                  "purposeStatement": "lifePurpose"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Identify Growth Areas & Skills",
+                "description": "Determines specific areas for improvement and skill development",
+                "subroutineId": "TODO: Need growth identification subroutine",
+                "inputMap": {
+                  "capabilityMap": "strengthsWeaknesses",
+                  "primaryObjectives": "coreGoals",
+                  "skillGaps": "developmentNeeds"
+                },
+                "outputMap": {
+                  "growthPriorities": "developmentAreas",
+                  "skillRequirements": "competencyNeeds",
+                  "learningObjectives": "educationGoals"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Create Development Action Plan",
+                "description": "Designs structured plan with specific actions and timelines",
+                "subroutineId": "TODO: Need action planning subroutine",
+                "inputMap": {
+                  "developmentAreas": "growthPriorities",
+                  "availableResources": "resourceInventory",
+                  "timeCommitment": "dedicatedTime"
+                },
+                "outputMap": {
+                  "actionPlan": "developmentStrategy",
+                  "milestoneSchedule": "progressTimeline",
+                  "resourceAllocation": "investmentPlan"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Implement Habits & Practices",
+                "description": "Establishes daily routines and practices supporting growth",
+                "subroutineId": "TODO: Need habit implementation subroutine",
+                "inputMap": {
+                  "developmentStrategy": "actionPlan",
+                  "lifestyleIntegration": "routineIncorporation",
+                  "accountabilityPreferences": "supportSystems"
+                },
+                "outputMap": {
+                  "dailyPractices": "growthHabits",
+                  "routineStructure": "developmentRhythm",
+                  "accountabilitySystem": "supportMechanisms"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Monitor Progress & Adapt",
+                "description": "Tracks development and adjusts plan based on results",
+                "subroutineId": "TODO: Need progress monitoring subroutine",
+                "inputMap": {
+                  "progressMetrics": "developmentIndicators",
+                  "experienceReflection": "learningInsights",
+                  "goalEvolution": "changingPriorities"
+                },
+                "outputMap": {
+                  "progressAssessment": "developmentEvaluation",
+                  "planAdjustments": "strategicAdaptation",
+                  "futureDirection": "continuedGrowth"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "individual": "personalProfile",
+                "aspirations": "futureDesires",
+                "resources": "resourceInventory",
+                "timeframe": "developmentHorizon"
+              },
+              "outputMap": {
+                "developmentEvaluation": "personalGrowthOutcome",
+                "continuedGrowth": "lifelongDevelopment",
+                "futureState": "achievedVision",
+                "growthHabits": "sustainablePractices"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "individual",
+                "id": "individual_input",
+                "label": "Personal Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current life situation, background, and personal characteristics"
+              },
+              {
+                "fieldName": "aspirations",
+                "id": "aspirations_input",
+                "label": "Life Aspirations",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What do you want your life to look like in the future?"
+              },
+              {
+                "fieldName": "developmentFocus",
+                "id": "development_focus_input",
+                "label": "Primary Development Area",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "career-professional",
+                  "relationships-social",
+                  "health-fitness",
+                  "personal-skills",
+                  "creative-expression",
+                  "spiritual-growth",
+                  "financial-independence",
+                  "emotional-intelligence",
+                  "leadership",
+                  "overall-life"
+                ]
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Development Timeframe",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "3-months",
+                  "6-months",
+                  "1-year",
+                  "2-years",
+                  "5-years",
+                  "lifelong"
+                ]
+              },
+              {
+                "fieldName": "resources",
+                "id": "resources_input",
+                "label": "Available Resources",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Time, money, support systems, and other resources you can dedicate"
+              },
+              {
+                "fieldName": "currentChallenges",
+                "id": "current_challenges_input",
+                "label": "Current Life Challenges",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What obstacles or difficulties are you facing?"
+              },
+              {
+                "fieldName": "commitmentLevel",
+                "id": "commitment_level_input",
+                "label": "Commitment Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "casual",
+                  "moderate",
+                  "serious",
+                  "intensive",
+                  "transformational"
+                ]
+              },
+              {
+                "fieldName": "supportPreference",
+                "id": "support_preference_input",
+                "label": "Support System Preference",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "self-directed",
+                "options": [
+                  "self-directed",
+                  "peer-support",
+                  "mentor-guidance",
+                  "professional-coaching",
+                  "group-programs",
+                  "mixed-approach"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "personalGrowthOutcome",
+                "id": "personal_growth_outcome_output",
+                "label": "Complete Personal Development Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "lifelongDevelopment",
+                "id": "lifelong_development_output",
+                "label": "Lifelong Growth Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "achievedVision",
+                "id": "achieved_vision_output",
+                "label": "Life Vision & Purpose",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "sustainablePractices",
+                "id": "sustainable_practices_output",
+                "label": "Daily Growth Practices",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "conversational",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "conversational",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847780",
+          "language": "en",
+          "name": "Personal Development Planner",
+          "description": "Comprehensive personal growth system that conducts self-assessment, defines life vision, identifies growth areas, creates action plans, implements daily practices, and monitors progress for holistic personal development and life transformation.",
+          "instructions": "Describe your current personal profile and life aspirations. Specify your primary development focus and timeframe. Include available resources and support preferences. The routine will assess your situation, create a vision, identify growth areas, and build a complete development plan."
+        }
+      ]
+    }
+  ]
+}

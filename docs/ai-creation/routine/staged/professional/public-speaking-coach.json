@@ -1,0 +1,342 @@
+{
+  "id": "7829564732190847760",
+  "publicId": "speaking-coach-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847011",
+      "tag": "professional-growth",
+      "translations": [
+        {
+          "id": "7829564732190847111",
+          "language": "en",
+          "description": "Career and professional development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847014",
+      "tag": "leadership",
+      "translations": [
+        {
+          "id": "7829564732190847114",
+          "language": "en",
+          "description": "Leadership development and skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847761",
+      "publicId": "speaking-coach-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive public speaking development and coaching system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Assess Speaking Skills & Goals",
+                "description": "Evaluates current abilities, identifies strengths and weaknesses",
+                "subroutineId": "TODO: Need speaking assessment subroutine",
+                "inputMap": {
+                  "speakingExperience": "currentSkillLevel",
+                  "specificGoals": "improvementObjectives",
+                  "anxietyLevel": "confidenceChallenges"
+                },
+                "outputMap": {
+                  "skillAssessment": "abilityProfile",
+                  "developmentAreas": "improvementTargets",
+                  "strengthsInventory": "existingCapabilities"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Develop Speech Content",
+                "description": "Creates compelling message structure and supporting content",
+                "subroutineId": "TODO: Need content development subroutine",
+                "inputMap": {
+                  "speechPurpose": "presentationObjective",
+                  "audienceProfile": "targetAudience",
+                  "keyMessages": "coreContent"
+                },
+                "outputMap": {
+                  "speechStructure": "organizedContent",
+                  "narrativeFlow": "storyArc",
+                  "supportingElements": "evidenceResources"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Master Delivery Techniques",
+                "description": "Develops voice, body language, and presentation skills",
+                "subroutineId": "TODO: Need delivery training subroutine",
+                "inputMap": {
+                  "abilityProfile": "skillAssessment",
+                  "deliveryStyle": "presentationApproach",
+                  "practiceNeeds": "skillGaps"
+                },
+                "outputMap": {
+                  "vocalTechniques": "voiceControl",
+                  "physicalPresence": "bodyLanguage",
+                  "engagementMethods": "audienceConnection"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Build Confidence & Manage Anxiety",
+                "description": "Addresses nervousness and builds speaking confidence",
+                "subroutineId": "TODO: Need confidence building subroutine",
+                "inputMap": {
+                  "confidenceChallenges": "anxietyLevel",
+                  "mentalPreparation": "psychologicalReadiness",
+                  "copingStrategies": "anxietyManagement"
+                },
+                "outputMap": {
+                  "confidenceBuilding": "selfAssurance",
+                  "stressManagement": "nervousnessControl",
+                  "mentalResilience": "psychologicalStrength"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Practice & Rehearse",
+                "description": "Provides structured practice sessions and feedback loops",
+                "subroutineId": "TODO: Need practice session subroutine",
+                "inputMap": {
+                  "organizedContent": "speechStructure",
+                  "voiceControl": "vocalTechniques",
+                  "practiceSchedule": "rehearsalPlan"
+                },
+                "outputMap": {
+                  "practiceResults": "rehearsalOutcomes",
+                  "refinedDelivery": "polishedPresentation",
+                  "readinessAssessment": "preparationLevel"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Performance Evaluation & Improvement",
+                "description": "Reviews actual performance and plans continued development",
+                "subroutineId": "TODO: Need performance evaluation subroutine",
+                "inputMap": {
+                  "actualPerformance": "speechDelivery",
+                  "audienceFeedback": "responseData",
+                  "selfReflection": "personalAssessment"
+                },
+                "outputMap": {
+                  "performanceAnalysis": "deliveryEvaluation",
+                  "improvementPlan": "developmentStrategy",
+                  "futureGoals": "continuedGrowth"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "speaker": "currentSkillLevel",
+                "presentation": "presentationObjective",
+                "audience": "targetAudience",
+                "context": "speakingContext"
+              },
+              "outputMap": {
+                "deliveryEvaluation": "speakingOutcome",
+                "developmentStrategy": "improvementPlan",
+                "polishedPresentation": "finalSpeech",
+                "continuedGrowth": "futureDevelopment"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "speaker",
+                "id": "speaker_input",
+                "label": "Speaker Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current speaking experience, comfort level, and background"
+              },
+              {
+                "fieldName": "presentation",
+                "id": "presentation_input",
+                "label": "Presentation Details",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Topic, purpose, duration, and key objectives"
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Audience size, demographics, knowledge level, and expectations"
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Speaking Context",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "business-presentation",
+                  "conference-keynote",
+                  "wedding-toast",
+                  "academic-lecture",
+                  "sales-pitch",
+                  "training-session",
+                  "panel-discussion",
+                  "graduation-speech",
+                  "eulogy",
+                  "motivational-talk"
+                ]
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Preparation Time",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "1-day",
+                  "1-week",
+                  "2-weeks",
+                  "1-month",
+                  "3-months",
+                  "ongoing-development"
+                ]
+              },
+              {
+                "fieldName": "anxietyLevel",
+                "id": "anxiety_level_input",
+                "label": "Speaking Anxiety Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "none",
+                  "mild",
+                  "moderate",
+                  "high",
+                  "severe"
+                ]
+              },
+              {
+                "fieldName": "developmentFocus",
+                "id": "development_focus_input",
+                "label": "Primary Development Focus",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "overall-improvement",
+                "options": [
+                  "content-creation",
+                  "delivery-skills",
+                  "confidence-building",
+                  "audience-engagement",
+                  "anxiety-management",
+                  "advanced-techniques",
+                  "overall-improvement"
+                ]
+              },
+              {
+                "fieldName": "practiceOptions",
+                "id": "practice_options_input",
+                "label": "Practice Environment",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "self-practice",
+                "options": [
+                  "self-practice",
+                  "small-group",
+                  "peer-feedback",
+                  "professional-coaching",
+                  "virtual-reality",
+                  "video-recording"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "speakingOutcome",
+                "id": "speaking_outcome_output",
+                "label": "Complete Speaking Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementPlan",
+                "id": "improvement_plan_output",
+                "label": "Skill Development Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "finalSpeech",
+                "id": "final_speech_output",
+                "label": "Polished Presentation",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "futureDevelopment",
+                "id": "future_development_output",
+                "label": "Continued Growth Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "conversational",
+          "3": "conversational",
+          "4": "conversational",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847762",
+          "language": "en",
+          "name": "Public Speaking Coach",
+          "description": "Comprehensive public speaking development system that assesses skills, develops content, masters delivery techniques, builds confidence, provides practice sessions, and evaluates performance for effective speaking improvement.",
+          "instructions": "Describe your speaking experience and presentation goals. Specify your target audience and speaking context. Choose preparation timeframe and development focus. The routine will assess your skills, develop content, improve delivery, build confidence, and create a practice plan."
+        }
+      ]
+    }
+  ]
+}

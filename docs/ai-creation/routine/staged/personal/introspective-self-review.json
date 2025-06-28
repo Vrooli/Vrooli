@@ -1,0 +1,269 @@
+{
+  "id": "7829564732190847577",
+  "publicId": "self-review-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847006",
+      "tag": "personal-development",
+      "translations": [
+        {
+          "id": "7829564732190847106",
+          "language": "en",
+          "description": "Personal growth and self-improvement"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847578",
+      "publicId": "self-review-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - AI agent self-reflection and performance analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Gather Performance Data",
+                "description": "Collects recent performance logs and task outcomes",
+                "subroutineId": "TODO: Need data collection subroutine for performance metrics",
+                "inputMap": {
+                  "timePeriod": "reviewPeriod",
+                  "performanceLogs": "recentLogs",
+                  "taskOutcomes": "completedTasks"
+                },
+                "outputMap": {
+                  "aggregatedData": "performanceData",
+                  "successMetrics": "successRates",
+                  "failurePatterns": "problemAreas"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Decision Patterns",
+                "description": "Examines recent decisions for patterns and effectiveness",
+                "subroutineId": "TODO: Need reasoning subroutine for pattern analysis",
+                "inputMap": {
+                  "aggregatedData": "performanceData",
+                  "feedbackHistory": "userFeedback",
+                  "decisionLogs": "recentDecisions"
+                },
+                "outputMap": {
+                  "decisionPatterns": "identifiedPatterns",
+                  "effectivenessScores": "decisionQuality",
+                  "biasIndicators": "potentialBiases"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Compare with Past Performance",
+                "description": "Uses embedding search to find similar past experiences",
+                "subroutineId": "TODO: Need embedding search subroutine for historical comparison",
+                "inputMap": {
+                  "currentPerformance": "performanceData",
+                  "identifiedPatterns": "decisionPatterns",
+                  "knowledgeBase": "historicalData"
+                },
+                "outputMap": {
+                  "similarExperiences": "pastComparisons",
+                  "performanceTrends": "trendAnalysis",
+                  "learningOpportunities": "improvementAreas"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Generate Insights and Recommendations",
+                "description": "Synthesizes findings into actionable insights",
+                "subroutineId": "TODO: Need generation subroutine for insight synthesis",
+                "inputMap": {
+                  "performanceData": "aggregatedData",
+                  "identifiedPatterns": "decisionPatterns",
+                  "performanceTrends": "trendAnalysis",
+                  "learningOpportunities": "improvementAreas"
+                },
+                "outputMap": {
+                  "selfAssessment": "assessmentReport",
+                  "improvements": "recommendedActions",
+                  "updatedMetrics": "performanceUpdate"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Store Learning for Future",
+                "description": "Updates knowledge base with new insights",
+                "subroutineId": "TODO: Need action subroutine for knowledge base update",
+                "inputMap": {
+                  "selfAssessment": "assessmentReport",
+                  "improvements": "recommendedActions",
+                  "timestamp": "reviewDate"
+                },
+                "outputMap": {
+                  "storageConfirmation": "updateStatus",
+                  "knowledgeId": "storedInsightId"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "performanceLogs": "recentLogs",
+                "taskOutcomes": "completedTasks",
+                "feedbackHistory": "userFeedback",
+                "decisionLogs": "recentDecisions",
+                "timePeriod": "reviewPeriod",
+                "historicalData": "knowledgeBase"
+              },
+              "outputMap": {
+                "assessmentReport": "selfAssessmentReport",
+                "recommendedActions": "improvementRecommendations",
+                "performanceUpdate": "updatedPerformanceMetrics",
+                "updateStatus": "knowledgeBaseUpdateStatus"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "performanceLogs",
+                "id": "performance_logs_input",
+                "label": "Performance Logs",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Recent performance and execution logs"
+              },
+              {
+                "fieldName": "taskOutcomes",
+                "id": "task_outcomes_input",
+                "label": "Task Outcomes",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Results of recently completed tasks"
+              },
+              {
+                "fieldName": "feedbackHistory",
+                "id": "feedback_history_input",
+                "label": "Feedback History",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "User feedback and ratings received"
+              },
+              {
+                "fieldName": "decisionLogs",
+                "id": "decision_logs_input",
+                "label": "Decision Logs",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Log of recent decisions made"
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "time_period_input",
+                "label": "Review Time Period",
+                "type": "TextInput",
+                "isRequired": false,
+                "defaultValue": "last 7 days"
+              },
+              {
+                "fieldName": "knowledgeBase",
+                "id": "knowledge_base_input",
+                "label": "Historical Performance Data",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Access to historical performance data"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "selfAssessmentReport",
+                "id": "self_assessment_output",
+                "label": "Self-Assessment Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementRecommendations",
+                "id": "improvement_recommendations_output",
+                "label": "Improvement Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "updatedPerformanceMetrics",
+                "id": "updated_metrics_output",
+                "label": "Updated Performance Metrics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "knowledgeBaseUpdateStatus",
+                "id": "kb_update_status_output",
+                "label": "Knowledge Base Update Status",
+                "type": "TextInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "reasoning",
+          "2": "deterministic",
+          "3": "reasoning",
+          "4": "deterministic"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847579",
+          "language": "en",
+          "name": "Introspective Self-Review",
+          "description": "A periodic routine where an AI agent reflects on its recent decisions, successes, and mistakes. Analyzes performance data, evaluates outcomes, and stores insights for future improvement through continuous learning.",
+          "instructions": "Provide performance logs, task outcomes, and feedback from the review period. The routine will analyze patterns, compare with historical performance, generate insights, and store learnings in the knowledge base for continuous improvement."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,330 @@
+{
+  "id": "7829564732190847757",
+  "publicId": "onboarding-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847011",
+      "tag": "professional-growth",
+      "translations": [
+        {
+          "id": "7829564732190847111",
+          "language": "en",
+          "description": "Career and professional development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847015",
+      "tag": "team-building",
+      "translations": [
+        {
+          "id": "7829564732190847115",
+          "language": "en",
+          "description": "Team formation and optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847758",
+      "publicId": "onboarding-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive employee onboarding and integration system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Pre-boarding Preparation",
+                "description": "Sets up workspace, systems access, and welcome materials",
+                "subroutineId": "TODO: Need pre-boarding setup subroutine",
+                "inputMap": {
+                  "newEmployeeProfile": "employeeDetails",
+                  "roleRequirements": "positionSpecifications",
+                  "startDate": "commencementTimeline"
+                },
+                "outputMap": {
+                  "workspaceSetup": "physicalEnvironment",
+                  "systemAccess": "digitalResources",
+                  "welcomePackage": "introductoryMaterials"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "First Day Orientation",
+                "description": "Provides company overview, policies, and initial introductions",
+                "subroutineId": "TODO: Need orientation session subroutine",
+                "inputMap": {
+                  "introductoryMaterials": "welcomePackage",
+                  "companyOverview": "organizationalContext",
+                  "buddyAssignment": "mentorSystem"
+                },
+                "outputMap": {
+                  "orientationCompletion": "foundationalKnowledge",
+                  "initialConnections": "keyRelationships",
+                  "firstDayFeedback": "initialExperience"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Role-Specific Training",
+                "description": "Delivers job-specific skills and knowledge training",
+                "subroutineId": "TODO: Need role training subroutine",
+                "inputMap": {
+                  "positionSpecifications": "roleRequirements",
+                  "trainingCurriculum": "learningPlan",
+                  "skillAssessment": "competencyBaseline"
+                },
+                "outputMap": {
+                  "trainingProgress": "skillDevelopment",
+                  "competencyGaps": "learningNeeds",
+                  "practicalExperience": "handsonLearning"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Department Integration",
+                "description": "Facilitates team introductions and workflow integration",
+                "subroutineId": "TODO: Need department integration subroutine",
+                "inputMap": {
+                  "teamStructure": "departmentOrganization",
+                  "workflowProcesses": "operationalProcedures",
+                  "collaborationTools": "teamResources"
+                },
+                "outputMap": {
+                  "teamIntegration": "departmentFit",
+                  "workflowUnderstanding": "processKnowledge",
+                  "collaborationReadiness": "teamParticipation"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Performance Goal Setting",
+                "description": "Establishes clear expectations and development objectives",
+                "subroutineId": "TODO: Need goal setting subroutine",
+                "inputMap": {
+                  "roleExpectations": "performanceStandards",
+                  "careerAspirations": "developmentGoals",
+                  "companyObjectives": "organizationalTargets"
+                },
+                "outputMap": {
+                  "performanceGoals": "smartObjectives",
+                  "developmentPlan": "growthRoadmap",
+                  "successMetrics": "evaluationCriteria"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "90-Day Follow-up & Assessment",
+                "description": "Reviews progress, addresses concerns, and plans continued development",
+                "subroutineId": "TODO: Need follow-up assessment subroutine",
+                "inputMap": {
+                  "performanceTracking": "progressMonitoring",
+                  "feedbackCollection": "stakeholderInput",
+                  "integrationSuccess": "adaptationMetrics"
+                },
+                "outputMap": {
+                  "assessmentResults": "integrationEvaluation",
+                  "adjustmentPlan": "improvementStrategy",
+                  "retentionStrategy": "engagementPlan"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "employee": "employeeDetails",
+                "role": "positionSpecifications",
+                "company": "organizationalContext",
+                "timeline": "onboardingSchedule"
+              },
+              "outputMap": {
+                "integrationEvaluation": "onboardingOutcome",
+                "growthRoadmap": "developmentPlan",
+                "smartObjectives": "performanceFramework",
+                "engagementPlan": "retentionStrategy"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "employee",
+                "id": "employee_input",
+                "label": "New Employee Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Employee background, experience, and role details"
+              },
+              {
+                "fieldName": "role",
+                "id": "role_input",
+                "label": "Position Details",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Job title, department, and key responsibilities"
+              },
+              {
+                "fieldName": "company",
+                "id": "company_input",
+                "label": "Company Information",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Company culture, values, structure, and policies"
+              },
+              {
+                "fieldName": "startDate",
+                "id": "start_date_input",
+                "label": "Start Date",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Employee's first day of work"
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Onboarding Duration",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "1-week",
+                  "2-weeks",
+                  "1-month",
+                  "90-days",
+                  "6-months"
+                ]
+              },
+              {
+                "fieldName": "departmentType",
+                "id": "department_type_input",
+                "label": "Department",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "general",
+                "options": [
+                  "sales",
+                  "marketing",
+                  "engineering",
+                  "hr",
+                  "finance",
+                  "operations",
+                  "customer-service",
+                  "management",
+                  "general"
+                ]
+              },
+              {
+                "fieldName": "experienceLevel",
+                "id": "experience_level_input",
+                "label": "Experience Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "mid-level",
+                "options": [
+                  "entry-level",
+                  "mid-level",
+                  "senior",
+                  "executive",
+                  "intern"
+                ]
+              },
+              {
+                "fieldName": "workArrangement",
+                "id": "work_arrangement_input",
+                "label": "Work Arrangement",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "office",
+                "options": [
+                  "office",
+                  "remote",
+                  "hybrid",
+                  "flexible"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "onboardingOutcome",
+                "id": "onboarding_outcome_output",
+                "label": "Complete Onboarding Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "developmentPlan",
+                "id": "development_plan_output",
+                "label": "Employee Development Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "performanceFramework",
+                "id": "performance_framework_output",
+                "label": "Performance Goals & Metrics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "retentionStrategy",
+                "id": "retention_strategy_output",
+                "label": "Engagement & Retention Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "deterministic",
+          "1": "conversational",
+          "2": "reasoning",
+          "3": "conversational",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847759",
+          "language": "en",
+          "name": "Employee Onboarding Guide",
+          "description": "Comprehensive employee integration system that manages pre-boarding setup, first-day orientation, role-specific training, department integration, goal setting, and follow-up assessment for successful employee onboarding and retention.",
+          "instructions": "Provide new employee profile and position details. Include company information and start date. Specify onboarding duration and work arrangement. The routine will create a complete onboarding plan with training, integration activities, and performance frameworks."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "id": "7829564732190847637",
+  "publicId": "content-out-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847091",
+      "tag": "automation",
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "description": "Process automation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847638",
+      "publicId": "content-out-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates structured outlines for various content types",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "promptTemplate": "You are an expert content strategist and outline creator specializing in structured, engaging content across multiple formats.\n\nContent Details:\n- Topic: {{input.contentTopic}}\n- Content Type: {{input.contentType}}\n- Target Audience: {{input.targetAudience}}\n- Desired Length: {{input.desiredLength}}\n- Key Messages: {{input.keyMessages}}\n- Tone/Style: {{input.toneStyle}}\n\nCreate a comprehensive outline that includes:\n\n1. **Hook/Opening**: Compelling introduction that grabs attention\n2. **Main Structure**: Logical flow of key points and supporting details\n3. **Content Hierarchy**: Clear headings, subheadings, and bullet points\n4. **Key Takeaways**: Main messages to emphasize\n5. **Call-to-Action**: How to engage the audience\n6. **Supporting Elements**: Suggested visuals, examples, or data points\n\nAdapt the outline structure based on content type:\n- **Articles/Blogs**: Introduction, body sections, conclusion\n- **Presentations**: Slide flow with talking points\n- **Videos**: Scene breakdown with timestamps\n- **Social Media**: Post series with engagement hooks\n- **Courses**: Module and lesson structure\n- **Reports**: Executive summary, findings, recommendations\n\nEnsure the outline is actionable, detailed enough for easy content creation, and optimized for the target audience.",
+            "temperature": 0.7,
+            "model": "medium",
+            "systemMessage": "You are a professional content strategist who creates clear, actionable outlines that help writers and creators produce engaging, well-structured content efficiently."
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentTopic",
+                "id": "content_topic_input",
+                "label": "Content Topic",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Main subject or theme for your content"
+              },
+              {
+                "fieldName": "contentType",
+                "id": "content_type_input",
+                "label": "Content Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "blog-post",
+                  "article",
+                  "presentation",
+                  "video-script",
+                  "social-media-series",
+                  "course-curriculum",
+                  "white-paper",
+                  "report",
+                  "newsletter",
+                  "podcast-episode"
+                ]
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Who is this content for? (demographics, expertise level, interests)"
+              },
+              {
+                "fieldName": "desiredLength",
+                "id": "desired_length_input",
+                "label": "Desired Length",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "Target word count, duration, or number of sections"
+              },
+              {
+                "fieldName": "keyMessages",
+                "id": "key_messages_input",
+                "label": "Key Messages",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Main points you want to communicate"
+              },
+              {
+                "fieldName": "toneStyle",
+                "id": "tone_style_input",
+                "label": "Tone & Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "professional",
+                "options": [
+                  "professional",
+                  "casual",
+                  "academic",
+                  "conversational",
+                  "authoritative",
+                  "friendly",
+                  "technical",
+                  "inspirational"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentOutline",
+                "id": "content_outline_output",
+                "label": "Structured Content Outline",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "sectionBreakdown",
+                "id": "section_breakdown_output",
+                "label": "Section-by-Section Breakdown",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "supportingElements",
+                "id": "supporting_elements_output",
+                "label": "Supporting Elements Suggestions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "engagementStrategy",
+                "id": "engagement_strategy_output",
+                "label": "Audience Engagement Strategy",
+                "type": "TextInput"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847639",
+          "language": "en",
+          "name": "Content Outline Generator",
+          "description": "Creates comprehensive, structured outlines for various content types including articles, presentations, videos, and courses. Optimizes structure and flow for target audience engagement and clear communication.",
+          "instructions": "Specify your content topic, type, and target audience. Include any key messages you want to convey and preferred tone. The routine will generate a detailed outline with clear structure, engagement hooks, and supporting element suggestions tailored to your content format."
+        }
+      ]
+    }
+  ]
+}

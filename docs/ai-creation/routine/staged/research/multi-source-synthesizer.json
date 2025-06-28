@@ -1,0 +1,258 @@
+{
+  "id": "7829564732190847610",
+  "publicId": "multi-synth-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "research-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Research and information gathering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847022",
+      "tag": "multi-source-synthesis",
+      "translations": [
+        {
+          "id": "7829564732190847122",
+          "language": "en",
+          "description": "Synthesizing information from multiple sources"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847096",
+      "tag": "synthesis",
+      "translations": [
+        {
+          "id": "7829564732190847196",
+          "language": "en",
+          "description": "Information synthesis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847611",
+      "publicId": "multi-synth-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Synthesizes information from multiple sources",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Gather from Sources",
+                "description": "Collects information from specified sources",
+                "subroutineId": "web-research-v1",
+                "inputMap": {
+                  "primaryQuery": "synthesisTopics",
+                  "searchDepth": "searchDepth",
+                  "preferredSources": "sourceList"
+                },
+                "outputMap": {
+                  "researchBrief": "rawSourceData",
+                  "sourceLinks": "collectedSources",
+                  "credibilityNotes": "sourceQuality"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Summarize Each Source",
+                "description": "Creates summaries of each individual source",
+                "subroutineId": "doc-summary-v1",
+                "inputMap": {
+                  "documentText": "rawSourceData",
+                  "summaryLength": "summaryPreference",
+                  "focusAreas": "synthesisGoals"
+                },
+                "outputMap": {
+                  "summary": "individualSummaries",
+                  "keyPoints": "sourceKeyPoints",
+                  "importantQuotes": "notableQuotes"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Compare Sources",
+                "description": "Identifies agreements, conflicts, and unique insights",
+                "subroutineId": "TODO: Need reasoning subroutine for source comparison",
+                "inputMap": {
+                  "individualSummaries": "sourceSummaries",
+                  "sourceKeyPoints": "keyPointsPerSource",
+                  "sourceQuality": "credibilityRatings"
+                },
+                "outputMap": {
+                  "commonThemes": "sharedInsights",
+                  "conflictingInfo": "discrepancies",
+                  "uniqueInsights": "exclusiveFindings"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Synthesize Findings",
+                "description": "Combines all findings into unified analysis",
+                "subroutineId": "TODO: Need reasoning subroutine for synthesis",
+                "inputMap": {
+                  "sharedInsights": "commonThemes",
+                  "discrepancies": "conflictingInfo",
+                  "exclusiveFindings": "uniqueInsights",
+                  "credibilityRatings": "sourceQuality"
+                },
+                "outputMap": {
+                  "unifiedSynthesis": "integratedAnalysis",
+                  "confidenceLevel": "synthesisConfidence",
+                  "knowledgeGaps": "identifiedGaps"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Generate Unified Report",
+                "description": "Creates comprehensive report with all sources cited",
+                "subroutineId": "TODO: Need generation subroutine for report creation",
+                "inputMap": {
+                  "integratedAnalysis": "unifiedSynthesis",
+                  "notableQuotes": "importantQuotes",
+                  "collectedSources": "sourceLinks",
+                  "identifiedGaps": "knowledgeGaps"
+                },
+                "outputMap": {
+                  "synthesisReport": "unifiedReport",
+                  "executiveSummary": "toplineFindings",
+                  "citations": "sourceCitations"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "topic": "synthesisTopics",
+                "sourceListOrQueries": "sourceList",
+                "synthesisGoals": "objectives",
+                "depthPreference": "searchDepth"
+              },
+              "outputMap": {
+                "unifiedReport": "synthesizedReport",
+                "toplineFindings": "executiveSummary",
+                "sourceCitations": "citations",
+                "sharedInsights": "consensusFindings"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "topic",
+                "id": "topic_input",
+                "label": "Synthesis Topic",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Topic to synthesize information about"
+              },
+              {
+                "fieldName": "sourceListOrQueries",
+                "id": "source_list_input",
+                "label": "Source List or Search Queries",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of sources or queries to search"
+              },
+              {
+                "fieldName": "synthesisGoals",
+                "id": "synthesis_goals_input",
+                "label": "Synthesis Goals",
+                "type": "TextInput",
+                "isRequired": false,
+                "placeholder": "What you want to learn or understand"
+              },
+              {
+                "fieldName": "depthPreference",
+                "id": "depth_preference_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "quick",
+                  "moderate",
+                  "thorough"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "synthesizedReport",
+                "id": "synthesized_report_output",
+                "label": "Synthesized Report",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "TextInput"
+              },
+              {
+                "fieldName": "citations",
+                "id": "citations_output",
+                "label": "Source Citations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "consensusFindings",
+                "id": "consensus_findings_output",
+                "label": "Consensus Findings",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847612",
+          "language": "en",
+          "name": "Multi-Source Synthesizer",
+          "description": "Gathers information from multiple sources and produces a unified summary. Performs searches, summarizes each source, compares findings, identifies discrepancies, and synthesizes into a cohesive report.",
+          "instructions": "Provide a topic and either a list of sources or search queries. The routine will gather information, summarize each source, compare findings across sources, and produce a unified synthesis report highlighting agreements, conflicts, and unique insights."
+        }
+      ]
+    }
+  ]
+}

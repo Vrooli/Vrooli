@@ -1,0 +1,307 @@
+{
+  "id": "7829564732190847682",
+  "publicId": "social-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847051",
+      "tag": "communication-content",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Communication and content systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847055",
+      "tag": "social-media",
+      "translations": [
+        {
+          "id": "7829564732190847155",
+          "language": "en",
+          "description": "Social media planning and content"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847683",
+      "publicId": "social-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Strategic social media content planning and optimization",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Define Content Strategy",
+                "description": "Establishes content goals, audience, and brand voice",
+                "subroutineId": "TODO: Need content strategy subroutine",
+                "inputMap": {
+                  "brandProfile": "businessInfo",
+                  "targetAudience": "audienceProfile",
+                  "contentGoals": "objectives"
+                },
+                "outputMap": {
+                  "contentStrategy": "strategicFramework",
+                  "brandVoice": "voiceGuidelines",
+                  "audienceInsights": "targetingPlan"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Generate Content Ideas",
+                "description": "Creates diverse content concepts aligned with strategy",
+                "subroutineId": "TODO: Need content ideation subroutine",
+                "inputMap": {
+                  "contentStrategy": "strategicFramework",
+                  "contentTypes": "formatPreferences",
+                  "industryTrends": "marketContext"
+                },
+                "outputMap": {
+                  "contentIdeas": "creativeConceptsLibrary",
+                  "contentThemes": "thematicCategories",
+                  "engagementHooks": "attentionGrabbers"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Plan Content Calendar",
+                "description": "Schedules content with optimal timing and frequency",
+                "subroutineId": "TODO: Need calendar planning subroutine",
+                "inputMap": {
+                  "contentIdeas": "creativeConceptsLibrary",
+                  "platformSchedule": "postingFrequency",
+                  "audienceActivity": "engagementTiming"
+                },
+                "outputMap": {
+                  "contentCalendar": "scheduledPosts",
+                  "timingStrategy": "optimalSchedule",
+                  "frequencyPlan": "postingRhythm"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Create Platform-Specific Content",
+                "description": "Adapts content for different social media platforms",
+                "subroutineId": "TODO: Need platform adaptation subroutine",
+                "inputMap": {
+                  "contentCalendar": "scheduledPosts",
+                  "platformRequirements": "channelSpecs",
+                  "brandVoice": "voiceGuidelines"
+                },
+                "outputMap": {
+                  "platformContent": "adaptedPosts",
+                  "visualGuidance": "imageVideoSpecs",
+                  "hashtagStrategy": "discoveryOptimization"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Optimize for Engagement",
+                "description": "Enhances content for maximum reach and interaction",
+                "subroutineId": "TODO: Need engagement optimization subroutine",
+                "inputMap": {
+                  "platformContent": "adaptedPosts",
+                  "engagementTactics": "interactionStrategies",
+                  "algorithmFactors": "visibilityOptimization"
+                },
+                "outputMap": {
+                  "optimizedContent": "finalPosts",
+                  "engagementPredictions": "performanceEstimates",
+                  "improvementTips": "optimizationGuidance"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Plan Analytics and Tracking",
+                "description": "Sets up measurement framework for content performance",
+                "subroutineId": "TODO: Need analytics planning subroutine",
+                "inputMap": {
+                  "contentGoals": "objectives",
+                  "performanceMetrics": "trackingKPIs",
+                  "reportingSchedule": "reviewCadence"
+                },
+                "outputMap": {
+                  "analyticsFramework": "measurementPlan",
+                  "kpiDashboard": "trackingSystem",
+                  "optimizationCycle": "continuousImprovement"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "brand": "businessInfo",
+                "audience": "audienceProfile",
+                "platforms": "channelSpecs",
+                "goals": "objectives"
+              },
+              "outputMap": {
+                "finalPosts": "contentLibrary",
+                "scheduledPosts": "contentCalendar",
+                "measurementPlan": "analyticsStrategy",
+                "strategicFramework": "contentPlan"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "brand",
+                "id": "brand_input",
+                "label": "Brand/Business Information",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe your brand, business, or personal profile"
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Who are you trying to reach? (demographics, interests, behaviors)"
+              },
+              {
+                "fieldName": "platforms",
+                "id": "platforms_input",
+                "label": "Social Media Platforms",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Which platforms will you use? (Instagram, LinkedIn, Twitter, etc.)"
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Content Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "What do you want to achieve? (awareness, engagement, leads, sales, etc.)"
+              },
+              {
+                "fieldName": "contentTypes",
+                "id": "content_types_input",
+                "label": "Preferred Content Types",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Posts, stories, videos, carousels, live streams, etc."
+              },
+              {
+                "fieldName": "postingFrequency",
+                "id": "posting_frequency_input",
+                "label": "Posting Frequency",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "daily",
+                "options": [
+                  "multiple-daily",
+                  "daily",
+                  "few-times-weekly",
+                  "weekly",
+                  "bi-weekly",
+                  "flexible"
+                ]
+              },
+              {
+                "fieldName": "contentPeriod",
+                "id": "content_period_input",
+                "label": "Planning Period",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "1-month",
+                "options": [
+                  "1-week",
+                  "2-weeks",
+                  "1-month",
+                  "3-months",
+                  "6-months"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentLibrary",
+                "id": "content_library_output",
+                "label": "Complete Content Library",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contentCalendar",
+                "id": "content_calendar_output",
+                "label": "Scheduled Content Calendar",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "analyticsStrategy",
+                "id": "analytics_strategy_output",
+                "label": "Analytics & Tracking Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contentPlan",
+                "id": "content_plan_output",
+                "label": "Strategic Content Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "conversational",
+          "2": "reasoning",
+          "3": "reasoning",
+          "4": "reasoning",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847684",
+          "language": "en",
+          "name": "Social Media Content Planner",
+          "description": "Comprehensive social media content planning system that develops strategy, generates ideas, creates calendars, optimizes for platforms, enhances engagement, and establishes analytics frameworks for effective social media presence.",
+          "instructions": "Describe your brand, target audience, and content goals. Specify which platforms you'll use and posting frequency preferences. The routine will create a complete content strategy with scheduled posts, platform-specific adaptations, engagement optimization, and tracking systems."
+        }
+      ]
+    }
+  ]
+}

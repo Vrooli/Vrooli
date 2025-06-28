@@ -1,0 +1,321 @@
+{
+  "id": "7829564732190847754",
+  "publicId": "conflict-res-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847011",
+      "tag": "professional-growth",
+      "translations": [
+        {
+          "id": "7829564732190847111",
+          "language": "en",
+          "description": "Career and professional development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847014",
+      "tag": "leadership",
+      "translations": [
+        {
+          "id": "7829564732190847114",
+          "language": "en",
+          "description": "Leadership development and skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847755",
+      "publicId": "conflict-res-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Comprehensive conflict resolution and mediation system",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Assess Conflict Situation",
+                "description": "Analyzes conflict dynamics, stakeholders, and root causes",
+                "subroutineId": "TODO: Need conflict assessment subroutine",
+                "inputMap": {
+                  "conflictDescription": "situationOverview",
+                  "involvedParties": "stakeholderProfiles",
+                  "conflictHistory": "escalationTimeline"
+                },
+                "outputMap": {
+                  "conflictAnalysis": "situationAssessment",
+                  "stakeholderMapping": "partyDynamics",
+                  "rootCauses": "underlyingIssues"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Design Mediation Strategy",
+                "description": "Creates tailored approach based on conflict type and parties",
+                "subroutineId": "TODO: Need mediation strategy subroutine",
+                "inputMap": {
+                  "situationAssessment": "conflictAnalysis",
+                  "partyDynamics": "stakeholderMapping",
+                  "mediationPreferences": "processOptions"
+                },
+                "outputMap": {
+                  "mediationPlan": "resolutionStrategy",
+                  "processStructure": "sessionFramework",
+                  "communicationGuidelines": "interactionRules"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Facilitate Initial Dialogue",
+                "description": "Guides structured conversation to establish ground rules",
+                "subroutineId": "TODO: Need dialogue facilitation subroutine",
+                "inputMap": {
+                  "resolutionStrategy": "mediationPlan",
+                  "sessionFramework": "processStructure",
+                  "partyReadiness": "participantPreparation"
+                },
+                "outputMap": {
+                  "dialogueProgress": "conversationDynamics",
+                  "commonGround": "sharedInterests",
+                  "nextSteps": "processAdvancement"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Explore Interests & Needs",
+                "description": "Uncovers underlying interests behind stated positions",
+                "subroutineId": "TODO: Need interest exploration subroutine",
+                "inputMap": {
+                  "conversationDynamics": "dialogueProgress",
+                  "sharedInterests": "commonGround",
+                  "positionStatements": "explicitDemands"
+                },
+                "outputMap": {
+                  "underlyingNeeds": "coreInterests",
+                  "priorityMapping": "needsHierarchy",
+                  "negotiationSpace": "resolutionOpportunities"
+                }
+              },
+              {
+                "id": "step-5",
+                "name": "Generate Resolution Options",
+                "description": "Develops creative solutions addressing all parties' interests",
+                "subroutineId": "TODO: Need solution generation subroutine",
+                "inputMap": {
+                  "coreInterests": "underlyingNeeds",
+                  "resolutionOpportunities": "negotiationSpace",
+                  "constraintsLimitations": "boundaryConditions"
+                },
+                "outputMap": {
+                  "solutionOptions": "resolutionAlternatives",
+                  "feasibilityAssessment": "implementationViability",
+                  "impactAnalysis": "consequenceEvaluation"
+                }
+              },
+              {
+                "id": "step-6",
+                "name": "Negotiate & Finalize Agreement",
+                "description": "Facilitates negotiation and creates binding agreement",
+                "subroutineId": "TODO: Need agreement negotiation subroutine",
+                "inputMap": {
+                  "resolutionAlternatives": "solutionOptions",
+                  "implementationViability": "feasibilityAssessment",
+                  "agreementTerms": "negotiatedSolution"
+                },
+                "outputMap": {
+                  "finalAgreement": "conflictResolution",
+                  "implementationPlan": "executionStrategy",
+                  "monitoringFramework": "complianceTracking"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "situation": "situationOverview",
+                "parties": "stakeholderProfiles",
+                "preferences": "processOptions",
+                "constraints": "boundaryConditions"
+              },
+              "outputMap": {
+                "conflictResolution": "mediationOutcome",
+                "executionStrategy": "implementationPlan",
+                "resolutionStrategy": "processFramework",
+                "complianceTracking": "monitoringSystem"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "situation",
+                "id": "situation_input",
+                "label": "Conflict Description",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Describe the conflict situation in detail"
+              },
+              {
+                "fieldName": "parties",
+                "id": "parties_input",
+                "label": "Involved Parties",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Who are the parties involved in this conflict?"
+              },
+              {
+                "fieldName": "conflictType",
+                "id": "conflict_type_input",
+                "label": "Conflict Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "interpersonal",
+                  "workplace",
+                  "family",
+                  "business",
+                  "community",
+                  "organizational",
+                  "legal-dispute",
+                  "resource-allocation"
+                ]
+              },
+              {
+                "fieldName": "urgency",
+                "id": "urgency_input",
+                "label": "Urgency Level",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "low",
+                  "moderate",
+                  "high",
+                  "critical"
+                ]
+              },
+              {
+                "fieldName": "preferences",
+                "id": "preferences_input",
+                "label": "Mediation Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Any specific requirements for the mediation process?"
+              },
+              {
+                "fieldName": "previousAttempts",
+                "id": "previous_attempts_input",
+                "label": "Previous Resolution Attempts",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What has been tried before?"
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Limitations & Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Any legal, financial, or other constraints to consider?"
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Resolution Timeline",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "flexible",
+                "options": [
+                  "immediate",
+                  "1-week",
+                  "1-month",
+                  "3-months",
+                  "flexible"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "mediationOutcome",
+                "id": "mediation_outcome_output",
+                "label": "Complete Mediation Outcome",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationPlan",
+                "id": "implementation_plan_output",
+                "label": "Resolution Implementation Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "processFramework",
+                "id": "process_framework_output",
+                "label": "Mediation Process Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "monitoringSystem",
+                "id": "monitoring_system_output",
+                "label": "Compliance Monitoring System",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "conversational",
+          "3": "conversational",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847756",
+          "language": "en",
+          "name": "Conflict Resolution Mediator",
+          "description": "Comprehensive conflict resolution system that assesses disputes, designs mediation strategies, facilitates dialogue, explores underlying interests, generates creative solutions, and negotiates binding agreements for effective conflict resolution.",
+          "instructions": "Describe the conflict situation and involved parties. Specify conflict type and urgency level. The routine will assess the situation, design a mediation strategy, facilitate structured dialogue, and work toward a mutually acceptable resolution."
+        }
+      ]
+    }
+  ]
+}
