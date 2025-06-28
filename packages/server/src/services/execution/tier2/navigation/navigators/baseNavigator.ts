@@ -6,9 +6,10 @@ import {
     type NavigationTrigger,
     type NavigationTimeout,
     type NavigationEvent,
+    HOURS_1_S,
 } from "@vrooli/shared";
 import { type RoutineVersionConfigObject } from "@vrooli/shared";
-import { GenericStore } from "../../../shared/GenericStore.js";
+import { type Redis } from "ioredis";
 import { CacheService } from "../../../../../redisConn.js";
 
 /**
@@ -23,29 +24,32 @@ export abstract class BaseNavigator implements Navigator {
     abstract readonly version: string;
     
     protected readonly logger: Logger;
-    private configCache: GenericStore<RoutineVersionConfigObject> | null = null;
+    private redis: Redis | null = null;
+    private readonly cachePrefix: string;
+    
+    // Cache TTL constants
+    private static readonly HOURS_2_S = 2 * HOURS_1_S; // 2 hours in seconds
 
     constructor(logger: Logger) {
         this.logger = logger;
+        this.cachePrefix = `navigator.${this.type}.configs`;
     }
     
     /**
-     * Ensures the config cache is initialized
+     * Ensures Redis connection is available
      */
-    protected async ensureCache(): Promise<GenericStore<RoutineVersionConfigObject>> {
-        if (!this.configCache) {
-            const redis = await CacheService.get().raw();
-            this.configCache = new GenericStore<RoutineVersionConfigObject>(
-                this.logger,
-                redis as Parameters<typeof GenericStore>[1],
-                {
-                    keyPrefix: `navigator.${this.type}.configs`,
-                    defaultTTL: 7200, // 2 hours
-                    publishEvents: false, // Internal cache, no events needed
-                },
-            );
+    private async ensureRedis(): Promise<Redis> {
+        if (!this.redis) {
+            this.redis = await CacheService.get().raw() as Redis;
         }
-        return this.configCache;
+        return this.redis;
+    }
+
+    /**
+     * Creates a cache key for the given routine ID
+     */
+    private createCacheKey(routineId: string): string {
+        return `${this.cachePrefix}:${routineId}`;
     }
 
     /**
@@ -62,15 +66,34 @@ export abstract class BaseNavigator implements Navigator {
         const routineId = this.generateRoutineId(routineConfig);
         
         // Fire and forget cache operation
-        this.ensureCache().then(cache => cache.set(routineId, routineConfig)).catch(err => 
+        this.cacheConfig(routineId, routineConfig).catch(err => 
             this.logger.warn("Failed to cache routine config", { 
                 routineId, 
                 navigatorType: this.type,
-                error: err, 
+                error: err instanceof Error ? err.message : String(err), 
             }),
         );
 
         return routineConfig;
+    }
+
+    /**
+     * Caches a routine configuration in Redis
+     */
+    private async cacheConfig(routineId: string, config: RoutineVersionConfigObject): Promise<void> {
+        try {
+            const redis = await this.ensureRedis();
+            const key = this.createCacheKey(routineId);
+            const serialized = JSON.stringify(config);
+            
+            await redis.setex(key, BaseNavigator.HOURS_2_S, serialized);
+        } catch (error) {
+            this.logger.debug("Failed to cache routine config", {
+                routineId,
+                navigatorType: this.type,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 
     /**
@@ -124,14 +147,25 @@ export abstract class BaseNavigator implements Navigator {
      * Retrieves cached routine config
      */
     async getCachedConfig(routineId: string): Promise<RoutineVersionConfigObject> {
-        const cache = await this.ensureCache();
-        const configResult = await cache.get(routineId);
-        
-        if (!configResult.success || !configResult.data) {
+        try {
+            const redis = await this.ensureRedis();
+            const key = this.createCacheKey(routineId);
+            const data = await redis.get(key);
+            
+            if (!data) {
+                throw new Error(`Routine config ${routineId} not in cache`);
+            }
+
+            const config = JSON.parse(data) as RoutineVersionConfigObject;
+            return config;
+        } catch (error) {
+            this.logger.debug("Failed to retrieve cached routine config", {
+                routineId,
+                navigatorType: this.type,
+                error: error instanceof Error ? error.message : String(error),
+            });
             throw new Error(`Routine config ${routineId} not in cache`);
         }
-
-        return configResult.data;
     }
 
     /**

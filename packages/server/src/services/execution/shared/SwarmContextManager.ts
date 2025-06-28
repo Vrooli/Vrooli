@@ -52,25 +52,23 @@
  * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete architecture
  */
 
-import { type Logger } from "winston";
+import {
+    generatePK,
+    type SwarmId,
+} from "@vrooli/shared";
 import { type Redis as RedisClient } from "ioredis";
+import { type Logger } from "winston";
 import { CacheService } from "../../../redisConn.js";
 import {
-    type UnifiedSwarmContext,
-    type ContextUpdateEvent,
-    type ContextSubscription,
     type ContextQuery,
+    type ContextSubscription,
+    type ContextUpdateEvent,
     type ContextValidationResult,
     type ResourceAllocation,
     type ResourcePool,
-    type BlackboardItem,
+    type UnifiedSwarmContext,
     UnifiedSwarmContextGuards,
 } from "./UnifiedSwarmContext.js";
-import {
-    type SwarmId,
-    type CoreResourceAllocation,
-    generatePK,
-} from "@vrooli/shared";
 
 /**
  * Context management operations interface
@@ -81,20 +79,20 @@ export interface ISwarmContextManager {
     getContext(swarmId: SwarmId): Promise<UnifiedSwarmContext | null>;
     updateContext(swarmId: SwarmId, updates: Partial<UnifiedSwarmContext>, reason?: string): Promise<UnifiedSwarmContext>;
     deleteContext(swarmId: SwarmId): Promise<void>;
-    
+
     // Live updates and subscriptions
     subscribe(subscription: Omit<ContextSubscription, "id" | "metadata">): Promise<string>;
     unsubscribe(subscriptionId: string): Promise<void>;
-    
+
     // Resource management
     allocateResources(swarmId: SwarmId, request: Omit<ResourceAllocation, "id" | "allocatedAt">): Promise<ResourceAllocation>;
     releaseResources(swarmId: SwarmId, allocationId: string): Promise<void>;
     getResourceStatus(swarmId: SwarmId): Promise<{ total: ResourcePool; allocated: ResourceAllocation[]; available: ResourcePool }>;
-    
+
     // Context querying and validation
     query(query: ContextQuery): Promise<Partial<UnifiedSwarmContext>>;
     validate(context: UnifiedSwarmContext): Promise<ContextValidationResult>;
-    
+
     // System management
     healthCheck(): Promise<{ healthy: boolean; details: Record<string, any> }>;
     getMetrics(): Promise<Record<string, number>>;
@@ -106,22 +104,22 @@ export interface ISwarmContextManager {
 export interface SwarmContextManagerConfig {
     /** Redis TTL for context data (seconds) */
     contextTTL: number;
-    
+
     /** Redis TTL for subscription data (seconds) */
     subscriptionTTL: number;
-    
+
     /** Maximum number of versions to keep per context */
     maxVersionHistory: number;
-    
+
     /** Batch size for bulk operations */
     batchSize: number;
-    
+
     /** Enable/disable context validation */
     enableValidation: boolean;
-    
+
     /** Enable/disable context compression */
     enableCompression: boolean;
-    
+
     /** Pub/sub channel prefix */
     pubsubChannelPrefix: string;
 }
@@ -154,15 +152,15 @@ export class SwarmContextManager implements ISwarmContextManager {
     private readonly logger: Logger;
     private redis: RedisClient | null = null;
     private readonly config: SwarmContextManagerConfig;
-    
+
     // Subscription management
     private readonly subscriptions = new Map<string, ContextSubscription>();
     private subscriptionHandler?: (channel: string, message: string) => void;
-    
+
     // Caching and performance
     private readonly contextCache = new Map<SwarmId, ContextStorageRecord>();
     private readonly cacheTTL = 30000; // 30 seconds in-memory cache
-    
+
     // Metrics tracking
     private readonly metrics = {
         contextsCreated: 0,
@@ -175,7 +173,7 @@ export class SwarmContextManager implements ISwarmContextManager {
         cacheMisses: 0,
         validationErrors: 0,
     };
-    
+
     constructor(
         logger: Logger,
         config: Partial<SwarmContextManagerConfig> = {},
@@ -191,14 +189,14 @@ export class SwarmContextManager implements ISwarmContextManager {
             pubsubChannelPrefix: "swarm_context:",
             ...config,
         };
-        
+
         // Redis will be initialized in start() - using null until then
-        
+
         this.logger.info("[SwarmContextManager] Initialized with emergent capabilities enabled", {
             config: this.config,
         });
     }
-    
+
     /**
      * Start the context manager and initialize Redis connections
      */
@@ -206,10 +204,10 @@ export class SwarmContextManager implements ISwarmContextManager {
         try {
             // Initialize Redis connection
             this.redis = await CacheService.get().raw();
-            
+
             // Setup pub/sub subscription handler for live updates
             await this.setupPubSubHandler();
-            
+
             this.logger.info("[SwarmContextManager] Started successfully");
         } catch (error) {
             this.logger.error("[SwarmContextManager] Failed to start", {
@@ -218,7 +216,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             throw error;
         }
     }
-    
+
     /**
      * Stop the context manager and cleanup resources
      */
@@ -226,10 +224,10 @@ export class SwarmContextManager implements ISwarmContextManager {
         try {
             // Cleanup subscriptions
             this.subscriptions.clear();
-            
+
             // Clear cache
             this.contextCache.clear();
-            
+
             this.logger.info("[SwarmContextManager] Stopped successfully");
         } catch (error) {
             this.logger.error("[SwarmContextManager] Error during stop", {
@@ -237,26 +235,26 @@ export class SwarmContextManager implements ISwarmContextManager {
             });
         }
     }
-    
+
     /**
      * Create a new swarm context with default configuration that enables emergent capabilities
      */
     async createContext(
-        swarmId: SwarmId, 
+        swarmId: SwarmId,
         initialConfig: Partial<UnifiedSwarmContext> = {},
     ): Promise<UnifiedSwarmContext> {
         this.logger.debug("[SwarmContextManager] Creating new swarm context", { swarmId });
-        
+
         try {
             // Check if context already exists
             const existing = await this.getContext(swarmId);
             if (existing) {
                 throw new Error(`Swarm context already exists: ${swarmId}`);
             }
-            
+
             // Create default context that enables emergent capabilities
             const defaultContext = this.createDefaultContext(swarmId);
-            
+
             // Merge with provided configuration
             const context: UnifiedSwarmContext = {
                 ...defaultContext,
@@ -268,7 +266,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 lastUpdated: new Date(),
                 updatedBy: initialConfig.updatedBy || "system",
             };
-            
+
             // Validate context
             if (this.config.enableValidation) {
                 const validation = await this.validate(context);
@@ -276,21 +274,21 @@ export class SwarmContextManager implements ISwarmContextManager {
                     throw new Error(`Context validation failed: ${validation.errors.map(e => e.message).join(", ")}`);
                 }
             }
-            
+
             // Store context
             await this.storeContext(context);
-            
+
             // Update metrics
             this.metrics.contextsCreated++;
-            
+
             this.logger.info("[SwarmContextManager] Created swarm context with emergent capabilities", {
                 swarmId,
                 version: context.version,
                 emergentFeaturesEnabled: Object.values(context.configuration.features).filter(Boolean).length,
             });
-            
+
             return context;
-            
+
         } catch (error) {
             this.logger.error("[SwarmContextManager] Failed to create context", {
                 swarmId,
@@ -299,7 +297,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             throw error;
         }
     }
-    
+
     /**
      * Get current swarm context with caching optimization
      */
@@ -313,18 +311,18 @@ export class SwarmContextManager implements ISwarmContextManager {
                 cached.metadata.lastAccessed = new Date();
                 return cached.context;
             }
-            
+
             this.metrics.cacheMisses++;
-            
+
             // Load from Redis
             const redis = this.ensureRedisConnected();
             const key = this.getContextKey(swarmId);
             const data = await redis.get(key);
-            
+
             if (!data) {
                 return null;
             }
-            
+
             // Parse and validate stored context
             let record: ContextStorageRecord;
             try {
@@ -345,14 +343,14 @@ export class SwarmContextManager implements ISwarmContextManager {
                 });
                 return null;
             }
-            
+
             // Update access metadata
             record.metadata.accessCount++;
             record.metadata.lastAccessed = new Date();
-            
+
             // Store in cache
             this.contextCache.set(swarmId, record);
-            
+
             // Update access count in Redis (fire and forget)
             redis.set(key, JSON.stringify(record), "EX", this.config.contextTTL).catch(error => {
                 this.logger.warn("[SwarmContextManager] Failed to update access metadata", {
@@ -360,9 +358,9 @@ export class SwarmContextManager implements ISwarmContextManager {
                     error: error instanceof Error ? error.message : String(error),
                 });
             });
-            
+
             return record.context;
-            
+
         } catch (error) {
             this.logger.error("[SwarmContextManager] Failed to get context", {
                 swarmId,
@@ -371,28 +369,28 @@ export class SwarmContextManager implements ISwarmContextManager {
             return null;
         }
     }
-    
+
     /**
      * Update swarm context with atomic versioning and live propagation
      */
     async updateContext(
-        swarmId: SwarmId, 
-        updates: Partial<UnifiedSwarmContext>, 
+        swarmId: SwarmId,
+        updates: Partial<UnifiedSwarmContext>,
         reason = "Context update",
     ): Promise<UnifiedSwarmContext> {
-        this.logger.debug("[SwarmContextManager] Updating swarm context", { 
-            swarmId, 
+        this.logger.debug("[SwarmContextManager] Updating swarm context", {
+            swarmId,
             reason,
             updateKeys: Object.keys(updates),
         });
-        
+
         try {
             // Get current context
             const currentContext = await this.getContext(swarmId);
             if (!currentContext) {
                 throw new Error(`Swarm context not found: ${swarmId}`);
             }
-            
+
             // Create updated context with version increment
             const updatedContext: UnifiedSwarmContext = {
                 ...currentContext,
@@ -403,7 +401,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 lastUpdated: new Date(),
                 updatedBy: updates.updatedBy || "system",
             };
-            
+
             // Validate updated context
             if (this.config.enableValidation) {
                 const validation = await this.validate(updatedContext);
@@ -411,13 +409,13 @@ export class SwarmContextManager implements ISwarmContextManager {
                     throw new Error(`Context validation failed: ${validation.errors.map(e => e.message).join(", ")}`);
                 }
             }
-            
+
             // Store updated context atomically
             await this.storeContext(updatedContext);
-            
+
             // Clear cache for this swarm
             this.contextCache.delete(swarmId);
-            
+
             // Create and publish update event for live propagation
             const updateEvent: ContextUpdateEvent = {
                 swarmId,
@@ -429,12 +427,12 @@ export class SwarmContextManager implements ISwarmContextManager {
                 reason,
                 emergent: this.isEmergentUpdate(updates),
             };
-            
+
             await this.publishUpdateEvent(updateEvent);
-            
+
             // Update metrics
             this.metrics.contextsUpdated++;
-            
+
             this.logger.info("[SwarmContextManager] Updated swarm context with live propagation", {
                 swarmId,
                 previousVersion: currentContext.version,
@@ -442,9 +440,9 @@ export class SwarmContextManager implements ISwarmContextManager {
                 changesCount: updateEvent.changes.length,
                 emergent: updateEvent.emergent,
             });
-            
+
             return updatedContext;
-            
+
         } catch (error) {
             this.logger.error("[SwarmContextManager] Failed to update context", {
                 swarmId,
@@ -454,46 +452,46 @@ export class SwarmContextManager implements ISwarmContextManager {
             throw error;
         }
     }
-    
+
     /**
      * Delete swarm context and cleanup all related data
      */
     async deleteContext(swarmId: SwarmId): Promise<void> {
         this.logger.debug("[SwarmContextManager] Deleting swarm context", { swarmId });
-        
+
         try {
             // Remove from cache
             this.contextCache.delete(swarmId);
-            
+
             // Remove from Redis
             const redis = this.ensureRedisConnected();
             const key = this.getContextKey(swarmId);
             await redis.del(key);
-            
+
             // Cleanup version history
             const historyPattern = `${key}:version:*`;
             const historyKeys = await redis.keys(historyPattern);
             if (historyKeys.length > 0) {
                 await redis.del(...historyKeys);
             }
-            
+
             // Cleanup subscriptions for this swarm
             const swarmSubscriptions = Array.from(this.subscriptions.values())
                 .filter(sub => sub.swarmId === swarmId);
-            
+
             for (const subscription of swarmSubscriptions) {
                 await this.unsubscribe(subscription.id);
             }
-            
+
             // Update metrics
             this.metrics.contextsDeleted++;
-            
+
             this.logger.info("[SwarmContextManager] Deleted swarm context and cleanup completed", {
                 swarmId,
                 cleanupSubscriptions: swarmSubscriptions.length,
                 cleanupVersions: historyKeys.length,
             });
-            
+
         } catch (error) {
             this.logger.error("[SwarmContextManager] Failed to delete context", {
                 swarmId,
@@ -502,7 +500,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             throw error;
         }
     }
-    
+
     /**
      * Subscribe to live context updates for emergent coordination
      */
@@ -510,7 +508,7 @@ export class SwarmContextManager implements ISwarmContextManager {
         subscriptionRequest: Omit<ContextSubscription, "id" | "metadata">,
     ): Promise<string> {
         const subscriptionId = generatePK();
-        
+
         const subscription: ContextSubscription = {
             ...subscriptionRequest,
             id: subscriptionId,
@@ -521,20 +519,20 @@ export class SwarmContextManager implements ISwarmContextManager {
                 subscriptionType: "state_machine", // Default type
             },
         };
-        
+
         this.subscriptions.set(subscriptionId, subscription);
         this.metrics.subscriptionsCreated++;
-        
+
         this.logger.debug("[SwarmContextManager] Created context subscription", {
             subscriptionId,
             swarmId: subscription.swarmId,
             subscriberId: subscription.subscriberId,
             watchPaths: subscription.watchPaths,
         });
-        
+
         return subscriptionId;
     }
-    
+
     /**
      * Unsubscribe from context updates
      */
@@ -542,7 +540,7 @@ export class SwarmContextManager implements ISwarmContextManager {
         const subscription = this.subscriptions.get(subscriptionId);
         if (subscription) {
             this.subscriptions.delete(subscriptionId);
-            
+
             this.logger.debug("[SwarmContextManager] Removed context subscription", {
                 subscriptionId,
                 swarmId: subscription.swarmId,
@@ -551,46 +549,46 @@ export class SwarmContextManager implements ISwarmContextManager {
             });
         }
     }
-    
+
     /**
      * Allocate resources with hierarchical tracking for emergent optimization
      */
     async allocateResources(
-        swarmId: SwarmId, 
+        swarmId: SwarmId,
         request: Omit<ResourceAllocation, "id" | "allocatedAt">,
     ): Promise<ResourceAllocation> {
-        this.logger.debug("[SwarmContextManager] Allocating resources", { 
-            swarmId, 
+        this.logger.debug("[SwarmContextManager] Allocating resources", {
+            swarmId,
             consumerId: request.consumerId,
             consumerType: request.consumerType,
         });
-        
+
         try {
             const context = await this.getContext(swarmId);
             if (!context) {
                 throw new Error(`Swarm context not found: ${swarmId}`);
             }
-            
+
             // Create resource allocation
             const allocation: ResourceAllocation = {
                 ...request,
                 id: generatePK(),
                 allocatedAt: new Date(),
             };
-            
+
             // Validate allocation against available resources
             const validationResult = this.validateResourceAllocation(context, allocation);
             if (!validationResult.valid) {
                 throw new Error(`Resource allocation validation failed: ${validationResult.reason}`);
             }
-            
+
             // Update context with new allocation
             const updatedAllocations = [...context.resources.allocated, allocation];
             const updatedAvailable = this.calculateAvailableResources(
                 context.resources.total,
                 updatedAllocations,
             );
-            
+
             await this.updateContext(swarmId, {
                 resources: {
                     ...context.resources,
@@ -598,9 +596,9 @@ export class SwarmContextManager implements ISwarmContextManager {
                     available: updatedAvailable,
                 },
             }, `Resource allocation for ${allocation.consumerType} ${allocation.consumerId}`);
-            
+
             this.metrics.resourceAllocations++;
-            
+
             this.logger.info("[SwarmContextManager] Allocated resources with emergent tracking", {
                 swarmId,
                 allocationId: allocation.id,
@@ -608,9 +606,9 @@ export class SwarmContextManager implements ISwarmContextManager {
                 consumerType: allocation.consumerType,
                 creditsAllocated: allocation.allocation.maxCredits,
             });
-            
+
             return allocation;
-            
+
         } catch (error) {
             this.logger.error("[SwarmContextManager] Failed to allocate resources", {
                 swarmId,
@@ -620,32 +618,32 @@ export class SwarmContextManager implements ISwarmContextManager {
             throw error;
         }
     }
-    
+
     /**
      * Release resources and update availability
      */
     async releaseResources(swarmId: SwarmId, allocationId: string): Promise<void> {
         this.logger.debug("[SwarmContextManager] Releasing resources", { swarmId, allocationId });
-        
+
         try {
             const context = await this.getContext(swarmId);
             if (!context) {
                 throw new Error(`Swarm context not found: ${swarmId}`);
             }
-            
+
             // Find and remove allocation
             const allocationIndex = context.resources.allocated.findIndex(a => a.id === allocationId);
             if (allocationIndex === -1) {
                 throw new Error(`Resource allocation not found: ${allocationId}`);
             }
-            
+
             const allocation = context.resources.allocated[allocationIndex];
             const updatedAllocations = context.resources.allocated.filter(a => a.id !== allocationId);
             const updatedAvailable = this.calculateAvailableResources(
                 context.resources.total,
                 updatedAllocations,
             );
-            
+
             await this.updateContext(swarmId, {
                 resources: {
                     ...context.resources,
@@ -653,7 +651,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                     available: updatedAvailable,
                 },
             }, `Resource release for ${allocation.consumerType} ${allocation.consumerId}`);
-            
+
             this.logger.info("[SwarmContextManager] Released resources", {
                 swarmId,
                 allocationId,
@@ -661,7 +659,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 consumerType: allocation.consumerType,
                 creditsReleased: allocation.allocation.maxCredits,
             });
-            
+
         } catch (error) {
             this.logger.error("[SwarmContextManager] Failed to release resources", {
                 swarmId,
@@ -671,27 +669,27 @@ export class SwarmContextManager implements ISwarmContextManager {
             throw error;
         }
     }
-    
+
     /**
      * Get current resource status for monitoring and optimization
      */
-    async getResourceStatus(swarmId: SwarmId): Promise<{ 
-        total: ResourcePool; 
-        allocated: ResourceAllocation[]; 
-        available: ResourcePool; 
+    async getResourceStatus(swarmId: SwarmId): Promise<{
+        total: ResourcePool;
+        allocated: ResourceAllocation[];
+        available: ResourcePool;
     }> {
         const context = await this.getContext(swarmId);
         if (!context) {
             throw new Error(`Swarm context not found: ${swarmId}`);
         }
-        
+
         return {
             total: context.resources.total,
             allocated: context.resources.allocated,
             available: context.resources.available,
         };
     }
-    
+
     /**
      * Query context data with JSONPath support
      */
@@ -702,11 +700,11 @@ export class SwarmContextManager implements ISwarmContextManager {
         if (!context) {
             return {};
         }
-        
+
         // TODO: Implement full JSONPath querying
         return context;
     }
-    
+
     /**
      * Validate context integrity and constraints
      */
@@ -714,7 +712,7 @@ export class SwarmContextManager implements ISwarmContextManager {
         const startTime = Date.now();
         const errors: ContextValidationResult["errors"] = [];
         const warnings: ContextValidationResult["warnings"] = [];
-        
+
         // Basic type validation
         if (!UnifiedSwarmContextGuards.isUnifiedSwarmContext(context)) {
             errors.push({
@@ -723,7 +721,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 severity: "error",
             });
         }
-        
+
         // Version validation
         if (context.version < 1) {
             errors.push({
@@ -732,7 +730,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 severity: "error",
             });
         }
-        
+
         // Resource validation
         if (!UnifiedSwarmContextGuards.isResourcePool(context.resources.total)) {
             errors.push({
@@ -741,11 +739,11 @@ export class SwarmContextManager implements ISwarmContextManager {
                 severity: "error",
             });
         }
-        
+
         // TODO: Add more comprehensive validation rules
-        
+
         const validationTimeMs = Date.now() - startTime;
-        
+
         return {
             valid: errors.length === 0,
             errors,
@@ -757,7 +755,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             },
         };
     }
-    
+
     /**
      * Health check for monitoring
      */
@@ -766,7 +764,7 @@ export class SwarmContextManager implements ISwarmContextManager {
             // Test Redis connection
             const redis = this.ensureRedisConnected();
             await redis.ping();
-            
+
             return {
                 healthy: true,
                 details: {
@@ -786,37 +784,37 @@ export class SwarmContextManager implements ISwarmContextManager {
             };
         }
     }
-    
+
     /**
      * Get performance metrics
      */
     async getMetrics(): Promise<Record<string, number>> {
         return { ...this.metrics };
     }
-    
+
     // Private helper methods
-    
+
     private ensureRedisConnected(): RedisClient {
         if (!this.redis) {
             throw new Error("[SwarmContextManager] Redis not initialized. Call start() first.");
         }
         return this.redis;
     }
-    
+
     private isValidContextStorageRecord(obj: any): obj is ContextStorageRecord {
         return obj &&
-               typeof obj === "object" &&
-               typeof obj.context === "object" &&
-               typeof obj.metadata === "object" &&
-               typeof obj.metadata.storageVersion === "number" &&
-               typeof obj.metadata.compressed === "boolean" &&
-               typeof obj.metadata.checksum === "string" &&
-               typeof obj.metadata.accessCount === "number" &&
-               obj.metadata.lastAccessed &&
-               // Validate the context using existing guard
-               UnifiedSwarmContextGuards.isUnifiedSwarmContext(obj.context);
+            typeof obj === "object" &&
+            typeof obj.context === "object" &&
+            typeof obj.metadata === "object" &&
+            typeof obj.metadata.storageVersion === "number" &&
+            typeof obj.metadata.compressed === "boolean" &&
+            typeof obj.metadata.checksum === "string" &&
+            typeof obj.metadata.accessCount === "number" &&
+            obj.metadata.lastAccessed &&
+            // Validate the context using existing guard
+            UnifiedSwarmContextGuards.isUnifiedSwarmContext(obj.context);
     }
-    
+
     private async storeContext(context: UnifiedSwarmContext): Promise<void> {
         const record: ContextStorageRecord = {
             context,
@@ -828,27 +826,27 @@ export class SwarmContextManager implements ISwarmContextManager {
                 lastAccessed: new Date(),
             },
         };
-        
+
         const redis = this.ensureRedisConnected();
         const key = this.getContextKey(context.swarmId);
         const data = JSON.stringify(record);
-        
+
         await redis.set(key, data, "EX", this.config.contextTTL);
-        
+
         // Store version history
         const versionKey = `${key}:version:${context.version}`;
         await redis.set(versionKey, data, "EX", this.config.contextTTL);
-        
+
         // Cleanup old versions
         await this.cleanupOldVersions(context.swarmId);
     }
-    
+
     private async cleanupOldVersions(swarmId: SwarmId): Promise<void> {
         const redis = this.ensureRedisConnected();
         const baseKey = this.getContextKey(swarmId);
         const pattern = `${baseKey}:version:*`;
         const versionKeys = await redis.keys(pattern);
-        
+
         if (versionKeys.length > this.config.maxVersionHistory) {
             // Sort by version number and remove oldest
             const sortedKeys = versionKeys.sort((a, b) => {
@@ -856,25 +854,25 @@ export class SwarmContextManager implements ISwarmContextManager {
                 const versionB = parseInt(b.split(":version:")[1]);
                 return versionA - versionB;
             });
-            
+
             const keysToDelete = sortedKeys.slice(0, sortedKeys.length - this.config.maxVersionHistory);
             if (keysToDelete.length > 0) {
                 await redis.del(...keysToDelete);
             }
         }
     }
-    
+
     private createDefaultContext(swarmId: SwarmId): UnifiedSwarmContext {
         // Create a default context that enables emergent capabilities
         const now = new Date();
-        
+
         return {
             swarmId,
             version: 1,
             createdAt: now,
             lastUpdated: now,
             updatedBy: "system",
-            
+
             resources: {
                 total: {
                     credits: "10000", // Default credit allocation
@@ -895,7 +893,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 },
                 usageHistory: [],
             },
-            
+
             policy: {
                 security: {
                     permissions: {},
@@ -975,7 +973,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                     },
                 },
             },
-            
+
             configuration: {
                 timeouts: {
                     routineExecutionMs: 300000, // 5 minutes
@@ -1003,19 +1001,19 @@ export class SwarmContextManager implements ISwarmContextManager {
                     leadershipElection: "automatic",
                 },
             },
-            
+
             blackboard: {
                 items: {},
                 subscriptions: [],
             },
-            
+
             execution: {
                 status: "initializing",
                 teams: [],
                 agents: [],
                 activeRuns: [],
             },
-            
+
             metadata: {
                 createdBy: "system",
                 subscribers: [],
@@ -1034,28 +1032,28 @@ export class SwarmContextManager implements ISwarmContextManager {
             },
         };
     }
-    
+
     private getContextKey(swarmId: SwarmId): string {
         return `swarm_context:${swarmId}`;
     }
-    
+
     private isCacheValid(record: ContextStorageRecord): boolean {
         const age = Date.now() - record.metadata.lastAccessed.getTime();
         return age < this.cacheTTL;
     }
-    
+
     private calculateChecksum(context: UnifiedSwarmContext): string {
         // Simple checksum implementation - in production, use proper hashing
         return Buffer.from(JSON.stringify(context)).toString("base64").substring(0, 16);
     }
-    
+
     private computeChanges(
-        oldContext: UnifiedSwarmContext, 
+        oldContext: UnifiedSwarmContext,
         newContext: UnifiedSwarmContext,
     ): ContextUpdateEvent["changes"] {
         // Simplified change detection - in production, use proper diff algorithm
         const changes: ContextUpdateEvent["changes"] = [];
-        
+
         if (oldContext.resources !== newContext.resources) {
             changes.push({
                 path: "resources",
@@ -1064,7 +1062,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 changeType: "updated",
             });
         }
-        
+
         if (oldContext.policy !== newContext.policy) {
             changes.push({
                 path: "policy",
@@ -1073,7 +1071,7 @@ export class SwarmContextManager implements ISwarmContextManager {
                 changeType: "updated",
             });
         }
-        
+
         if (oldContext.configuration !== newContext.configuration) {
             changes.push({
                 path: "configuration",
@@ -1082,28 +1080,28 @@ export class SwarmContextManager implements ISwarmContextManager {
                 changeType: "updated",
             });
         }
-        
+
         return changes;
     }
-    
+
     private isEmergentUpdate(updates: Partial<UnifiedSwarmContext>): boolean {
         // Check if update was made by an agent or through automated optimization
-        return updates.updatedBy?.startsWith("agent_") || 
-               updates.updatedBy?.startsWith("optimizer_") ||
-               updates.updatedBy?.includes("emergent");
+        return updates.updatedBy?.startsWith("agent_") ||
+            updates.updatedBy?.startsWith("optimizer_") ||
+            updates.updatedBy?.includes("emergent");
     }
-    
+
     private async publishUpdateEvent(event: ContextUpdateEvent): Promise<void> {
         try {
             const redis = this.ensureRedisConnected();
             const channel = `${this.config.pubsubChannelPrefix}${event.swarmId}`;
             const message = JSON.stringify(event);
-            
+
             await redis.publish(channel, message);
-            
+
             // Notify local subscriptions
             await this.notifySubscriptions(event);
-            
+
         } catch (error) {
             this.logger.error("[SwarmContextManager] Failed to publish update event", {
                 swarmId: event.swarmId,
@@ -1111,11 +1109,11 @@ export class SwarmContextManager implements ISwarmContextManager {
             });
         }
     }
-    
+
     private async notifySubscriptions(event: ContextUpdateEvent): Promise<void> {
         const swarmSubscriptions = Array.from(this.subscriptions.values())
             .filter(sub => sub.swarmId === event.swarmId);
-        
+
         for (const subscription of swarmSubscriptions) {
             try {
                 // Check if subscription is interested in these changes
@@ -1124,14 +1122,14 @@ export class SwarmContextManager implements ISwarmContextManager {
                         this.matchesPath(change.path, pattern),
                     ),
                 );
-                
+
                 if (isInterestedInChanges) {
                     await subscription.handler(event);
                     subscription.metadata.lastNotified = new Date();
                     subscription.metadata.totalNotifications++;
                     this.metrics.subscriptionsNotified++;
                 }
-                
+
             } catch (error) {
                 this.logger.error("[SwarmContextManager] Subscription handler failed", {
                     subscriptionId: subscription.id,
@@ -1141,59 +1139,59 @@ export class SwarmContextManager implements ISwarmContextManager {
             }
         }
     }
-    
+
     private matchesPath(path: string, pattern: string): boolean {
         // Simple pattern matching - in production, use proper JSONPath matching
         return path.startsWith(pattern.replace("*", ""));
     }
-    
+
     private async setupPubSubHandler(): Promise<void> {
         // Redis pub/sub setup would go here
         // For now, just log that it's ready
         this.logger.debug("[SwarmContextManager] Pub/sub handler ready for live updates");
     }
-    
+
     private validateResourceAllocation(
-        context: UnifiedSwarmContext, 
+        context: UnifiedSwarmContext,
         allocation: ResourceAllocation,
     ): { valid: boolean; reason?: string } {
         // Check if allocation exceeds available resources
         const available = context.resources.available;
         const requested = allocation.allocation;
-        
+
         // Check credits
         if (requested.maxCredits !== "unlimited") {
             const availableCredits = BigInt(available.credits);
             const requestedCredits = BigInt(requested.maxCredits);
             if (requestedCredits > availableCredits) {
-                return { 
-                    valid: false, 
+                return {
+                    valid: false,
                     reason: `Insufficient credits: requested ${requested.maxCredits}, available ${available.credits}`,
                 };
             }
         }
-        
+
         // Check memory
         if (requested.maxMemoryMB > available.memoryMB) {
-            return { 
-                valid: false, 
+            return {
+                valid: false,
                 reason: `Insufficient memory: requested ${requested.maxMemoryMB}MB, available ${available.memoryMB}MB`,
             };
         }
-        
+
         // Check duration
         if (requested.maxDurationMs > available.durationMs) {
-            return { 
-                valid: false, 
+            return {
+                valid: false,
                 reason: `Insufficient duration: requested ${requested.maxDurationMs}ms, available ${available.durationMs}ms`,
             };
         }
-        
+
         return { valid: true };
     }
-    
+
     private calculateAvailableResources(
-        total: ResourcePool, 
+        total: ResourcePool,
         allocations: ResourceAllocation[],
     ): ResourcePool {
         // Calculate remaining resources after allocations
@@ -1201,7 +1199,7 @@ export class SwarmContextManager implements ISwarmContextManager {
         let totalMemoryAllocated = 0;
         let totalDurationAllocated = 0;
         let totalConcurrentAllocated = 0;
-        
+
         for (const allocation of allocations) {
             if (allocation.allocation.maxCredits !== "unlimited") {
                 totalCreditsAllocated += BigInt(allocation.allocation.maxCredits);
@@ -1210,14 +1208,14 @@ export class SwarmContextManager implements ISwarmContextManager {
             totalDurationAllocated += allocation.allocation.maxDurationMs;
             totalConcurrentAllocated += allocation.allocation.maxConcurrentSteps;
         }
-        
-        const totalCredits = total.credits === "unlimited" ? 
-            BigInt(Number.MAX_SAFE_INTEGER) : 
+
+        const totalCredits = total.credits === "unlimited" ?
+            BigInt(Number.MAX_SAFE_INTEGER) :
             BigInt(total.credits);
-        
+
         return {
-            credits: total.credits === "unlimited" ? 
-                "unlimited" : 
+            credits: total.credits === "unlimited" ?
+                "unlimited" :
                 (totalCredits - totalCreditsAllocated).toString(),
             durationMs: Math.max(0, total.durationMs - totalDurationAllocated),
             memoryMB: Math.max(0, total.memoryMB - totalMemoryAllocated),

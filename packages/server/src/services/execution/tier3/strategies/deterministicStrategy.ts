@@ -1,15 +1,14 @@
-import { type Logger } from "winston";
 import {
+    StrategyType,
+    type ResourceUsage,
     type ExecutionContext as StrategyExecutionContext,
     type StrategyExecutionResult,
-    type ResourceUsage,
-    StrategyType,
 } from "@vrooli/shared";
+import { type Logger } from "winston";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/strategyBase.js";
 import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { ValidationEngine } from "../engine/validationEngine.js";
-import { InMemoryStore } from "../../shared/BaseStore.js";
+import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/strategyBase.js";
 
 /**
  * Deterministic execution plan
@@ -75,8 +74,8 @@ export class DeterministicStrategy extends MinimalStrategyBase {
 
     private readonly toolOrchestrator: ToolOrchestrator;
     private readonly validationEngine: ValidationEngine;
-    private readonly cache: BaseStore<CacheEntry>;
-    
+    private readonly cache: Map<string, CacheEntry>;
+
     // Cost constants for resource estimation
     private static readonly BASE_DETERMINISTIC_COST = 10;
     private static readonly COMPLEXITY_COST_MULTIPLIER = 2;
@@ -89,7 +88,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         super(logger, eventBus);
         this.toolOrchestrator = new ToolOrchestrator(logger);
         this.validationEngine = new ValidationEngine(logger);
-        this.cache = new InMemoryStore<CacheEntry>(logger);
+        this.cache = new Map<string, CacheEntry>();
     }
 
     /**
@@ -142,7 +141,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
                 stepId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            
+
             throw error;
         }
     }
@@ -180,10 +179,10 @@ export class DeterministicStrategy extends MinimalStrategyBase {
     estimateResources(context: StrategyExecutionContext): ResourceUsage {
         const inputCount = Object.keys(context.inputs).length;
         const outputCount = Object.keys(context.config.expectedOutputs || {}).length;
-        
+
         const baseCost = DeterministicStrategy.BASE_DETERMINISTIC_COST;
         const complexityCost = (inputCount + outputCount) * DeterministicStrategy.COMPLEXITY_COST_MULTIPLIER;
-        
+
         // Analyze execution type for additional costs
         const executionType = this.analyzeExecutionType(context);
         let additionalCost = 0;
@@ -205,7 +204,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         }
 
         const totalCost = baseCost + complexityCost + additionalCost;
-        
+
         return {
             tokens: 0, // Deterministic strategies don't use LLMs
             apiCalls: estimatedApiCalls,
@@ -219,7 +218,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
      */
     private async checkCache(context: StrategyExecutionContext): Promise<unknown> {
         const cacheKey = this.generateCacheKey(context);
-        const entry = await this.cache.get(cacheKey);
+        const entry = this.cache.get(cacheKey);
 
         if (!entry) {
             return null;
@@ -227,13 +226,13 @@ export class DeterministicStrategy extends MinimalStrategyBase {
 
         // Check if cache entry is still valid
         if (entry.expiresAt && entry.expiresAt < new Date()) {
-            await this.cache.delete(cacheKey);
+            this.cache.delete(cacheKey);
             return null;
         }
 
         // Validate cache entry is still applicable
         if (!this.isCacheValid(entry, context)) {
-            await this.cache.delete(cacheKey);
+            this.cache.delete(cacheKey);
             return null;
         }
 
@@ -258,7 +257,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         }
 
         // Check if constraints have become stricter
-        if (context.constraints.maxTime && 
+        if (context.constraints.maxTime &&
             entry.executionTime > context.constraints.maxTime) {
             return false;
         }
@@ -281,15 +280,15 @@ export class DeterministicStrategy extends MinimalStrategyBase {
     private async validateInputsStrict(context: StrategyExecutionContext): Promise<ValidationResult> {
         const errors: string[] = [];
         const expectedInputs = context.config.expectedInputs as Record<string, any> || {};
-        
+
         for (const [key, schema] of Object.entries(expectedInputs)) {
             const value = context.inputs[key];
-            
+
             if (schema.required && value === undefined) {
                 errors.push(`Missing required input: ${key}`);
                 continue;
             }
-            
+
             if (value !== undefined && schema.type) {
                 const actualType = Array.isArray(value) ? "array" : typeof value;
                 if (actualType !== schema.type.toLowerCase()) {
@@ -297,7 +296,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
                 }
             }
         }
-        
+
         return {
             isValid: errors.length === 0,
             errors,
@@ -332,15 +331,15 @@ export class DeterministicStrategy extends MinimalStrategyBase {
             totalDuration: 0,
             validations: 0,
         };
-        
+
         const outputs: Record<string, unknown> = {};
-        
+
         for (const step of plan.steps) {
             const stepStart = Date.now();
             const resultsMap = new Map(Object.entries(outputs));
             const result = await this.executeStep(step, resultsMap, context, metrics);
             const stepDuration = Date.now() - stepStart;
-            
+
             // Emit execution events for monitoring agents instead of tracking directly
             this.eventBus.publish("execution.step_completed", {
                 stepId: step.id,
@@ -348,15 +347,15 @@ export class DeterministicStrategy extends MinimalStrategyBase {
                 duration: stepDuration,
                 success: true,
                 timestamp: new Date(),
-            }).catch(() => {}); // Fire and forget
-            
+            }).catch(() => { }); // Fire and forget
+
             // Update minimal metrics for backward compatibility
             metrics.totalDuration += stepDuration;
             metrics.stepsExecuted++;
-            
+
             Object.assign(outputs, result);
         }
-        
+
         return {
             outputs,
             resourcesUsed: metrics.stepsExecuted, // Use step count instead of hardcoded tracking
@@ -369,13 +368,13 @@ export class DeterministicStrategy extends MinimalStrategyBase {
      */
     private async validateOutputsStrict(outputs: Record<string, unknown>): Promise<ValidationResult> {
         const errors: string[] = [];
-        
+
         for (const [key, value] of Object.entries(outputs)) {
             if (value === null || value === undefined) {
                 errors.push(`Output ${key} is null or undefined`);
             }
         }
-        
+
         // Use ValidationEngine if available for additional validation
         if (this.validationEngine) {
             try {
@@ -392,7 +391,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
                 });
             }
         }
-        
+
         return {
             isValid: errors.length === 0,
             errors,
@@ -406,7 +405,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         const cacheKey = this.generateCacheKey(context);
         const ttl = context.config.cacheTTL || 3600000; // 1 hour default
 
-        await this.cache.set(cacheKey, {
+        this.cache.set(cacheKey, {
             value: result,
             createdAt: new Date(),
             expiresAt: new Date(Date.now() + (typeof ttl === "number" ? ttl : 3600000)),
@@ -436,7 +435,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
     private analyzeExecutionType(context: StrategyExecutionContext): "simple" | "moderate" | "complex" {
         const inputCount = Object.keys(context.inputs).length;
         const stepComplexity = this.estimateTaskComplexity(context);
-        
+
         if (inputCount <= 2 && stepComplexity < 2) return "simple";
         if (inputCount <= 5 && stepComplexity < 4) return "moderate";
         return "complex";
@@ -471,28 +470,28 @@ export class DeterministicStrategy extends MinimalStrategyBase {
     }> {
         const operations: Array<{ id: string; type: string; critical: boolean }> = [];
         const stepType = context.stepType.toLowerCase();
-        
+
         if (stepType.includes("transform")) {
             operations.push({ id: "transform_1", type: "data_transformation", critical: false });
         }
-        
+
         if (stepType.includes("api") || stepType.includes("fetch")) {
             operations.push({ id: "api_1", type: "api_integration", critical: true });
         }
-        
+
         if (stepType.includes("process") || stepType.includes("batch")) {
             operations.push({ id: "process_1", type: "batch_processing", critical: false });
         }
-        
+
         if (stepType.includes("validate")) {
             operations.push({ id: "validate_1", type: "validation", critical: false });
         }
-        
+
         // Default operation if none match
         if (operations.length === 0) {
             operations.push({ id: "default_1", type: "direct_execution", critical: false });
         }
-        
+
         return operations;
     }
 
@@ -587,7 +586,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         }
 
         const resp = response as any;
-        
+
         // Check for error indicators
         if (resp.error || resp.status === "error") {
             return false;
@@ -673,10 +672,10 @@ export class DeterministicStrategy extends MinimalStrategyBase {
             throw new Error("API call requires a valid URL parameter");
         }
 
-        this.logger.debug("[DeterministicStrategy] Executing API call", { 
-            url, 
+        this.logger.debug("[DeterministicStrategy] Executing API call", {
+            url,
             method,
-            timeout, 
+            timeout,
         });
 
         const controller = new AbortController();
@@ -817,11 +816,11 @@ export class DeterministicStrategy extends MinimalStrategyBase {
                 // Complex transformation rule
                 const { source, transform, defaultValue } = rule as any;
                 let value = source ? this.getNestedValue(data, source) : undefined;
-                
+
                 if (value !== undefined && transform) {
                     value = await this.applyTransformRule(value, transform);
                 }
-                
+
                 result[targetField] = value !== undefined ? value : defaultValue;
             } else {
                 // Direct value assignment
@@ -834,7 +833,7 @@ export class DeterministicStrategy extends MinimalStrategyBase {
 
     private transformField(data: unknown, field: string, value: unknown): unknown {
         if (typeof data !== "object" || data === null) return data;
-        
+
         const result = { ...data } as any;
         this.setNestedValue(result, field, value);
         return result;
@@ -871,15 +870,15 @@ export class DeterministicStrategy extends MinimalStrategyBase {
 
     private renameField(data: unknown, from: string, to: string): unknown {
         if (typeof data !== "object" || data === null) return data;
-        
+
         const result = { ...data } as any;
         const value = this.getNestedValue(result, from);
-        
+
         if (value !== undefined) {
             this.setNestedValue(result, to, value);
             this.deleteNestedValue(result, from);
         }
-        
+
         return result;
     }
 
@@ -887,17 +886,17 @@ export class DeterministicStrategy extends MinimalStrategyBase {
         if (typeof data === "string") {
             return data.replace(new RegExp(pattern, "g"), replacement);
         }
-        
+
         if (typeof data === "object" && data !== null) {
             const result: any = Array.isArray(data) ? [] : {};
-            
+
             for (const [key, value] of Object.entries(data)) {
                 result[key] = this.replaceInData(value, pattern, replacement);
             }
-            
+
             return result;
         }
-        
+
         return data;
     }
 
@@ -907,47 +906,47 @@ export class DeterministicStrategy extends MinimalStrategyBase {
 
     private getNestedValue(obj: unknown, path: string): unknown {
         if (!path || typeof obj !== "object" || obj === null) return undefined;
-        
+
         const keys = path.split(".");
         let result: any = obj;
-        
+
         for (const key of keys) {
             if (result === null || result === undefined) return undefined;
             result = result[key];
         }
-        
+
         return result;
     }
 
     private setNestedValue(obj: any, path: string, value: unknown): void {
         if (!path || typeof obj !== "object" || obj === null) return;
-        
+
         const keys = path.split(".");
         const lastKey = keys.pop()!;
         let current = obj;
-        
+
         for (const key of keys) {
             if (!current[key] || typeof current[key] !== "object") {
                 current[key] = {};
             }
             current = current[key];
         }
-        
+
         current[lastKey] = value;
     }
 
     private deleteNestedValue(obj: any, path: string): void {
         if (!path || typeof obj !== "object" || obj === null) return;
-        
+
         const keys = path.split(".");
         const lastKey = keys.pop()!;
         let current = obj;
-        
+
         for (const key of keys) {
             if (!current[key] || typeof current[key] !== "object") return;
             current = current[key];
         }
-        
+
         delete current[lastKey];
     }
 

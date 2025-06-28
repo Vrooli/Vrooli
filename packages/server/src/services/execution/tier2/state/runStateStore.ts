@@ -3,23 +3,22 @@
  * Manages persistent state for routine execution
  */
 
-import { type Redis } from "ioredis";
-import { 
-    RunState, 
-    type Location,
-    type Checkpoint,
+import {
+    DAYS_1_S,
+    RunState,
     type BranchExecution,
+    type Checkpoint,
+    type Location,
     type StepExecution,
 } from "@vrooli/shared";
-import { CacheService } from "../../../../redisConn.js";
+import { type Redis } from "ioredis";
 import { logger } from "../../../../events/logger.js";
-import { RedisStore } from "../../shared/BaseStore.js";
+import { CacheService } from "../../../../redisConn.js";
 import { RedisIndexManager } from "../../shared/RedisIndexManager.js";
-// Import the modern context type from UnifiedRunStateMachine
 import { type RunExecutionContext } from "../orchestration/unifiedRunStateMachine.js";
 
 // Constants
-const DEFAULT_TTL_SECONDS = 86400; // 24 hours
+const DEFAULT_TTL_S = DAYS_1_S; // 24 hours
 
 /**
  * Run configuration
@@ -64,40 +63,40 @@ export interface RunConfig {
 export interface IRunStateStore {
     // Initialization
     initialize(): Promise<void>;
-    
+
     // Run lifecycle
     createRun(runId: string, config: RunConfig): Promise<void>;
     getRun(runId: string): Promise<RunConfig | null>;
     updateRun(runId: string, updates: Partial<RunConfig>): Promise<void>;
     deleteRun(runId: string): Promise<void>;
-    
+
     // State management
     getRunState(runId: string): Promise<RunState>;
     updateRunState(runId: string, state: RunState): Promise<void>;
-    
+
     // Location tracking
     getCurrentLocation(runId: string): Promise<Location | null>;
     updateLocation(runId: string, location: Location): Promise<void>;
     getLocationHistory(runId: string): Promise<Location[]>;
-    
+
     // Branch management
     createBranch(runId: string, branch: BranchExecution): Promise<void>;
     getBranch(runId: string, branchId: string): Promise<BranchExecution | null>;
     updateBranch(runId: string, branchId: string, updates: Partial<BranchExecution>): Promise<void>;
     listBranches(runId: string): Promise<BranchExecution[]>;
-    
+
     // Step tracking
     recordStepExecution(runId: string, step: StepExecution): Promise<void>;
     getStepExecution(runId: string, stepId: string): Promise<StepExecution | null>;
     listStepExecutions(runId: string): Promise<StepExecution[]>;
-    
+
     // Checkpoint management
     createCheckpoint(runId: string, checkpoint: Checkpoint): Promise<void>;
     getCheckpoint(runId: string, checkpointId: string): Promise<Checkpoint | null>;
     listCheckpoints(runId: string): Promise<Checkpoint[]>;
     deleteCheckpoint(runId: string, checkpointId: string): Promise<void>;
     restoreFromCheckpoint(runId: string, checkpointId: string): Promise<void>;
-    
+
     // Query operations
     listActiveRuns(): Promise<string[]>;
     getRunsByState(state: RunState): Promise<string[]>;
@@ -149,17 +148,17 @@ export interface IRunStateStore {
 export interface IModernRunStateStore {
     // Initialization
     initialize(): Promise<void>;
-    
+
     // Run lifecycle
     createRun(runId: string, config: RunConfig): Promise<void>;
     getRun(runId: string): Promise<RunConfig | null>;
     updateRun(runId: string, updates: Partial<RunConfig>): Promise<void>;
     deleteRun(runId: string): Promise<void>;
-    
+
     // State management
     getRunState(runId: string): Promise<RunState>;
     updateRunState(runId: string, state: RunState): Promise<void>;
-    
+
     // Modern context management - replaces deprecated ProcessRunContext methods
     /**
      * Retrieves the complete RunExecutionContext for a run
@@ -190,7 +189,7 @@ export interface IModernRunStateStore {
      * ```
      */
     getRunContext(runId: string): Promise<RunExecutionContext>;
-    
+
     /**
      * Updates the complete RunExecutionContext for a run
      * 
@@ -225,30 +224,30 @@ export interface IModernRunStateStore {
      * ```
      */
     updateRunContext(runId: string, context: RunExecutionContext): Promise<void>;
-    
+
     // Location tracking (unchanged from IRunStateStore)
     getCurrentLocation(runId: string): Promise<Location | null>;
     updateLocation(runId: string, location: Location): Promise<void>;
     getLocationHistory(runId: string): Promise<Location[]>;
-    
+
     // Branch management (unchanged from IRunStateStore)
     createBranch(runId: string, branch: BranchExecution): Promise<void>;
     getBranch(runId: string, branchId: string): Promise<BranchExecution | null>;
     updateBranch(runId: string, branchId: string, updates: Partial<BranchExecution>): Promise<void>;
     listBranches(runId: string): Promise<BranchExecution[]>;
-    
+
     // Step tracking (unchanged from IRunStateStore)
     recordStepExecution(runId: string, step: StepExecution): Promise<void>;
     getStepExecution(runId: string, stepId: string): Promise<StepExecution | null>;
     listStepExecutions(runId: string): Promise<StepExecution[]>;
-    
+
     // Checkpoint management (unchanged from IRunStateStore)
     createCheckpoint(runId: string, checkpoint: Checkpoint): Promise<void>;
     getCheckpoint(runId: string, checkpointId: string): Promise<Checkpoint | null>;
     listCheckpoints(runId: string): Promise<Checkpoint[]>;
     deleteCheckpoint(runId: string, checkpointId: string): Promise<void>;
     restoreFromCheckpoint(runId: string, checkpointId: string): Promise<void>;
-    
+
     // Query operations (unchanged from IRunStateStore)
     listActiveRuns(): Promise<string[]>;
     getRunsByState(state: RunState): Promise<string[]>;
@@ -267,12 +266,13 @@ export interface IModernRunStateStore {
  * - Phase 2B: Remove deprecated methods from IRunStateStore
  * - Phase 2C: Only implement IModernRunStateStore
  */
-export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunStateStore, IModernRunStateStore {
+export class RedisRunStateStore implements IRunStateStore, IModernRunStateStore {
+    private readonly keyPrefix = "run:";
     private readonly indexPrefix = "run_index:";
-    private readonly subsidiaryTtl = DEFAULT_TTL_SECONDS;
+    private readonly subsidiaryTtl = DEFAULT_TTL_S;
     private readonly indexManager: RedisIndexManager;
     private redis: Redis;
-    
+
     // In-memory cache for frequently accessed contexts (Phase 2C optimization)
     private readonly contextCache = new Map<string, {
         context: RunExecutionContext;
@@ -281,23 +281,24 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     }>();
     private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
     private readonly MAX_CACHE_SIZE = 100;
-    
+
     constructor(redis: Redis) {
-        super(logger, redis, "run", DEFAULT_TTL_SECONDS);
         this.redis = redis;
-        this.indexManager = new RedisIndexManager(redis, logger, DEFAULT_TTL_SECONDS);
+        this.indexManager = new RedisIndexManager(redis, logger, DEFAULT_TTL_S);
     }
-    
+
     async initialize(): Promise<void> {
         // Base store doesn't need explicit initialization
     }
-    
+
     async createRun(runId: string, config: RunConfig): Promise<void> {
-        await this.set(runId, config);
-        
+        // Store the run config directly in Redis
+        const key = this.getRunKey(runId);
+        await this.redis.setex(key, this.subsidiaryTtl, JSON.stringify(config));
+
         // Initialize state
         await this.updateRunState(runId, RunState.PENDING);
-        
+
         // Initialize empty modern context
         const initialContext: RunExecutionContext = {
             runId,
@@ -337,68 +338,85 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
             retryCount: 0,
         };
         await this.updateRunContext(runId, initialContext);
-        
+
         // Update indexes
         await this.updateIndexes(runId, config);
-        
+
         logger.info("Run created", { runId });
     }
-    
+
     async getRun(runId: string): Promise<RunConfig | null> {
-        return this.get(runId);
+        const key = this.getRunKey(runId);
+        const data = await this.redis.get(key);
+
+        if (!data) {
+            return null;
+        }
+
+        try {
+            return JSON.parse(data) as RunConfig;
+        } catch (error) {
+            logger.error("[RedisRunStateStore] Failed to parse run config", {
+                runId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return null;
+        }
     }
-    
+
     async updateRun(runId: string, updates: Partial<RunConfig>): Promise<void> {
-        const current = await this.get(runId);
+        const current = await this.getRun(runId);
         if (!current) {
             throw new Error(`Run ${runId} not found`);
         }
-        
+
         const updated = {
             ...current,
             ...updates,
             updatedAt: new Date(),
         };
-        
-        await this.set(runId, updated);
-        
+
+        const key = this.getRunKey(runId);
+        await this.redis.setex(key, this.subsidiaryTtl, JSON.stringify(updated));
+
         // Update indexes if userId changed
         if (updates.userId && updates.userId !== current.userId) {
             await this.updateIndexes(runId, updated);
         }
     }
-    
+
     async deleteRun(runId: string): Promise<void> {
-        const config = await this.get(runId);
+        const config = await this.getRun(runId);
         if (!config) return;
-        
+
         // Remove from indexes first
         await this.removeFromIndexes(runId, config);
-        
+
         // Clean up subsidiary data
         await this.cleanupRunData(runId);
-        
+
         // Remove from context cache
         this.removeCachedContext(runId);
-        
+
         // Delete main run
-        await this.delete(runId);
-        
+        const key = this.getRunKey(runId);
+        await this.redis.del(key);
+
         logger.info("Run deleted", { runId });
     }
-    
+
     async getRunState(runId: string): Promise<RunState> {
         const key = this.getStateKey(runId);
         const state = await this.redis.get(key);
-        
+
         return (state as RunState) || RunState.PENDING;
     }
-    
+
     async updateRunState(runId: string, state: RunState): Promise<void> {
         const oldState = await this.getRunState(runId);
         const key = this.getStateKey(runId);
         await this.redis.setex(key, this.subsidiaryTtl, state);
-        
+
         // Update state index using IndexManager
         await this.indexManager.updateStateIndex(
             runId,
@@ -407,16 +425,16 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
             (s) => this.getStateIndexKey(s),
             Object.values(RunState),
         );
-        
+
         // Remove from active if terminal state
         const terminalStates = [RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED];
         if (terminalStates.includes(state)) {
             await this.indexManager.removeFromSet(this.getActiveIndexKey(), runId);
         }
     }
-    
+
     // Legacy ProcessRunContext methods have been removed - use modern context methods instead
-    
+
     /**
      * Modern context management methods - Phase 2A implementation
      * 
@@ -424,7 +442,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
      * RunExecutionContext-based context management that replaces the deprecated
      * ProcessRunContext methods.
      */
-    
+
     /**
      * Retrieves the complete RunExecutionContext for a run
      * 
@@ -446,14 +464,14 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
         if (cached) {
             return cached;
         }
-        
+
         const key = this.getRunExecutionContextKey(runId);
         const data = await this.redis.get(key);
-        
+
         if (data) {
             try {
                 const rawContext = JSON.parse(data);
-                
+
                 // Reconstruct proper RunExecutionContext with correct types
                 const context: RunExecutionContext = {
                     ...rawContext,
@@ -463,7 +481,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                         startTime: new Date(rawContext.resourceUsage.startTime),
                     },
                 };
-                
+
                 // Validate that this is a proper RunExecutionContext
                 if (context.runId && context.routineId) {
                     // Cache the retrieved context
@@ -477,7 +495,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                 });
             }
         }
-        
+
         // Fallback: Try to migrate from legacy ProcessRunContext
         try {
             // Try to load from legacy context storage for migration
@@ -485,26 +503,26 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
             const legacyData = await this.redis.get(legacyKey);
             const legacyContext = legacyData ? JSON.parse(legacyData) : null;
             const runConfig = await this.get(runId);
-            
+
             if (runConfig) {
                 logger.info("[RedisRunStateStore] Migrating legacy context to RunExecutionContext", { runId });
-                
+
                 // Create a basic RunExecutionContext from legacy data
                 const migratedContext: RunExecutionContext = {
                     runId,
                     routineId: runConfig.routineId,
-                    
+
                     // Navigation state - will need to be set by UnifiedRunStateMachine
                     navigator: null as any, // This will be set when the context is first used
                     currentLocation: { id: "start", nodeId: "start", stepId: "start" }, // Default location
                     visitedLocations: [],
-                    
+
                     // Execution state from legacy context
                     variables: legacyContext.variables || {},
                     outputs: {},
                     completedSteps: [],
                     parallelBranches: [],
-                    
+
                     // Context management (ProcessRunContext compatibility)
                     blackboard: legacyContext.blackboard || {},
                     scopes: legacyContext.scopes || [{
@@ -512,7 +530,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                         name: "Global Scope",
                         variables: legacyContext.variables || {},
                     }],
-                    
+
                     // Resource tracking - initialize with defaults
                     resourceLimits: {
                         maxCredits: "1000",
@@ -527,7 +545,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                         stepsExecuted: 0,
                         startTime: new Date(),
                     },
-                    
+
                     // Progress tracking - initialize
                     progress: {
                         currentStepId: null,
@@ -535,17 +553,17 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                         totalSteps: 0,
                         percentComplete: 0,
                     },
-                    
+
                     // Error handling
                     retryCount: 0,
                 };
-                
+
                 // Store the migrated context for future use
                 await this.updateRunContext(runId, migratedContext);
-                
+
                 // Cache the migrated context
                 this.setCachedContext(runId, migratedContext);
-                
+
                 return migratedContext;
             }
         } catch (error) {
@@ -554,25 +572,25 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                 error: error instanceof Error ? error.message : String(error),
             });
         }
-        
+
         // Final fallback: Create minimal default context
         logger.warn("[RedisRunStateStore] Creating default RunExecutionContext", { runId });
-        
+
         const defaultContext: RunExecutionContext = {
             runId,
             routineId: runId, // Fallback to runId if no routine info available
-            
+
             // Navigation state - minimal defaults
             navigator: null as any, // Will be set by UnifiedRunStateMachine
             currentLocation: { id: "start", nodeId: "start", stepId: "start" },
             visitedLocations: [],
-            
+
             // Execution state - empty defaults
             variables: {},
             outputs: {},
             completedSteps: [],
             parallelBranches: [],
-            
+
             // Context management - empty defaults
             blackboard: {},
             scopes: [{
@@ -580,7 +598,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                 name: "Global Scope",
                 variables: {},
             }],
-            
+
             // Resource tracking - defaults
             resourceLimits: {
                 maxCredits: "1000",
@@ -595,7 +613,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                 stepsExecuted: 0,
                 startTime: new Date(),
             },
-            
+
             // Progress tracking - defaults
             progress: {
                 currentStepId: null,
@@ -603,17 +621,17 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                 totalSteps: 0,
                 percentComplete: 0,
             },
-            
+
             // Error handling
             retryCount: 0,
         };
-        
+
         // Cache the default context
         this.setCachedContext(runId, defaultContext);
-        
+
         return defaultContext;
     }
-    
+
     /**
      * Updates the complete RunExecutionContext for a run
      * 
@@ -634,7 +652,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     async updateRunContext(runId: string, context: RunExecutionContext): Promise<void> {
         try {
             const key = this.getRunExecutionContextKey(runId);
-            
+
             // Prepare context for serialization
             const serializableContext = {
                 ...context,
@@ -644,20 +662,20 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                     startTime: context.resourceUsage.startTime.toISOString(),
                 },
             };
-            
+
             // Store with TTL
             await this.redis.setex(key, this.subsidiaryTtl, JSON.stringify(serializableContext));
-            
+
             // Update cache with new context
             this.setCachedContext(runId, context);
-            
+
             logger.debug("[RedisRunStateStore] Updated RunExecutionContext", {
                 runId,
                 contextSize: JSON.stringify(serializableContext).length,
                 currentStepId: context.progress.currentStepId,
                 percentComplete: context.progress.percentComplete,
             });
-            
+
         } catch (error) {
             logger.error("[RedisRunStateStore] Failed to update RunExecutionContext", {
                 runId,
@@ -666,76 +684,76 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
             throw error;
         }
     }
-    
+
     async getCurrentLocation(runId: string): Promise<Location | null> {
         const key = this.getCurrentLocationKey(runId);
         const data = await this.redis.get(key);
-        
+
         return data ? JSON.parse(data) : null;
     }
-    
+
     async updateLocation(runId: string, location: Location): Promise<void> {
         // Update current location
         const key = this.getCurrentLocationKey(runId);
         await redis.setex(key, this.subsidiaryTtl, JSON.stringify(location));
-        
+
         // Add to location history
         const historyKey = this.getLocationHistoryKey(runId);
         await redis.rpush(historyKey, JSON.stringify(location));
         await redis.expire(historyKey, this.subsidiaryTtl);
     }
-    
+
     async getLocationHistory(runId: string): Promise<Location[]> {
         const key = this.getLocationHistoryKey(runId);
         const history = await redis.lrange(key, 0, -1);
-        
+
         return history.map(item => JSON.parse(item));
     }
-    
+
     async createBranch(runId: string, branch: BranchExecution): Promise<void> {
         const key = this.getBranchKey(runId, branch.id);
         await redis.setex(key, this.subsidiaryTtl, JSON.stringify(branch));
-        
+
         // Add to branches set using IndexManager
         await this.indexManager.addToSet(this.getBranchIndexKey(runId), branch.id, this.subsidiaryTtl);
     }
-    
+
     async getBranch(runId: string, branchId: string): Promise<BranchExecution | null> {
         const key = this.getBranchKey(runId, branchId);
         const data = await redis.get(key);
-        
+
         return data ? JSON.parse(data) : null;
     }
-    
+
     async updateBranch(runId: string, branchId: string, updates: Partial<BranchExecution>): Promise<void> {
         const current = await this.getBranch(runId, branchId);
         if (!current) {
             throw new Error(`Branch ${branchId} not found`);
         }
-        
+
         const updated = { ...current, ...updates };
         const key = this.getBranchKey(runId, branchId);
         await redis.setex(key, this.subsidiaryTtl, JSON.stringify(updated));
     }
-    
+
     async listBranches(runId: string): Promise<BranchExecution[]> {
         const branchIds = await this.indexManager.getSetMembers(this.getBranchIndexKey(runId));
         const branches: BranchExecution[] = [];
-        
+
         for (const branchId of branchIds) {
             const branch = await this.getBranch(runId, branchId);
             if (branch) {
                 branches.push(branch);
             }
         }
-        
+
         return branches;
     }
-    
+
     async recordStepExecution(runId: string, step: StepExecution): Promise<void> {
         const key = this.getStepKey(runId, step.stepId);
         await redis.setex(key, this.subsidiaryTtl, JSON.stringify(step));
-        
+
         // Add to steps list using IndexManager
         await this.indexManager.addToList(
             this.getStepListKey(runId),
@@ -744,32 +762,32 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
             this.subsidiaryTtl,
         );
     }
-    
+
     async getStepExecution(runId: string, stepId: string): Promise<StepExecution | null> {
         const key = this.getStepKey(runId, stepId);
         const data = await redis.get(key);
-        
+
         return data ? JSON.parse(data) : null;
     }
-    
+
     async listStepExecutions(runId: string): Promise<StepExecution[]> {
         const stepIds = await this.indexManager.getListMembers(this.getStepListKey(runId));
         const steps: StepExecution[] = [];
-        
+
         for (const stepId of stepIds) {
             const step = await this.getStepExecution(runId, stepId);
             if (step) {
                 steps.push(step);
             }
         }
-        
+
         return steps;
     }
-    
+
     async createCheckpoint(runId: string, checkpoint: Checkpoint): Promise<void> {
         const key = this.getCheckpointKey(runId, checkpoint.id);
         await redis.setex(key, this.subsidiaryTtl, JSON.stringify(checkpoint));
-        
+
         // Add to checkpoints list using IndexManager
         await this.indexManager.addToList(
             this.getCheckpointListKey(runId),
@@ -778,46 +796,46 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
             this.subsidiaryTtl,
         );
     }
-    
+
     async getCheckpoint(runId: string, checkpointId: string): Promise<Checkpoint | null> {
         const key = this.getCheckpointKey(runId, checkpointId);
         const data = await redis.get(key);
-        
+
         return data ? JSON.parse(data) : null;
     }
-    
+
     async listCheckpoints(runId: string): Promise<Checkpoint[]> {
         const checkpointIds = await this.indexManager.getListMembers(this.getCheckpointListKey(runId));
         const checkpoints: Checkpoint[] = [];
-        
+
         for (const checkpointId of checkpointIds) {
             const checkpoint = await this.getCheckpoint(runId, checkpointId);
             if (checkpoint) {
                 checkpoints.push(checkpoint);
             }
         }
-        
+
         return checkpoints;
     }
-    
+
     async deleteCheckpoint(runId: string, checkpointId: string): Promise<void> {
         const checkpoint = await this.getCheckpoint(runId, checkpointId);
         if (!checkpoint) {
             logger.debug("Checkpoint not found for deletion", { runId, checkpointId });
             return; // Silently succeed if checkpoint doesn't exist
         }
-        
+
         try {
             // Remove checkpoint data
             const checkpointKey = this.getCheckpointKey(runId, checkpointId);
             await this.redis.del(checkpointKey);
-            
+
             // Remove from checkpoint list index
             await this.indexManager.removeFromList(
                 this.getCheckpointListKey(runId),
                 checkpointId,
             );
-            
+
             logger.info("Checkpoint deleted", { runId, checkpointId });
         } catch (error) {
             logger.error("Failed to delete checkpoint", {
@@ -834,10 +852,10 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
         if (!checkpoint) {
             throw new Error(`Checkpoint ${checkpointId} not found`);
         }
-        
+
         // Restore context - checkpoint may have legacy ProcessRunContext format
         const currentContext = await this.getRunContext(runId);
-        
+
         // The checkpoint.context is of type RunContext from shared, which might be ProcessRunContext format
         if (checkpoint.context && typeof checkpoint.context === "object" && "variables" in checkpoint.context) {
             // Merge checkpoint data into the modern context
@@ -849,26 +867,26 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                 currentContext.scopes = checkpoint.context.scopes;
             }
         }
-        
+
         await this.updateRunContext(runId, currentContext);
-        
+
         // Restore location
         await this.updateLocation(runId, checkpoint.location);
-        
+
         // Update state to RUNNING
         await this.updateRunState(runId, RunState.RUNNING);
-        
+
         logger.info("Restored from checkpoint", { runId, checkpointId });
     }
-    
+
     async listActiveRuns(): Promise<string[]> {
         return await this.indexManager.getSetMembers(this.getActiveIndexKey());
     }
-    
+
     async getRunsByState(state: RunState): Promise<string[]> {
         return await this.indexManager.getSetMembers(this.getStateIndexKey(state));
     }
-    
+
     async getRunsByUser(userId: string): Promise<string[]> {
         return await this.indexManager.getSetMembers(this.getUserIndexKey(userId));
     }
@@ -883,12 +901,12 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
                 `${this.keyPrefix}${runId}:*`,
                 `${this.indexPrefix}*`,
             ];
-            
+
             await this.indexManager.cleanupItemFromAllIndexes(runId, indexPatterns);
-            
+
             // Clean up individual data keys using pattern
             await this.indexManager.cleanupIndexesByPattern(`${this.keyPrefix}${runId}:*`);
-            
+
             logger.debug("[RedisRunStateStore] Cleaned up run data", { runId });
         } catch (error) {
             logger.error("[RedisRunStateStore] Failed to cleanup run data", {
@@ -901,7 +919,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     private async updateIndexes(runId: string, config: RunConfig): Promise<void> {
         // Add to active runs set using IndexManager
         await this.indexManager.addToSet(this.getActiveIndexKey(), runId);
-        
+
         // Add to user's runs
         await this.indexManager.addToSet(this.getUserIndexKey(config.userId), runId);
     }
@@ -909,10 +927,10 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     private async removeFromIndexes(runId: string, config: RunConfig): Promise<void> {
         // Remove from active runs using IndexManager
         await this.indexManager.removeFromSet(this.getActiveIndexKey(), runId);
-        
+
         // Remove from user's runs
         await this.indexManager.removeFromSet(this.getUserIndexKey(config.userId), runId);
-        
+
         // Remove from all state indexes
         for (const state of Object.values(RunState)) {
             await this.indexManager.removeFromSet(this.getStateIndexKey(state as RunState), runId);
@@ -922,82 +940,82 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     // ========================================
     // CONTEXT CACHING METHODS (Phase 2C)
     // ========================================
-    
+
     /**
      * Get context from in-memory cache if available and not expired
      */
     private getCachedContext(runId: string): RunExecutionContext | null {
         const cached = this.contextCache.get(runId);
-        
+
         if (!cached) {
             return null;
         }
-        
+
         const now = Date.now();
         const isExpired = (now - cached.timestamp) > this.CACHE_TTL_MS;
-        
+
         if (isExpired) {
             this.contextCache.delete(runId);
             return null;
         }
-        
+
         // Update access count and timestamp for LRU tracking
         cached.accessCount++;
         cached.timestamp = now;
-        
+
         logger.debug("[RedisRunStateStore] Context cache hit", {
             runId,
             accessCount: cached.accessCount,
             cacheSize: this.contextCache.size,
         });
-        
+
         return cached.context;
     }
-    
+
     /**
      * Store context in in-memory cache with LRU eviction
      */
     private setCachedContext(runId: string, context: RunExecutionContext): void {
         const now = Date.now();
-        
+
         // If cache is at capacity, evict least recently used item
         if (this.contextCache.size >= this.MAX_CACHE_SIZE) {
             this.evictLeastRecentlyUsed();
         }
-        
+
         this.contextCache.set(runId, {
             context: { ...context }, // Shallow copy to prevent mutations
             timestamp: now,
             accessCount: 1,
         });
-        
+
         logger.debug("[RedisRunStateStore] Context cached", {
             runId,
             cacheSize: this.contextCache.size,
         });
     }
-    
+
     /**
      * Remove context from cache (called when run is deleted)
      */
     private removeCachedContext(runId: string): void {
         this.contextCache.delete(runId);
     }
-    
+
     /**
      * Evict the least recently used context from cache
      */
     private evictLeastRecentlyUsed(): void {
         let oldestKey: string | null = null;
         let oldestTimestamp = Date.now();
-        
+
         for (const [runId, cached] of this.contextCache.entries()) {
             if (cached.timestamp < oldestTimestamp) {
                 oldestTimestamp = cached.timestamp;
                 oldestKey = runId;
             }
         }
-        
+
         if (oldestKey) {
             this.contextCache.delete(oldestKey);
             logger.debug("[RedisRunStateStore] Evicted context from cache", {
@@ -1006,20 +1024,24 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
             });
         }
     }
-    
+
     /**
      * Clear entire context cache (useful for testing or memory management)
      */
     private clearContextCache(): void {
         const previousSize = this.contextCache.size;
         this.contextCache.clear();
-        
+
         logger.info("[RedisRunStateStore] Cleared context cache", {
             previousSize,
         });
     }
 
     // Key generation helpers
+    private getRunKey(runId: string): string {
+        return `${this.keyPrefix}${runId}`;
+    }
+
     private getStateKey(runId: string): string {
         return `${this.keyPrefix}${runId}:state`;
     }

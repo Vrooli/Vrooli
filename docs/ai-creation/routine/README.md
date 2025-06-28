@@ -216,15 +216,58 @@ vrooli routine run <routine-id> --watch
 
 ## Routine Categories
 
-The system supports these routine categories:
+### Enhanced Category Framework
 
-- **Metareasoning**: Strategy selection, process optimization, self-reflection
-- **Productivity**: Task management, planning, scheduling
-- **Knowledge**: Summarization, research, information processing
-- **Content**: Writing, communication, creative tasks
-- **Analysis**: Data processing, evaluation, insights
-- **Integration**: System connections, automation, workflows
-- **Learning**: Skill development, feedback, adaptation
+Based on analysis of 98 routines (75 main + 23 subroutines), the system supports these comprehensive categories:
+
+#### 🧠 **Meta-Intelligence & Systems**
+- Memory maintenance, capability analysis, anomaly detection
+- Strategy selection and optimization
+- Self-reflection and continuous improvement
+
+#### 🎯 **Personal Excellence**
+- Introspective development, habit formation, wellness
+- Mindfulness, personal branding, life planning
+
+#### 💼 **Professional Mastery**
+- Career navigation, interview prep, performance optimization
+- Leadership development, team building, onboarding
+
+#### 🚀 **Innovation & Creativity**
+- Problem-solving frameworks, brainstorming facilitation
+- Creative mentorship, design thinking, innovation workshops
+
+#### 📊 **Research & Intelligence**
+- Multi-source synthesis, fact-checking, competitive analysis
+- Market research, documentation generation, knowledge processing
+
+#### 💻 **Technical Excellence**
+- Code generation/review, debugging, API documentation
+- Data visualization, system integration, automation
+
+#### 💰 **Financial Intelligence**
+- Portfolio analysis, budget optimization, financial planning
+- Investment strategy, economic modeling
+
+#### 🎯 **Strategic Decision-Making**
+- Crisis management, risk assessment, decision frameworks
+- SWOT analysis, scenario planning, resource allocation
+
+#### ⚡ **Productivity Engineering**
+- Task prioritization, time blocking, workflow optimization
+- Project management, meeting facilitation, review systems
+
+#### 📚 **Learning Acceleration**
+- Adaptive learning paths, study optimization, skill assessment
+- Language learning, research assistance, knowledge retention
+
+#### 📝 **Communication Mastery**
+- Email campaigns, report writing, content creation
+- Meeting summaries, social media planning, documentation
+
+#### 🏗️ **Infrastructure & Operations**
+- System monitoring, process optimization, team coordination
+- Resource management, capability mapping, gap analysis
 
 ## File Formats
 
@@ -249,6 +292,38 @@ Complete Vrooli routine definitions following the database schema:
   ]
 }
 ```
+
+## Key Insights for Future Routine Creation
+
+When creating new routines, follow these proven patterns and principles:
+
+### 1. **Composability is King**
+- Focus on creating modular subroutines that can be mixed and matched
+- Design for reusability across different contexts
+- Keep subroutines focused on single responsibilities
+
+### 2. **Strategy Alignment**
+- Use **conversational** for human-centric, adaptive tasks (coaching, creative work)
+- Use **reasoning** for analysis, synthesis, and creative problem-solving
+- Use **deterministic** for calculations, rules, and predictable workflows
+
+### 3. **Power Patterns**
+- **Multi-step workflows**: Build on intermediate results for complex outcomes
+- **Parallel execution**: Run independent analyses simultaneously
+- **Context preservation**: Maintain coherence across workflow steps
+- **Rich outputs**: Capture multiple perspectives and formats
+
+### 4. **Untapped Potential**
+- **Cross-domain routines**: Combine technical + financial analysis, etc.
+- **Adaptive routines**: Modify execution based on intermediate results
+- **Collaborative routines**: Designed for team/swarm execution
+- **Real-time monitoring**: Continuous adjustment and optimization
+
+### 5. **Design Principles**
+- **Start simple**: Begin with basic functionality, then enhance
+- **Think workflows**: How will this routine compose with others?
+- **User-centric**: Clear inputs, actionable outputs, helpful guidance
+- **Error-resilient**: Handle edge cases and provide fallback options
 
 ## Quality Assurance
 

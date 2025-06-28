@@ -2,42 +2,34 @@ import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { BaseComponent } from "../shared/BaseComponent.js";
 // Socket events now handled through unified event system
-import { EventTypes } from "../../events/index.js";
-import { SEEDED_PUBLIC_IDS } from "@vrooli/shared";
-import { 
-    type TierCommunicationInterface,
-    type TierExecutionRequest,
-    type ExecutionResult,
-    type ExecutionId,
-    type ExecutionStatus,
-    type TierCapabilities,
-    type RoutineExecutionInput,
-    type SwarmCoordinationInput,
-    isSwarmCoordinationInput,
-    isRoutineExecutionInput,
-} from "@vrooli/shared";
-import { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
-import { TeamManager } from "./organization/teamManager.js";
-import { ResourceManager } from "./organization/resourceManager.js";
-// All intelligence functionality now provided by emergent agents - see docs/architecture/execution/emergent-capabilities/
-import { SwarmStateStoreFactory } from "./state/swarmStateStoreFactory.js";
-import { type ISwarmStateStore } from "./state/swarmStateStore.js";
-import { createConversationBridge, type ConversationBridge } from "./intelligence/conversationBridge.js";
-import { type ISwarmContextManager } from "../shared/SwarmContextManager.js";
 import {
-    type SwarmStatus,
-    type Swarm,
-    ExecutionStates,
+    type ExecutionId, type ExecutionResult, type ExecutionStatus, type RoutineExecutionInput,
+    type SwarmCoordinationInput, type TierCapabilities, type TierCommunicationInterface,
+    type TierExecutionRequest, isRoutineExecutionInput, isSwarmCoordinationInput, SEEDED_PUBLIC_IDS,
+} from "@vrooli/shared";
+import { EventTypes } from "../../events/index.js";
+import { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
+import { ResourceManager } from "./organization/resourceManager.js";
+import { TeamManager } from "./organization/teamManager.js";
+// All intelligence functionality now provided by emergent agents - see docs/architecture/execution/emergent-capabilities/
+import {
     type ExecutionState,
     type SessionUser,
-    generatePK,
-    generatePublicId,
+    type Swarm,
+    type SwarmStatus,
+    type TeamFormation,
     BotConfig,
     ChatConfig,
+    ExecutionStates,
+    generatePK,
+    generatePublicId,
 } from "@vrooli/shared";
 import { DbProvider } from "../../../db/provider.js";
 import { PrismaChatStore } from "../../../services/conversation/chatStore.js";
 import { type BotParticipant } from "../../../services/conversation/types.js";
+import { type ISwarmContextManager, SwarmContextManager } from "../shared/SwarmContextManager.js";
+import { type UnifiedSwarmContext } from "../shared/UnifiedSwarmContext.js";
+import { type ConversationBridge, createConversationBridge } from "./intelligence/conversationBridge.js";
 
 /**
  * Tier One Coordinator
@@ -47,7 +39,6 @@ import { type BotParticipant } from "../../../services/conversation/types.js";
  */
 export class TierOneCoordinator extends BaseComponent implements TierCommunicationInterface {
     private readonly tier2Orchestrator: TierCommunicationInterface;
-    private readonly stateStore: ISwarmStateStore;
     private readonly swarmMachines: Map<string, SwarmStateMachine> = new Map();
     private readonly teamManager: TeamManager;
     private readonly resourceManager: ResourceManager;
@@ -55,32 +46,40 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     private readonly chatStore: PrismaChatStore;
     private readonly conversationBridge: ConversationBridge;
     private readonly creationLocks: Map<string, Promise<void>> = new Map(); // Simple in-memory lock
-    private readonly contextManager?: ISwarmContextManager; // NEW: Optional SwarmContextManager for emergent capabilities
+    private readonly contextManager: ISwarmContextManager; // Primary state management via SwarmContextManager
 
     constructor(
-        logger: Logger, 
-        eventBus: EventBus, 
+        logger: Logger,
+        eventBus: EventBus,
         tier2Orchestrator: TierCommunicationInterface,
-        contextManager?: ISwarmContextManager, // NEW: Optional context manager integration
+        contextManager?: ISwarmContextManager, // Optional for backward compatibility during migration
     ) {
         super(logger, eventBus, "TierOneCoordinator");
         this.tier2Orchestrator = tier2Orchestrator;
-        this.contextManager = contextManager;
-        
-        // Initialize state store
-        this.stateStore = SwarmStateStoreFactory.getInstance(logger);
-        
+
+        // Initialize modern SwarmContextManager if provided, otherwise create default instance
+        if (contextManager) {
+            this.contextManager = contextManager;
+            this.logger.info("[TierOneCoordinator] Using provided SwarmContextManager");
+        } else {
+            // Create default SwarmContextManager for backward compatibility
+            this.contextManager = new SwarmContextManager();
+            this.logger.info("[TierOneCoordinator] Created default SwarmContextManager");
+        }
+
         // Initialize minimal components
         this.teamManager = new TeamManager(logger);
         this.resourceManager = new ResourceManager(logger);
         this.chatStore = new PrismaChatStore();
         this.conversationBridge = createConversationBridge(logger);
-        
+
         // Setup event handlers
         this.setupEventHandlers();
-        
-        this.logger.info("[TierOneCoordinator] Initialized with emergent capabilities", {
-            hasContextManager: !!this.contextManager,
+
+        this.logger.info("[TierOneCoordinator] Initialized with modern architecture", {
+            hasContextManager: true,
+            contextManagerType: contextManager ? "provided" : "default",
+            modernArchitecture: true,
         });
     }
 
@@ -122,8 +121,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             });
             await existingLock;
             // Check if swarm was created by the other process
-            const swarm = await this.stateStore.getSwarm(config.swarmId);
-            if (swarm) {
+            const context = await this.contextManager.getContext(config.swarmId);
+            if (context) {
                 this.logger.info("[TierOneCoordinator] Swarm created by concurrent process", {
                     swarmId: config.swarmId,
                 });
@@ -134,7 +133,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         // Create a lock for this swarm creation
         const creationPromise = this.performSwarmCreation(config);
         this.creationLocks.set(config.swarmId, creationPromise);
-        
+
         try {
             await creationPromise;
         } finally {
@@ -170,11 +169,11 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     }): Promise<void> {
         let resourcesReserved = false;
         let conversationId: string | null = null;
-        
+
         try {
             // Validate resource configuration
-            if (config.resources.maxCredits <= 0 || 
-                config.resources.maxTokens <= 0 || 
+            if (config.resources.maxCredits <= 0 ||
+                config.resources.maxTokens <= 0 ||
                 config.resources.maxTime <= 0) {
                 throw new Error("Invalid resource configuration: all limits must be positive");
             }
@@ -185,10 +184,10 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             }
 
             // Check if swarm already exists (idempotency)
-            const existingSwarm = await this.stateStore.getSwarm(config.swarmId);
-            if (existingSwarm) {
+            const existingContext = await this.contextManager.getContext(config.swarmId);
+            if (existingContext) {
                 // Check if chat exists and return existing swarm
-                const existingConversationId = existingSwarm.metadata?.conversationId;
+                const existingConversationId = existingContext.blackboard.get("conversationId") as string;
                 if (existingConversationId) {
                     const prisma = DbProvider.get();
                     const existingChat = await prisma.chat.findUnique({
@@ -228,11 +227,11 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
 
             // Generate numeric ID for conversation/chat
             conversationId = generatePK().toString();
-            
+
             // Fetch the leader bot user (use provided ID or default to Valyxa)
             const leaderBotId = config.leaderBotId || SEEDED_PUBLIC_IDS.Valyxa;
             const prisma = DbProvider.get();
-            
+
             // Use transaction for atomic chat creation
             const { chat, botUser, leaderBot } = await prisma.$transaction(async (tx) => {
                 // Fetch bot user
@@ -250,12 +249,12 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 if (!botUser || !botUser.isBot) {
                     throw new Error(`Bot user not found or is not a bot: ${leaderBotId}`);
                 }
-                
+
                 // Validate bot has settings
                 if (!botUser.botSettings) {
                     throw new Error(`Bot user ${leaderBotId} has no bot settings configured`);
                 }
-                
+
                 // Validate bot has required capabilities
                 const botConfig = BotConfig.parse(botUser, this.logger);
                 if (!botConfig.model) {
@@ -305,82 +304,18 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 initialLeaderSystemMessage: "",
                 teamConfig: undefined,
             };
-            
+
             await this.chatStore.saveState(conversationId, conversationState);
-            
+
             // Force immediate write to ensure state is persisted with timeout
             const saveSuccess = await this.chatStore.finalizeSave(5000);
             if (!saveSuccess) {
                 throw new Error("Failed to persist conversation state within timeout");
             }
 
-            // Create swarm object
-            const swarm: Swarm = {
-                id: config.swarmId,
-                name: config.name,
-                description: config.description,
-                state: ExecutionStates.UNINITIALIZED,
-                config: {
-                    maxAgents: 10,
-                    minAgents: 1,
-                    consensusThreshold: 0.7,
-                    decisionTimeout: 300000, // 5 minutes
-                    adaptationInterval: 60000, // 1 minute
-                    resourceOptimization: true,
-                    learningEnabled: true,
-                    maxBudget: config.resources.maxCredits,
-                    maxDuration: config.resources.maxTime,
-                    ...config.config,
-                },
-                parentSwarmId: config.parentSwarmId, // NEW: Set parent relationship
-                childSwarmIds: [],
-                resources: {
-                    allocated: {
-                        credits: config.resources.maxCredits,
-                        tokens: config.resources.maxTokens,
-                        time: config.resources.maxTime,
-                    },
-                    consumed: {
-                        credits: 0,
-                        tokens: 0,
-                        time: 0,
-                    },
-                    remaining: {
-                        credits: config.resources.maxCredits,
-                        tokens: config.resources.maxTokens,
-                        time: config.resources.maxTime,
-                    },
-                    reservedByChildren: {
-                        credits: 0,
-                        tokens: 0,
-                        time: 0,
-                    },
-                    childReservations: [],
-                },
-                metrics: {
-                    tasksCompleted: 0,
-                    tasksFailed: 0,
-                    avgTaskDuration: 0,
-                    resourceEfficiency: 0,
-                },
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                metadata: {
-                    userId: config.userId,
-                    organizationId: config.organizationId,
-                    version: "2.0.0",
-                    parentSwarmId: config.parentSwarmId, // Also store in metadata for easy access
-                    conversationId, // Store conversation ID mapping
-                },
-            };
-
-            // Store swarm state
-            await this.stateStore.createSwarm(config.swarmId, swarm);
-
-            // NEW: Initialize unified swarm context for emergent capabilities
-            if (this.contextManager) {
-                await this.initializeSwarmContext(config.swarmId, swarm, config);
-            }
+            // Initialize unified swarm context for emergent capabilities
+            // This replaces the old swarm creation - everything is now in the context
+            await this.initializeSwarmContext(config.swarmId, config, conversationId);
 
             // Emit initial swarm state through unified event system
             await this.publishUnifiedEvent(EventTypes.STATE_SWARM_UPDATED, {
@@ -408,23 +343,22 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 conversationId,
             });
 
-            // Create state machine with context manager integration
+            // Create state machine with SwarmContextManager
             const stateMachine = new SwarmStateMachine(
                 this.logger,
-                this.stateStore,
+                this.contextManager,
                 this.conversationBridge,
-                this.contextManager, // NEW: Pass context manager for emergent capabilities
             );
 
             this.swarmMachines.set(config.swarmId, stateMachine);
 
             // Start the swarm with the conversationId and swarmId
-            const initiatingUser = { 
-                id: config.userId, 
-                name: "User", 
-                hasPremium: false, 
+            const initiatingUser = {
+                id: config.userId,
+                name: "User",
+                hasPremium: false,
             } as SessionUser;
-            await stateMachine.start(conversationId, config.goal, initiatingUser, config.swarmId); // NEW: Pass swarmId
+            await stateMachine.start(conversationId, config.goal, initiatingUser, config.swarmId);
 
             // Emit swarm started event using unified event system
             await this.publishUnifiedEvent(EventTypes.TEAM_FORMED, {
@@ -446,7 +380,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 swarmId: config.swarmId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            
+
             // Cleanup: Release resources if they were reserved
             if (resourcesReserved && config.parentSwarmId) {
                 try {
@@ -463,7 +397,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     });
                 }
             }
-            
+
             // Try to cleanup orphaned chat if conversationId was generated
             if (conversationId) {
                 try {
@@ -482,11 +416,11 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                         error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
                     });
                 }
-                
+
                 // Note: Chat store cleanup would require access to the cached store instance
                 // For now, the cache will expire naturally
             }
-            
+
             throw error;
         }
     }
@@ -511,13 +445,13 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             throw new Error(`Swarm ${request.swarmId} not found`);
         }
 
-        // Get the swarm to find the conversationId and resource allocation
-        const swarm = await this.stateStore.getSwarm(request.swarmId);
-        if (!swarm) {
-            throw new Error(`Swarm state not found for ${request.swarmId}`);
+        // Get the context to find the conversationId
+        const context = await this.contextManager.getContext(request.swarmId);
+        if (!context) {
+            throw new Error(`Swarm context not found for ${request.swarmId}`);
         }
-        
-        const conversationId = swarm.metadata?.conversationId || request.swarmId;
+
+        const conversationId = context.blackboard.get("conversationId") as string || request.swarmId;
 
         try {
             // Create run execution event for swarm coordination
@@ -565,7 +499,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
 
             // Delegate to Tier 2 for actual run execution
             const result = await this.tier2Orchestrator.execute(tier2Request);
-            
+
             this.logger.info("[TierOneCoordinator] Run execution delegated to Tier 2", {
                 runId: request.runId,
                 executionResult: result.status,
@@ -573,15 +507,19 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
 
             // Update swarm resource consumption based on execution result
             if (result.resourceUsage) {
-                swarm.resources.consumed.credits += result.resourceUsage.credits;
-                swarm.resources.consumed.tokens += result.resourceUsage.tokens;
-                swarm.resources.consumed.time += result.resourceUsage.duration;
-                
-                swarm.resources.remaining.credits -= result.resourceUsage.credits;
-                swarm.resources.remaining.tokens -= result.resourceUsage.tokens;
-                swarm.resources.remaining.time -= result.resourceUsage.duration;
-                
-                await this.stateStore.updateSwarm(request.swarmId, swarm);
+                // Allocate resources used by the run
+                await this.contextManager.allocateResources(request.swarmId, {
+                    entityId: request.runId,
+                    entityType: "run",
+                    allocated: {
+                        credits: BigInt(result.resourceUsage.credits),
+                        timeoutMs: result.resourceUsage.duration,
+                        memoryMB: 0, // Not tracked at this level
+                        concurrentExecutions: 0,
+                    },
+                    purpose: `Run execution: ${request.runId}`,
+                    priority: "medium",
+                });
             }
 
         } catch (error) {
@@ -590,19 +528,19 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 swarmId: request.swarmId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            
+
             // Notify swarm of execution failure
             await stateMachine.handleEvent({
                 type: "internal_status_update",
                 conversationId,
                 sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
-                payload: { 
-                    type: "run_failed", 
+                payload: {
+                    type: "run_failed",
                     runId: request.runId,
                     error: error instanceof Error ? error.message : String(error),
                 },
             });
-            
+
             throw error;
         }
     }
@@ -619,11 +557,11 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         errors?: string[];
     }> {
         try {
-            const swarm = await this.stateStore.getSwarm(swarmId);
-            if (!swarm) {
+            const context = await this.contextManager.getContext(swarmId);
+            if (!context) {
                 return {
                     status: SwarmStatus.Unknown,
-                    errors: ["Swarm not found"],
+                    errors: ["Swarm context not found"],
                 };
             }
 
@@ -642,13 +580,17 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 [ExecutionStates.TERMINATED]: SwarmStatus.Cancelled,
             };
 
+            const executionState = context.executionState.currentStatus as ExecutionState;
+            const activeRuns = context.executionState.activeRuns?.length || 0;
+            const metrics = context.executionState.metrics;
+            
             return {
-                status: statusMap[swarm.state] || SwarmStatus.Unknown,
-                progress: this.calculateProgress(swarm),
+                status: statusMap[executionState] || SwarmStatus.Unknown,
+                progress: this.calculateProgressFromContext(context),
                 currentPhase,
-                activeRuns: swarm.metrics?.tasksCompleted || 0,
-                completedRuns: swarm.metrics?.tasksCompleted || 0,
-                errors: swarm.errors,
+                activeRuns,
+                completedRuns: metrics?.successfulExecutions || 0,
+                errors: [], // Errors would be in context events/blackboard
             };
 
         } catch (error) {
@@ -672,19 +614,21 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             throw new Error(`Swarm ${swarmId} not found`);
         }
 
-        // Get swarm info before stopping for cleanup
-        const swarm = await this.stateStore.getSwarm(swarmId);
+        // Get context info before stopping for cleanup
+        const context = await this.contextManager.getContext(swarmId);
 
         await stateMachine.stop(swarmId);
-        
+
         // If this was a child swarm, release resources back to parent
-        if (swarm?.parentSwarmId) {
-            await this.releaseResourcesFromChild(swarm.parentSwarmId, swarmId);
+        const parentSwarmId = context?.blackboard.get("parentSwarmId") as string;
+        if (parentSwarmId) {
+            await this.releaseResourcesFromChild(parentSwarmId, swarmId);
         }
 
         // Cancel any child swarms
-        if (swarm?.childSwarmIds && swarm.childSwarmIds.length > 0) {
-            for (const childId of swarm.childSwarmIds) {
+        const childSwarmIds = context?.blackboard.get("childSwarmIds") as string[] || [];
+        if (childSwarmIds.length > 0) {
+            for (const childId of childSwarmIds) {
                 try {
                     await this.cancelSwarm(childId, userId, `Parent swarm ${swarmId} cancelled`);
                 } catch (error) {
@@ -696,10 +640,10 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 }
             }
         }
-        
+
         // Remove from active machines
         this.swarmMachines.delete(swarmId);
-        
+
         // Emit cancellation event
         await this.publishUnifiedEvent(
             "swarm.cancelled",
@@ -725,43 +669,31 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         reservation: { credits: number; tokens: number; time: number },
     ): Promise<{ success: boolean; message?: string }> {
         try {
-            const swarm = await this.stateStore.getSwarm(parentSwarmId);
-            if (!swarm) {
-                return { success: false, message: `Parent swarm ${parentSwarmId} not found` };
-            }
-
-            // Check if parent has enough remaining resources
-            const available = {
-                credits: swarm.resources.remaining.credits - swarm.resources.reservedByChildren.credits,
-                tokens: swarm.resources.remaining.tokens - swarm.resources.reservedByChildren.tokens,
-                time: swarm.resources.remaining.time - swarm.resources.reservedByChildren.time,
-            };
-
-            if (reservation.credits > available.credits ||
-                reservation.tokens > available.tokens ||
-                reservation.time > available.time) {
-                return {
-                    success: false,
-                    message: `Insufficient resources. Available: ${JSON.stringify(available)}, Requested: ${JSON.stringify(reservation)}`,
-                };
-            }
-
-            // Add reservation
-            swarm.resources.reservedByChildren.credits += reservation.credits;
-            swarm.resources.reservedByChildren.tokens += reservation.tokens;
-            swarm.resources.reservedByChildren.time += reservation.time;
-
-            swarm.resources.childReservations.push({
-                childSwarmId,
-                reserved: reservation,
-                createdAt: new Date(),
+            // Allocate resources from parent to child using contextManager
+            const allocation = await this.contextManager.allocateResources(parentSwarmId, {
+                entityId: childSwarmId,
+                entityType: "swarm",
+                allocated: {
+                    credits: BigInt(reservation.credits),
+                    timeoutMs: reservation.time,
+                    memoryMB: 0, // Not tracked at this level
+                    concurrentExecutions: 0,
+                },
+                purpose: `Child swarm allocation: ${childSwarmId}`,
+                priority: "high",
             });
 
-            swarm.childSwarmIds.push(childSwarmId);
-            swarm.updatedAt = new Date();
-
-            // Update state store
-            await this.stateStore.updateSwarm(parentSwarmId, swarm);
+            // Track child swarm relationship
+            const context = await this.contextManager.getContext(parentSwarmId);
+            if (context) {
+                const childSwarmIds = context.blackboard.get("childSwarmIds") as string[] || [];
+                if (!childSwarmIds.includes(childSwarmId)) {
+                    childSwarmIds.push(childSwarmId);
+                    await this.contextManager.updateContext(parentSwarmId, {
+                        blackboard: new Map([...context.blackboard, ["childSwarmIds", childSwarmIds]]),
+                    }, "Add child swarm");
+                }
+            }
 
             // Emit reservation event
             await this.publishUnifiedEvent(
@@ -804,40 +736,31 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         childSwarmId: string,
     ): Promise<{ success: boolean; message?: string }> {
         try {
-            const swarm = await this.stateStore.getSwarm(parentSwarmId);
-            if (!swarm) {
-                return { success: false, message: `Parent swarm ${parentSwarmId} not found` };
+            // Find and release the allocation for the child swarm
+            const context = await this.contextManager.getContext(parentSwarmId);
+            if (!context) {
+                return { success: false, message: `Parent swarm context ${parentSwarmId} not found` };
             }
 
-            // Find and remove the child reservation
-            const reservationIndex = swarm.resources.childReservations.findIndex(
-                r => r.childSwarmId === childSwarmId,
+            // Find the allocation for this child swarm
+            const childAllocation = context.resources.allocated.find(
+                alloc => alloc.entityId === childSwarmId && alloc.entityType === "swarm",
             );
 
-            if (reservationIndex === -1) {
-                return { success: false, message: `No reservation found for child swarm ${childSwarmId}` };
+            if (childAllocation) {
+                // Release the allocation
+                await this.contextManager.releaseResources(parentSwarmId, childAllocation.id);
             }
 
-            const reservation = swarm.resources.childReservations[reservationIndex];
-
-            // Release the reserved resources
-            swarm.resources.reservedByChildren.credits -= reservation.reserved.credits;
-            swarm.resources.reservedByChildren.tokens -= reservation.reserved.tokens;
-            swarm.resources.reservedByChildren.time -= reservation.reserved.time;
-
-            // Remove reservation record
-            swarm.resources.childReservations.splice(reservationIndex, 1);
-
-            // Remove from child list
-            const childIndex = swarm.childSwarmIds.indexOf(childSwarmId);
+            // Remove from child list in blackboard
+            const childSwarmIds = context.blackboard.get("childSwarmIds") as string[] || [];
+            const childIndex = childSwarmIds.indexOf(childSwarmId);
             if (childIndex > -1) {
-                swarm.childSwarmIds.splice(childIndex, 1);
+                childSwarmIds.splice(childIndex, 1);
+                await this.contextManager.updateContext(parentSwarmId, {
+                    blackboard: new Map([...context.blackboard, ["childSwarmIds", childSwarmIds]]),
+                }, "Remove child swarm");
             }
-
-            swarm.updatedAt = new Date();
-
-            // Update state store
-            await this.stateStore.updateSwarm(parentSwarmId, swarm);
 
             // Emit release event
             await this.publishUnifiedEvent(
@@ -845,7 +768,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 {
                     parentSwarmId,
                     childSwarmId,
-                    released: reservation.reserved,
+                    released: childAllocation?.allocated || { credits: 0, tokens: 0, time: 0 },
                 },
                 {
                     conversationId: parentSwarmId,
@@ -857,7 +780,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             this.logger.info("[TierOneCoordinator] Released resources from child swarm", {
                 parentSwarmId,
                 childSwarmId,
-                released: reservation.reserved,
+                released: childAllocation?.allocated,
             });
 
             return { success: true };
@@ -891,7 +814,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             // Type-safe routing with proper discrimination
             if (isSwarmCoordinationInput(request.input)) {
                 const swarmInput = request.input as SwarmCoordinationInput;
-                
+
                 // Extract resource allocation with type safety
                 const maxCredits = this.parseCreditsFromString(request.allocation.maxCredits);
                 const maxTokens = Math.floor(request.allocation.maxDurationMs / 1000); // Estimate tokens from duration
@@ -924,7 +847,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 return {
                     executionId: request.context.executionId,
                     status: "completed",
-                    result: { 
+                    result: {
                         swarmId: request.context.executionId,
                         swarmName: `Swarm: ${swarmInput.goal.substring(0, 50)}...`,
                         agentCount: swarmInput.availableAgents.length,
@@ -936,11 +859,11 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     },
                     duration: Date.now() - startTime,
                 };
-                
+
             } else if (isRoutineExecutionInput(request.input)) {
                 // Delegate routine execution to Tier 2
                 const routineInput = request.input as RoutineExecutionInput;
-                
+
                 const tier2Request: TierExecutionRequest<RoutineExecutionInput> = {
                     context: {
                         ...request.context,
@@ -953,7 +876,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 };
 
                 return await this.tier2Orchestrator.execute(tier2Request) as ExecutionResult<TOutput>;
-                
+
             } else {
                 // Input type not supported by Tier 1
                 const inputTypeName = request.input?.constructor?.name || typeof request.input;
@@ -968,7 +891,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 error: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : undefined,
             });
-            
+
             return {
                 executionId: request.context.executionId,
                 status: "failed",
@@ -999,11 +922,11 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
         try {
             const swarmStatus = await this.getSwarmStatus(executionId);
-            
+
             // Map SwarmStatus to ExecutionStatus
             const statusMap: Record<string, ExecutionStatus["status"]> = {
                 "Pending": "pending",
-                "Running": "running", 
+                "Running": "running",
                 "Paused": "paused",
                 "Completed": "completed",
                 "Failed": "failed",
@@ -1027,7 +950,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 executionId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            
+
             return {
                 executionId,
                 status: "failed",
@@ -1082,12 +1005,12 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         if (creditsStr === "unlimited") {
             return Number.MAX_SAFE_INTEGER;
         }
-        
+
         const parsed = parseInt(creditsStr, 10);
         if (isNaN(parsed) || parsed < 0) {
             throw new Error(`Invalid credits allocation: ${creditsStr}`);
         }
-        
+
         return parsed;
     }
 
@@ -1096,7 +1019,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
      */
     async shutdown(): Promise<void> {
         this.logger.info("[TierOneCoordinator] Shutting down");
-        
+
         // Stop all active swarms
         for (const [swarmId, stateMachine] of this.swarmMachines) {
             try {
@@ -1108,7 +1031,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 });
             }
         }
-        
+
         this.swarmMachines.clear();
     }
 
@@ -1116,14 +1039,14 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
      * Private helper methods
      */
     private async getConversationIdForSwarm(swarmId: string): Promise<string> {
-        const swarm = await this.stateStore.getSwarm(swarmId);
-        if (!swarm) {
-            this.logger.warn(`[TierOneCoordinator] Swarm not found: ${swarmId}, using swarmId as conversationId`);
+        const context = await this.contextManager.getContext(swarmId);
+        if (!context) {
+            this.logger.warn(`[TierOneCoordinator] Context not found: ${swarmId}, using swarmId as conversationId`);
             return swarmId;
         }
-        return swarm.metadata?.conversationId || swarmId;
+        return context.blackboard.get("conversationId") as string || swarmId;
     }
-    
+
     private setupEventHandlers(): void {
         // Handle run completion events from Tier 2
         this.eventBus.on("run.completed", async (event) => {
@@ -1173,55 +1096,57 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         // Handle child swarm completion events
         this.eventBus.on("swarm.completed", async (event) => {
             const { swarmId } = event.data;
-            const swarm = await this.stateStore.getSwarm(swarmId);
-            
+            const context = await this.contextManager.getContext(swarmId);
+            const parentSwarmId = context?.blackboard.get("parentSwarmId") as string;
+
             // If this completed swarm has a parent, notify parent and release resources
-            if (swarm?.parentSwarmId) {
-                const parentStateMachine = this.swarmMachines.get(swarm.parentSwarmId);
+            if (parentSwarmId) {
+                const parentStateMachine = this.swarmMachines.get(parentSwarmId);
                 if (parentStateMachine) {
-                    const parentConversationId = await this.getConversationIdForSwarm(swarm.parentSwarmId);
+                    const parentConversationId = await this.getConversationIdForSwarm(parentSwarmId);
                     await parentStateMachine.handleEvent({
                         type: "internal_status_update",
                         conversationId: parentConversationId,
                         sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
-                        payload: { 
-                            type: "child_swarm_completed", 
+                        payload: {
+                            type: "child_swarm_completed",
                             childSwarmId: swarmId,
                             completedAt: new Date().toISOString(),
                         },
                     });
                 }
-                
+
                 // Release resources back to parent
-                await this.releaseResourcesFromChild(swarm.parentSwarmId, swarmId);
+                await this.releaseResourcesFromChild(parentSwarmId, swarmId);
             }
         });
 
         // Handle child swarm failure events
         this.eventBus.on("swarm.failed", async (event) => {
             const { swarmId, error } = event.data;
-            const swarm = await this.stateStore.getSwarm(swarmId);
-            
+            const context = await this.contextManager.getContext(swarmId);
+            const parentSwarmId = context?.blackboard.get("parentSwarmId") as string;
+
             // If this failed swarm has a parent, notify parent and release resources
-            if (swarm?.parentSwarmId) {
-                const parentStateMachine = this.swarmMachines.get(swarm.parentSwarmId);
+            if (parentSwarmId) {
+                const parentStateMachine = this.swarmMachines.get(parentSwarmId);
                 if (parentStateMachine) {
-                    const parentConversationId = await this.getConversationIdForSwarm(swarm.parentSwarmId);
+                    const parentConversationId = await this.getConversationIdForSwarm(parentSwarmId);
                     await parentStateMachine.handleEvent({
                         type: "internal_status_update",
                         conversationId: parentConversationId,
                         sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
-                        payload: { 
-                            type: "child_swarm_failed", 
+                        payload: {
+                            type: "child_swarm_failed",
                             childSwarmId: swarmId,
                             error,
                             failedAt: new Date().toISOString(),
                         },
                     });
                 }
-                
+
                 // Release resources back to parent
-                await this.releaseResourcesFromChild(swarm.parentSwarmId, swarmId);
+                await this.releaseResourcesFromChild(parentSwarmId, swarmId);
             }
         });
 
@@ -1250,8 +1175,23 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         // Calculate progress based on resource consumption and task completion
         const resourceProgress = swarm.resources.consumed.credits / swarm.resources.allocated.maxCredits;
         const timeProgress = swarm.resources.consumed.time / swarm.resources.allocated.maxTime;
-        
+
         return Math.min(Math.max(resourceProgress, timeProgress) * 100, 100);
+    }
+
+    private calculateProgressFromContext(context: UnifiedSwarmContext): number {
+        // Calculate progress based on resource consumption from context
+        const totalCredits = parseInt(context.resources.total.credits || "0");
+        const availableCredits = parseInt(context.resources.available.credits || "0");
+        const consumedCredits = totalCredits - availableCredits;
+        
+        const resourceProgress = totalCredits > 0 ? consumedCredits / totalCredits : 0;
+        const metrics = context.executionState.metrics;
+        const taskProgress = metrics?.totalExecutions > 0 
+            ? metrics.successfulExecutions / metrics.totalExecutions 
+            : 0;
+
+        return Math.min(Math.max(resourceProgress, taskProgress) * 100, 100);
     }
 
     /**
@@ -1261,8 +1201,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
      * through configuration changes rather than code changes.
      */
     private async initializeSwarmContext(
-        swarmId: string, 
-        swarm: Swarm, 
+        swarmId: string,
         config: {
             name: string;
             description: string;
@@ -1284,10 +1223,8 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             parentSwarmId?: string;
             leaderBotId?: string;
         },
+        conversationId: string,
     ): Promise<void> {
-        if (!this.contextManager) {
-            return;
-        }
 
         try {
             this.logger.debug("[TierOneCoordinator] Initializing swarm context for emergent capabilities", {
@@ -1299,7 +1236,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             const initialContext = {
                 // Identity and basic metadata
                 updatedBy: config.userId,
-                
+
                 // Resource management based on swarm allocation
                 resources: {
                     total: {
@@ -1347,7 +1284,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     },
                     usageHistory: [],
                 },
-                
+
                 // Policies that agents can modify for emergent capabilities
                 policy: {
                     security: {
@@ -1364,7 +1301,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                                 },
                             },
                             "swarm_agent": {
-                                canExecuteTools: config.resources.tools.filter(t => 
+                                canExecuteTools: config.resources.tools.filter(t =>
                                     !t.name.includes("admin") && !t.name.includes("system"),
                                 ).map(t => t.name),
                                 canAccessResources: ["credits", "memory"],
@@ -1507,7 +1444,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                         },
                     },
                 },
-                
+
                 // Configuration that enables emergent behavior
                 configuration: {
                     timeouts: {
@@ -1536,13 +1473,18 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                         leadershipElection: "manual" as const, // Leader specified during creation
                     },
                 },
-                
+
                 // Shared blackboard for inter-agent communication
-                blackboard: {
-                    items: new Map(),
-                    subscriptions: [],
-                },
-                
+                blackboard: new Map([
+                    ["conversationId", conversationId],
+                    ["parentSwarmId", config.parentSwarmId || null],
+                    ["userId", config.userId],
+                    ["organizationId", config.organizationId || null],
+                    ["name", config.name],
+                    ["description", config.description],
+                    ["goal", config.goal],
+                ]),
+
                 // Current execution state
                 execution: {
                     status: "initializing" as const,
@@ -1558,7 +1500,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                     agents: [],
                     activeRuns: [],
                 },
-                
+
                 // Context metadata
                 metadata: {
                     createdBy: config.userId,
@@ -1599,4 +1541,5 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             // Don't throw - swarm can still function without unified context
         }
     }
+
 }
