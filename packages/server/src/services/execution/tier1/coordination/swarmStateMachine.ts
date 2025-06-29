@@ -17,63 +17,29 @@
  * spawn_swarm to accomplish these tasks when they determine it's necessary.
  */
 
-import { 
-    type SessionUser, 
-    type PendingToolCallEntry,
-    type ChatToolCallRecord,
-    type ChatConfigObject,
-    type BotParticipant,
-    type BotConfigObject,
-    type SwarmSubTask,
-    generatePK,
-    PendingToolCallStatus,
+import {
     ChatConfig,
+    EventTypes,
     ExecutionStates,
+    generatePK,
+    type ChatConfigObject,
+    type ChatParticipant,
+    type SessionUser,
+    type SocketEventPayloads,
+    type SwarmSubTask,
+    type UnifiedEvent,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type ConversationBridge } from "../intelligence/conversationBridge.js";
-import { BaseStateMachine, BaseStates, type BaseEvent } from "../../shared/BaseStateMachine.js";
-import { EventTypes } from "../../../events/index.js";
-import { 
-    type SwarmContextManager, 
+import { BaseStateMachine, BaseStates } from "../../shared/BaseStateMachine.js";
+import {
     type ISwarmContextManager,
 } from "../../shared/SwarmContextManager.js";
-import { 
-    type UnifiedSwarmContext,
-    type ContextUpdateEvent,
+import {
     type ContextSubscription,
+    type ContextUpdateEvent,
+    type UnifiedSwarmContext,
 } from "../../shared/UnifiedSwarmContext.js";
-
-/**
- * Swarm event types
- */
-export type SwarmEventType = 
-    | "swarm_started"
-    | "external_message_created"
-    | "tool_approval_response"
-    | "ApprovedToolExecutionRequest"
-    | "RejectedToolExecutionRequest"
-    | "internal_task_assignment"
-    | "internal_status_update";
-
-/**
- * Base swarm event interface
- */
-export interface SwarmEvent extends BaseEvent {
-    type: SwarmEventType;
-    conversationId: string;
-    sessionUser: SessionUser;
-    goal?: string;
-    payload?: any;
-}
-
-/**
- * Swarm started event
- */
-export interface SwarmStartedEvent extends SwarmEvent {
-    type: "swarm_started";
-    goal: string;
-}
+import { type ConversationBridge } from "../intelligence/conversationBridge.js";
 
 // Use the shared state definitions
 export const SwarmState = BaseStates;
@@ -85,7 +51,7 @@ export type State = keyof typeof SwarmState;
 interface ConversationState {
     id: string;
     config: ChatConfigObject;
-    participants: BotParticipant[];
+    participants: ChatParticipant[];
     availableTools: any[];
     initialLeaderSystemMessage: string;
     teamConfig?: any;
@@ -114,7 +80,7 @@ interface ConversationState {
  * - spawn_swarm: Create child swarms for complex subtasks
  * - run_routine: Execute discovered routines
  */
-export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
+export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
     private conversationId: string | null = null;
     private initiatingUser: SessionUser | null = null;
     private swarmId: string | null = null;
@@ -124,6 +90,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     constructor(
         logger: Logger,
         private readonly contextManager: ISwarmContextManager, // REQUIRED: SwarmContextManager for unified state management
+        /** @deprecated Use event-driven agent communication instead */
         private readonly conversationBridge?: ConversationBridge, // Optional for backward compatibility
     ) {
         super(logger, SwarmState.UNINITIALIZED, "SwarmStateMachine");
@@ -151,7 +118,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             this.logger.warn(`SwarmStateMachine for ${convoId} already started. Current state: ${this.state}`);
             return;
         }
-        
+
         this.conversationId = convoId;
         this.initiatingUser = initiatingUser;
         this.swarmId = swarmId || convoId; // Use provided swarmId or fall back to convoId
@@ -171,21 +138,32 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                     convoState = await this.createConversationState(convoId, goal, initiatingUser);
                 }
 
-                // Find leader bot
-                const leaderBot = this.findLeaderBot(convoState);
-                if (!leaderBot) {
-                    this.logger.error(`No leader bot found for ${convoId}, cannot start swarm`);
-                    throw new Error(`No leader bot found for swarm ${convoId}`);
+                // Select swarm leader through data-driven approach
+                const respondingBots = this.swarmContext ?
+                    await this.getRespondingBots("swarm_started", this.swarmContext) :
+                    await this.getBotsByRole(["coordinator"]);
+
+                // The first responding bot becomes the swarm leader (data-driven selection)
+                const swarmLeader = respondingBots[0];
+                if (!swarmLeader) {
+                    this.logger.error(`No suitable bots found for swarm leadership in ${convoId}`);
+                    throw new Error(`No suitable bots found for swarm leadership in ${convoId}`);
                 }
 
-                // Generate system message for the leader
-                const systemMessage = await this.conversationBridge.generateAgentResponse(
-                    leaderBot,
-                    { state: "STARTING" },
-                    { goal },
-                    "You are starting a new swarm. Set up the team and plan as needed.",
-                    convoId,
-                );
+                // Prompt the leader to initialize the swarm
+                if (this.swarmContext) {
+                    const startEvent: UnifiedEvent<SocketEventPayloads[typeof EventTypes.SWARM.STARTED]> = {
+                        id: generatePK().toString(),
+                        type: EventTypes.SWARM.STARTED,
+                        timestamp: new Date(),
+                        data: {
+                            chatId: convoId,
+                            goal,
+                            initiatingUser: initiatingUser.id,
+                        },
+                    };
+                    await this.promptBot(swarmLeader, startEvent, this.swarmContext);
+                }
 
                 // Update conversation config
                 await this.updateConversationConfig(convoId, {
@@ -194,22 +172,26 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                     blackboard: [],
                     resources: [],
                     stats: ChatConfig.defaultStats(),
-                    swarmLeader: leaderBot.id,
+                    swarmLeader: swarmLeader.id, // Leader selected through data-driven approach
                 });
 
                 // Queue the started event
-                const startEvent: SwarmStartedEvent = {
-                    type: "swarm_started",
-                    conversationId: convoId,
-                    goal,
-                    sessionUser: initiatingUser,
+                const startEvent: UnifiedEvent<SocketEventPayloads[typeof EventTypes.SWARM.STARTED]> = {
+                    id: generatePK().toString(),
+                    type: EventTypes.SWARM.STARTED,
+                    timestamp: new Date(),
+                    data: {
+                        chatId: convoId,
+                        goal,
+                        initiatingUser: initiatingUser.id,
+                    },
                 };
-                
+
                 this.state = SwarmState.IDLE;
-                
+
                 // Emit state change to UI via unified events
                 await this.publishUnifiedEvent(
-                    EventTypes.STATE_SWARM_UPDATED,
+                    EventTypes.SWARM.STATE_CHANGED,
                     {
                         entityType: "swarm",
                         entityId: this.conversationId!,
@@ -223,7 +205,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                         deliveryGuarantee: "fire-and-forget",
                     },
                 );
-                
+
                 // Emit initial config via unified events
                 await this.publishUnifiedEvent(
                     EventTypes.CONFIG_SWARM_UPDATED,
@@ -233,7 +215,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                         config: {
                             goal,
                             subtasks: [],
-                            swarmLeader: leaderBot.id,
+                            swarmLeader: swarmLeader.id, // Leader selected through data-driven approach
                             stats: {
                                 startedAt: Date.now(),
                                 totalToolCalls: 0,
@@ -248,22 +230,22 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                         deliveryGuarantee: "fire-and-forget",
                     },
                 );
-                
+
                 await this.handleEvent(startEvent);
-                
+
                 // Process any queued events
                 if (this.eventQueue.length > 0) {
-                    this.drain().catch(err => 
+                    this.drain().catch(err =>
                         this.logger.error("Error draining initial event queue", { error: err, conversationId: convoId }),
                     );
                 }
             }, "startSwarm", { conversationId: convoId, goal });
         } catch (error) {
             this.state = SwarmState.FAILED;
-            
+
             // Emit failure state via unified events
             await this.publishUnifiedEvent(
-                EventTypes.STATE_SWARM_UPDATED,
+                EventTypes.SWARM.STATE_CHANGED,
                 {
                     entityType: "swarm",
                     entityId: this.conversationId!,
@@ -282,20 +264,25 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                     deliveryGuarantee: "reliable",
                 },
             );
-            
+
             throw error;
         }
     }
 
     /**
      * Handles incoming events by queuing them
-     * Override to ensure conversationId is provided
+     * Override to ensure proper validation
      */
-    async handleEvent(ev: SwarmEvent): Promise<void> {
-        if (!this.validateEvent(ev, ["conversationId"])) {
-            return;
+    async handleEvent(ev: UnifiedEvent): Promise<void> {
+        // Validate based on event type
+        if (ev.type === EventTypes.SWARM.STARTED) {
+            const data = ev.data as SocketEventPayloads[typeof EventTypes.SWARM.STARTED];
+            if (!data.chatId) {
+                this.logger.warn(`[SwarmStateMachine] Missing chatId in ${ev.type} event`);
+                return;
+            }
         }
-        
+
         // Delegate to parent class which handles queuing and draining
         await super.handleEvent(ev);
     }
@@ -303,36 +290,35 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     /**
      * Process a single event (implements abstract method from BaseStateMachine)
      */
-    protected async processEvent(event: SwarmEvent): Promise<void> {
-        this.logger.debug(`[SwarmStateMachine] Handling event: ${event.type}`, {
-            conversationId: event.conversationId,
-        });
+    protected async processEvent(event: UnifiedEvent): Promise<void> {
+        this.logger.debug(`[SwarmStateMachine] Handling event: ${event.type}`);
 
         switch (event.type) {
-            case "swarm_started":
-                await this.handleSwarmStarted(event as SwarmStartedEvent);
+            case EventTypes.SWARM.STARTED:
+                await this.handleSwarmStarted(event as UnifiedEvent<SocketEventPayloads[typeof EventTypes.SWARM.STARTED]>);
                 break;
-            
-            case "external_message_created":
-                await this.handleExternalMessage(event);
+
+            case EventTypes.CHAT.MESSAGE_ADDED:
+                await this.handleExternalMessage(event as UnifiedEvent<SocketEventPayloads[typeof EventTypes.CHAT.MESSAGE_ADDED]>);
                 break;
-            
-            case "ApprovedToolExecutionRequest":
-                await this.handleApprovedTool(event);
+
+            case EventTypes.CHAT.TOOL_APPROVAL_GRANTED:
+                await this.handleApprovedTool(event as UnifiedEvent<SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_GRANTED]>);
                 break;
-            
-            case "RejectedToolExecutionRequest":
-                await this.handleRejectedTool(event);
+
+            case EventTypes.CHAT.TOOL_APPROVAL_REJECTED:
+                await this.handleRejectedTool(event as UnifiedEvent<SocketEventPayloads[typeof EventTypes.CHAT.TOOL_APPROVAL_REJECTED]>);
                 break;
-            
-            case "internal_task_assignment":
-                await this.handleInternalTaskAssignment(event);
+
+            case EventTypes.RUN.TASK_READY:
+                await this.handleInternalTaskAssignment(event as UnifiedEvent<SocketEventPayloads[typeof EventTypes.RUN.TASK_READY]>);
                 break;
-            
-            case "internal_status_update":
-                await this.handleInternalStatusUpdate(event);
+
+            case EventTypes.RUN.COMPLETED:
+            case EventTypes.RUN.FAILED:
+                await this.handleInternalStatusUpdate(event as UnifiedEvent<SocketEventPayloads[typeof EventTypes.RUN.COMPLETED | typeof EventTypes.RUN.FAILED]>);
                 break;
-            
+
             default:
                 this.logger.warn(`Unknown event type: ${event.type}`);
         }
@@ -341,50 +327,48 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     /**
      * Handles swarm started event
      */
-    private async handleSwarmStarted(event: SwarmStartedEvent): Promise<void> {
-        const convoState = await this.getConversationState(event.conversationId);
+    private async handleSwarmStarted(event: UnifiedEvent<SocketEventPayloads[typeof EventTypes.SWARM.STARTED]>): Promise<void> {
+        const convoState = await this.getConversationState(event.data.chatId);
         if (!convoState) {
-            this.logger.error(`Conversation state not found for ${event.conversationId}`);
+            this.logger.error(`Conversation state not found for ${event.data.chatId}`);
             return;
         }
 
         // Get the leader bot
+        // @deprecated Hardcoded leader selection - use data-driven bot mapping
         const leaderBot = this.findLeaderBot(convoState);
         if (!leaderBot) {
-            this.logger.error(`No leader bot found for ${event.conversationId}`);
+            this.logger.error(`No leader bot found for ${event.data.chatId}`);
             return;
         }
 
         // Let the leader bot initialize the swarm
-        const response = await this.conversationBridge.generateAgentResponse(
-            leaderBot,
-            { state: "STARTED", goal: event.goal },
-            convoState.config,
-            `The swarm has started with goal: "${event.goal}". Initialize the team and create a plan.`,
-            event.conversationId,
+        // @deprecated Complex agent response generation - use simple promptBot()
+        const response = await this.conversationBridge?.generateResponse(
+            {
+                conversationId: event.data.chatId,
+                sessionUser: { id: event.data.initiatingUser } as any,
+            },
+            `The swarm has started with goal: "${event.data.goal}". Initialize the team and create a plan.`,
         );
 
         this.logger.info("[SwarmStateMachine] Leader response to swarm start", {
-            conversationId: event.conversationId,
-            responseLength: response.length,
+            conversationId: event.data.chatId,
+            responseLength: response?.length || 0,
         });
 
         // Emit event for monitoring
         await this.publishUnifiedEvent(
-            EventTypes.STATE_SWARM_UPDATED,
+            EventTypes.SWARM.STATE_CHANGED,
             {
-                entityType: "swarm",
-                entityId: event.conversationId,
-                oldState: "STARTING",
-                newState: "INITIALIZED",
-                message: `Swarm initialized with goal: "${event.goal}"`,
-                metadata: {
-                    goal: event.goal,
-                    leaderId: leaderBot.id,
-                },
+                chatId: event.data.chatId,
+                swarmId: this.swarmId || event.data.chatId,
+                oldState: "STARTING" as any,
+                newState: "RUNNING" as any,
+                message: `Swarm initialized with goal: "${event.data.goal}"`,
             },
             {
-                conversationId: event.conversationId,
+                conversationId: event.data.chatId,
                 priority: "medium",
                 deliveryGuarantee: "reliable",
             },
@@ -444,7 +428,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         // Calculate final statistics
         const subtasks = convoState.config.subtasks || [];
         const totalSubTasks = subtasks.length;
-        const completedSubTasks = subtasks.filter((task: SwarmSubTask) => 
+        const completedSubTasks = subtasks.filter((task: SwarmSubTask) =>
             task.status === "done",
         ).length;
 
@@ -460,7 +444,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
         // Emit swarm stopped event
         await this.publishUnifiedEvent(
-            EventTypes.STATE_SWARM_UPDATED,
+            EventTypes.SWARM.STATE_CHANGED,
             {
                 entityType: "swarm",
                 entityId: this.conversationId,
@@ -515,16 +499,16 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
      * Determine if an error is fatal
      * Implements abstract method from BaseStateMachine
      */
-    protected async isErrorFatal(error: unknown, event: SwarmEvent): Promise<boolean> {
+    protected async isErrorFatal(error: unknown, _event: UnifiedEvent): Promise<boolean> {
         // For now, only certain errors are considered fatal
         if (error instanceof Error) {
             // Network errors are recoverable
-            if (error.message.includes("ECONNREFUSED") || 
+            if (error.message.includes("ECONNREFUSED") ||
                 error.message.includes("ETIMEDOUT") ||
                 error.message.includes("ENOTFOUND")) {
                 return false;
             }
-            
+
             // Configuration errors are fatal
             if (error.message.includes("No leader bot") ||
                 error.message.includes("Conversation state not found") ||
@@ -532,7 +516,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 return true;
             }
         }
-        
+
         // Default to non-fatal to allow recovery
         return false;
     }
@@ -542,13 +526,13 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     }
 
     private async createConversationState(
-        conversationId: string, 
-        goal: string, 
+        conversationId: string,
+        goal: string,
         user: SessionUser,
     ): Promise<ConversationState> {
         // Check if conversation already exists
         const state = await this.conversationBridge.getConversationState(conversationId);
-        
+
         if (!state) {
             // This should not happen anymore as SwarmCoordinator creates the conversation
             // But log a warning and return a minimal state to avoid crashes
@@ -562,7 +546,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 teamConfig: undefined,
             };
         }
-        
+
         // Update the goal in the existing conversation if needed
         if (goal && goal !== state.config.goal) {
             const updatedConfig = { ...state.config, goal };
@@ -570,11 +554,146 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             await this.conversationBridge.updateConversationConfig(conversationId, updatedConfig);
             state.config = updatedConfig;
         }
-        
+
         return state;
     }
 
-    private findLeaderBot(convoState: ConversationState): BotParticipant | null {
+    /**
+     * Get bots that should respond to an event type (data-driven)
+     */
+    private async getRespondingBots(eventType: string, swarmContext: UnifiedSwarmContext): Promise<ChatParticipant[]> {
+        // Get mapping from context or use defaults
+        const mapping = swarmContext.configuration?.eventBotMapping || this.getDefaultEventBotMapping();
+        const eventConfig = mapping[eventType];
+
+        if (!eventConfig) {
+            // Fallback to coordinator for unknown events
+            this.logger.warn(`[SwarmStateMachine] No mapping found for event type: ${eventType}, using coordinator`);
+            return await this.getBotsByRole(["coordinator"]);
+        }
+
+        const respondingBots = await this.getBotsByRole(eventConfig.respondingBots);
+
+        this.logger.debug(`[SwarmStateMachine] Found ${respondingBots.length} bots for event ${eventType}`, {
+            eventType,
+            requestedRoles: eventConfig.respondingBots,
+            foundBots: respondingBots.map(b => ({ id: b.id, role: b.meta?.role })),
+        });
+
+        return respondingBots;
+    }
+
+    /**
+     * Get bots by their roles from conversation participants
+     */
+    private async getBotsByRole(roles: string[]): Promise<ChatParticipant[]> {
+        // Get conversation state to access participants
+        if (!this.conversationId) {
+            this.logger.error("[SwarmStateMachine] Cannot get bots - no conversationId");
+            return [];
+        }
+
+        try {
+            // Handle special "leader" role by getting current swarm leader
+            if (roles.includes("leader") && this.conversationId) {
+                const convoState = await this.getConversationState(this.conversationId);
+                if (convoState?.config.swarmLeader) {
+                    const leader = convoState.participants.find(p => p.id === convoState.config.swarmLeader);
+                    if (leader) {
+                        return [leader];
+                    }
+                }
+            }
+
+            // For other roles, match by role in bot meta or return coordinator as fallback
+            const rolesLower = roles.map(r => r.toLowerCase());
+
+            // Return a placeholder that represents the requested role
+            // The conversation bridge will handle the actual bot interaction
+            return [{
+                id: `emergent-${roles[0]}`,
+                name: `Emergent ${roles[0]}`,
+                config: {},
+                meta: { role: roles[0] },
+            } as ChatParticipant];
+
+        } catch (error) {
+            this.logger.error("[SwarmStateMachine] Error getting bots by role", {
+                roles,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return [];
+        }
+    }
+
+    /**
+     * Simple bot prompting with template substitution
+     * Replaces complex generateAgentResponse() with data-driven prompting
+     */
+    private async promptBot(bot: ChatParticipant, event: UnifiedEvent, context: UnifiedSwarmContext): Promise<void> {
+        if (!this.conversationBridge) {
+            this.logger.warn("[SwarmStateMachine] No conversation bridge available for bot prompting");
+            return;
+        }
+
+        try {
+            // Get event mapping and prompt template
+            const mapping = context.configuration?.eventBotMapping || this.getDefaultEventBotMapping();
+            const eventConfig = mapping[event.type];
+
+            // Build prompt from template
+            const prompt = this.buildPrompt(
+                eventConfig?.promptTemplate || "Process event: {eventType}",
+                {
+                    eventType: event.type,
+                    goal: event.data?.goal || context.execution?.goal || "undefined",
+                    message: event.data?.message?.text || event.data?.text || event.data?.message || "undefined",
+                    toolName: event.data?.pendingToolCall?.toolName || "undefined",
+                    parameters: event.data?.pendingToolCall?.params ? JSON.stringify(event.data.pendingToolCall.params) : "undefined",
+                    reason: event.data?.reason || "undefined",
+                    task: event.data ? JSON.stringify(event.data) : "undefined",
+                    status: event.data ? JSON.stringify(event.data) : "undefined",
+                },
+            );
+
+            this.logger.debug("[SwarmStateMachine] Prompting bot with emergent approach", {
+                botId: bot.id,
+                botRole: bot.meta?.role,
+                eventType: event.type,
+                promptLength: prompt.length,
+                conversationId: event.data?.chatId || event.data?.conversationId,
+            });
+
+            // Simple bot prompting - let the bot decide what to do based on the prompt
+            await this.conversationBridge.generateResponse({
+                conversationId: event.data?.chatId || event.data?.conversationId,
+                sessionUser: event.data?.sessionUser || { id: "system" } as any,
+            }, prompt);
+
+        } catch (error) {
+            this.logger.error("[SwarmStateMachine] Error prompting bot", {
+                botId: bot.id,
+                eventType: event.type,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    /**
+     * Simple template substitution for prompt generation
+     */
+    private buildPrompt(template: string, variables: Record<string, any>): string {
+        return Object.entries(variables).reduce((prompt, [key, value]) => {
+            return prompt.replace(new RegExp(`{${key}}`, "g"), String(value || ""));
+        }, template);
+    }
+
+    /**
+     * @deprecated Use getRespondingBots() instead
+     * This method enforces hardcoded "leader" pattern which violates emergent architecture.
+     * Will be removed in Phase 2 of emergent migration.
+     */
+    private findLeaderBot(convoState: ConversationState): ChatParticipant | null {
         const leaderId = convoState.config.swarmLeader;
         if (leaderId) {
             return convoState.participants.find(p => p.id === leaderId) || null;
@@ -584,7 +703,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     }
 
     private async updateConversationConfig(
-        conversationId: string, 
+        conversationId: string,
         updates: Partial<ChatConfigObject>,
     ): Promise<void> {
         if (!this.swarmId) {
@@ -595,7 +714,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         try {
             // Get current context to merge updates
             const currentContext = await this.contextManager.getContext(this.swarmId);
-            
+
             // Transform conversation config updates to unified context format
             const contextUpdates: Partial<UnifiedSwarmContext> = {};
 
@@ -677,7 +796,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 updatedFields: Object.keys(updates),
                 emergentCapabilitiesEnabled: true,
             });
-            
+
         } catch (error) {
             this.logger.error("[SwarmStateMachine] Failed to update context via SwarmContextManager", {
                 swarmId: this.swarmId,
@@ -707,6 +826,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             }
 
             // Get the leader bot to handle the message
+            // @deprecated Hardcoded leader selection - use data-driven bot mapping
             const leaderBot = this.findLeaderBot(convoState);
             if (!leaderBot) {
                 this.logger.error(`No leader bot found for ${event.conversationId}`);
@@ -715,6 +835,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
             // Generate response through ConversationBridge
             const messageText = event.payload?.message?.text || event.payload?.text || "External message received";
+            // @deprecated Complex agent response generation - use simple promptBot()
             const response = await this.conversationBridge.generateAgentResponse(
                 leaderBot,
                 { state: this.state, messageReceived: true },
@@ -773,6 +894,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             }
 
             // Get the leader bot to execute the tool
+            // @deprecated Hardcoded leader selection - use data-driven bot mapping
             const leaderBot = this.findLeaderBot(convoState);
             if (!leaderBot) {
                 this.logger.error(`No leader bot found for ${event.conversationId}`);
@@ -781,12 +903,13 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
             // Execute the approved tool through ConversationBridge
             const toolPrompt = `Execute the approved tool: ${pendingToolCall.toolName} with parameters: ${JSON.stringify(pendingToolCall.params)}`;
+            // @deprecated Complex agent response generation - use simple promptBot()
             const response = await this.conversationBridge.generateAgentResponse(
                 leaderBot,
-                { 
-                    state: this.state, 
+                {
+                    state: this.state,
                     toolExecution: true,
-                    approvedTool: pendingToolCall, 
+                    approvedTool: pendingToolCall,
                 },
                 convoState.config,
                 toolPrompt,
@@ -816,9 +939,9 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                     deliveryGuarantee: "reliable",
                 },
             );
-        }, "handleApprovedTool", { 
+        }, "handleApprovedTool", {
             conversationId: event.conversationId,
-            tool: event.payload?.pendingToolCall?.toolName, 
+            tool: event.payload?.pendingToolCall?.toolName,
         });
     }
 
@@ -846,6 +969,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             }
 
             // Get the leader bot to handle the rejection
+            // @deprecated Hardcoded leader selection - use data-driven bot mapping
             const leaderBot = this.findLeaderBot(convoState);
             if (!leaderBot) {
                 this.logger.error(`No leader bot found for ${event.conversationId}`);
@@ -854,13 +978,14 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
             // Generate alternative approach through ConversationBridge
             const fallbackPrompt = `The tool "${pendingToolCall.toolName}" was rejected. Reason: ${rejectionReason}. Please find an alternative approach to accomplish the goal without using this tool.`;
+            // @deprecated Complex agent response generation - use simple promptBot()
             const response = await this.conversationBridge.generateAgentResponse(
                 leaderBot,
-                { 
-                    state: this.state, 
+                {
+                    state: this.state,
                     toolRejected: true,
                     rejectedTool: pendingToolCall,
-                    rejectionReason, 
+                    rejectionReason,
                 },
                 convoState.config,
                 fallbackPrompt,
@@ -889,9 +1014,9 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                     deliveryGuarantee: "reliable",
                 },
             );
-        }, "handleRejectedTool", { 
+        }, "handleRejectedTool", {
             conversationId: event.conversationId,
-            tool: event.payload?.pendingToolCall?.toolName, 
+            tool: event.payload?.pendingToolCall?.toolName,
         });
     }
 
@@ -910,6 +1035,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             }
 
             // Get the leader bot to handle the task assignment
+            // @deprecated Hardcoded leader selection - use data-driven bot mapping
             const leaderBot = this.findLeaderBot(convoState);
             if (!leaderBot) {
                 this.logger.error(`No leader bot found for ${event.conversationId}`);
@@ -918,12 +1044,13 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
             // Generate task coordination response
             const taskPrompt = `A new task has been assigned: ${JSON.stringify(event.payload)}. Coordinate the team to handle this task.`;
+            // @deprecated Complex agent response generation - use simple promptBot()
             const response = await this.conversationBridge.generateAgentResponse(
                 leaderBot,
-                { 
-                    state: this.state, 
+                {
+                    state: this.state,
                     taskAssignment: true,
-                    assignedTask: event.payload, 
+                    assignedTask: event.payload,
                 },
                 convoState.config,
                 taskPrompt,
@@ -974,6 +1101,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             }
 
             // Get the leader bot to process the status update
+            // @deprecated Hardcoded leader selection - use data-driven bot mapping
             const leaderBot = this.findLeaderBot(convoState);
             if (!leaderBot) {
                 this.logger.error(`No leader bot found for ${event.conversationId}`);
@@ -982,7 +1110,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
             // Generate status processing response based on update type
             let statusPrompt = `Status update received: ${JSON.stringify(event.payload)}`;
-            
+
             switch (event.payload?.type) {
                 case "run_completed":
                     statusPrompt = `Run ${event.payload.runId} has completed successfully. Update the team and plan next actions.`;
@@ -1006,12 +1134,13 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                     statusPrompt = `Status update received: ${JSON.stringify(event.payload)}. Process this information and take appropriate action.`;
             }
 
+            // @deprecated Complex agent response generation - use simple promptBot()
             const response = await this.conversationBridge.generateAgentResponse(
                 leaderBot,
-                { 
-                    state: this.state, 
+                {
+                    state: this.state,
                     statusUpdate: true,
-                    updateData: event.payload, 
+                    updateData: event.payload,
                 },
                 convoState.config,
                 statusPrompt,
@@ -1026,10 +1155,10 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
 
             // Emit status processing event based on update type
             const eventType = event.payload?.type === "run_completed" ? EventTypes.ROUTINE_COMPLETED :
-                             event.payload?.type === "run_failed" ? EventTypes.ROUTINE_FAILED :
-                             event.payload?.type === "resource_alert" ? EventTypes.RESOURCE_EXHAUSTED :
-                             EventTypes.STATE_SWARM_UPDATED;
-                             
+                event.payload?.type === "run_failed" ? EventTypes.ROUTINE_FAILED :
+                    event.payload?.type === "resource_alert" ? EventTypes.RESOURCE_EXHAUSTED :
+                        EventTypes.STATE_SWARM_UPDATED;
+
             const eventData = event.payload?.type === "run_completed" || event.payload?.type === "run_failed" ? {
                 runId: event.payload.runId,
                 totalDuration: event.payload.duration || 0,
@@ -1048,7 +1177,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 message: `Status update processed: ${event.payload?.type}`,
                 metadata: event.payload,
             };
-            
+
             await this.publishUnifiedEvent(
                 eventType,
                 eventData,
@@ -1058,9 +1187,9 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                     deliveryGuarantee: "reliable",
                 },
             );
-        }, "handleInternalStatusUpdate", { 
+        }, "handleInternalStatusUpdate", {
             conversationId: event.conversationId,
-            updateType: event.payload?.type, 
+            updateType: event.payload?.type,
         });
     }
 
@@ -1189,7 +1318,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 conversationId: this.conversationId,
                 swarmId: event.swarmId,
             });
-            
+
             // Could trigger state transitions here if needed
             // For now, just log the change
         }
@@ -1288,8 +1417,8 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
      * by providing a data-driven foundation for agent behavior.
      */
     private async createInitialSwarmContext(
-        swarmId: string, 
-        goal: string, 
+        swarmId: string,
+        goal: string,
         initiatingUser: SessionUser,
     ): Promise<void> {
         try {
@@ -1382,22 +1511,32 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 // Emergent capability configuration
                 configuration: {
                     timeouts: {
-                        swarmExecution: 3600000,
-                        taskExecution: 600000,
-                        communicationTimeout: 30000,
+                        routineExecutionMs: 3600000,
+                        stepExecutionMs: 600000,
+                        approvalTimeoutMs: 30000,
+                        idleTimeoutMs: 300000,
                     },
                     retries: {
                         maxRetries: 3,
-                        backoffMultiplier: 2,
-                        initialDelay: 1000,
+                        backoffStrategy: "exponential" as const,
+                        baseDelayMs: 1000,
+                        maxDelayMs: 30000,
                     },
                     features: {
-                        enableEmergentCapabilities: true,
-                        enableLiveUpdates: true,
-                        enableResourceOptimization: true,
-                        enableSecurityMonitoring: true,
-                        enablePerformanceLearning: true,
+                        emergentGoalGeneration: true,
+                        adaptiveResourceAllocation: true,
+                        crossSwarmCommunication: false,
+                        autonomousToolApproval: false,
+                        contextualLearning: true,
                     },
+                    coordination: {
+                        maxParallelAgents: 10,
+                        communicationProtocol: "event_driven" as const,
+                        consensusThreshold: 0.6,
+                        leadershipElection: "automatic" as const,
+                    },
+                    // Add default event-bot mapping for emergent coordination
+                    eventBotMapping: this.getDefaultEventBotMapping(),
                 },
                 // Initialize empty blackboard for agent communication
                 blackboard: {

@@ -1,0 +1,167 @@
+{
+  "id": "7829564732190847012",
+  "publicId": "story-metaphor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847013",
+      "publicId": "story-meta-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Create {{input.outputType}} to {{input.purpose}} the concept: {{input.concept}}\n\nTarget audience: {{input.audience}}\nStyle preference: {{input.style}}\n\nRequirements:\n- Make the concept memorable and relatable\n- Use vivid imagery and concrete examples\n- Ensure the {{input.outputType}} aligns with the audience's experience\n- Keep it {{input.length}}\n\n{{#if input.additionalContext}}Additional context: {{input.additionalContext}}{{/if}}\n\nGenerate {{input.numberOfOptions}} distinct {{input.outputType}}(s), each with a brief explanation of how it relates to the original concept.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "concept",
+                "id": "concept_input",
+                "label": "Concept to Explain",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter the concept, idea, or principle you want to explain...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "purpose",
+                "id": "purpose_input",
+                "label": "Purpose",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["explain", "illustrate", "persuade", "entertain", "teach", "inspire"],
+                  "defaultValue": "explain"
+                }
+              },
+              {
+                "fieldName": "outputType",
+                "id": "output_type_input",
+                "label": "Output Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["metaphor", "analogy", "short story", "parable", "allegory"],
+                  "defaultValue": "metaphor"
+                }
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "e.g., business executives, children, students, general public..."
+                }
+              },
+              {
+                "fieldName": "style",
+                "id": "style_input",
+                "label": "Style Preference",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["simple", "sophisticated", "humorous", "poetic", "business-oriented", "technical"],
+                  "defaultValue": "simple"
+                }
+              },
+              {
+                "fieldName": "length",
+                "id": "length_input",
+                "label": "Length",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["concise (1-2 sentences)", "short (3-5 sentences)", "medium (1-2 paragraphs)", "long (full story)"],
+                  "defaultValue": "short (3-5 sentences)"
+                }
+              },
+              {
+                "fieldName": "numberOfOptions",
+                "id": "number_options_input",
+                "label": "Number of Options",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 1,
+                  "max": 5,
+                  "defaultValue": 3
+                }
+              },
+              {
+                "fieldName": "additionalContext",
+                "id": "additional_context_input",
+                "label": "Additional Context (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific requirements, themes to include, or context to consider...",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "creative_output",
+                "label": "Generated Creative Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "bestOption",
+                "id": "best_option_output",
+                "label": "Recommended Option",
+                "type": "Text"
+              },
+              {
+                "fieldName": "usage",
+                "id": "usage_output",
+                "label": "Usage Suggestions",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847014",
+          "language": "en",
+          "name": "Story & Metaphor Machine",
+          "description": "Creates analogies, metaphors, or stories to explain concepts or entertain. Transforms abstract ideas into relatable narratives that resonate with your target audience, making complex concepts memorable and accessible.",
+          "instructions": "1. Enter the concept you want to explain or illustrate\n2. Choose the purpose (explain, teach, persuade, etc.)\n3. Select the type of creative output you need\n4. Specify your target audience and style preferences\n5. The routine will generate multiple creative options with explanations of how they relate to your concept"
+        }
+      ]
+    }
+  ]
+}

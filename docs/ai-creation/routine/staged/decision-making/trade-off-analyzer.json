@@ -1,0 +1,236 @@
+{
+  "id": "7829564732190847916",
+  "publicId": "tradeoff-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847917",
+      "publicId": "tradeoff-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Structure Trade-off Analysis",
+                "description": "Identifies and organizes the key factors and trade-offs involved",
+                "subroutineId": "tradeoff-structurer-v1",
+                "inputMap": {
+                  "originalOptionsList": "optionsList",
+                  "originalKeyFactors": "keyFactors",
+                  "originalPriorities": "userPriorities"
+                },
+                "outputMap": {
+                  "structuredOptions": "analyzedOptions",
+                  "tradeoffMatrix": "factorMatrix",
+                  "priorityWeights": "weightedFactors",
+                  "analysisDimensions": "evaluationDimensions"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Gains and Losses",
+                "description": "Evaluates what is gained and lost with each option",
+                "subroutineId": "gain-loss-analyzer-v1",
+                "inputMap": {
+                  "analyzedOptions": "optionsToAnalyze",
+                  "factorMatrix": "tradeoffData",
+                  "weightedFactors": "priorityInfo",
+                  "evaluationDimensions": "analysisCriteria"
+                },
+                "outputMap": {
+                  "gainAnalysis": "identifiedGains",
+                  "lossAnalysis": "identifiedLosses",
+                  "netBenefitScores": "benefitCalculations",
+                  "riskAssessment": "tradeoffRisks"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Create Trade-off Matrix",
+                "description": "Builds comprehensive trade-off comparison matrix",
+                "subroutineId": "matrix-builder-v1",
+                "inputMap": {
+                  "identifiedGains": "gainsData",
+                  "identifiedLosses": "lossesData",
+                  "benefitCalculations": "netBenefits",
+                  "tradeoffRisks": "riskFactors"
+                },
+                "outputMap": {
+                  "tradeoffMatrix": "completedMatrix",
+                  "visualComparison": "matrixVisualization",
+                  "scoreSummary": "overallScores",
+                  "keyInsights": "analyticalInsights"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Generate Recommendations",
+                "description": "Provides decision recommendations based on trade-off analysis",
+                "subroutineId": "tradeoff-advisor-v1",
+                "inputMap": {
+                  "completedMatrix": "finalMatrix",
+                  "matrixVisualization": "visualData",
+                  "overallScores": "scoringResults",
+                  "analyticalInsights": "keyFindings"
+                },
+                "outputMap": {
+                  "primaryRecommendation": "topChoice",
+                  "alternativeOptions": "secondaryChoices",
+                  "decisionRationale": "reasoningBasis",
+                  "sensitivityAnalysis": "robustnessCheck"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "optionsList": "originalOptionsList",
+                "keyFactors": "originalKeyFactors",
+                "userPriorities": "originalPriorities"
+              },
+              "outputMap": {
+                "completedMatrix": "tradeoffMatrix",
+                "matrixVisualization": "visualComparison",
+                "overallScores": "scoreSummary",
+                "keyFindings": "keyInsights",
+                "topChoice": "primaryRecommendation",
+                "secondaryChoices": "alternativeOptions",
+                "reasoningBasis": "decisionRationale",
+                "robustnessCheck": "sensitivityAnalysis"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optionsList",
+                "id": "options_input",
+                "label": "Decision Options",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the options you're considering, one per line...",
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "keyFactors",
+                "id": "factors_input",
+                "label": "Key Factors to Consider",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the important factors that involve trade-offs (cost, time, quality, etc.)...",
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "userPriorities",
+                "id": "priorities_input",
+                "label": "Your Priorities (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Describe what matters most to you in this decision...",
+                  "rows": 3
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "tradeoffMatrix",
+                "id": "matrix_output",
+                "label": "Trade-off Analysis Matrix",
+                "type": "Text"
+              },
+              {
+                "fieldName": "visualComparison",
+                "id": "visual_output",
+                "label": "Visual Comparison Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "scoreSummary",
+                "id": "scores_output",
+                "label": "Overall Scores Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "keyInsights",
+                "id": "insights_output",
+                "label": "Key Analytical Insights",
+                "type": "Text"
+              },
+              {
+                "fieldName": "primaryRecommendation",
+                "id": "recommendation_output",
+                "label": "Primary Recommendation",
+                "type": "Text"
+              },
+              {
+                "fieldName": "alternativeOptions",
+                "id": "alternatives_output",
+                "label": "Alternative Options",
+                "type": "Text"
+              },
+              {
+                "fieldName": "decisionRationale",
+                "id": "rationale_output",
+                "label": "Decision Rationale",
+                "type": "Text"
+              },
+              {
+                "fieldName": "sensitivityAnalysis",
+                "id": "sensitivity_output",
+                "label": "Sensitivity Analysis",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "deterministic",
+          "3": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847918",
+          "language": "en",
+          "name": "Trade-off Analyzer",
+          "description": "Analyzes complex trade-offs between choices that have both upsides and downsides. Creates comprehensive trade-off matrices, evaluates gains versus losses, and provides nuanced decision recommendations for situations where there's no clear winner.",
+          "instructions": "Provide your decision options and the key factors that involve trade-offs. Optionally describe your priorities. The routine will analyze what you gain and lose with each option, create a comprehensive trade-off matrix, and recommend the best choice given your specific situation.",
+          "details": "This routine helps with nuanced decisions where every option has both advantages and disadvantages. It systematically analyzes the trade-offs, weighs gains against losses, and provides insight into which compromises are most acceptable given your priorities and constraints."
+        }
+      ]
+    }
+  ]
+}

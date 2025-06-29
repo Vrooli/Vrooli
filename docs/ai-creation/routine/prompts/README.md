@@ -145,6 +145,5 @@ When adding new routine types or improving existing prompts:
 ## Related Documentation
 
 - [../README.md](../README.md) - Main routine creation system overview
-- [../subroutine-resolver.md](../subroutine-resolver.md) - Smart resolution system
 - [../validate-routine.sh](../validate-routine.sh) - Validation script
 - [../../architecture/execution/tiers/tier2-process-intelligence/routine-types.md](../../architecture/execution/tiers/tier2-process-intelligence/routine-types.md) - Routine architecture overview

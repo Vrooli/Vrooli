@@ -17,22 +17,29 @@ docs/ai-creation/routine/
 ├── README.md                    # This file
 ├── prompt.md                    # AI routine generation instructions
 ├── backlog.md                   # Queue of routine ideas to process
-├── subroutine-resolver.md       # Enhanced resolution system documentation
+├── routine-reference.json       # Complete ID/name/type reference for all routines (JSON format)
 ├── staged/                      # Generated routine definitions ready for import
 │   ├── subroutines/            # Generated reusable subroutines
 │   ├── main-routines/          # Main routines using subroutines
-│   └── [legacy files]          # Files from basic generation
+│   └── [category folders]      # Categorized routine JSON files
 ├── cache/                       # Resolution system cache
 │   ├── search-results.json     # Cached semantic search results
 │   ├── staged-index.json       # Index of staged subroutines
 │   └── resolution-map.json     # Capability to subroutine mappings
 └── templates/                   # Common patterns (future)
 
-scripts/main/
-├── routine-generate-enhanced.sh # Smart multi-pass generation (recommended)
-├── routine-generate.sh          # Basic generation with optional --direct mode
-├── routine-generate-direct.sh   # Direct prompt generation for manual use
-└── routine-import.sh            # Import and validate staged routines
+scripts/
+├── ai-creation/                   # AI-powered content generation and validation
+│   ├── maintenance-agent.sh       # AI agent for maintenance tasks
+│   ├── maintenance-supervisor.sh  # Supervisor for AI maintenance workflows
+│   ├── routine-generate.sh        # Generate routines using AI
+│   ├── routine-import.sh          # Import and validate staged routines
+│   ├── routine-reference-generator.sh # Generate routine-reference.json from staged files
+│   ├── validate-routine.sh        # Validate routine JSON structure and configuration
+│   └── validate-subroutines.sh    # Validate subroutine references in routine files
+└── main/
+    ├── routine-generate-enhanced.sh # Smart multi-pass generation (recommended)
+    └── routine-generate-direct.sh   # Direct prompt generation for manual use
 ```
 
 ## Quick Start
@@ -53,7 +60,22 @@ Edit `backlog.md` to add new routine concepts:
 
 ### 2. Generate Routines
 
-#### Option A: Enhanced Generation with Smart Subroutine Resolution (Recommended)
+#### Option A: Direct Generation with Claude (Recommended)
+```bash
+# Generate prompt for manual use with Claude
+./scripts/main/routine-generate.sh --direct
+
+# Or use the dedicated direct script with more options
+./scripts/main/routine-generate-direct.sh --prompt-only --subroutines
+```
+
+This generates a prompt that you can copy and paste directly to Claude (web interface or Claude Code) without going through the maintenance-agent.sh script. This approach gives you the most control and visibility into the generation process. Options:
+- `--prompt-only`: Generate and display the prompt
+- `--subroutines`: Include subroutine discovery in the prompt
+- `--output FILE`: Save prompt to a file
+- `--validate`: Show validation instructions
+
+#### Option B: Enhanced Generation with Smart Subroutine Resolution
 ```bash
 ./scripts/main/routine-generate-enhanced.sh
 ```
@@ -65,24 +87,9 @@ This enhanced system provides:
 - **Staged file scanning** to reuse already-generated subroutines
 - **Hierarchical organization** with separate subroutines and main routines
 
-#### Option B: Direct Generation with Claude (Interactive)
-```bash
-# Generate prompt for manual use with Claude
-./scripts/main/routine-generate.sh --direct
-
-# Or use the dedicated direct script with more options
-./scripts/main/routine-generate-direct.sh --prompt-only --subroutines
-```
-
-This generates a prompt that you can copy and paste directly to Claude (web interface or Claude Code) without going through the maintenance-agent.sh script. Options:
-- `--prompt-only`: Generate and display the prompt
-- `--subroutines`: Include subroutine discovery in the prompt
-- `--output FILE`: Save prompt to a file
-- `--validate`: Show validation instructions
-
 #### Option C: Basic Generation with Claude Code CLI (Automated)
 ```bash
-./scripts/main/routine-generate.sh
+./scripts/ai-creation/routine-generate.sh
 ```
 
 This calls `maintenance-agent.sh` with the AI creation workflow prompt to automatically read the backlog, generate complete JSON definitions, and save them to `staged/` (may include TODO placeholders for subroutines).
@@ -119,7 +126,93 @@ vrooli routine import-dir ./docs/ai-creation/routine/staged/personal/
 ./scripts/main/develop.sh --target docker --detached yes
 
 # Import routines (automatically builds CLI if needed)
-./scripts/main/routine-import.sh
+./scripts/ai-creation/routine-import.sh
+```
+
+### 4. Validate Subroutine References
+
+Before importing routines, it's recommended to validate that all subroutine references are correct:
+
+```bash
+# Quick check for TODO placeholders (fastest)
+./scripts/ai-creation/validate-subroutines.sh --todo-only
+
+# Full validation: check TODOs, ID formats, and existence
+./scripts/ai-creation/validate-subroutines.sh
+
+# Validate specific file with detailed output
+./scripts/ai-creation/validate-subroutines.sh --verbose docs/ai-creation/routine/staged/productivity/task-prioritizer.json
+
+# Validate specific directory
+./scripts/ai-creation/validate-subroutines.sh --directory docs/ai-creation/routine/staged/personal/
+
+# List all available subroutines for reference
+./scripts/ai-creation/validate-subroutines.sh --list-available
+
+# Get help and see all options
+./scripts/ai-creation/validate-subroutines.sh --help
+```
+
+#### What Gets Validated:
+- **TODO Placeholders**: Identifies `"subroutineId": "TODO: ..."` that need real IDs
+- **ID Format**: Ensures subroutine IDs are valid 19-digit snowflake IDs
+- **ID Existence**: Verifies referenced subroutines exist in `routine-reference.json`
+- **Multi-step Routines**: Extracts subroutine references from graph configurations
+
+#### Common Issues and Fixes:
+```bash
+# Replace TODO placeholders with actual routine IDs
+# Use these commands to find suitable subroutines:
+
+# Search for subroutines by functionality
+jq '.routines[] | select(.name | test("data analysis"; "i"))' routine-reference.json
+
+# List all available routine IDs
+jq -r '.routines[].id' routine-reference.json
+
+# Find routines by category
+jq '.byCategory.productivity.routines' routine-reference.json
+```
+
+### 5. Update Routine Reference (After Adding New Routines)
+
+When new routine files are added to the `staged/` directory, update the reference file:
+
+```bash
+# Regenerate the routine reference with latest files
+./scripts/ai-creation/routine-reference-generator.sh
+
+# Or specify custom output location
+./scripts/ai-creation/routine-reference-generator.sh docs/ai-creation/routine/my-reference.md
+```
+
+This creates/updates `docs/ai-creation/routine/routine-reference.json` with:
+- All routine IDs, names, types, and descriptions in structured JSON format
+- Routines grouped by category and type for easy filtering
+- Built-in usage examples for jq queries
+- Metadata including generation timestamp and total count
+
+**Note**: Always regenerate the reference after adding new routine files to ensure subroutine builders have access to the latest routine IDs.
+
+#### JSON Query Examples:
+```bash
+# List all routine types
+jq '.byType | keys' docs/ai-creation/routine/routine-reference.json
+
+# Find routine by exact ID
+jq '.routines[] | select(.id == "7829564732190847634")' docs/ai-creation/routine/routine-reference.json
+
+# Search routines by name pattern (case-insensitive)
+jq '.routines[] | select(.name | test("habit"; "i"))' docs/ai-creation/routine/routine-reference.json
+
+# Get all multi-step routines
+jq '.byType.RoutineMultiStep' docs/ai-creation/routine/routine-reference.json
+
+# List routines in productivity category
+jq '.byCategory.productivity' docs/ai-creation/routine/routine-reference.json
+
+# Count routines by type
+jq '.byType | to_entries | map({type: .key, count: (.value | length)})' docs/ai-creation/routine/routine-reference.json
 ```
 
 ## Prerequisites
@@ -655,12 +748,29 @@ When creating new routines, follow these proven patterns and principles:
 ## Quality Assurance
 
 ### Generated Routine Validation
-- ✅ Valid JSON structure
-- ✅ Required fields present
-- ✅ Correct ID formats (19-digit snowflake IDs)
-- ✅ Valid subroutine references
-- ✅ Proper data flow mapping
-- ✅ Complete form definitions
+
+Use `./scripts/ai-creation/validate-routine.sh` for structural validation and `./scripts/ai-creation/validate-subroutines.sh` for subroutine reference validation:
+
+```bash
+# Validate JSON structure, fields, and configuration
+./scripts/ai-creation/validate-routine.sh docs/ai-creation/routine/staged/your-routine.json
+
+# Validate subroutine references and TODO placeholders
+./scripts/ai-creation/validate-subroutines.sh docs/ai-creation/routine/staged/your-routine.json
+
+# Quick validation workflow
+./scripts/ai-creation/validate-subroutines.sh --todo-only  # Check for TODOs
+./scripts/ai-creation/validate-routine.sh docs/ai-creation/routine/staged/*.json    # Validate structure
+```
+
+**Validation Checklist:**
+- ✅ Valid JSON structure (`scripts/ai-creation/validate-routine.sh`)
+- ✅ Required fields present (`scripts/ai-creation/validate-routine.sh`)
+- ✅ Correct ID formats (19-digit snowflake IDs) (`scripts/ai-creation/validate-routine.sh`)
+- ✅ Valid subroutine references (`scripts/ai-creation/validate-subroutines.sh`)
+- ✅ No TODO placeholders (`scripts/ai-creation/validate-subroutines.sh --todo-only`)
+- ✅ Proper data flow mapping (`scripts/ai-creation/validate-routine.sh`)
+- ✅ Complete form definitions (`scripts/ai-creation/validate-routine.sh`)
 
 ### Runtime Validation
 - ✅ Successful API import
@@ -688,6 +798,11 @@ When creating new routines, follow these proven patterns and principles:
 - **"Import failed"**: Review routine JSON structure and validation errors
 - **"Routine execution test failed"**: Check subroutine references and data mappings
 
+### Validation Issues
+- **"TODO placeholders found"**: Use `./scripts/ai-creation/validate-subroutines.sh --todo-only` to find them, then replace with real IDs
+- **"Subroutine ID not found"**: Use `./scripts/ai-creation/validate-subroutines.sh --list-available` to see available routines
+- **"Invalid ID format"**: Ensure subroutine IDs are 19-digit numeric strings
+
 ### Common Fixes
 ```bash
 # Restart development environment
@@ -710,6 +825,15 @@ vrooli routine import staged/your-routine.json --dry-run
 
 # Verify test user exists
 docker compose exec db psql -U postgres -d vrooli -c "SELECT email FROM users WHERE email = 'test@example.com';"
+
+# Validate routine structure and subroutines
+./scripts/ai-creation/validate-routine.sh docs/ai-creation/routine/staged/your-routine.json
+./scripts/ai-creation/validate-subroutines.sh docs/ai-creation/routine/staged/your-routine.json
+
+# Quick subroutine validation workflow
+./scripts/ai-creation/validate-subroutines.sh --todo-only               # Find TODO placeholders
+./scripts/ai-creation/validate-subroutines.sh --list-available          # See available subroutines
+jq '.routines[] | select(.name | test("pattern"; "i"))' docs/ai-creation/routine/routine-reference.json  # Search by name
 
 # Check routine JSON structure
 jq . staged/your-routine.json

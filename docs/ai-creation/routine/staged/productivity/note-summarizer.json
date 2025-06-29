@@ -1,0 +1,222 @@
+{
+  "id": "7829564732190847934",
+  "publicId": "note-summary-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847935",
+      "publicId": "note-summary-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Parse and Structure Raw Notes",
+                "description": "Analyzes and organizes informal notes into structured content",
+                "subroutineId": "note-parser-v1",
+                "inputMap": {
+                  "originalRawNotes": "rawNotes",
+                  "originalContext": "meetingContext",
+                  "originalNoteType": "sessionType"
+                },
+                "outputMap": {
+                  "structuredContent": "organizedNotes",
+                  "keyTopics": "mainTopics",
+                  "actionItems": "identifiedActions",
+                  "participants": "involvedPeople"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Identify Themes and Priorities",
+                "description": "Extracts main themes, priorities, and important concepts",
+                "subroutineId": "theme-identifier-v1",
+                "inputMap": {
+                  "organizedNotes": "structuredText",
+                  "mainTopics": "topicList",
+                  "identifiedActions": "actionsList",
+                  "involvedPeople": "participantList"
+                },
+                "outputMap": {
+                  "coreThemes": "primaryThemes",
+                  "priorityItems": "highPriorityTopics",
+                  "keyDecisions": "importantDecisions",
+                  "openQuestions": "unresolvedIssues"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Generate Organized Summary",
+                "description": "Creates clear, structured summary with logical organization",
+                "subroutineId": "summary-organizer-v1",
+                "inputMap": {
+                  "primaryThemes": "themeData",
+                  "highPriorityTopics": "priorityData",
+                  "importantDecisions": "decisionData",
+                  "unresolvedIssues": "questionData"
+                },
+                "outputMap": {
+                  "executiveSummary": "briefOverview",
+                  "detailedSummary": "comprehensiveSummary",
+                  "actionableItems": "nextSteps",
+                  "followUpItems": "followUpNeeded"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Suggest Follow-up Actions",
+                "description": "Recommends specific follow-up actions and next steps",
+                "subroutineId": "followup-suggester-v1",
+                "inputMap": {
+                  "briefOverview": "summaryData",
+                  "nextSteps": "actionItems",
+                  "followUpNeeded": "pendingItems",
+                  "questionData": "openIssues"
+                },
+                "outputMap": {
+                  "suggestedActions": "recommendedNextSteps",
+                  "assignmentRecommendations": "taskAssignments",
+                  "timelineSuggestions": "proposedTimelines",
+                  "documentationNeeds": "additionalDocumentation"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "rawNotes": "originalRawNotes",
+                "meetingContext": "originalContext",
+                "sessionType": "originalNoteType"
+              },
+              "outputMap": {
+                "briefOverview": "executiveSummary",
+                "comprehensiveSummary": "detailedSummary",
+                "nextSteps": "actionableItems",
+                "recommendedNextSteps": "suggestedActions",
+                "taskAssignments": "assignmentRecommendations",
+                "proposedTimelines": "timelineSuggestions"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rawNotes",
+                "id": "raw_notes_input",
+                "label": "Raw Notes",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste your informal notes from brainstorming sessions, meetings, lectures, etc...",
+                  "rows": 8
+                }
+              },
+              {
+                "fieldName": "meetingContext",
+                "id": "context_input",
+                "label": "Context/Meeting Type",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Provide context: team meeting, brainstorming session, lecture, client call, etc...",
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "sessionType",
+                "id": "session_type_input",
+                "label": "Session Type (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Type of session: planning, review, creative, problem-solving, etc...",
+                  "rows": 1
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "detailedSummary",
+                "id": "detailed_summary_output",
+                "label": "Detailed Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionableItems",
+                "id": "action_items_output",
+                "label": "Action Items",
+                "type": "Text"
+              },
+              {
+                "fieldName": "suggestedActions",
+                "id": "suggested_actions_output",
+                "label": "Suggested Follow-up Actions",
+                "type": "Text"
+              },
+              {
+                "fieldName": "assignmentRecommendations",
+                "id": "assignments_output",
+                "label": "Assignment Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "timelineSuggestions",
+                "id": "timeline_output",
+                "label": "Timeline Suggestions",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "conversational",
+          "3": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847936",
+          "language": "en",
+          "name": "Note Summarizer",
+          "description": "Cleans up and summarizes informal notes from brainstorming sessions, meetings, or lectures. Organizes scattered thoughts into structured summaries, identifies key themes, extracts action items, and suggests follow-up steps.",
+          "instructions": "Provide your raw, informal notes and context about the session type. The routine will organize your notes, identify main themes, create structured summaries, and suggest actionable follow-up steps to ensure nothing important is missed.",
+          "details": "This routine transforms messy, informal notes into professional, organized summaries. It's perfect for cleaning up meeting notes, brainstorming session outputs, lecture notes, or any scattered thoughts that need structure and clarity."
+        }
+      ]
+    }
+  ]
+}

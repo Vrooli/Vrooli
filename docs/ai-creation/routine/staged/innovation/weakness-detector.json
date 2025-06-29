@@ -1,0 +1,111 @@
+{
+  "id": "1734567890123456804",
+  "publicId": "weakness-detector-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "1734567890123456805",
+      "publicId": "weakness-detector-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Analyze the following idea components for potential weaknesses and risks:\n\nIdea Components: {{input.ideaComponents}}\nUnderlying Assumptions: {{input.assumptions}}\nKnown Constraints: {{input.constraints}}\n\nProvide a thorough weakness assessment including:\n\n1. **Logical Weaknesses**:\n   - Flawed assumptions\n   - Missing critical components\n   - Internal contradictions\n\n2. **Practical Weaknesses**:\n   - Implementation challenges\n   - Resource requirements\n   - Technical limitations\n\n3. **Market/External Risks**:\n   - Competition threats\n   - Market acceptance issues\n   - External dependencies\n\n4. **Improvement Areas**:\n   - Specific aspects that need strengthening\n   - Missing elements to add\n   - Alternative approaches to consider\n\nFor each weakness, indicate:\n- Severity (High/Medium/Low)\n- Likelihood of causing problems\n- Potential impact if not addressed\n\nBe constructive but thorough in identifying areas for improvement.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "ideaComponents",
+                "id": "components_input",
+                "label": "Idea Components",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Core components and elements of the idea...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "assumptions",
+                "id": "assumptions_input",
+                "label": "Underlying Assumptions",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Implicit assumptions identified in the idea...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Known Constraints",
+                "type": "Text",
+                "props": {
+                  "placeholder": "Budget, time, technical, or other limitations...",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "identifiedWeaknesses",
+                "id": "weaknesses_output",
+                "label": "Identified Weaknesses",
+                "type": "Text"
+              },
+              {
+                "fieldName": "riskFactors",
+                "id": "risks_output",
+                "label": "Risk Factors",
+                "type": "Text"
+              },
+              {
+                "fieldName": "improvementAreas",
+                "id": "improvements_output",
+                "label": "Areas for Improvement",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "1734567890123456806",
+          "language": "en",
+          "name": "Weakness Detector",
+          "description": "Analyzes idea components to identify potential problems, weaknesses, and areas for improvement. Provides structured assessment of logical, practical, and market risks with severity ratings.",
+          "instructions": "Provide the idea components, underlying assumptions, and known constraints. The routine will systematically identify weaknesses and suggest specific areas for improvement."
+        }
+      ]
+    }
+  ]
+}

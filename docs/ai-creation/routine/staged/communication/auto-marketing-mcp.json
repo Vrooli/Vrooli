@@ -1,0 +1,315 @@
+{
+  "id": "7829564732190847015",
+  "publicId": "auto-mkt-mcp-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847016",
+      "publicId": "auto-mkt-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "executionStrategy": "conversational",
+        "callDataMultiStep": {
+          "__version": "1.0",
+          "schema": {
+            "__type": "Sequential",
+            "schema": {
+              "steps": [
+                {
+                  "id": "step_analyze_product",
+                  "name": "Analyze Product/Service",
+                  "description": "Understand the product/service and extract key features and benefits",
+                  "subroutineId": "TODO: Product Analyzer subroutine",
+                  "inputMap": {
+                    "productInfo": "productInfo",
+                    "targetAudience": "targetAudience"
+                  },
+                  "outputMap": {
+                    "keyFeatures": "keyFeatures",
+                    "benefits": "benefits",
+                    "uniqueSellingPoints": "uniqueSellingPoints"
+                  }
+                },
+                {
+                  "id": "step_generate_brand_voice",
+                  "name": "Define Brand Voice",
+                  "description": "Create consistent brand voice and messaging guidelines",
+                  "subroutineId": "TODO: Brand Voice Generator subroutine",
+                  "inputMap": {
+                    "targetAudience": "targetAudience",
+                    "campaignTone": "campaignTone",
+                    "keyFeatures": "keyFeatures"
+                  },
+                  "outputMap": {
+                    "brandVoice": "brandVoice",
+                    "messagingGuidelines": "messagingGuidelines"
+                  }
+                },
+                {
+                  "id": "step_create_campaign_theme",
+                  "name": "Create Campaign Theme",
+                  "description": "Develop overarching campaign theme and core messages",
+                  "subroutineId": "TODO: Campaign Theme Creator subroutine",
+                  "inputMap": {
+                    "productInfo": "productInfo",
+                    "targetAudience": "targetAudience",
+                    "campaignGoals": "campaignGoals",
+                    "brandVoice": "brandVoice"
+                  },
+                  "outputMap": {
+                    "campaignTheme": "campaignTheme",
+                    "coreMessages": "coreMessages"
+                  }
+                },
+                {
+                  "id": "step_generate_slogans",
+                  "name": "Generate Marketing Slogans",
+                  "description": "Create multiple slogan options for the campaign",
+                  "subroutineId": "1734567890123456798",
+                  "inputMap": {
+                    "productInfo": "productInfo",
+                    "targetAudience": "targetAudience",
+                    "campaignTheme": "campaignTheme",
+                    "brandVoice": "brandVoice"
+                  },
+                  "outputMap": {
+                    "slogans": "slogans",
+                    "taglines": "taglines"
+                  }
+                },
+                {
+                  "id": "step_create_ad_copy",
+                  "name": "Create Ad Copy",
+                  "description": "Generate advertising copy for various formats",
+                  "subroutineId": "TODO: Ad Copy Generator subroutine",
+                  "inputMap": {
+                    "campaignTheme": "campaignTheme",
+                    "slogans": "slogans",
+                    "keyFeatures": "keyFeatures",
+                    "benefits": "benefits",
+                    "brandVoice": "brandVoice"
+                  },
+                  "outputMap": {
+                    "shortAdCopy": "shortAdCopy",
+                    "longAdCopy": "longAdCopy",
+                    "callToActions": "callToActions"
+                  }
+                },
+                {
+                  "id": "step_social_media_content",
+                  "name": "Create Social Media Content",
+                  "description": "Generate platform-specific social media posts",
+                  "subroutineId": "7829564732190847682",
+                  "inputMap": {
+                    "campaignTheme": "campaignTheme",
+                    "coreMessages": "coreMessages",
+                    "brandVoice": "brandVoice",
+                    "platforms": "socialPlatforms"
+                  },
+                  "outputMap": {
+                    "socialPosts": "socialPosts",
+                    "hashtags": "hashtags",
+                    "postingSchedule": "postingSchedule"
+                  }
+                },
+                {
+                  "id": "step_email_campaigns",
+                  "name": "Create Email Campaign Content",
+                  "description": "Generate email marketing sequences",
+                  "subroutineId": "TODO: Email Campaign Generator subroutine",
+                  "inputMap": {
+                    "campaignTheme": "campaignTheme",
+                    "targetAudience": "targetAudience",
+                    "productInfo": "productInfo",
+                    "benefits": "benefits",
+                    "callToActions": "callToActions"
+                  },
+                  "outputMap": {
+                    "emailSubjectLines": "emailSubjectLines",
+                    "emailBodies": "emailBodies",
+                    "emailSequence": "emailSequence"
+                  }
+                },
+                {
+                  "id": "step_landing_page_content",
+                  "name": "Create Landing Page Content",
+                  "description": "Generate content for campaign landing pages",
+                  "subroutineId": "TODO: Landing Page Content Generator subroutine",
+                  "inputMap": {
+                    "campaignTheme": "campaignTheme",
+                    "keyFeatures": "keyFeatures",
+                    "benefits": "benefits",
+                    "slogans": "slogans",
+                    "callToActions": "callToActions"
+                  },
+                  "outputMap": {
+                    "headlines": "landingPageHeadlines",
+                    "bodyContent": "landingPageBody",
+                    "testimonialFramework": "testimonialFramework"
+                  }
+                },
+                {
+                  "id": "step_compile_materials",
+                  "name": "Compile Marketing Materials",
+                  "description": "Organize all generated content into a comprehensive marketing package",
+                  "subroutineId": "TODO: Marketing Materials Compiler subroutine",
+                  "inputMap": {
+                    "slogans": "slogans",
+                    "adCopy": "shortAdCopy",
+                    "socialPosts": "socialPosts",
+                    "emailContent": "emailBodies",
+                    "landingPageContent": "landingPageBody",
+                    "brandGuidelines": "messagingGuidelines"
+                  },
+                  "outputMap": {
+                    "marketingPackage": "marketingPackage",
+                    "implementationGuide": "implementationGuide"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "productInfo",
+                "id": "product_info_input",
+                "label": "Product/Service Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe your product or service, including key features, pricing, and unique aspects...",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe your ideal customers: demographics, interests, pain points, needs...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "campaignGoals",
+                "id": "campaign_goals_input",
+                "label": "Campaign Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What do you want to achieve? (e.g., brand awareness, sales, leads, engagement...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "campaignTone",
+                "id": "campaign_tone_input",
+                "label": "Campaign Tone",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Professional", "Casual", "Playful", "Urgent", "Inspirational", "Educational", "Luxurious"],
+                  "defaultValue": "Professional"
+                }
+              },
+              {
+                "fieldName": "socialPlatforms",
+                "id": "social_platforms_input",
+                "label": "Social Media Platforms",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "multiple": true,
+                  "options": ["LinkedIn", "Twitter/X", "Facebook", "Instagram", "TikTok", "YouTube"],
+                  "defaultValue": ["LinkedIn", "Twitter/X", "Facebook"]
+                }
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Budget Tier",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Minimal", "Small", "Medium", "Large", "Enterprise"],
+                  "defaultValue": "Medium"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "marketingPackage",
+                "id": "marketing_package_output",
+                "label": "Complete Marketing Package",
+                "type": "Text"
+              },
+              {
+                "fieldName": "slogans",
+                "id": "slogans_output",
+                "label": "Campaign Slogans & Taglines",
+                "type": "Text"
+              },
+              {
+                "fieldName": "socialPosts",
+                "id": "social_posts_output",
+                "label": "Social Media Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "emailSequence",
+                "id": "email_sequence_output",
+                "label": "Email Campaign Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "landingPageBody",
+                "id": "landing_page_output",
+                "label": "Landing Page Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "implementation_guide_output",
+                "label": "Implementation Guide",
+                "type": "Text"
+              }
+            ]
+          }
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847017",
+          "language": "en",
+          "name": "Auto-Marketing MCP",
+          "description": "Automated marketing content creation inspired by Layers approach. Generates comprehensive marketing materials including ad copy, social posts, email campaigns, and landing page content. Creates cohesive multi-channel marketing content with consistent brand voice and messaging.",
+          "instructions": "1. Provide detailed information about your product or service\n2. Define your target audience and campaign goals\n3. Select your preferred tone and social media platforms\n4. The system will generate a complete marketing package including:\n   - Marketing slogans and taglines\n   - Ad copy for various formats\n   - Social media posts for selected platforms\n   - Email marketing sequences\n   - Landing page content\n   - Implementation guidelines\n\nAll content will maintain consistent messaging and brand voice across channels."
+        }
+      ]
+    }
+  ]
+}

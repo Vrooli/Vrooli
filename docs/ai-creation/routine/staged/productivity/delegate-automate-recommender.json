@@ -1,0 +1,208 @@
+{
+  "id": "7829564732190847919",
+  "publicId": "delegate-auto-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847920",
+      "publicId": "delegate-auto-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Task Characteristics",
+                "description": "Evaluates task complexity, frequency, and skill requirements",
+                "subroutineId": "task-analyzer-v1",
+                "inputMap": {
+                  "originalTaskList": "taskList",
+                  "originalTeamCapabilities": "teamCapabilities",
+                  "originalAutomationOptions": "automationOptions"
+                },
+                "outputMap": {
+                  "taskComplexityScores": "complexityAnalysis",
+                  "frequencyAssessment": "taskFrequency",
+                  "skillRequirements": "requiredSkills",
+                  "timeInvestments": "timeAnalysis"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Assess Delegation Potential",
+                "description": "Evaluates which tasks are suitable for delegation",
+                "subroutineId": "delegation-assessor-v1",
+                "inputMap": {
+                  "complexityAnalysis": "taskComplexity",
+                  "taskFrequency": "frequencyData",
+                  "requiredSkills": "skillNeeds",
+                  "teamCapabilities": "availableSkills"
+                },
+                "outputMap": {
+                  "delegationCandidates": "delegatableTasks",
+                  "skillMatching": "skillAlignment",
+                  "trainingNeeds": "developmentRequired",
+                  "delegationRisks": "riskAssessment"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Evaluate Automation Opportunities",
+                "description": "Identifies tasks suitable for automation",
+                "subroutineId": "automation-evaluator-v1",
+                "inputMap": {
+                  "taskComplexity": "complexityScores",
+                  "frequencyData": "taskFrequency",
+                  "timeAnalysis": "timeInvestment",
+                  "automationOptions": "availableTools"
+                },
+                "outputMap": {
+                  "automationCandidates": "automatableTasks",
+                  "toolRecommendations": "suggestedTools",
+                  "implementationEffort": "effortEstimates",
+                  "automationROI": "returnOnInvestment"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Generate Action Plan",
+                "description": "Creates prioritized recommendations for delegation and automation",
+                "subroutineId": "action-planner-v1",
+                "inputMap": {
+                  "delegatableTasks": "delegationOptions",
+                  "skillAlignment": "teamMatching",
+                  "automatableTasks": "automationOptions",
+                  "returnOnInvestment": "roiAnalysis"
+                },
+                "outputMap": {
+                  "prioritizedRecommendations": "actionPlan",
+                  "delegationStrategy": "delegationPlan",
+                  "automationRoadmap": "automationPlan",
+                  "implementationTimeline": "executionSchedule"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "taskList": "originalTaskList",
+                "teamCapabilities": "originalTeamCapabilities",
+                "automationOptions": "originalAutomationOptions"
+              },
+              "outputMap": {
+                "actionPlan": "prioritizedRecommendations",
+                "delegationPlan": "delegationStrategy",
+                "automationPlan": "automationRoadmap",
+                "executionSchedule": "implementationTimeline"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskList",
+                "id": "tasks_input",
+                "label": "Task List",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List your regular tasks and responsibilities, one per line...",
+                  "rows": 6
+                }
+              },
+              {
+                "fieldName": "teamCapabilities",
+                "id": "team_input",
+                "label": "Team Capabilities",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Describe your team members' skills and availability for delegation...",
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "automationOptions",
+                "id": "automation_input",
+                "label": "Available Automation Tools/Options",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "List available automation tools, software, or systems you could use...",
+                  "rows": 3
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedRecommendations",
+                "id": "recommendations_output",
+                "label": "Prioritized Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "delegationStrategy",
+                "id": "delegation_output",
+                "label": "Delegation Strategy",
+                "type": "Text"
+              },
+              {
+                "fieldName": "automationPlan",
+                "id": "automation_output",
+                "label": "Automation Roadmap",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationTimeline",
+                "id": "timeline_output",
+                "label": "Implementation Timeline",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847921",
+          "language": "en",
+          "name": "Delegate-or-Automate Recommender",
+          "description": "Analyzes your task list and recommends which tasks to delegate or automate. Evaluates task complexity, frequency, and team capabilities to provide strategic recommendations for optimizing your workflow and freeing up time for high-value activities.",
+          "instructions": "Provide your regular task list and information about your team capabilities and available automation tools. The routine will analyze each task and recommend the best approach - whether to keep doing it yourself, delegate to team members, or automate with available tools.",
+          "details": "This routine helps you strategically optimize your workload by identifying opportunities for delegation and automation. It considers task complexity, frequency, required expertise, team skills, and available tools to provide actionable recommendations that can significantly improve your productivity and focus."
+        }
+      ]
+    }
+  ]
+}

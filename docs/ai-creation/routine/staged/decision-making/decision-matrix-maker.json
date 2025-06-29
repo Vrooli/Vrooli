@@ -1,0 +1,237 @@
+{
+  "id": "1734567890123456813",
+  "publicId": "decision-matrix-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "1734567890123456814",
+      "publicId": "decision-matrix-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "criteria_extraction",
+                "name": "Extract Decision Criteria",
+                "description": "Identify and structure the evaluation criteria from input",
+                "subroutineId": "criteria-extractor-v1",
+                "inputMap": {
+                  "optionsList": "originalOptions",
+                  "criteriaInput": "originalCriteria",
+                  "decisionContext": "originalContext"
+                },
+                "outputMap": {
+                  "structuredCriteria": "step1Criteria",
+                  "normalizedOptions": "step1Options"
+                }
+              },
+              {
+                "id": "weight_assignment",
+                "name": "Assign Criteria Weights",
+                "description": "Determine importance weights for each criterion",
+                "subroutineId": "weight-calculator-v1",
+                "inputMap": {
+                  "criteriaList": "step1Criteria",
+                  "weightPreferences": "originalWeights",
+                  "priorityContext": "originalContext"
+                },
+                "outputMap": {
+                  "weightedCriteria": "step2WeightedCriteria",
+                  "weightJustification": "step2WeightRationale"
+                }
+              },
+              {
+                "id": "option_scoring",
+                "name": "Score Options Against Criteria",
+                "description": "Evaluate each option against every criterion",
+                "subroutineId": "option-scorer-v1",
+                "inputMap": {
+                  "optionsToScore": "step1Options",
+                  "evaluationCriteria": "step2WeightedCriteria",
+                  "scoringMethod": "originalScoringPrefs"
+                },
+                "outputMap": {
+                  "rawScores": "step3RawScores",
+                  "scoringRationale": "step3ScoringNotes"
+                }
+              },
+              {
+                "id": "weighted_calculation",
+                "name": "Calculate Weighted Scores",
+                "description": "Apply weights to scores and compute final rankings",
+                "subroutineId": "score-calculator-v1",
+                "inputMap": {
+                  "rawScoreData": "step3RawScores",
+                  "criteriaWeights": "step2WeightedCriteria",
+                  "calculationMethod": "originalScoringPrefs"
+                },
+                "outputMap": {
+                  "weightedScores": "step4WeightedScores",
+                  "finalRankings": "step4Rankings"
+                }
+              },
+              {
+                "id": "matrix_formatting",
+                "name": "Format Decision Matrix",
+                "description": "Create visual matrix representation of the analysis",
+                "subroutineId": "matrix-formatter-v1",
+                "inputMap": {
+                  "scoreResults": "step4WeightedScores",
+                  "rankingData": "step4Rankings",
+                  "originalOptionsData": "step1Options"
+                },
+                "outputMap": {
+                  "formattedMatrix": "step5Matrix",
+                  "visualSummary": "step5Summary"
+                }
+              },
+              {
+                "id": "recommendation_analysis",
+                "name": "Generate Recommendation",
+                "description": "Provide decision recommendation with supporting rationale",
+                "subroutineId": "decision-recommender-v1",
+                "inputMap": {
+                  "finalScores": "step4WeightedScores",
+                  "rankingResults": "step4Rankings",
+                  "scoringJustification": "step3ScoringNotes"
+                },
+                "outputMap": {
+                  "topRecommendation": "finalRecommendation",
+                  "recommendationRationale": "finalRationale"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "optionsList": "originalOptions",
+                "criteriaWithWeights": "originalCriteria",
+                "scoringPreferences": "originalScoringPrefs",
+                "decisionContext": "originalContext"
+              },
+              "outputMap": {
+                "step5Matrix": "decisionMatrix",
+                "finalRecommendation": "topChoice",
+                "finalRationale": "recommendation",
+                "step4Rankings": "completeRankings"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optionsList",
+                "id": "options_input",
+                "label": "Options to Compare",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the options you're choosing between (one per line or separated by commas)...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "criteriaWithWeights",
+                "id": "criteria_input",
+                "label": "Criteria and Weights",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List evaluation criteria with importance weights (e.g., Cost: High, Quality: Medium, Speed: Low)...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "scoringPreferences",
+                "id": "scoring_input",
+                "label": "Scoring Preferences",
+                "type": "Selector",
+                "props": {
+                  "options": ["1-5 Scale", "1-10 Scale", "Percentage", "High/Medium/Low"]
+                }
+              },
+              {
+                "fieldName": "decisionContext",
+                "id": "context_input",
+                "label": "Decision Context",
+                "type": "Text",
+                "props": {
+                  "placeholder": "Provide context about this decision and any special considerations...",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "decisionMatrix",
+                "id": "matrix_output",
+                "label": "Decision Matrix",
+                "type": "Text"
+              },
+              {
+                "fieldName": "topChoice",
+                "id": "recommendation_output",
+                "label": "Top Recommendation",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recommendation",
+                "id": "rationale_output",
+                "label": "Recommendation Rationale",
+                "type": "Text"
+              },
+              {
+                "fieldName": "completeRankings",
+                "id": "rankings_output",
+                "label": "Complete Rankings",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "deterministic",
+          "4": "deterministic",
+          "5": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "1734567890123456815",
+          "language": "en",
+          "name": "Decision Matrix Maker",
+          "description": "Creates a weighted decision matrix to quantitatively compare options against multiple criteria. Uses scoring and weighting systems to provide data-driven decision support with clear rationale.",
+          "instructions": "List your options to compare, evaluation criteria with weights, scoring preference, and decision context. The routine will create a weighted decision matrix and recommend the best option with supporting rationale."
+        }
+      ]
+    }
+  ]
+}

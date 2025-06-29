@@ -8,7 +8,7 @@
  * that enables true emergent capabilities through agent-extensible event types.
  */
 
-import { nanoid } from "@vrooli/shared";
+import { nanoid } from "nanoid";
 import { EventEmitter } from "events";
 import { type Logger } from "winston";
 import {
@@ -19,8 +19,11 @@ import {
     type EventBarrierSyncResult,
     type EventHandler,
     type EventPublishResult,
+    type EventSubscription,
     type EventSubscriptionId,
+    type IEventBus,
     type SafetyEvent,
+    type SocketServiceInterface,
     type SubscriptionOptions,
 } from "./types.js";
 import {
@@ -62,7 +65,10 @@ export class EventBus implements IEventBus {
         lastEventTime: 0,
     };
 
-    constructor(private readonly logger: Logger) {
+    constructor(
+        private readonly logger: Logger,
+        private readonly socketService?: SocketServiceInterface,
+    ) {
         this.emitter = new EventEmitter();
         this.emitter.setMaxListeners(EVENT_BUS_CONSTANTS.MAX_EVENT_LISTENERS); // Allow many subscribers
     }
@@ -338,11 +344,17 @@ export class EventBus implements IEventBus {
     private async publishFireAndForget<T extends BaseEvent>(event: T): Promise<void> {
         // Fire and forget - emit and don't wait for delivery confirmation
         this.emitToSubscribers(event);
+        
+        // Also emit to socket clients if socket service is configured
+        this.emitToSocketClients(event);
     }
 
     private async publishReliable<T extends BaseEvent>(event: T): Promise<void> {
         // Reliable delivery - emit and ensure delivery to all subscribers
         await this.emitToSubscribersReliably(event);
+        
+        // Also emit to socket clients if socket service is configured
+        this.emitToSocketClients(event);
     }
 
     private emitToSubscribers<T extends BaseEvent>(event: T): void {
@@ -508,11 +520,105 @@ export class EventBus implements IEventBus {
             this.eventHistory.splice(0, this.eventHistory.length - EVENT_BUS_CONSTANTS.MAX_EVENT_HISTORY);
         }
     }
+
+    /**
+     * Emit event to socket clients if socket service is configured
+     */
+    private emitToSocketClients<T extends BaseEvent>(event: T): void {
+        if (!this.socketService) {
+            return;
+        }
+
+        try {
+            // Extract the appropriate room ID from the event based on its type
+            const roomId = this.extractRoomId(event);
+            if (!roomId) {
+                this.logger.debug("[EventBus] No room ID found for socket emission", {
+                    eventType: event.type,
+                    eventId: event.id,
+                });
+                return;
+            }
+
+            // Create the socket event payload directly from the event
+            // This maintains perfect type alignment between event bus and socket events
+            const socketEvent = {
+                id: event.id,
+                type: event.type,
+                timestamp: event.timestamp,
+                data: event.data,
+            };
+
+            // Forward the event directly to Socket.IO with no transformation
+            this.socketService.emitSocketEvent(event.type, roomId, socketEvent);
+
+            this.logger.debug("[EventBus] Emitted event to socket clients", {
+                eventType: event.type,
+                roomId,
+                eventId: event.id,
+            });
+        } catch (error) {
+            this.logger.error("[EventBus] Failed to emit event to socket clients", {
+                eventType: event.type,
+                eventId: event.id,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    /**
+     * Extract the appropriate room ID from an event based on its type and data
+     */
+    private extractRoomId(event: BaseEvent): string | null {
+        // For chat, swarm, bot, tool, response, reasoning, and cancellation events - use chat room
+        if (event.type.startsWith("chat/") ||
+            event.type.startsWith("swarm/") ||
+            event.type.startsWith("bot/") ||
+            event.type.startsWith("tool/") ||
+            event.type.startsWith("response/") ||
+            event.type.startsWith("reasoning/") ||
+            event.type.startsWith("cancellation/")) {
+            return this.extractChatId(event);
+        }
+
+        // For run and step events - use run room
+        if (event.type.startsWith("run/") || event.type.startsWith("step/")) {
+            return (event.data as any)?.runId || null;
+        }
+
+        // For user events - use user room
+        if (event.type.startsWith("user/")) {
+            return (event.data as any)?.userId || null;
+        }
+
+        // For room events - extract room ID from the event data
+        if (event.type.startsWith("room/")) {
+            return (event.data as any)?.roomId || null;
+        }
+
+        // Unknown event type pattern
+        this.logger.debug("[EventBus] Unknown event type pattern for socket emission", {
+            eventType: event.type,
+            eventId: event.id,
+        });
+        return null;
+    }
+
+    /**
+     * Extract chat ID from event data
+     */
+    private extractChatId(event: BaseEvent): string | null {
+        // Try multiple possible locations for chat ID
+        const data = event.data as any;
+        return data?.chatId || 
+               data?.conversationId || 
+               null;
+    }
 }
 
 /**
  * Create an enhanced event bus instance
  */
-export function createEventBus(logger: Logger): EventBus {
-    return new EventBus(logger);
+export function createEventBus(logger: Logger, socketService?: SocketServiceInterface): EventBus {
+    return new EventBus(logger, socketService);
 }

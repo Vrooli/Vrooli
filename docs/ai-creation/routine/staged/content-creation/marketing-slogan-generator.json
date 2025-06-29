@@ -1,0 +1,114 @@
+{
+  "id": "1734567890123456798",
+  "publicId": "slogan-gen-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "1734567890123456799",
+      "publicId": "slogan-gen-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 500,
+            "model": null,
+            "prompt": "Generate creative marketing slogans and taglines for:\n\nProduct/Brand: {{input.productInfo}}\nKey Features: {{input.keyFeatures}}\nTarget Audience: {{input.targetAudience}}\nDesired Tone: {{input.tonePreference}}\n\nCreate 8-10 different slogan options with variety in:\n- Length (short punchy vs. longer descriptive)\n- Style (emotional, factual, playful, authoritative)\n- Focus (benefits, features, emotions, values)\n\nFor each slogan, provide:\n1. The slogan text\n2. Style category\n3. Brief rationale for why it works\n4. Best use case (billboard, website, social media, etc.)\n\nFormat as a numbered list with explanations.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "productInfo",
+                "id": "product_input",
+                "label": "Product/Brand Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe your product, service, or brand...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "keyFeatures",
+                "id": "features_input",
+                "label": "Key Features/Benefits",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the main features, benefits, or unique selling points...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe your ideal customers (demographics, interests, needs)..."
+                }
+              },
+              {
+                "fieldName": "tonePreference",
+                "id": "tone_input",
+                "label": "Desired Tone",
+                "type": "Selector",
+                "props": {
+                  "options": ["Professional", "Playful", "Bold & Edgy", "Warm & Friendly", "Innovative", "Trustworthy", "Luxury", "Energetic"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "sloganOptions",
+                "id": "slogans_output",
+                "label": "Generated Slogans",
+                "type": "Text"
+              },
+              {
+                "fieldName": "rationale",
+                "id": "rationale_output",
+                "label": "Style Analysis & Rationale",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "1734567890123456800",
+          "language": "en",
+          "name": "Marketing Slogan Generator",
+          "description": "Produces creative taglines, slogans, or value propositions for brands/products/campaigns. Generates multiple options with variety of styles and provides rationale for each approach.",
+          "instructions": "Provide your product/brand information, key features, target audience, and desired tone. The routine will generate 8-10 diverse slogan options with explanations of style and best use cases."
+        }
+      ]
+    }
+  ]
+}

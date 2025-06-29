@@ -164,5 +164,4 @@ The enhanced generation system uses templates in several ways:
 
 - [../prompts/README.md](../prompts/README.md) - Generation prompt documentation
 - [../README.md](../README.md) - Main routine creation system
-- [../subroutine-resolver.md](../subroutine-resolver.md) - Smart resolution system
 - [../../architecture/execution/tiers/tier2-process-intelligence/routine-types.md](../../architecture/execution/tiers/tier2-process-intelligence/routine-types.md) - Routine architecture

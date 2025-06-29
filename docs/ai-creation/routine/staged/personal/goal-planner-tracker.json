@@ -1,0 +1,253 @@
+{
+  "id": "1734567890123456810",
+  "publicId": "goal-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "1734567890123456811",
+      "publicId": "goal-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "goal_structuring",
+                "name": "Structure Goal Definition",
+                "description": "Convert goal description into SMART format with clear parameters",
+                "subroutineId": "smart-goal-creator-v1",
+                "inputMap": {
+                  "goalDescription": "originalGoalDesc",
+                  "timelineInfo": "originalTimeline",
+                  "constraintsList": "originalConstraints"
+                },
+                "outputMap": {
+                  "smartGoalDefinition": "step1SmartGoal",
+                  "successCriteria": "step1Criteria"
+                }
+              },
+              {
+                "id": "milestone_breakdown",
+                "name": "Break Down into Milestones",
+                "description": "Create intermediate milestones and checkpoints",
+                "subroutineId": "milestone-creator-v1",
+                "inputMap": {
+                  "structuredGoal": "step1SmartGoal",
+                  "overallTimeline": "originalTimeline",
+                  "currentStatus": "originalStatus"
+                },
+                "outputMap": {
+                  "milestoneList": "step2Milestones",
+                  "timelineSchedule": "step2Schedule"
+                }
+              },
+              {
+                "id": "action_planning",
+                "name": "Create Action Plan",
+                "description": "Define specific actions and tasks for each milestone",
+                "subroutineId": "action-planner-v1",
+                "inputMap": {
+                  "milestonesToPlan": "step2Milestones",
+                  "availableResources": "originalConstraints",
+                  "scheduleFramework": "step2Schedule"
+                },
+                "outputMap": {
+                  "actionSteps": "step3ActionPlan",
+                  "resourceRequirements": "step3Resources"
+                }
+              },
+              {
+                "id": "progress_tracking_setup",
+                "name": "Setup Progress Tracking",
+                "description": "Create tracking mechanisms and progress indicators",
+                "subroutineId": "tracker-setup-v1",
+                "inputMap": {
+                  "goalDefinition": "step1SmartGoal",
+                  "milestoneData": "step2Milestones",
+                  "actionPlanData": "step3ActionPlan"
+                },
+                "outputMap": {
+                  "trackingMetrics": "step4Metrics",
+                  "progressIndicators": "step4Indicators"
+                }
+              },
+              {
+                "id": "motivation_strategy",
+                "name": "Design Motivation Strategy",
+                "description": "Create encouragement system and accountability measures",
+                "subroutineId": "motivation-designer-v1",
+                "inputMap": {
+                  "goalImportance": "originalGoalDesc",
+                  "timelineStress": "step2Schedule",
+                  "potentialObstacles": "originalConstraints"
+                },
+                "outputMap": {
+                  "motivationTactics": "step5Motivation",
+                  "accountabilityMethods": "step5Accountability"
+                }
+              },
+              {
+                "id": "comprehensive_plan_assembly",
+                "name": "Assemble Complete Plan",
+                "description": "Combine all elements into a comprehensive goal plan",
+                "subroutineId": "plan-assembler-v1",
+                "inputMap": {
+                  "goalStructure": "step1SmartGoal",
+                  "milestoneFramework": "step2Milestones",
+                  "detailedActions": "step3ActionPlan",
+                  "trackingSystem": "step4Metrics",
+                  "motivationSystem": "step5Motivation"
+                },
+                "outputMap": {
+                  "completeGoalPlan": "finalCompletePlan",
+                  "implementationGuide": "finalImplementation"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "goalDescription": "originalGoalDesc",
+                "timeline": "originalTimeline",
+                "constraints": "originalConstraints",
+                "currentStatus": "originalStatus"
+              },
+              "outputMap": {
+                "finalCompletePlan": "goalPlan",
+                "step2Milestones": "milestoneBreakdown",
+                "step3ActionPlan": "actionItems",
+                "step4Metrics": "trackingSystem",
+                "step5Motivation": "encouragementStrategy",
+                "finalImplementation": "nextSteps"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "goalDescription",
+                "id": "goal_input",
+                "label": "Goal Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe what you want to achieve...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Timeline",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "When do you want to achieve this goal? (e.g., 6 months, by December 2024)"
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints & Resources",
+                "type": "Text",
+                "props": {
+                  "placeholder": "Budget, time, skills, or other limitations and available resources...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "currentStatus",
+                "id": "status_input",
+                "label": "Current Status",
+                "type": "Text",
+                "props": {
+                  "placeholder": "Where are you now in relation to this goal?",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "goalPlan",
+                "id": "plan_output",
+                "label": "Complete Goal Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "milestoneBreakdown",
+                "id": "milestones_output",
+                "label": "Milestone Breakdown",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionItems",
+                "id": "actions_output",
+                "label": "Action Items",
+                "type": "Text"
+              },
+              {
+                "fieldName": "trackingSystem",
+                "id": "tracking_output",
+                "label": "Progress Tracking System",
+                "type": "Text"
+              },
+              {
+                "fieldName": "encouragementStrategy",
+                "id": "motivation_output",
+                "label": "Motivation & Accountability",
+                "type": "Text"
+              },
+              {
+                "fieldName": "nextSteps",
+                "id": "implementation_output",
+                "label": "Implementation Guide",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "deterministic",
+          "4": "conversational",
+          "5": "deterministic"
+        }
+      },
+      "translations": [
+        {
+          "id": "1734567890123456812",
+          "language": "en",
+          "name": "Goal Planner & Tracker",
+          "description": "Helps set specific goals, break into steps, and track progress with adjustments. Creates SMART goals, milestone plans, action items, progress tracking systems, and motivation strategies.",
+          "instructions": "Provide your goal description, timeline, available constraints/resources, and current status. The routine will create a comprehensive goal plan with milestones, action items, tracking systems, and motivation strategies."
+        }
+      ]
+    }
+  ]
+}

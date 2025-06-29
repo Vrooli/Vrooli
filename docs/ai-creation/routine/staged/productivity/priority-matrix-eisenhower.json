@@ -1,0 +1,232 @@
+{
+  "id": "7829564732190847901",
+  "publicId": "priority-mx-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847902",
+      "publicId": "priority-mx-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Analyze Task Urgency and Importance",
+                "description": "Evaluates each task for urgency and importance levels",
+                "subroutineId": "task-evaluator-v1",
+                "inputMap": {
+                  "originalTaskList": "taskList",
+                  "originalDeadlines": "deadlineInfo",
+                  "originalPriorities": "existingPriorities"
+                },
+                "outputMap": {
+                  "analyzedTasks": "categorizedTasks",
+                  "urgencyScores": "taskUrgencyLevels",
+                  "importanceScores": "taskImportanceLevels"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Create Eisenhower Matrix",
+                "description": "Organizes tasks into the 2x2 priority matrix quadrants",
+                "subroutineId": "matrix-organizer-v1",
+                "inputMap": {
+                  "categorizedTasks": "taskCategories",
+                  "taskUrgencyLevels": "urgencyData",
+                  "taskImportanceLevels": "importanceData"
+                },
+                "outputMap": {
+                  "doFirstQuadrant": "quadrant1Tasks",
+                  "scheduleQuadrant": "quadrant2Tasks",
+                  "delegateQuadrant": "quadrant3Tasks",
+                  "eliminateQuadrant": "quadrant4Tasks",
+                  "matrixVisualization": "priorityMatrix"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Generate Action Recommendations",
+                "description": "Provides specific action recommendations for each quadrant",
+                "subroutineId": "action-advisor-v1",
+                "inputMap": {
+                  "quadrant1Tasks": "criticalTasks",
+                  "quadrant2Tasks": "planningTasks",
+                  "quadrant3Tasks": "delegationTasks",
+                  "quadrant4Tasks": "eliminationTasks",
+                  "priorityMatrix": "currentMatrix"
+                },
+                "outputMap": {
+                  "immediateActions": "urgentRecommendations",
+                  "schedulingAdvice": "planningGuidance",
+                  "delegationStrategy": "delegationPlan",
+                  "eliminationSuggestions": "removalAdvice",
+                  "timeAllocation": "timeManagementPlan"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "taskList": "originalTaskList",
+                "deadlineInfo": "originalDeadlines",
+                "existingPriorities": "originalPriorities"
+              },
+              "outputMap": {
+                "priorityMatrix": "matrixVisualization",
+                "quadrant1Tasks": "doFirstQuadrant",
+                "quadrant2Tasks": "scheduleQuadrant",
+                "quadrant3Tasks": "delegateQuadrant",
+                "quadrant4Tasks": "eliminateQuadrant",
+                "urgentRecommendations": "immediateActions",
+                "planningGuidance": "schedulingAdvice",
+                "delegationPlan": "delegationStrategy",
+                "removalAdvice": "eliminationSuggestions",
+                "timeManagementPlan": "timeAllocation"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskList",
+                "id": "task_list_input",
+                "label": "Task List",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter your tasks, one per line or comma-separated...",
+                  "rows": 6
+                }
+              },
+              {
+                "fieldName": "deadlineInfo",
+                "id": "deadline_input",
+                "label": "Deadline Information (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Provide any deadline information for your tasks...",
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "existingPriorities",
+                "id": "priority_input",
+                "label": "Existing Priority Notes (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any existing priority levels or importance notes...",
+                  "rows": 3
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "priorityMatrix",
+                "id": "priority_matrix_output",
+                "label": "Eisenhower Priority Matrix",
+                "type": "Text"
+              },
+              {
+                "fieldName": "doFirstQuadrant",
+                "id": "quadrant1_output",
+                "label": "Do First (Urgent + Important)",
+                "type": "Text"
+              },
+              {
+                "fieldName": "scheduleQuadrant",
+                "id": "quadrant2_output",
+                "label": "Schedule (Important, Not Urgent)",
+                "type": "Text"
+              },
+              {
+                "fieldName": "delegateQuadrant",
+                "id": "quadrant3_output",
+                "label": "Delegate (Urgent, Not Important)",
+                "type": "Text"
+              },
+              {
+                "fieldName": "eliminateQuadrant",
+                "id": "quadrant4_output",
+                "label": "Eliminate (Neither Urgent nor Important)",
+                "type": "Text"
+              },
+              {
+                "fieldName": "urgentRecommendations",
+                "id": "urgent_actions_output",
+                "label": "Immediate Action Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "planningGuidance",
+                "id": "planning_advice_output",
+                "label": "Scheduling and Planning Advice",
+                "type": "Text"
+              },
+              {
+                "fieldName": "delegationPlan",
+                "id": "delegation_strategy_output",
+                "label": "Delegation Strategy",
+                "type": "Text"
+              },
+              {
+                "fieldName": "removalAdvice",
+                "id": "elimination_suggestions_output",
+                "label": "Elimination Suggestions",
+                "type": "Text"
+              },
+              {
+                "fieldName": "timeManagementPlan",
+                "id": "time_allocation_output",
+                "label": "Time Management Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "deterministic",
+          "2": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847903",
+          "language": "en",
+          "name": "Priority Matrix (Eisenhower Assistant)",
+          "description": "Organizes tasks into the Eisenhower Priority Matrix (urgent/important quadrants) to improve focus and productivity. Analyzes task urgency and importance, creates the 2x2 matrix visualization, and provides actionable recommendations for each quadrant.",
+          "instructions": "Provide your list of tasks and any deadline information. The routine will analyze each task for urgency and importance, organize them into the four quadrants (Do First, Schedule, Delegate, Eliminate), and provide specific action recommendations to help you focus on what truly matters.",
+          "details": "The Eisenhower Matrix, also known as the Urgent-Important Matrix, helps prioritize tasks by categorizing them into four quadrants: 1) Do First (urgent and important), 2) Schedule (important but not urgent), 3) Delegate (urgent but not important), and 4) Eliminate (neither urgent nor important). This routine automates the analysis and provides strategic guidance for each category."
+        }
+      ]
+    }
+  ]
+}

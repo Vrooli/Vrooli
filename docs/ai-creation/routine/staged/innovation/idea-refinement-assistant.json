@@ -1,0 +1,237 @@
+{
+  "id": "1734567890123456801",
+  "publicId": "idea-refine-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "1734567890123456802",
+      "publicId": "idea-refine-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "idea_analysis",
+                "name": "Analyze Raw Idea",
+                "description": "Break down and understand the core components of the idea",
+                "subroutineId": "idea-analyzer-v1",
+                "inputMap": {
+                  "rawIdeaDescription": "originalIdea",
+                  "initialGoals": "originalGoals",
+                  "knownConstraints": "originalConstraints"
+                },
+                "outputMap": {
+                  "coreComponents": "step1Components",
+                  "implicitAssumptions": "step1Assumptions",
+                  "keyStakeholders": "step1Stakeholders"
+                }
+              },
+              {
+                "id": "strength_identification",
+                "name": "Identify Strengths",
+                "description": "Find what's already strong about the idea",
+                "subroutineId": "strength-finder-v1",
+                "inputMap": {
+                  "ideaComponents": "step1Components",
+                  "stakeholderInfo": "step1Stakeholders",
+                  "goalContext": "originalGoals"
+                },
+                "outputMap": {
+                  "identifiedStrengths": "step2Strengths",
+                  "uniqueValueProps": "step2UniqueValue"
+                }
+              },
+              {
+                "id": "weakness_assessment",
+                "name": "Assess Weaknesses",
+                "description": "Identify potential problems and areas for improvement",
+                "subroutineId": "weakness-detector-v1",
+                "inputMap": {
+                  "ideaComponents": "step1Components",
+                  "assumptions": "step1Assumptions",
+                  "constraints": "originalConstraints"
+                },
+                "outputMap": {
+                  "identifiedWeaknesses": "step3Weaknesses",
+                  "riskFactors": "step3Risks",
+                  "improvementAreas": "step3Improvements"
+                }
+              },
+              {
+                "id": "enhancement_generation",
+                "name": "Generate Enhancements",
+                "description": "Create specific suggestions to improve the idea",
+                "subroutineId": "enhancement-generator-v1",
+                "inputMap": {
+                  "currentStrengths": "step2Strengths",
+                  "identifiedWeaknesses": "step3Weaknesses",
+                  "improvementOpportunities": "step3Improvements"
+                },
+                "outputMap": {
+                  "enhancementSuggestions": "step4Enhancements",
+                  "implementationStrategies": "step4Strategies"
+                }
+              },
+              {
+                "id": "differentiation_analysis",
+                "name": "Analyze Differentiation",
+                "description": "Explore how to make the idea more unique and competitive",
+                "subroutineId": "differentiation-analyzer-v1",
+                "inputMap": {
+                  "uniqueValueProps": "step2UniqueValue",
+                  "enhancementIdeas": "step4Enhancements",
+                  "marketContext": "originalGoals"
+                },
+                "outputMap": {
+                  "differentiationStrategies": "step5Differentiation",
+                  "competitiveAdvantages": "step5Advantages"
+                }
+              },
+              {
+                "id": "refined_concept_synthesis",
+                "name": "Synthesize Refined Concept",
+                "description": "Combine all insights into an improved version of the idea",
+                "subroutineId": "concept-synthesizer-v1",
+                "inputMap": {
+                  "originalConcept": "originalIdea",
+                  "identifiedStrengths": "step2Strengths",
+                  "improvementSuggestions": "step4Enhancements",
+                  "differentiationStrategies": "step5Differentiation"
+                },
+                "outputMap": {
+                  "refinedConcept": "finalRefinedIdea",
+                  "implementationRoadmap": "finalRoadmap"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "rawIdea": "originalIdea",
+                "goals": "originalGoals",
+                "constraints": "originalConstraints"
+              },
+              "outputMap": {
+                "finalRefinedIdea": "refinedConcept",
+                "step4Enhancements": "improvementSuggestions",
+                "step3Risks": "potentialIssues",
+                "step5Differentiation": "differentiationStrategies",
+                "finalRoadmap": "nextSteps"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rawIdea",
+                "id": "idea_input",
+                "label": "Raw Idea Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe your initial idea, concept, or proposal...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "goals",
+                "id": "goals_input",
+                "label": "Goals and Objectives",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What are you trying to achieve with this idea?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Known Constraints",
+                "type": "Text",
+                "props": {
+                  "placeholder": "Budget, time, technical, or other limitations (optional)...",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "refinedConcept",
+                "id": "refined_output",
+                "label": "Refined Concept",
+                "type": "Text"
+              },
+              {
+                "fieldName": "improvementSuggestions",
+                "id": "improvements_output",
+                "label": "Improvement Suggestions",
+                "type": "Text"
+              },
+              {
+                "fieldName": "potentialIssues",
+                "id": "issues_output",
+                "label": "Potential Issues",
+                "type": "Text"
+              },
+              {
+                "fieldName": "differentiationStrategies",
+                "id": "differentiation_output",
+                "label": "Differentiation Strategies",
+                "type": "Text"
+              },
+              {
+                "fieldName": "nextSteps",
+                "id": "roadmap_output",
+                "label": "Implementation Roadmap",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "conversational",
+          "4": "reasoning",
+          "5": "conversational"
+        }
+      },
+      "translations": [
+        {
+          "id": "1734567890123456803",
+          "language": "en",
+          "name": "Idea Refinement Assistant",
+          "description": "Takes raw ideas and helps elaborate/improve them. Identifies strengths, weaknesses, and enhancement opportunities through systematic analysis to transform initial concepts into well-developed proposals.",
+          "instructions": "Provide your raw idea description, goals, and any known constraints. The routine will analyze your concept, identify strengths and weaknesses, generate improvement suggestions, explore differentiation strategies, and synthesize everything into a refined concept with implementation roadmap."
+        }
+      ]
+    }
+  ]
+}

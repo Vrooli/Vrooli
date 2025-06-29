@@ -1,0 +1,208 @@
+{
+  "id": "7829564732190847925",
+  "publicId": "feedback-sum-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847926",
+      "publicId": "feedback-sum-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "graph": {
+          "__type": "Sequential",
+          "schema": {
+            "steps": [
+              {
+                "id": "step-1",
+                "name": "Parse and Categorize Feedback",
+                "description": "Extracts and organizes customer feedback from various sources",
+                "subroutineId": "feedback-parser-v1",
+                "inputMap": {
+                  "originalFeedbackData": "feedbackData",
+                  "originalSourceTypes": "feedbackSources",
+                  "originalTimeframe": "analysisTimeframe"
+                },
+                "outputMap": {
+                  "structuredFeedback": "parsedFeedback",
+                  "feedbackCategories": "categoryBreakdown",
+                  "customerSegments": "segmentAnalysis",
+                  "feedbackVolume": "volumeMetrics"
+                }
+              },
+              {
+                "id": "step-2",
+                "name": "Analyze Sentiment and Themes",
+                "description": "Performs sentiment analysis and identifies recurring themes",
+                "subroutineId": "sentiment-analyzer-v1",
+                "inputMap": {
+                  "parsedFeedback": "feedbackText",
+                  "categoryBreakdown": "feedbackTypes",
+                  "segmentAnalysis": "customerData",
+                  "volumeMetrics": "dataVolume"
+                },
+                "outputMap": {
+                  "sentimentScores": "overallSentiment",
+                  "themeAnalysis": "recurringThemes",
+                  "emotionalTrends": "emotionalPatterns",
+                  "issueFrequency": "commonIssues"
+                }
+              },
+              {
+                "id": "step-3",
+                "name": "Identify Key Insights",
+                "description": "Extracts actionable insights and priority areas",
+                "subroutineId": "insight-extractor-v1",
+                "inputMap": {
+                  "overallSentiment": "sentimentData",
+                  "recurringThemes": "themeData",
+                  "emotionalPatterns": "emotionalAnalysis",
+                  "commonIssues": "frequentProblems"
+                },
+                "outputMap": {
+                  "praisePoints": "positiveHighlights",
+                  "painPoints": "criticalIssues",
+                  "improvementOpportunities": "enhancementAreas",
+                  "customerNeeds": "unmetNeeds"
+                }
+              },
+              {
+                "id": "step-4",
+                "name": "Generate Executive Summary",
+                "description": "Creates comprehensive summary with recommendations",
+                "subroutineId": "summary-generator-v1",
+                "inputMap": {
+                  "positiveHighlights": "strengths",
+                  "criticalIssues": "weaknesses",
+                  "enhancementAreas": "opportunities",
+                  "unmetNeeds": "customerRequests"
+                },
+                "outputMap": {
+                  "executiveSummary": "overallSummary",
+                  "priorityMatrix": "improvementPriorities",
+                  "actionableRecommendations": "recommendedActions",
+                  "trendAnalysis": "feedbackTrends"
+                }
+              }
+            ],
+            "rootContext": {
+              "inputMap": {
+                "feedbackData": "originalFeedbackData",
+                "feedbackSources": "originalSourceTypes",
+                "analysisTimeframe": "originalTimeframe"
+              },
+              "outputMap": {
+                "overallSummary": "executiveSummary",
+                "improvementPriorities": "priorityMatrix",
+                "recommendedActions": "actionableRecommendations",
+                "feedbackTrends": "trendAnalysis"
+              }
+            },
+            "executionMode": "sequential"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "feedbackData",
+                "id": "feedback_data_input",
+                "label": "Customer Feedback Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste customer feedback (reviews, surveys, support tickets, etc.)...",
+                  "rows": 8
+                }
+              },
+              {
+                "fieldName": "feedbackSources",
+                "id": "sources_input",
+                "label": "Feedback Sources",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specify sources: reviews, surveys, support tickets, social media, etc...",
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "analysisTimeframe",
+                "id": "timeframe_input",
+                "label": "Analysis Timeframe (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Time period for this feedback (e.g., Q1 2024, last 30 days)...",
+                  "rows": 1
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "executiveSummary",
+                "id": "summary_output",
+                "label": "Executive Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "priorityMatrix",
+                "id": "priorities_output",
+                "label": "Improvement Priority Matrix",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionableRecommendations",
+                "id": "recommendations_output",
+                "label": "Actionable Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "feedbackTrends",
+                "id": "trends_output",
+                "label": "Feedback Trends Analysis",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": true,
+        "subroutineStrategies": {
+          "0": "reasoning",
+          "1": "reasoning",
+          "2": "reasoning",
+          "3": "reasoning"
+        }
+      },
+      "translations": [
+        {
+          "id": "7829564732190847927",
+          "language": "en",
+          "name": "Customer Feedback Summarizer",
+          "description": "Analyzes customer feedback from multiple sources to extract key insights and trends. Performs sentiment analysis, identifies themes, categorizes praise and pain points, and provides actionable recommendations for business improvement.",
+          "instructions": "Provide your customer feedback data from various sources (reviews, surveys, support tickets, etc.). The routine will analyze sentiment, identify recurring themes, extract key insights, and generate an executive summary with prioritized improvement recommendations.",
+          "details": "This routine processes large volumes of customer feedback to identify patterns, trends, and actionable insights. It helps businesses understand customer satisfaction, identify areas for improvement, and prioritize product or service enhancements based on actual customer input."
+        }
+      ]
+    }
+  ]
+}
