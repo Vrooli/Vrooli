@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Position & Company",
                 "description": "Researches role requirements and company culture",
-                "subroutineId": "TODO: Need company research subroutine",
+                "subroutineId": "7829564732190848756",
                 "inputMap": {
                   "jobDescription": "positionDetails",
                   "companyInfo": "organizationProfile",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Assess Candidate Profile",
                 "description": "Evaluates strengths, experiences, and areas for improvement",
-                "subroutineId": "TODO: Need candidate assessment subroutine",
+                "subroutineId": "7829564732190848759",
                 "inputMap": {
                   "resume": "candidateBackground",
                   "experiences": "professionalHistory",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Prepare Core Responses",
                 "description": "Develops answers for common and role-specific questions",
-                "subroutineId": "TODO: Need response preparation subroutine",
+                "subroutineId": "7829564732190848762",
                 "inputMap": {
                   "candidateStrengths": "strengthsAssessment",
                   "relevantBackground": "experienceMapping",

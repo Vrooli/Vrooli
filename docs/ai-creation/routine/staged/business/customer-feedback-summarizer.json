@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Parse and Categorize Feedback",
                 "description": "Extracts and organizes customer feedback from various sources",
-                "subroutineId": "feedback-parser-v1",
+                "subroutineId": "7829564732190848348",
                 "inputMap": {
                   "originalFeedbackData": "feedbackData",
                   "originalSourceTypes": "feedbackSources",
@@ -44,7 +44,7 @@
                 "id": "step-2",
                 "name": "Analyze Sentiment and Themes",
                 "description": "Performs sentiment analysis and identifies recurring themes",
-                "subroutineId": "sentiment-analyzer-v1",
+                "subroutineId": "7829564732190848351",
                 "inputMap": {
                   "parsedFeedback": "feedbackText",
                   "categoryBreakdown": "feedbackTypes",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Identify Key Insights",
                 "description": "Extracts actionable insights and priority areas",
-                "subroutineId": "insight-extractor-v1",
+                "subroutineId": "7829564732190848354",
                 "inputMap": {
                   "overallSentiment": "sentimentData",
                   "recurringThemes": "themeData",
@@ -80,7 +80,7 @@
                 "id": "step-4",
                 "name": "Generate Executive Summary",
                 "description": "Creates comprehensive summary with recommendations",
-                "subroutineId": "summary-generator-v1",
+                "subroutineId": "7829564732190848357",
                 "inputMap": {
                   "positiveHighlights": "strengths",
                   "criticalIssues": "weaknesses",

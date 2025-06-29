@@ -1,0 +1,173 @@
+{
+  "id": "7829564732190847159",
+  "publicId": "followup-email-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847160",
+      "publicId": "followup-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "Prepare a professional follow-up email after the meeting or interaction:\n\n**Meeting Notes:** {{input.meetingNotes}}\n**Key Outcomes:** {{input.keyOutcomes}}\n**Commitments Made:** {{input.commitments}}\n**Recipient Context:** {{input.recipientContext}}\n{{#if input.meetingType}}**Meeting Type:** {{input.meetingType}}{{/if}}\n{{#if input.nextSteps}}**Next Steps:** {{input.nextSteps}}{{/if}}\n{{#if input.urgency}}**Urgency Level:** {{input.urgency}}{{/if}}\n\nCreate a professional follow-up email:\n\n1. **Subject Line Options**\n   - Clear and specific subject lines\n   - Reference to meeting date/topic\n   - Action-oriented when appropriate\n   - Professional and concise\n   - Urgency indicators if needed\n\n2. **Email Structure**\n   - Professional greeting\n   - Thank you for time/participation\n   - Meeting recap and key points\n   - Action items and responsibilities\n   - Next steps and timeline\n   - Contact information and availability\n   - Professional closing\n\n3. **Meeting Summary**\n   - Key discussion points covered\n   - Decisions made during meeting\n   - Important insights or revelations\n   - Areas of agreement and consensus\n   - Outstanding questions or concerns\n\n4. **Action Items Section**\n   - Clear task assignments\n   - Responsible parties identified\n   - Specific deadlines and timelines\n   - Deliverable descriptions\n   - Success criteria and expectations\n   - Dependencies and prerequisites\n\n5. **Next Steps & Timeline**\n   - Immediate next actions\n   - Follow-up meeting scheduling\n   - Milestone dates and deadlines\n   - Check-in points and reviews\n   - Escalation procedures if needed\n   - Communication preferences\n\n6. **Professional Tone Elements**\n   - Appropriate level of formality\n   - Collaborative and positive language\n   - Clear and concise communication\n   - Respectful acknowledgment of contributions\n   - Professional relationship building\n   - Solution-oriented approach\n\n7. **Commitment Tracking**\n   - What you committed to deliver\n   - What others committed to provide\n   - Mutual dependencies clearly stated\n   - Accountability measures included\n   - Progress tracking mechanisms\n   - Review and adjustment processes\n\n8. **Documentation & Attachments**\n   - Referenced materials and documents\n   - Meeting presentation slides\n   - Relevant links and resources\n   - Contact information compilation\n   - Additional context materials\n   - Supporting data or research\n\n9. **Relationship Maintenance**\n   - Appreciation for participation\n   - Recognition of contributions\n   - Building on established rapport\n   - Opening doors for future collaboration\n   - Professional network strengthening\n   - Trust and credibility building\n\n10. **Call-to-Action Elements**\n    - Specific requests for responses\n    - Information needed from recipients\n    - Confirmation requests\n    - Scheduling needs\n    - Approval or decision requests\n    - Resource or support needs\n\n11. **Quality Assurance**\n    - Accuracy of information presented\n    - Completeness of action items\n    - Clarity of next steps\n    - Professional presentation\n    - Error-free communication\n    - Appropriate level of detail\n\n12. **Follow-up Strategy**\n    - Response timeline expectations\n    - Escalation procedures\n    - Alternative communication methods\n    - Reminder scheduling\n    - Progress check-in plans\n    - Relationship maintenance approach\n\nEnsure the email maintains professionalism while being warm and collaborative. Focus on clarity, accountability, and moving initiatives forward effectively.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "meetingNotes",
+                "id": "meeting_notes_input",
+                "label": "Meeting Notes",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key points, discussions, and outcomes from the meeting...",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "keyOutcomes",
+                "id": "key_outcomes_input",
+                "label": "Key Outcomes",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Main decisions, agreements, or results from the meeting...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "commitments",
+                "id": "commitments_input",
+                "label": "Commitments Made",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Who committed to do what? Include deadlines and responsibilities...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "recipientContext",
+                "id": "recipient_context_input",
+                "label": "Recipient Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Who are you sending this to? Their role, relationship to you, context...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "meetingType",
+                "id": "meeting_type_input",
+                "label": "Meeting Type (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Business meeting", "Sales call", "Project planning", "Team meeting", "Client consultation", "Interview", "Networking event", "Conference call"],
+                  "defaultValue": "Business meeting"
+                }
+              },
+              {
+                "fieldName": "nextSteps",
+                "id": "next_steps_input",
+                "label": "Next Steps (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific next steps or follow-up actions needed?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "urgency",
+                "id": "urgency_input",
+                "label": "Urgency Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Low - routine follow-up", "Medium - standard business", "High - time-sensitive", "Urgent - immediate action needed"],
+                  "defaultValue": "Medium - standard business"
+                }
+              },
+              {
+                "fieldName": "relationshipLevel",
+                "id": "relationship_level_input",
+                "label": "Relationship Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["New contact/first meeting", "Developing relationship", "Established colleague", "Close business partner", "Executive/formal"],
+                  "defaultValue": "Developing relationship"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_followup_email_output",
+                "label": "Complete Follow-up Email",
+                "type": "Text"
+              },
+              {
+                "fieldName": "subjectLines",
+                "id": "subject_lines_output",
+                "label": "Subject Line Options",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionItems",
+                "id": "action_items_output",
+                "label": "Action Items Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "nextStepsSection",
+                "id": "next_steps_section_output",
+                "label": "Next Steps & Timeline",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847161",
+          "language": "en",
+          "name": "Follow-up Email Generator",
+          "description": "Prepares professional follow-up messages after meetings or interactions. Ensures consistency and professionalism in follow-ups with clear action items, next steps, and relationship building.",
+          "instructions": "1. Provide meeting notes and key discussion points\n2. Summarize key outcomes and decisions\n3. List commitments made by all parties\n4. Describe recipient context and relationship\n5. Specify meeting type (optional)\n6. Add specific next steps (optional)\n7. Set urgency level\n8. Choose relationship formality level\n\nThe generator will create:\n- Professional email with proper structure\n- Multiple subject line options\n- Clear meeting summary and recap\n- Organized action items with responsibilities\n- Next steps and timeline\n- Appropriate tone for relationship level\n- Call-to-action elements\n\nPerfect for business professionals, sales teams, and anyone who needs consistent, professional follow-up communication after meetings or important interactions."
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Current Wellness State",
                 "description": "Evaluates physical, mental, and emotional health status",
-                "subroutineId": "TODO: Need wellness assessment subroutine",
+                "subroutineId": "7829564732190848378",
                 "inputMap": {
                   "healthStatus": "currentWellness",
                   "lifestyleFactors": "dailyHabits",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Define Wellness Goals",
                 "description": "Sets specific, achievable health and wellness objectives",
-                "subroutineId": "TODO: Need goal setting subroutine",
+                "subroutineId": "7829564732190848471",
                 "inputMap": {
                   "wellnessAspirations": "healthGoals",
                   "currentState": "wellnessBaseline",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Design Fitness Strategy",
                 "description": "Creates personalized physical activity and exercise plan",
-                "subroutineId": "TODO: Need fitness planning subroutine",
+                "subroutineId": "7829564732190848474",
                 "inputMap": {
                   "fitnessLevel": "currentFitness",
                   "exercisePreferences": "activityPreferences",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Plan Nutrition Strategy",
                 "description": "Develops sustainable eating habits and nutrition approach",
-                "subroutineId": "TODO: Need nutrition planning subroutine",
+                "subroutineId": "7829564732190848477",
                 "inputMap": {
                   "dietaryPreferences": "nutritionNeeds",
                   "currentEating": "eatingHabits",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Develop Mental Wellness Plan",
                 "description": "Addresses stress management and mental health practices",
-                "subroutineId": "TODO: Need mental wellness subroutine",
+                "subroutineId": "7829564732190848480",
                 "inputMap": {
                   "stressLevel": "mentalPressure",
                   "copingStrategies": "currentCoping",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Implementation Framework",
                 "description": "Integrates all wellness elements into sustainable daily routine",
-                "subroutineId": "TODO: Need implementation planning subroutine",
+                "subroutineId": "7829564732190848483",
                 "inputMap": {
                   "allPlans": "wellnessComponents",
                   "dailySchedule": "lifestyleConstraints",

@@ -1,0 +1,149 @@
+{
+  "id": "7829564732190848285",
+  "publicId": "mindfulness-habit-builder-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847103",
+      "publicId": "mindfulness-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "mindfulness"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848286",
+      "publicId": "mindfulness-habit-builder-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Builds consistent mindfulness habits and daily routines",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Supportive",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Build consistent mindfulness practice habits:\n\nPractice Schedule: {{input.practiceSchedule}}\nEnvironment Setup: {{input.environmentSetup}}\nMotivation Factors: {{input.motivationFactors}}\nCurrent Routine: {{input.currentRoutine}}\nPotential Obstacles: {{input.potentialObstacles}}\n\nDevelop comprehensive habit formation strategy:\n\n1. **Habit Anchoring System**:\n   - Existing routine integration\n   - Trigger identification\n   - Stack with current habits\n   - Natural transition points\n   - Environmental cues\n\n2. **Practice Environment Design**:\n   - Dedicated space creation\n   - Minimalist setup guide\n   - Distraction elimination\n   - Comfort optimization\n   - Sacred space elements\n\n3. **Time Optimization Strategies**:\n   - Ideal practice windows\n   - Duration progression\n   - Flexible scheduling\n   - Backup time slots\n   - Micro-practice options\n\n4. **Motivation & Accountability**:\n   - Intrinsic motivation building\n   - Progress tracking methods\n   - Reward system design\n   - Accountability partners\n   - Community connections\n\n5. **Consistency Frameworks**:\n   - 21-day challenge structure\n   - Weekly check-ins\n   - Monthly themes\n   - Seasonal adjustments\n   - Year-long journey\n\n6. **Obstacle Prevention**:\n   - Common pitfall awareness\n   - Contingency planning\n   - Travel adaptations\n   - Busy period strategies\n   - Energy management\n\n7. **Habit Reinforcement**:\n   - Success celebration\n   - Milestone recognition\n   - Benefit journaling\n   - Social sharing\n   - Identity integration\n\n8. **Sustainable Practice**:\n   - Prevent burnout\n   - Maintain freshness\n   - Evolve practice\n   - Balance discipline/flexibility\n   - Long-term vision\n\nReturn as structured JSON with keys: habitAnchoring (object), environmentDesign (object), timeOptimization (object), motivationSystem (object), consistencyFramework (object), obstaclePrevention (array), reinforcementPlan (object), sustainabilityStrategy (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "practiceSchedule",
+                "id": "schedule_input",
+                "label": "Desired Practice Schedule",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "When and how often you want to practice...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "environmentSetup",
+                "id": "environment_input",
+                "label": "Practice Environment",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available space and current setup...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "motivationFactors",
+                "id": "motivation_input",
+                "label": "Motivation Factors",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What drives you to practice mindfulness?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "currentRoutine",
+                "id": "routine_input",
+                "label": "Current Daily Routine",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Your typical day structure...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "potentialObstacles",
+                "id": "obstacles_input",
+                "label": "Potential Obstacles",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Challenges that might interrupt practice...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "habitPlan",
+                "id": "plan_output",
+                "label": "Mindfulness Habit Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "guide_output",
+                "label": "Implementation Guide",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848287",
+          "language": "en-US",
+          "description": "Creates sustainable mindfulness practice habits with environment design and consistency frameworks",
+          "instructions": "Share your desired schedule and motivation. The system will create a habit-building plan with implementation guidance.",
+          "name": "Mindfulness Habit Builder"
+        }
+      ]
+    }
+  ]
+}

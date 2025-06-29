@@ -1,0 +1,114 @@
+{
+  "id": "7829564732190848468",
+  "publicId": "knowledge-base-updater-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847027",
+      "tag": "data-management",
+      "translations": [
+        {
+          "id": "7829564732190847127",
+          "language": "en",
+          "description": "Data storage and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847028",
+      "tag": "action",
+      "translations": [
+        {
+          "id": "7829564732190847128",
+          "language": "en",
+          "description": "Action execution and automation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847026",
+      "tag": "knowledge-management",
+      "translations": [
+        {
+          "id": "7829564732190847126",
+          "language": "en",
+          "description": "Knowledge base and information management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848469",
+      "publicId": "knowledge-base-updater-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Updates knowledge base with new insights",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "synthesizedInsights",
+                "id": "synthesized_insights_input",
+                "label": "Synthesized Insights",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Insights data from insight synthesizer"
+              },
+              {
+                "fieldName": "updateMode",
+                "id": "update_mode_input",
+                "label": "Update Mode",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "append",
+                "options": [
+                  "append",
+                  "merge",
+                  "replace",
+                  "archive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "updateStatus",
+                "id": "update_status_output",
+                "label": "Update Status",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848470",
+          "language": "en",
+          "name": "Knowledge Base Updater",
+          "description": "Updates the knowledge base with new insights and learnings from self-assessment processes for future reference and improvement.",
+          "instructions": "Provide synthesized insights for knowledge base storage. The routine will update the knowledge base with new learnings."
+        }
+      ]
+    }
+  ]
+}

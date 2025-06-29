@@ -1,0 +1,163 @@
+{
+  "id": "7829564732190848012",
+  "publicId": "email-camp-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847107",
+      "publicId": "marketing-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "marketing"
+    },
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848013",
+      "publicId": "email-camp-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates email marketing campaigns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Create a comprehensive email marketing campaign based on:\n\nCampaign Theme: {{input.campaignTheme}}\nTarget Audience: {{input.targetAudience}}\nProduct Info: {{input.productInfo}}\nBenefits: {{input.benefits}}\nCall-to-Actions: {{input.callToActions}}\nCampaign Duration: {{input.campaignDuration}}\n\nDevelop complete email campaign:\n\n1. Email Sequence Strategy:\n   - Welcome/Introduction email\n   - Value/Education emails (2-3)\n   - Social proof email\n   - Urgency/Offer email\n   - Last chance/Follow-up\n\n2. Subject Lines (3 per email):\n   - A/B test options\n   - Curiosity triggers\n   - Benefit statements\n   - Personalization tokens\n   - Emoji usage\n\n3. Preview Text:\n   - Compelling snippets\n   - Subject line complements\n   - Action incentives\n   - Mystery elements\n\n4. Email Body Structure:\n   - Opening hook\n   - Problem agitation\n   - Solution presentation\n   - Benefit bullets\n   - Social proof section\n   - Clear CTA buttons\n   - PS sections\n\n5. Personalization Elements:\n   - Name usage\n   - Behavioral triggers\n   - Segment-specific content\n   - Dynamic content blocks\n   - Custom recommendations\n\n6. Visual Elements:\n   - Header suggestions\n   - Image placeholders\n   - Button designs\n   - Layout recommendations\n   - Mobile optimization\n\n7. Engagement Tactics:\n   - Interactive elements\n   - Surveys/polls\n   - Countdown timers\n   - Exclusive offers\n   - Referral incentives\n\n8. Compliance & Best Practices:\n   - Unsubscribe placement\n   - Privacy notices\n   - Sender identification\n   - Mobile responsiveness\n   - Accessibility notes\n\n9. Performance Optimization:\n   - Send time recommendations\n   - Segmentation strategies\n   - Re-engagement tactics\n   - Testing priorities\n\nReturn as structured JSON with keys: emailSequence (array with full emails), subjectLines (object by email), previewTexts (object), emailBodies (array), personalizationStrategy (object), visualGuidelines (object), engagementTactics (array), complianceNotes (array), optimizationTips (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "campaignTheme",
+                "id": "theme_input",
+                "label": "Campaign Theme",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Overall campaign message and theme",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Email list demographics and characteristics",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "productInfo",
+                "id": "product_input",
+                "label": "Product Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What are you promoting?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "benefits",
+                "id": "benefits_input",
+                "label": "Key Benefits",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Main benefits to emphasize",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "callToActions",
+                "id": "cta_input",
+                "label": "Call-to-Actions",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Desired actions (buy, learn more, sign up)"
+                }
+              },
+              {
+                "fieldName": "campaignDuration",
+                "id": "duration_input",
+                "label": "Campaign Duration",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How long will the campaign run? (e.g., 2 weeks)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailSubjectLines",
+                "id": "subjects_output",
+                "label": "Email Subject Lines",
+                "type": "Text"
+              },
+              {
+                "fieldName": "emailBodies",
+                "id": "bodies_output",
+                "label": "Email Bodies",
+                "type": "Text"
+              },
+              {
+                "fieldName": "emailSequence",
+                "id": "sequence_output",
+                "label": "Email Sequence Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848014",
+          "language": "en-US",
+          "description": "Creates complete email marketing campaigns with subject lines, body copy, and sequencing",
+          "instructions": "Enter your campaign details and target audience. The system will create a full email campaign sequence with subject lines, body copy, and optimization tips.",
+          "name": "Email Campaign Generator"
+        }
+      ]
+    }
+  ]
+}

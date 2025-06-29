@@ -1,0 +1,173 @@
+{
+  "id": "7829564732190847168",
+  "publicId": "agenda-email-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847169",
+      "publicId": "agenda-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "Generate a professional meeting agenda email with the following details:\n\n**Meeting Topics:** {{input.meetingTopics}}\n**Meeting Goals:** {{input.meetingGoals}}\n**Participants:** {{input.participants}}\n**Duration:** {{input.duration}}\n{{#if input.meetingType}}**Meeting Type:** {{input.meetingType}}{{/if}}\n{{#if input.preparationNeeds}}**Preparation Requirements:** {{input.preparationNeeds}}{{/if}}\n{{#if input.urgency}}**Urgency Level:** {{input.urgency}}{{/if}}\n\nCreate a comprehensive meeting agenda email:\n\n1. **Subject Line Options**\n   - Clear and specific subject lines\n   - Meeting date, time, and purpose\n   - Urgency indicators when appropriate\n   - Action-required indicators\n   - Professional formatting\n\n2. **Email Header Information**\n   - Professional greeting\n   - Meeting purpose statement\n   - Date, time, and location details\n   - Duration and end time\n   - Virtual meeting links if applicable\n   - Contact information for questions\n\n3. **Agenda Structure**\n   - Time-blocked agenda items\n   - Clear topic descriptions\n   - Responsible persons identified\n   - Expected outcomes per item\n   - Discussion vs. decision items\n   - Buffer time for overruns\n\n4. **Time Allocation**\n   - Realistic time estimates\n   - Priority-based sequencing\n   - Opening and closing time\n   - Break periods if needed\n   - Q&A and discussion time\n   - Wrap-up and next steps\n\n5. **Participant Expectations**\n   - Role clarifications\n   - Preparation requirements\n   - Materials to bring\n   - Pre-reading assignments\n   - Decision-making authority\n   - Contribution expectations\n\n6. **Pre-Meeting Preparation**\n   - Required reading materials\n   - Documents to review\n   - Data or reports needed\n   - Questions to consider\n   - Preliminary feedback requests\n   - Technical setup requirements\n\n7. **Meeting Logistics**\n   - Location or virtual platform\n   - Access instructions\n   - Technology requirements\n   - Parking or travel information\n   - Contact for technical issues\n   - Backup communication methods\n\n8. **Decision Points**\n   - Items requiring decisions\n   - Decision-making process\n   - Voting or consensus methods\n   - Authority levels clarified\n   - Approval requirements\n   - Implementation timelines\n\n9. **Action Item Framework**\n   - Template for capturing actions\n   - Responsibility assignment process\n   - Deadline establishment method\n   - Follow-up procedures\n   - Progress tracking approach\n   - Accountability measures\n\n10. **Follow-up Protocol**\n    - Meeting notes distribution\n    - Action item tracking\n    - Next meeting scheduling\n    - Progress check-ins\n    - Communication preferences\n    - Escalation procedures\n\n11. **Professional Formatting**\n    - Clean, easy-to-read layout\n    - Bullet points and numbering\n    - Bold headers and emphasis\n    - Consistent formatting style\n    - Professional tone throughout\n    - Clear call-to-action items\n\n12. **Contingency Planning**\n    - Rescheduling procedures\n    - Remote participation options\n    - Technical backup plans\n    - Abbreviated agenda options\n    - Emergency contact information\n    - Alternative communication methods\n\nEnsure the agenda email is professional, comprehensive, and sets clear expectations for all participants while facilitating productive meeting outcomes.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "meetingTopics",
+                "id": "meeting_topics_input",
+                "label": "Meeting Topics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the main topics to be discussed in the meeting...",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "meetingGoals",
+                "id": "meeting_goals_input",
+                "label": "Meeting Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What do you want to accomplish in this meeting? What are the key objectives?",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "participants",
+                "id": "participants_input",
+                "label": "Participants",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Who will attend? Include names and roles if relevant...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "duration",
+                "id": "duration_input",
+                "label": "Meeting Duration",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["15 minutes", "30 minutes", "45 minutes", "1 hour", "1.5 hours", "2 hours", "Half day", "Full day"],
+                  "defaultValue": "1 hour"
+                }
+              },
+              {
+                "fieldName": "meetingType",
+                "id": "meeting_type_input",
+                "label": "Meeting Type (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Team meeting", "Project planning", "Status update", "Decision making", "Brainstorming", "Training session", "Review meeting", "Client meeting"],
+                  "defaultValue": "Team meeting"
+                }
+              },
+              {
+                "fieldName": "preparationNeeds",
+                "id": "preparation_needs_input",
+                "label": "Preparation Requirements (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What should participants do to prepare? Any materials to review?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "urgency",
+                "id": "urgency_input",
+                "label": "Urgency Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Low - routine meeting", "Medium - standard business", "High - important decisions", "Urgent - immediate attention"],
+                  "defaultValue": "Medium - standard business"
+                }
+              },
+              {
+                "fieldName": "meetingFormat",
+                "id": "meeting_format_input",
+                "label": "Meeting Format",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["In-person", "Virtual/online", "Hybrid", "Conference call", "To be determined"],
+                  "defaultValue": "Virtual/online"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_agenda_email_output",
+                "label": "Complete Agenda Email",
+                "type": "Text"
+              },
+              {
+                "fieldName": "subjectLines",
+                "id": "subject_lines_output",
+                "label": "Subject Line Options",
+                "type": "Text"
+              },
+              {
+                "fieldName": "timeBlocks",
+                "id": "time_blocks_output",
+                "label": "Time-Blocked Agenda",
+                "type": "Text"
+              },
+              {
+                "fieldName": "preparationList",
+                "id": "preparation_list_output",
+                "label": "Pre-Meeting Preparation",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847170",
+          "language": "en",
+          "name": "Meeting Agenda Emailer",
+          "description": "Generates agenda emails with discussion points and time allocations. Standardizes meeting communication with professional formatting and clear expectations for all participants.",
+          "instructions": "1. List the main meeting topics to discuss\n2. Define meeting goals and objectives\n3. Specify participants and their roles\n4. Set meeting duration\n5. Choose meeting type (optional)\n6. Add preparation requirements (optional)\n7. Set urgency level\n8. Select meeting format\n\nThe emailer will create:\n- Professional agenda email with proper structure\n- Multiple subject line options\n- Time-blocked agenda with realistic allocations\n- Participant expectations and roles\n- Pre-meeting preparation requirements\n- Logistics and contact information\n- Follow-up protocol guidelines\n\nPerfect for team leaders, project managers, and anyone who needs to organize effective meetings with clear communication and expectations."
+        }
+      ]
+    }
+  ]
+}

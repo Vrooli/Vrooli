@@ -1,5 +1,5 @@
 {
-  "id": "1734567890123456813",
+  "id": "7829564732190848111",
   "publicId": "decision-matrix-v1",
   "resourceType": "Routine",
   "isPrivate": false,
@@ -8,7 +8,7 @@
   "tags": [],
   "versions": [
     {
-      "id": "1734567890123456814",
+      "id": "7829564732190848112",
       "publicId": "decision-matrix-v1-0",
       "versionLabel": "1.0.0",
       "versionNotes": "Initial version",
@@ -27,7 +27,7 @@
                 "id": "criteria_extraction",
                 "name": "Extract Decision Criteria",
                 "description": "Identify and structure the evaluation criteria from input",
-                "subroutineId": "criteria-extractor-v1",
+                "subroutineId": "7829564732190848174",
                 "inputMap": {
                   "optionsList": "originalOptions",
                   "criteriaInput": "originalCriteria",
@@ -42,7 +42,7 @@
                 "id": "weight_assignment",
                 "name": "Assign Criteria Weights",
                 "description": "Determine importance weights for each criterion",
-                "subroutineId": "weight-calculator-v1",
+                "subroutineId": "7829564732190847985",
                 "inputMap": {
                   "criteriaList": "step1Criteria",
                   "weightPreferences": "originalWeights",
@@ -57,7 +57,7 @@
                 "id": "option_scoring",
                 "name": "Score Options Against Criteria",
                 "description": "Evaluate each option against every criterion",
-                "subroutineId": "option-scorer-v1",
+                "subroutineId": "7829564732190847982",
                 "inputMap": {
                   "optionsToScore": "step1Options",
                   "evaluationCriteria": "step2WeightedCriteria",
@@ -72,7 +72,7 @@
                 "id": "weighted_calculation",
                 "name": "Calculate Weighted Scores",
                 "description": "Apply weights to scores and compute final rankings",
-                "subroutineId": "score-calculator-v1",
+                "subroutineId": "7829564732190847988",
                 "inputMap": {
                   "rawScoreData": "step3RawScores",
                   "criteriaWeights": "step2WeightedCriteria",
@@ -87,7 +87,7 @@
                 "id": "matrix_formatting",
                 "name": "Format Decision Matrix",
                 "description": "Create visual matrix representation of the analysis",
-                "subroutineId": "matrix-formatter-v1",
+                "subroutineId": "7829564732190847991",
                 "inputMap": {
                   "scoreResults": "step4WeightedScores",
                   "rankingData": "step4Rankings",
@@ -102,7 +102,7 @@
                 "id": "recommendation_analysis",
                 "name": "Generate Recommendation",
                 "description": "Provide decision recommendation with supporting rationale",
-                "subroutineId": "decision-recommender-v1",
+                "subroutineId": "7829564732190847994",
                 "inputMap": {
                   "finalScores": "step4WeightedScores",
                   "rankingResults": "step4Rankings",
@@ -225,7 +225,7 @@
       },
       "translations": [
         {
-          "id": "1734567890123456815",
+          "id": "7829564732190848113",
           "language": "en",
           "name": "Decision Matrix Maker",
           "description": "Creates a weighted decision matrix to quantitatively compare options against multiple criteria. Uses scoring and weighting systems to provide data-driven decision support with clear rationale.",

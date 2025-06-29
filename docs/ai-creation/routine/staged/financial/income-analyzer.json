@@ -1,0 +1,142 @@
+{
+  "id": "7829564732190848618",
+  "publicId": "income-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847067",
+      "tag": "finance",
+      "translations": [
+        {
+          "id": "7829564732190847167",
+          "language": "en",
+          "description": "Financial planning and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847068",
+      "tag": "budgeting",
+      "translations": [
+        {
+          "id": "7829564732190847168",
+          "language": "en",
+          "description": "Budget planning and tracking"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848619",
+      "publicId": "income-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes income and financial situation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "originalIncomeSources",
+                "id": "original_income_sources_input",
+                "label": "Income Sources",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "All sources of income"
+              },
+              {
+                "fieldName": "originalExpenses",
+                "id": "original_expenses_input",
+                "label": "Current Expenses",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Monthly expenses"
+              },
+              {
+                "fieldName": "originalSavingsGoals",
+                "id": "original_savings_goals_input",
+                "label": "Savings Goals",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Financial objectives"
+              },
+              {
+                "fieldName": "originalFinancialPriorities",
+                "id": "original_financial_priorities_input",
+                "label": "Financial Priorities",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "What matters most"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "totalIncome",
+                "id": "total_income_output",
+                "label": "Monthly Income",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "incomeStability",
+                "id": "income_stability_output",
+                "label": "Income Reliability",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "expenseBaseline",
+                "id": "expense_baseline_output",
+                "label": "Current Spending",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "financialCapacity",
+                "id": "financial_capacity_output",
+                "label": "Available Funds",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848620",
+          "language": "en",
+          "name": "Income Analyzer",
+          "description": "Evaluates all income sources and current financial standing to establish baseline for budgeting.",
+          "instructions": "Provide income sources, expenses, and financial goals. The routine will analyze your financial situation."
+        }
+      ]
+    }
+  ]
+}

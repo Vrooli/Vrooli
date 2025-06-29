@@ -1,0 +1,143 @@
+{
+  "id": "7829564732190848372",
+  "publicId": "challenge-identifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "publicId": "challenge-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "challenge"
+    },
+    {
+      "id": "7829564732190847030",
+      "publicId": "problem-solving-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "problem-solving"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848373",
+      "publicId": "challenge-identifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies and analyzes challenges",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Identify and analyze challenges for constructive resolution:\n\nChallenges Experienced: {{input.challengesList}}\nTime Period: {{input.timePeriod}}\nContext Areas: {{input.contextAreas}}\nImpact Level: {{input.impactLevel}}\nPrevious Attempts: {{input.previousAttempts}}\n\nPerform systematic challenge analysis:\n\n1. **Challenge Classification**:\n   - Challenge type identification\n   - Severity assessment\n   - Urgency evaluation\n   - Scope determination\n   - Category grouping\n\n2. **Root Cause Analysis**:\n   - Underlying factors\n   - Contributing elements\n   - System issues\n   - Process gaps\n   - Resource constraints\n\n3. **Impact Assessment**:\n   - Immediate effects\n   - Long-term consequences\n   - Ripple effects\n   - Stakeholder impact\n   - Opportunity costs\n\n4. **Pattern Recognition**:\n   - Recurring themes\n   - Common triggers\n   - Cyclical patterns\n   - Environmental factors\n   - Behavioral elements\n\n5. **Resource Evaluation**:\n   - Available resources\n   - Missing capabilities\n   - Support systems\n   - Knowledge gaps\n   - Skill requirements\n\n6. **Solution Pathways**:\n   - Potential approaches\n   - Alternative strategies\n   - Creative solutions\n   - Incremental improvements\n   - Breakthrough opportunities\n\n7. **Learning Opportunities**:\n   - Skill development needs\n   - Knowledge acquisition\n   - Experience building\n   - Resilience strengthening\n   - Growth potential\n\n8. **Action Framework**:\n   - Priority ranking\n   - Next steps identification\n   - Resource mobilization\n   - Timeline planning\n   - Success metrics\n\nReturn as structured JSON with keys: challengeCategories (object), rootCauses (array), impactAnalysis (object), patterns (array), resourceNeeds (array), solutionOptions (array), learningOpportunities (array), actionPriorities (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "challengesList",
+                "id": "challenges_input",
+                "label": "Challenges List",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the challenges, obstacles, or difficulties you encountered...",
+                  "multiline": true,
+                  "rows": 5
+                }
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "period_input",
+                "label": "Time Period",
+                "type": "Selector",
+                "props": {
+                  "options": ["This Week", "This Month", "This Quarter", "This Year", "Custom Period"]
+                }
+              },
+              {
+                "fieldName": "contextAreas",
+                "id": "context_input",
+                "label": "Context Areas",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Areas of life or work where these challenges occurred (work, personal, health, etc.)...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "impactLevel",
+                "id": "impact_input",
+                "label": "Impact Level",
+                "type": "Selector",
+                "props": {
+                  "options": ["Minor Inconvenience", "Moderate Challenge", "Significant Obstacle", "Major Barrier", "Crisis Level"]
+                }
+              },
+              {
+                "fieldName": "previousAttempts",
+                "id": "attempts_input",
+                "label": "Previous Attempts (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Previous attempts to address these challenges and their outcomes...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "challengeAnalysis",
+                "id": "analysis_output",
+                "label": "Challenge Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "solutionStrategies",
+                "id": "solutions_output",
+                "label": "Solution Strategies",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848374",
+          "language": "en-US",
+          "description": "Identifies and analyzes challenges to understand root causes, patterns, and develop constructive solution strategies",
+          "instructions": "List the challenges you've faced and specify the time period. The system will analyze the challenges, identify patterns, and suggest solution approaches.",
+          "name": "Challenge Identifier"
+        }
+      ]
+    }
+  ]
+}

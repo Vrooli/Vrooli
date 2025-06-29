@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848369",
+  "publicId": "accomplishment-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847035",
+      "publicId": "accomplishment-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "accomplishment"
+    },
+    {
+      "id": "7829564732190847029",
+      "publicId": "reflection-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "reflection"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848370",
+      "publicId": "accomplishment-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes and categorizes accomplishments",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Analyze accomplishments and achievements for meaningful insights:\n\nAccomplishments List: {{input.accomplishmentsList}}\nTime Period: {{input.timePeriod}}\nGoal Context: {{input.goalContext}}\nFocus Areas: {{input.focusAreas}}\nSuccess Metrics: {{input.successMetrics}}\n\nPerform comprehensive accomplishment analysis:\n\n1. **Achievement Categorization**:\n   - Professional accomplishments\n   - Personal growth milestones\n   - Learning achievements\n   - Relationship improvements\n   - Health and wellness wins\n\n2. **Impact Assessment**:\n   - Short-term impact\n   - Long-term implications\n   - Ripple effects\n   - Value creation\n   - Skill development\n\n3. **Success Pattern Recognition**:\n   - Recurring themes\n   - Success factors\n   - Effective strategies\n   - Optimal conditions\n   - Resource utilization\n\n4. **Growth Indicators**:\n   - Skill progression\n   - Confidence building\n   - Network expansion\n   - Knowledge acquisition\n   - Capability enhancement\n\n5. **Goal Alignment Analysis**:\n   - Original goal connection\n   - Progress measurement\n   - Milestone achievement\n   - Direction validation\n   - Priority alignment\n\n6. **Learning Extraction**:\n   - Key insights gained\n   - Lessons learned\n   - Best practices identified\n   - Improvement opportunities\n   - Future applications\n\n7. **Momentum Building**:\n   - Energy creation\n   - Motivation boost\n   - Confidence enhancement\n   - Next step clarity\n   - Future planning\n\n8. **Recognition Framework**:\n   - Achievement significance\n   - Effort acknowledgment\n   - Progress celebration\n   - Value appreciation\n   - Success reinforcement\n\nReturn as structured JSON with keys: achievementCategories (object), impactAnalysis (array), successPatterns (array), growthIndicators (object), goalAlignment (object), keyLearnings (array), momentumFactors (array), recognitionHighlights (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "accomplishmentsList",
+                "id": "accomplishments_input",
+                "label": "Accomplishments List",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List your accomplishments, achievements, and wins from the time period...",
+                  "multiline": true,
+                  "rows": 5
+                }
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "period_input",
+                "label": "Time Period",
+                "type": "Selector",
+                "props": {
+                  "options": ["This Week", "This Month", "This Quarter", "This Year", "Custom Period"]
+                }
+              },
+              {
+                "fieldName": "goalContext",
+                "id": "goals_input",
+                "label": "Goal Context (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Relevant goals or objectives these accomplishments relate to...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_input",
+                "label": "Focus Areas",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Key areas of life or work you're focusing on (career, health, relationships, etc.)...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "successMetrics",
+                "id": "metrics_input",
+                "label": "Success Metrics (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How you measure success or progress in these areas...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "accomplishmentAnalysis",
+                "id": "analysis_output",
+                "label": "Accomplishment Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "successInsights",
+                "id": "insights_output",
+                "label": "Success Insights & Patterns",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848371",
+          "language": "en-US",
+          "description": "Analyzes accomplishments to identify patterns, extract insights, and recognize growth for personal and professional development",
+          "instructions": "List your accomplishments and specify the time period. The system will categorize achievements, identify success patterns, and provide insights for continued growth.",
+          "name": "Accomplishment Analyzer"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "id": "7829564732190847129",
+  "publicId": "travel-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847130",
+      "publicId": "travel-itin-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Helpful",
+            "maxTokens": 1500,
+            "model": null,
+            "prompt": "Create a detailed travel itinerary for the following trip:\n\n**Destination:** {{input.destination}}\n**Trip Duration:** {{input.tripLength}}\n**Travel Interests:** {{input.interests}}\n**Budget Range:** {{input.budget}}\n{{#if input.travelStyle}}**Travel Style:** {{input.travelStyle}}{{/if}}\n{{#if input.specialRequirements}}**Special Requirements:** {{input.specialRequirements}}{{/if}}\n{{#if input.groupSize}}**Group Size:** {{input.groupSize}}{{/if}}\n\nGenerate a comprehensive travel itinerary:\n\n1. **Trip Overview**\n   - Destination highlights and overview\n   - Best time to visit considerations\n   - Overall trip theme and focus\n   - Key experiences and must-sees\n   - Cultural context and local customs\n\n2. **Day-by-Day Itinerary**\n   - Detailed daily schedule with timings\n   - Morning, afternoon, and evening activities\n   - Travel time between locations\n   - Meal recommendations and timing\n   - Rest periods and flexibility buffers\n\n3. **Accommodation Recommendations**\n   - Hotel/lodging suggestions by area\n   - Budget-appropriate options\n   - Location benefits and accessibility\n   - Booking tips and alternatives\n   - Special amenities or features\n\n4. **Transportation Planning**\n   - Airport/arrival transportation\n   - Local transportation options\n   - Day trip transportation needs\n   - Walking vs. taxi vs. public transport\n   - Car rental considerations\n\n5. **Top Attractions & Activities**\n   - Must-visit landmarks and sites\n   - Cultural experiences and museums\n   - Adventure activities and tours\n   - Local experiences and hidden gems\n   - Ticket booking and timing advice\n\n6. **Dining & Food Experiences**\n   - Local cuisine highlights\n   - Restaurant recommendations by area\n   - Street food and market experiences\n   - Dietary restriction considerations\n   - Food tour and cooking class options\n\n7. **Budget Breakdown**\n   - Estimated costs by category\n   - Daily spending recommendations\n   - Money-saving tips and strategies\n   - Free and low-cost activities\n   - Currency and payment considerations\n\n8. **Practical Travel Tips**\n   - Packing recommendations\n   - Weather and seasonal considerations\n   - Local customs and etiquette\n   - Language basics and communication\n   - Safety tips and precautions\n\n9. **Time Optimization Strategy**\n   - Efficient routing between attractions\n   - Peak vs. off-peak timing\n   - Skip-the-line and advance booking tips\n   - Backup plans for weather/closures\n   - Energy management and pacing\n\n10. **Local Insights & Tips**\n    - Insider recommendations\n    - Local festivals or events during visit\n    - Shopping districts and markets\n    - Photo opportunities and viewpoints\n    - Cultural do's and don'ts\n\n11. **Pre-Trip Preparation**\n    - Documents and visa requirements\n    - Health and vaccination needs\n    - Travel insurance considerations\n    - Booking timeline and priorities\n    - Communication and connectivity\n\n12. **Contingency Planning**\n    - Alternative activities for bad weather\n    - Backup restaurant options\n    - Emergency contacts and resources\n    - Health and safety preparations\n    - Travel disruption protocols\n\nBalance activities with downtime, cluster geographically close attractions, and ensure the itinerary matches the specified interests and budget. Provide realistic timing estimates and practical advice for a smooth travel experience.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "destination",
+                "id": "destination_input",
+                "label": "Destination",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Where are you traveling to? (city, country, or region)"
+                }
+              },
+              {
+                "fieldName": "tripLength",
+                "id": "trip_length_input",
+                "label": "Trip Duration",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["1-2 days", "3-4 days", "5-7 days", "1-2 weeks", "2-3 weeks", "1 month+"],
+                  "defaultValue": "5-7 days"
+                }
+              },
+              {
+                "fieldName": "interests",
+                "id": "interests_input",
+                "label": "Travel Interests",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What are you most interested in? (e.g., history, culture, food, adventure, art, nature, nightlife...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Budget Range",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Budget ($50-100/day)", "Mid-range ($100-200/day)", "Comfortable ($200-400/day)", "Luxury ($400+/day)", "Backpacker ($30-50/day)"],
+                  "defaultValue": "Mid-range ($100-200/day)"
+                }
+              },
+              {
+                "fieldName": "travelStyle",
+                "id": "travel_style_input",
+                "label": "Travel Style (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Relaxed pace", "Action-packed", "Cultural immersion", "Adventure-focused", "Food-focused", "Photography-focused", "Mixed approach"],
+                  "defaultValue": "Mixed approach"
+                }
+              },
+              {
+                "fieldName": "groupSize",
+                "id": "group_size_input",
+                "label": "Group Size (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Solo traveler", "Couple", "Small group (3-5)", "Family with kids", "Large group (6+)"],
+                  "defaultValue": "Couple"
+                }
+              },
+              {
+                "fieldName": "specialRequirements",
+                "id": "special_requirements_input",
+                "label": "Special Requirements (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any special needs? (accessibility, dietary restrictions, age considerations, mobility...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "seasonTiming",
+                "id": "season_timing_input",
+                "label": "Travel Season",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Spring", "Summer", "Fall/Autumn", "Winter", "Not sure yet"],
+                  "defaultValue": "Not sure yet"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_itinerary_output",
+                "label": "Complete Travel Itinerary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "dailySchedule",
+                "id": "daily_schedule_output",
+                "label": "Day-by-Day Schedule",
+                "type": "Text"
+              },
+              {
+                "fieldName": "practicalTips",
+                "id": "practical_tips_output",
+                "label": "Practical Travel Tips",
+                "type": "Text"
+              },
+              {
+                "fieldName": "budgetBreakdown",
+                "id": "budget_breakdown_output",
+                "label": "Budget Breakdown & Tips",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847131",
+          "language": "en",
+          "name": "Travel Itinerary Planner",
+          "description": "Generates travel itineraries with daily activities and logistics. Balances activities with downtime, clusters by location for efficiency, and provides practical travel tips with budget considerations.",
+          "instructions": "1. Enter your destination\n2. Select trip duration\n3. Describe your travel interests\n4. Choose budget range\n5. Specify travel style (optional)\n6. Note group size (optional)\n7. Add special requirements (optional)\n8. Select travel season\n\nThe planner will create:\n- Day-by-day detailed itinerary\n- Attraction and activity recommendations\n- Accommodation and dining suggestions\n- Transportation and logistics planning\n- Budget breakdown and money-saving tips\n- Practical travel tips and local insights\n- Contingency planning for weather/issues\n\nPerfect for vacation planning, business trips, and ensuring you make the most of your travel time and budget."
+        }
+      ]
+    }
+  ]
+}

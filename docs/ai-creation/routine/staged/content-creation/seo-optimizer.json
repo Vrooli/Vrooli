@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190848078",
+  "publicId": "seo-optimizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    },
+    {
+      "id": "7829564732190847107",
+      "publicId": "marketing-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "marketing"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848079",
+      "publicId": "seo-optimizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Adds SEO elements and optimization suggestions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Optimize content for search engine optimization (SEO):\n\nContent Text: {{input.contentText}}\nTarget Keywords: {{input.targetKeywords}}\nCompetitor Analysis: {{input.competitorAnalysis}}\nSEO Goals: {{input.seoGoals}}\n\nProvide comprehensive SEO optimization:\n\n1. Keyword Optimization:\n   - Primary keyword placement\n   - Secondary keyword integration\n   - Long-tail keyword opportunities\n   - Semantic keyword variations\n   - Keyword density analysis\n\n2. On-Page SEO Elements:\n   - Title tag optimization\n   - Meta description creation\n   - Header structure (H1, H2, H3)\n   - URL slug suggestions\n   - Image alt text recommendations\n\n3. Content Structure:\n   - Featured snippet optimization\n   - FAQ section suggestions\n   - Table of contents\n   - Internal linking strategy\n   - External linking opportunities\n\n4. Technical SEO:\n   - Content length optimization\n   - Readability improvements\n   - Mobile-friendly considerations\n   - Page speed factors\n   - Schema markup suggestions\n\n5. User Experience (UX):\n   - Content hierarchy\n   - Scannable formatting\n   - Call-to-action placement\n   - Engagement signals\n   - Bounce rate optimization\n\n6. Content Quality:\n   - E-A-T (Expertise, Authority, Trust)\n   - Original insights and value\n   - Comprehensive topic coverage\n   - Fresh and updated information\n   - Authoritative sources\n\n7. Search Intent Matching:\n   - Informational intent optimization\n   - Transactional intent elements\n   - Navigational intent support\n   - Commercial intent signals\n   - User journey alignment\n\n8. Performance Metrics:\n   - Target SERP features\n   - Click-through rate optimization\n   - Conversion rate elements\n   - Engagement metrics\n   - Ranking potential assessment\n\nReturn as structured JSON with keys: optimizedContent, seoElements (object), keywordStrategy (object), technicalSEO (object), performanceMetrics (object), improvementSuggestions (array), competitiveAdvantage (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentText",
+                "id": "content_input",
+                "label": "Content Text",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter the content to optimize for SEO...",
+                  "multiline": true,
+                  "rows": 5
+                }
+              },
+              {
+                "fieldName": "targetKeywords",
+                "id": "keywords_input",
+                "label": "Target Keywords",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Primary and secondary keywords to target...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "competitorAnalysis",
+                "id": "competitor_input",
+                "label": "Competitor Analysis",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What are competitors doing well? Top-ranking content insights...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "seoGoals",
+                "id": "goals_input",
+                "label": "SEO Goals",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Ranking objectives, traffic goals, conversion targets..."
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizedContent",
+                "id": "optimized_output",
+                "label": "SEO-Optimized Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "seoRecommendations",
+                "id": "recommendations_output",
+                "label": "SEO Recommendations",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848080",
+          "language": "en-US",
+          "description": "Optimizes content for search engines with keyword integration and technical SEO elements",
+          "instructions": "Enter your content and target keywords. The system will optimize for SEO while maintaining readability and user experience.",
+          "name": "SEO Optimizer"
+        }
+      ]
+    }
+  ]
+}

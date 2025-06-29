@@ -1,0 +1,161 @@
+{
+  "id": "7829564732190848027",
+  "publicId": "format-gen-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    },
+    {
+      "id": "7829564732190847106",
+      "publicId": "creativity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "creativity"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848028",
+      "publicId": "format-gen-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates diverse content formats",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Generate diverse content formats from the provided materials:\n\nThematic Content: {{input.thematicContent}}\nSocial Posts: {{input.socialPosts}}\nEmail Content: {{input.emailContent}}\nBlog Content: {{input.blogContent}}\nPresentation Content: {{input.presentationContent}}\n\nCreate multiple content formats:\n\n1. Short-Form Content (Under 100 words):\n   - Tweet threads (numbered)\n   - Instagram captions\n   - LinkedIn status updates\n   - YouTube Shorts scripts\n   - Quick tips/hacks\n   - Quote graphics text\n   - Micro-blog posts\n\n2. Medium-Form Content (100-500 words):\n   - Newsletter articles\n   - Blog post excerpts\n   - LinkedIn articles\n   - Medium articles\n   - Email sequences\n   - Product descriptions\n   - Press releases\n\n3. Long-Form Content (500+ words):\n   - Comprehensive guides\n   - White papers\n   - Case studies\n   - Research reports\n   - Ebook chapters\n   - Course outlines\n   - Detailed tutorials\n\n4. Visual Content Text:\n   - Infographic copy\n   - Slide deck content\n   - Video script text\n   - Podcast show notes\n   - Chart descriptions\n   - Diagram labels\n   - Visual storytelling\n\n5. Interactive Content:\n   - Quiz questions\n   - Poll options\n   - Survey forms\n   - Workshop outlines\n   - Discussion prompts\n   - Challenge descriptions\n   - Checklist items\n\n6. Repurposing Variations:\n   - Different angles\n   - Various audiences\n   - Multiple perspectives\n   - Seasonal adaptations\n   - Trend connections\n   - Industry focuses\n   - Problem-solution pairs\n\n7. Content Series Ideas:\n   - Multi-part articles\n   - Weekly themes\n   - Educational sequences\n   - Story continuations\n   - Progressive reveals\n   - Building complexity\n   - Audience journeys\n\nReturn as structured JSON with keys: shortFormContent (array by type), mediumFormContent (array by type), longFormContent (array by type), visualContent (array), interactiveContent (array), repurposingVariations (array), contentSeries (array with episode ideas).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "thematicContent",
+                "id": "themes_input",
+                "label": "Thematic Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Core themes and messages from content analysis",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "socialPosts",
+                "id": "social_input",
+                "label": "Social Content",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Platform-adapted social media content",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "emailContent",
+                "id": "email_input",
+                "label": "Email Content",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Email-optimized content",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "blogContent",
+                "id": "blog_input",
+                "label": "Blog Content",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Blog-ready excerpts and summaries",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "presentationContent",
+                "id": "presentation_input",
+                "label": "Presentation Content",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Slide-ready content and talking points",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "shortFormContent",
+                "id": "short_output",
+                "label": "Short-Form Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "mediumFormContent",
+                "id": "medium_output",
+                "label": "Medium-Form Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "longFormContent",
+                "id": "long_output",
+                "label": "Long-Form Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "visualContent",
+                "id": "visual_output",
+                "label": "Visual Content Text",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848029",
+          "language": "en-US",
+          "description": "Generates diverse content formats from source materials for maximum reach",
+          "instructions": "Enter your adapted content materials. The system will generate multiple formats including short-form, medium-form, long-form, and visual content variations.",
+          "name": "Format Generator"
+        }
+      ]
+    }
+  ]
+}

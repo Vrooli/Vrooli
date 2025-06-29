@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Current Team Structure",
                 "description": "Examines existing team composition, roles, and responsibilities",
-                "subroutineId": "TODO: Need team analysis subroutine",
+                "subroutineId": "7829564732190848384",
                 "inputMap": {
                   "teamComposition": "currentStructure",
                   "roleDefinitions": "jobDescriptions",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Evaluate Workload Distribution",
                 "description": "Assesses how tasks and responsibilities are distributed across team members",
-                "subroutineId": "TODO: Need workload evaluation subroutine",
+                "subroutineId": "7829564732190848603",
                 "inputMap": {
                   "organizationalAssessment": "structureAnalysis",
                   "taskDistribution": "workloadData",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Skill Gaps",
                 "description": "Finds areas where team lacks necessary expertise or capabilities",
-                "subroutineId": "TODO: Need gap analysis subroutine",
+                "subroutineId": "7829564732190848606",
                 "inputMap": {
                   "capabilityProfile": "skillsInventory",
                   "projectRequirements": "skillsNeeded",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Optimization Options",
                 "description": "Creates multiple scenarios for improving team structure and roles",
-                "subroutineId": "TODO: Need optimization generation subroutine",
+                "subroutineId": "7829564732190848609",
                 "inputMap": {
                   "distributionAssessment": "workloadAnalysis",
                   "capabilityDeficits": "skillGaps",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Evaluate Implementation Impact",
                 "description": "Assesses feasibility and impact of proposed organizational changes",
-                "subroutineId": "TODO: Need impact evaluation subroutine",
+                "subroutineId": "7829564732190848612",
                 "inputMap": {
                   "restructuringOptions": "optimizationScenarios",
                   "positionChanges": "roleAdjustments",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Implementation Plan",
                 "description": "Develops detailed roadmap for team structure optimization",
-                "subroutineId": "TODO: Need implementation planning subroutine",
+                "subroutineId": "7829564732190848615",
                 "inputMap": {
                   "changeConsequences": "impactAssessment",
                   "implementationViability": "feasibilityRatings",

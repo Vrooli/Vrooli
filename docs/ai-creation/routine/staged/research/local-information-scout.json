@@ -1,0 +1,162 @@
+{
+  "id": "7829564732190847228",
+  "publicId": "local-scout-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847229",
+      "publicId": "local-info-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Helpful",
+            "maxTokens": 1400,
+            "model": null,
+            "prompt": "Find location-specific information based on the following criteria:\n\n**Location:** {{input.location}}\n**Search Type:** {{input.searchType}}\n**Specific Criteria:** {{input.searchCriteria}}\n**Preferences:** {{input.preferences}}\n{{#if input.budget}}**Budget Range:** {{input.budget}}{{/if}}\n{{#if input.timeConstraints}}**Time/Schedule:** {{input.timeConstraints}}{{/if}}\n\nProvide comprehensive local information:\n\n1. **Search Results Overview**\n   - Total results found\n   - Categories covered\n   - Geographic distribution\n   - Quality assessment\n   - Data freshness\n\n2. **Top Recommendations**\n   For each recommendation provide:\n   - Name and type\n   - Address and location details\n   - Contact information\n   - Operating hours\n   - Key features/services\n   - Why it matches criteria\n   - Distance from center point\n   - Accessibility information\n\n3. **Detailed Information**\n   {{#if searchType == 'Restaurants'}}\n   - Cuisine type and specialties\n   - Price range and average cost\n   - Dietary accommodations\n   - Reservation requirements\n   - Parking availability\n   - Ambiance and dress code\n   - Popular dishes\n   - Peak hours to avoid\n   {{/if}}\n   \n   {{#if searchType == 'Services'}}\n   - Service offerings\n   - Pricing structure\n   - Appointment availability\n   - Credentials/certifications\n   - Customer service hours\n   - Emergency availability\n   - Payment methods\n   - Insurance acceptance\n   {{/if}}\n   \n   {{#if searchType == 'Events'}}\n   - Event dates and times\n   - Venue information\n   - Ticket prices and availability\n   - Age restrictions\n   - Parking and transportation\n   - What to bring/wear\n   - Weather considerations\n   - Refund policies\n   {{/if}}\n\n4. **Reviews and Ratings**\n   - Overall rating summary\n   - Recent review highlights\n   - Common praise points\n   - Frequent complaints\n   - Trends over time\n   - Reviewer demographics\n   - Authenticity indicators\n\n5. **Comparison Table**\n   Side-by-side comparison of top options:\n   - Key differentiators\n   - Pros and cons\n   - Best for scenarios\n   - Value proposition\n   - Unique features\n\n6. **Local Insights**\n   - Insider tips\n   - Best times to visit\n   - Hidden gems nearby\n   - Local favorites vs tourist spots\n   - Seasonal considerations\n   - Cultural notes\n   - Safety considerations\n\n7. **Practical Information**\n   - Directions and landmarks\n   - Public transit options\n   - Parking tips\n   - Wheelchair accessibility\n   - Family-friendly features\n   - Pet policies\n   - WiFi availability\n\n8. **Budget Analysis**\n   - Cost breakdown\n   - Money-saving tips\n   - Peak vs off-peak pricing\n   - Group discounts\n   - Membership benefits\n   - Hidden fees to watch for\n   - Value recommendations\n\n9. **Alternative Options**\n   - Similar places nearby\n   - Different price points\n   - Less crowded alternatives\n   - Backup options\n   - Online alternatives\n   - DIY possibilities\n\n10. **Booking/Contact Information**\n    - Direct contact details\n    - Online booking links\n    - Best contact methods\n    - Response time expectations\n    - Cancellation policies\n    - Confirmation procedures\n\n11. **Area Context**\n    - Neighborhood description\n    - Nearby amenities\n    - Walking distances\n    - Safety information\n    - Parking availability\n    - Public transport access\n\n12. **Special Considerations**\n    - Current restrictions/requirements\n    - Seasonal variations\n    - Holiday schedules\n    - Special events impact\n    - Weather dependencies\n    - Capacity limitations\n\n13. **User Tips**\n    - First-timer advice\n    - Etiquette notes\n    - Dress codes\n    - Tipping guidelines\n    - Language considerations\n    - Photography policies\n\n14. **Quality Indicators**\n    - Awards and recognition\n    - Professional affiliations\n    - Years in business\n    - Community involvement\n    - Environmental practices\n    - Employee satisfaction\n\n15. **Next Steps**\n    - How to proceed with booking\n    - Preparation checklist\n    - What to expect\n    - Follow-up recommendations\n    - Related searches\n    - Feedback channels\n\nProvide accurate, current, and actionable local information to help make informed decisions.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "location",
+                "id": "location_input",
+                "label": "Location",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter location (city, neighborhood, or specific address)",
+                  "defaultValue": ""
+                }
+              },
+              {
+                "fieldName": "searchType",
+                "id": "search_type_input",
+                "label": "Search Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Restaurants", "Services", "Shopping", "Entertainment", "Events", "Healthcare", "Education", "Recreation", "Transportation"],
+                  "defaultValue": "Restaurants"
+                }
+              },
+              {
+                "fieldName": "searchCriteria",
+                "id": "search_criteria_input",
+                "label": "Specific Search Criteria",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What specifically are you looking for?\n- Italian restaurants with outdoor seating\n- 24-hour pharmacies\n- Dog-friendly cafes\n- Live music venues\n- Urgent care centers",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "preferences",
+                "id": "preferences_input",
+                "label": "Preferences & Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Any specific preferences?\n- Walking distance\n- Wheelchair accessible\n- Kid-friendly\n- Parking available\n- Highly rated only",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Budget Range (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Budget-friendly", "Moderate", "Upscale", "Luxury", "No preference"],
+                  "defaultValue": "Moderate"
+                }
+              },
+              {
+                "fieldName": "timeConstraints",
+                "id": "time_constraints_input",
+                "label": "Time/Schedule Constraints (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "When do you need this?\n- Open now\n- Available weekends\n- Late night hours\n- Specific date/time",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "resultCount",
+                "id": "result_count_input",
+                "label": "Number of Results",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Top 3", "Top 5", "Top 10", "Comprehensive list"],
+                  "defaultValue": "Top 5"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_local_results_output",
+                "label": "Complete Local Search Results",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Top Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "comparisonTable",
+                "id": "comparison_table_output",
+                "label": "Comparison Table",
+                "type": "Text"
+              },
+              {
+                "fieldName": "practicalInfo",
+                "id": "practical_info_output",
+                "label": "Practical Information & Tips",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847230",
+          "language": "en",
+          "name": "Local Information Scout",
+          "description": "Finds location-specific information like restaurants, services, or events. Provides recommendations with ratings, reviews, contact details, and practical tips.",
+          "instructions": "1. Enter your location\n2. Select search type\n3. Describe what you're looking for\n4. Add preferences and requirements\n5. Set budget range (optional)\n6. Add time constraints (optional)\n7. Choose number of results\n\nThe scout will find:\n- Best matches for your criteria\n- Detailed information for each option\n- Reviews and ratings summary\n- Contact and booking details\n- Directions and accessibility info\n- Local insider tips\n- Price comparisons\n- Alternative options\n- Practical advice\n\nPerfect for:\n- Finding restaurants and cafes\n- Locating services (repairs, medical, etc.)\n- Discovering local events\n- Shopping recommendations\n- Entertainment options\n- Emergency services\n- Tourist attractions"
+        }
+      ]
+    }
+  ]
+}

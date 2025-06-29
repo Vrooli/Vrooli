@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Parse and Decompose Claims",
                 "description": "Breaks complex claims into individual verifiable facts",
-                "subroutineId": "TODO: Need reasoning subroutine for claim decomposition",
+                "subroutineId": "7829564732190848240",
                 "inputMap": {
                   "claimText": "originalClaim",
                   "claimContext": "contextInfo"
@@ -76,7 +76,7 @@
                 "id": "step-2",
                 "name": "Search for Evidence",
                 "description": "Searches for credible sources supporting or refuting each fact",
-                "subroutineId": "web-research-v1",
+                "subroutineId": "7829564732190847583",
                 "inputMap": {
                   "primaryQuery": "individualFacts",
                   "searchDepth": "credibilityStandards",
@@ -92,7 +92,7 @@
                 "id": "step-3",
                 "name": "Evaluate Evidence Quality",
                 "description": "Assesses the credibility and relevance of found sources",
-                "subroutineId": "TODO: Need reasoning subroutine for evidence evaluation",
+                "subroutineId": "7829564732190848243",
                 "inputMap": {
                   "evidenceSources": "searchResults",
                   "sourceCredibility": "credibilityNotes",
@@ -108,7 +108,7 @@
                 "id": "step-4",
                 "name": "Synthesize Verdict",
                 "description": "Combines evidence to determine truth value of claims",
-                "subroutineId": "TODO: Need reasoning subroutine for verdict synthesis",
+                "subroutineId": "7829564732190848294",
                 "inputMap": {
                   "supportingEvidence": "proEvidence",
                   "contradictingEvidence": "contraEvidence",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Report",
                 "description": "Creates comprehensive fact-check report with citations",
-                "subroutineId": "TODO: Need generation subroutine for report creation",
+                "subroutineId": "7829564732190848297",
                 "inputMap": {
                   "factCheckVerdict": "truthValue",
                   "confidenceScore": "certaintyLevel",

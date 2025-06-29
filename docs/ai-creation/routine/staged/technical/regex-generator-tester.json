@@ -1,0 +1,125 @@
+{
+  "id": "7829564732190847102",
+  "publicId": "regex-gen-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847103",
+      "publicId": "regex-tst-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import re\nimport json\n\ndef generate_and_test_regex():\n    # Get inputs\n    pattern_description = globals().get('pattern_description', '')\n    example_strings = globals().get('example_strings', '')\n    edge_cases = globals().get('edge_cases', '')\n    regex_flags = globals().get('regex_flags', 'None')\n    \n    # Parse example strings\n    examples = [s.strip() for s in example_strings.split('\\n') if s.strip()]\n    edges = [s.strip() for s in edge_cases.split('\\n') if s.strip()] if edge_cases else []\n    \n    # Generate regex pattern based on description\n    def generate_regex_pattern(description, examples):\n        \"\"\"Generate regex pattern based on description and examples\"\"\"\n        description_lower = description.lower()\n        \n        # Common patterns\n        if 'email' in description_lower:\n            return r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}'\n        elif 'phone' in description_lower:\n            if 'us' in description_lower or 'american' in description_lower:\n                return r'\\(?\\d{3}\\)?[-.]?\\d{3}[-.]?\\d{4}'\n            else:\n                return r'[\\+]?[(]?[\\d\\s\\-\\(\\)]{10,}'\n        elif 'url' in description_lower or 'website' in description_lower:\n            return r'https?://(?:[-\\w.])+(?:[:\\d]+)?(?:/(?:[\\w/_.])*(?:\\?(?:[\\w&=%.])*)?(?:#(?:\\w*))?)?'\n        elif 'ip address' in description_lower:\n            return r'\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b'\n        elif 'date' in description_lower:\n            if 'yyyy-mm-dd' in description_lower:\n                return r'\\d{4}-\\d{2}-\\d{2}'\n            elif 'mm/dd/yyyy' in description_lower:\n                return r'\\d{2}/\\d{2}/\\d{4}'\n            else:\n                return r'\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}'\n        elif 'time' in description_lower:\n            return r'\\d{1,2}:\\d{2}(?::\\d{2})?(?:\\s?[AaPp][Mm])?'\n        elif 'credit card' in description_lower:\n            return r'\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}'\n        elif 'postal code' in description_lower or 'zip code' in description_lower:\n            return r'\\d{5}(?:-\\d{4})?'\n        elif 'password' in description_lower:\n            if 'strong' in description_lower:\n                return r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$'\n            else:\n                return r'^[A-Za-z\\d@$!%*?&]{6,}$'\n        elif 'word' in description_lower:\n            if 'alphanumeric' in description_lower:\n                return r'\\b[A-Za-z0-9]+\\b'\n            else:\n                return r'\\b[A-Za-z]+\\b'\n        elif 'number' in description_lower:\n            if 'decimal' in description_lower or 'float' in description_lower:\n                return r'-?\\d+(?:\\.\\d+)?'\n            elif 'integer' in description_lower:\n                return r'-?\\d+'\n            else:\n                return r'\\d+'\n        else:\n            # Try to infer from examples\n            if examples:\n                first_example = examples[0]\n                if '@' in first_example and '.' in first_example:\n                    return r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}'\n                elif first_example.isdigit():\n                    return r'\\d+'\n                elif any(char.isalpha() for char in first_example):\n                    return r'[A-Za-z]+'\n            \n            # Fallback generic pattern\n            return r'.*'\n    \n    # Generate the regex pattern\n    regex_pattern = generate_regex_pattern(pattern_description, examples)\n    \n    # Set up regex flags\n    flags = 0\n    if regex_flags and regex_flags != 'None':\n        flag_map = {\n            'IGNORECASE': re.IGNORECASE,\n            'MULTILINE': re.MULTILINE,\n            'DOTALL': re.DOTALL,\n            'VERBOSE': re.VERBOSE\n        }\n        for flag_name in regex_flags.split(','):\n            flag_name = flag_name.strip()\n            if flag_name in flag_map:\n                flags |= flag_map[flag_name]\n    \n    # Test the pattern\n    def test_pattern(pattern, test_strings, should_match=True):\n        results = []\n        for test_string in test_strings:\n            try:\n                match = re.search(pattern, test_string, flags)\n                matched = bool(match)\n                result = {\n                    'string': test_string,\n                    'matched': matched,\n                    'expected': should_match,\n                    'passed': matched == should_match,\n                    'match_groups': match.groups() if match else None,\n                    'match_span': match.span() if match else None\n                }\n                results.append(result)\n            except re.error as e:\n                results.append({\n                    'string': test_string,\n                    'error': str(e),\n                    'passed': False\n                })\n        return results\n    \n    # Test with examples (should match)\n    example_results = test_pattern(regex_pattern, examples, True)\n    \n    # Test with edge cases (may or may not match)\n    edge_results = test_pattern(regex_pattern, edges, None) if edges else []\n    \n    # Calculate success rate\n    total_tests = len(example_results) + len(edge_results)\n    passed_tests = sum(1 for r in example_results + edge_results if r.get('passed', False))\n    success_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0\n    \n    # Generate explanation\n    def explain_regex(pattern):\n        explanations = {\n            r'\\d': 'matches any digit (0-9)',\n            r'\\w': 'matches any word character (letters, digits, underscore)',\n            r'\\s': 'matches any whitespace character',\n            r'\\b': 'matches word boundary',\n            r'+': 'matches one or more of the preceding character/group',\n            r'*': 'matches zero or more of the preceding character/group',\n            r'?': 'matches zero or one of the preceding character/group',\n            r'^': 'matches the start of the string',\n            r'$': 'matches the end of the string',\n            r'[]': 'character class - matches any character inside brackets',\n            r'()': 'capturing group - groups characters and captures the match',\n            r'|': 'alternation - matches either the expression before or after',\n            r'{n,m}': 'matches between n and m repetitions',\n            r'\\.': 'matches a literal dot character',\n            r'\\\\': 'escapes special characters'\n        }\n        \n        explanation_parts = []\n        for regex_part, meaning in explanations.items():\n            if regex_part.replace('\\\\', '') in pattern.replace('\\\\', ''):\n                explanation_parts.append(f\"{regex_part}: {meaning}\")\n        \n        return explanation_parts\n    \n    # Suggest improvements\n    def suggest_improvements(pattern, results):\n        suggestions = []\n        \n        failed_examples = [r for r in results if not r.get('passed', True)]\n        if failed_examples:\n            suggestions.append(\"Consider adjusting the pattern to match failed examples\")\n        \n        if not pattern.startswith('^') and not pattern.endswith('$'):\n            suggestions.append(\"Add ^ and $ anchors for exact matching if needed\")\n        \n        if '.*' in pattern:\n            suggestions.append(\"Replace .* with more specific patterns for better accuracy\")\n        \n        return suggestions\n    \n    # Create output\n    output = {\n        'pattern_description': pattern_description,\n        'generated_pattern': regex_pattern,\n        'flags_used': regex_flags,\n        'test_results': {\n            'examples': example_results,\n            'edge_cases': edge_results,\n            'success_rate': f\"{success_rate:.1f}%\",\n            'total_tests': total_tests,\n            'passed_tests': passed_tests\n        },\n        'pattern_explanation': explain_regex(regex_pattern),\n        'suggestions': suggest_improvements(regex_pattern, example_results),\n        'usage_examples': {\n            'python': f\"import re\\npattern = r'{regex_pattern}'\\nre.search(pattern, 'your_string')\",\n            'javascript': f\"const pattern = /{regex_pattern}/;\\npattern.test('your_string');\",\n            'grep': f\"grep -E '{regex_pattern}' filename\"\n        }\n    }\n    \n    return json.dumps(output, indent=2)\n\n# Execute the function\nresult = generate_and_test_regex()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "pattern_description",
+                "id": "pattern_description_input",
+                "label": "Pattern Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe what you want to match (e.g., 'email addresses', 'phone numbers', 'dates in YYYY-MM-DD format')..."
+                }
+              },
+              {
+                "fieldName": "example_strings",
+                "id": "example_strings_input",
+                "label": "Example Strings (Should Match)",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter example strings that should match your pattern (one per line)...",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "edge_cases",
+                "id": "edge_cases_input",
+                "label": "Edge Cases (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Enter edge cases or strings that should NOT match (one per line)...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "regex_flags",
+                "id": "regex_flags_input",
+                "label": "Regex Flags (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["None", "IGNORECASE", "MULTILINE", "DOTALL", "VERBOSE", "IGNORECASE,MULTILINE"],
+                  "defaultValue": "None"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_regex_output",
+                "label": "Complete Regex Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "generatedPattern",
+                "id": "generated_pattern_output",
+                "label": "Generated Regex Pattern",
+                "type": "Text"
+              },
+              {
+                "fieldName": "testResults",
+                "id": "test_results_output",
+                "label": "Test Results",
+                "type": "Text"
+              },
+              {
+                "fieldName": "usageExamples",
+                "id": "usage_examples_output",
+                "label": "Usage Examples",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847104",
+          "language": "en",
+          "name": "Regex Generator & Tester",
+          "description": "Creates regular expressions from requirements and tests them. Generates patterns based on descriptions and examples, validates against test cases, explains regex components, and provides usage examples for multiple languages.",
+          "instructions": "1. Describe the pattern you want to match\n2. Provide example strings that should match\n3. Add edge cases or non-matching examples (optional)\n4. Choose regex flags if needed\n\nThe generator will:\n- Create a regex pattern from your description\n- Test it against your examples\n- Validate edge cases\n- Explain pattern components\n- Show success rate\n- Provide usage examples for Python, JavaScript, and grep\n- Suggest improvements\n\nPerfect for developers, data analysts, and anyone working with text pattern matching."
+        }
+      ]
+    }
+  ]
+}

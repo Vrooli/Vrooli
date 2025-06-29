@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Analyze Task Urgency and Importance",
                 "description": "Evaluates each task for urgency and importance levels",
-                "subroutineId": "task-evaluator-v1",
+                "subroutineId": "7829564732190848411",
                 "inputMap": {
                   "originalTaskList": "taskList",
                   "originalDeadlines": "deadlineInfo",
@@ -43,7 +43,7 @@
                 "id": "step-2",
                 "name": "Create Eisenhower Matrix",
                 "description": "Organizes tasks into the 2x2 priority matrix quadrants",
-                "subroutineId": "matrix-organizer-v1",
+                "subroutineId": "7829564732190848414",
                 "inputMap": {
                   "categorizedTasks": "taskCategories",
                   "taskUrgencyLevels": "urgencyData",
@@ -61,7 +61,7 @@
                 "id": "step-3",
                 "name": "Generate Action Recommendations",
                 "description": "Provides specific action recommendations for each quadrant",
-                "subroutineId": "action-advisor-v1",
+                "subroutineId": "7829564732190848672",
                 "inputMap": {
                   "quadrant1Tasks": "criticalTasks",
                   "quadrant2Tasks": "planningTasks",

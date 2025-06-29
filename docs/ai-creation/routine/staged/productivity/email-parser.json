@@ -1,0 +1,113 @@
+{
+  "id": "7829564732190848036",
+  "publicId": "email-parser-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848037",
+      "publicId": "email-parser-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Extracts and structures email information for analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Parse and extract structured information from email content:\n\nEmail Content: {{input.emailContent}}\nAdditional Context: {{input.additionalContext}}\n\nExtract and structure email information:\n\n1. Basic Email Elements:\n   - Subject line analysis\n   - Sender information\n   - Recipient details\n   - Date and time\n   - Email thread context\n\n2. Content Structure:\n   - Main message body\n   - Key paragraphs\n   - Quoted/forwarded content\n   - Signature blocks\n   - Attachments mentioned\n\n3. Communication Intent:\n   - Primary purpose\n   - Requested actions\n   - Information sharing\n   - Questions asked\n   - Deadlines mentioned\n\n4. Contact Information:\n   - Names mentioned\n   - Phone numbers\n   - Email addresses\n   - Organizations\n   - Meeting details\n\n5. Action Items:\n   - Explicit requests\n   - Implied tasks\n   - Follow-up requirements\n   - Response deadlines\n   - Next steps\n\n6. Context Clues:\n   - Urgency indicators\n   - Importance markers\n   - Emotional tone\n   - Formality level\n   - Relationship type\n\n7. Data Extraction:\n   - Dates and times\n   - Numbers and amounts\n   - Links and references\n   - Project names\n   - Document names\n\nReturn as structured JSON with keys: basicElements (object), contentStructure (object), communicationIntent (object), contactInfo (array), actionItems (array), contextClues (object), extractedData (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailContent",
+                "id": "email_input",
+                "label": "Email Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the full email content to parse...",
+                  "multiline": true,
+                  "rows": 6
+                }
+              },
+              {
+                "fieldName": "additionalContext",
+                "id": "context_input",
+                "label": "Additional Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any relevant context about the email or conversation",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "parsedElements",
+                "id": "parsed_output",
+                "label": "Parsed Email Elements",
+                "type": "Text"
+              },
+              {
+                "fieldName": "extractedData",
+                "id": "data_output",
+                "label": "Extracted Data",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848038",
+          "language": "en-US",
+          "description": "Extracts and structures information from email content for analysis and processing",
+          "instructions": "Enter email content to parse. The system will extract key elements, action items, contact information, and context for further processing.",
+          "name": "Email Parser"
+        }
+      ]
+    }
+  ]
+}

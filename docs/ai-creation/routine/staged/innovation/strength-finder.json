@@ -1,0 +1,143 @@
+{
+  "id": "7829564732190848183",
+  "publicId": "strength-finder-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847101",
+      "publicId": "innovation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "innovation"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848184",
+      "publicId": "strength-finder-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies existing strengths and unique value propositions in ideas",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Identify and analyze the strengths and unique value propositions in the following idea:\n\nIdea Analysis: {{input.ideaAnalysis}}\nMarket Context: {{input.marketContext}}\nCore Components: {{input.coreComponents}}\nTarget Audience: {{input.targetAudience}}\nCompetitive Landscape: {{input.competitiveLandscape}}\n\nIdentify and categorize strengths:\n\n1. Unique Value Propositions:\n   - Novel solutions or approaches\n   - Unmet needs addressed\n   - Superior value delivery\n   - Competitive advantages\n   - Market differentiation\n\n2. Technical Strengths:\n   - Innovation elements\n   - Scalability factors\n   - Efficiency improvements\n   - Technical feasibility\n   - Implementation advantages\n\n3. Market Strengths:\n   - Target audience alignment\n   - Market timing benefits\n   - Demand indicators\n   - Market size potential\n   - Adoption factors\n\n4. Business Model Strengths:\n   - Revenue potential\n   - Cost advantages\n   - Resource efficiency\n   - Partnership opportunities\n   - Growth scalability\n\n5. Execution Strengths:\n   - Implementation clarity\n   - Resource requirements\n   - Skill alignment\n   - Timeline feasibility\n   - Risk management\n\n6. Competitive Strengths:\n   - First-mover advantages\n   - Barrier creation potential\n   - Moat development\n   - Switching costs\n   - Network effects\n\n7. Innovation Strengths:\n   - Creative elements\n   - Problem-solving approach\n   - Technology leverage\n   - Process improvements\n   - User experience innovations\n\n8. Strategic Strengths:\n   - Vision alignment\n   - Goal achievement potential\n   - Success probability\n   - Impact magnitude\n   - Sustainability factors\n\nFor each strength, provide:\n- Strength category\n- Specific description\n- Competitive advantage level\n- Sustainability rating\n- Leverage potential\n\nReturn as structured JSON with keys: uniqueValueProps (array), technicalStrengths (array), marketStrengths (array), businessModelStrengths (array), executionStrengths (array), competitiveStrengths (array), innovationStrengths (array), strategicStrengths (array), strengthSummary (object), leverageOpportunities (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "ideaAnalysis",
+                "id": "analysis_input",
+                "label": "Idea Analysis",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output from idea analyzer with detailed analysis...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "marketContext",
+                "id": "market_input",
+                "label": "Market Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Current market conditions and trends",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "coreComponents",
+                "id": "components_input",
+                "label": "Core Components",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Key components and features of the idea"
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Intended users or beneficiaries"
+                }
+              },
+              {
+                "fieldName": "competitiveLandscape",
+                "id": "competitive_input",
+                "label": "Competitive Landscape",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Existing solutions and competitors"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "identifiedStrengths",
+                "id": "strengths_output",
+                "label": "Identified Strengths",
+                "type": "Text"
+              },
+              {
+                "fieldName": "competitiveAdvantages",
+                "id": "advantages_output",
+                "label": "Competitive Advantages",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848185",
+          "language": "en-US",
+          "description": "Identifies and analyzes strengths, unique value propositions, and competitive advantages in ideas",
+          "instructions": "Enter idea analysis and market context. The system will identify strengths across multiple dimensions and assess competitive advantages.",
+          "name": "Strength Finder"
+        }
+      ]
+    }
+  ]
+}

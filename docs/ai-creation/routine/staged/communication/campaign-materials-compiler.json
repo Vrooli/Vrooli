@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848720",
+  "publicId": "materials-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847086",
+      "tag": "marketing",
+      "translations": [
+        {
+          "id": "7829564732190847186",
+          "language": "en",
+          "description": "Marketing and advertising"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848721",
+      "publicId": "materials-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles marketing materials",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "marketingAssets",
+                "id": "marketing_assets_input",
+                "label": "Marketing Assets",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "All generated marketing content"
+              },
+              {
+                "fieldName": "brandGuidelines",
+                "id": "brand_guidelines_input",
+                "label": "Brand Guidelines",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Brand voice and messaging guidelines"
+              },
+              {
+                "fieldName": "organizationStyle",
+                "id": "organization_style_input",
+                "label": "Organization Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "campaign_based",
+                "options": [
+                  "campaign_based",
+                  "channel_based",
+                  "audience_based",
+                  "chronological"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "marketingPackage",
+                "id": "marketing_package_output",
+                "label": "Compiled Marketing Package",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "implementation_guide_output",
+                "label": "Implementation Guide",
+                "type": "Text"
+              },
+              {
+                "fieldName": "assetInventory",
+                "id": "asset_inventory_output",
+                "label": "Asset Inventory",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848722",
+          "language": "en",
+          "name": "Campaign Materials Compiler",
+          "description": "Organizes and compiles all marketing materials into a cohesive package with implementation guidance.",
+          "instructions": "Provide all marketing assets and brand guidelines. The routine will organize them into a comprehensive package."
+        }
+      ]
+    }
+  ]
+}

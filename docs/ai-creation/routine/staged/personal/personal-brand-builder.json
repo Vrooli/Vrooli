@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Brand Identity",
                 "description": "Establishes core values, strengths, and unique positioning",
-                "subroutineId": "TODO: Need brand identity subroutine",
+                "subroutineId": "7829564732190848519",
                 "inputMap": {
                   "personalValues": "coreValues",
                   "professionalGoals": "careerObjectives",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Target Audience",
                 "description": "Identifies and profiles key audience segments",
-                "subroutineId": "TODO: Need audience analysis subroutine",
+                "subroutineId": "7829564732190848522",
                 "inputMap": {
                   "careerObjectives": "professionalGoals",
                   "industryContext": "marketEnvironment",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Craft Brand Messaging",
                 "description": "Develops consistent narrative and communication strategy",
-                "subroutineId": "TODO: Need messaging development subroutine",
+                "subroutineId": "7829564732190848525",
                 "inputMap": {
                   "coreIdentity": "brandIdentity",
                   "uniqueOffering": "valueProposition",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Design Visual Identity",
                 "description": "Creates consistent visual brand elements and style",
-                "subroutineId": "TODO: Need visual design subroutine",
+                "subroutineId": "7829564732190848528",
                 "inputMap": {
                   "brandPersonality": "characterTraits",
                   "professionalContext": "industryStandards",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Build Online Presence",
                 "description": "Develops digital platforms and content strategy",
-                "subroutineId": "TODO: Need digital presence subroutine",
+                "subroutineId": "7829564732190848531",
                 "inputMap": {
                   "narrativeFramework": "brandStory",
                   "communicationPillars": "keyMessages",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Implement Networking Strategy",
                 "description": "Activates relationship building and brand promotion",
-                "subroutineId": "TODO: Need networking strategy subroutine",
+                "subroutineId": "7829564732190848534",
                 "inputMap": {
                   "relationshipTargets": "networkingGoals",
                   "concisePositioning": "elevatorPitch",

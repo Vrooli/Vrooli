@@ -1,0 +1,143 @@
+{
+  "id": "7829564732190848360",
+  "publicId": "web-research-agent-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847032",
+      "publicId": "research-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "research"
+    },
+    {
+      "id": "7829564732190847026",
+      "publicId": "web-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "web"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848361",
+      "publicId": "web-research-agent-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Conducts comprehensive web research",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Conduct comprehensive web research on specified topics:\n\nResearch Topics: {{input.researchTopics}}\nDepth Level: {{input.depthLevel}}\nFocus Areas: {{input.focusAreas}}\nSource Preferences: {{input.sourcePreferences}}\nTime Constraints: {{input.timeConstraints}}\n\nExecute systematic web research:\n\n1. **Research Strategy Development**:\n   - Search query optimization\n   - Source identification\n   - Information hierarchy\n   - Quality criteria\n   - Verification methods\n\n2. **Primary Research Sources**:\n   - Official websites\n   - Industry reports\n   - Government databases\n   - Academic publications\n   - Press releases\n\n3. **Secondary Research Sources**:\n   - News articles\n   - Blog posts\n   - Social media insights\n   - Forums and discussions\n   - Review platforms\n\n4. **Data Collection Process**:\n   - Systematic information gathering\n   - Key fact extraction\n   - Statistics compilation\n   - Quote identification\n   - Image/chart references\n\n5. **Source Evaluation**:\n   - Authority assessment\n   - Currency verification\n   - Accuracy checking\n   - Bias identification\n   - Reliability scoring\n\n6. **Information Organization**:\n   - Topic categorization\n   - Priority ranking\n   - Fact verification\n   - Conflicting information\n   - Gap identification\n\n7. **Synthesis & Analysis**:\n   - Pattern recognition\n   - Trend identification\n   - Comparative analysis\n   - Insight generation\n   - Conclusion drawing\n\n8. **Research Documentation**:\n   - Source citations\n   - Methodology notes\n   - Quality assessments\n   - Limitation acknowledgments\n   - Update recommendations\n\nReturn as structured JSON with keys: researchFindings (object), sourceEvaluation (array), dataCollection (object), informationGaps (array), keyInsights (array), verificationStatus (object), recommendations (array), citations (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchTopics",
+                "id": "topics_input",
+                "label": "Research Topics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific topics or questions to research...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "depthLevel",
+                "id": "depth_input",
+                "label": "Research Depth",
+                "type": "Selector",
+                "props": {
+                  "options": ["Basic Overview", "Standard Research", "Deep Investigation", "Comprehensive Analysis"]
+                }
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_input",
+                "label": "Focus Areas",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specific aspects to prioritize...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "sourcePreferences",
+                "id": "sources_input",
+                "label": "Source Preferences",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Preferred types of sources or specific websites...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "timeConstraints",
+                "id": "time_input",
+                "label": "Time Constraints",
+                "type": "Selector",
+                "props": {
+                  "options": ["Current Information Only", "Last 6 Months", "Last Year", "Last 3 Years", "Historical Data"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchReport",
+                "id": "report_output",
+                "label": "Research Report",
+                "type": "Text"
+              },
+              {
+                "fieldName": "sourceList",
+                "id": "sources_output",
+                "label": "Source Citations",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848362",
+          "language": "en-US",
+          "description": "Conducts systematic web research with source evaluation and comprehensive documentation",
+          "instructions": "Specify research topics and depth level. The system will conduct web research and provide documented findings.",
+          "name": "Web Research Agent"
+        }
+      ]
+    }
+  ]
+}

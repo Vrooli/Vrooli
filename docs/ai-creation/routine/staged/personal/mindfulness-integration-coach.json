@@ -1,0 +1,149 @@
+{
+  "id": "7829564732190848288",
+  "publicId": "mindfulness-integration-coach-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847103",
+      "publicId": "mindfulness-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "mindfulness"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848289",
+      "publicId": "mindfulness-integration-coach-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Integrates mindful awareness into everyday activities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Practical",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Integrate mindfulness into daily life activities:\n\nBasic Skills: {{input.basicSkills}}\nDaily Activities: {{input.dailyActivities}}\nStressful Situations: {{input.stressfulSituations}}\nWork Environment: {{input.workEnvironment}}\nPersonal Goals: {{input.personalGoals}}\n\nDevelop practical integration strategies:\n\n1. **Mindful Daily Routines**:\n   - Morning mindfulness rituals\n   - Mindful eating practices\n   - Commute meditation\n   - Mindful hygiene routines\n   - Evening wind-down\n\n2. **Work Integration**:\n   - Desk meditation breaks\n   - Mindful email checking\n   - Meeting presence practices\n   - Deadline stress management\n   - Colleague interaction awareness\n\n3. **Communication Mindfulness**:\n   - Active listening techniques\n   - Mindful speaking practices\n   - Conflict resolution presence\n   - Empathetic responding\n   - Digital communication awareness\n\n4. **Stress Response Techniques**:\n   - STOP technique (Stop, Take breath, Observe, Proceed)\n   - 3-minute breathing space\n   - Body scan check-ins\n   - Emotion surfing\n   - Grounding exercises\n\n5. **Movement & Activity**:\n   - Mindful exercise\n   - Walking meditation integration\n   - Household chore practice\n   - Mindful driving\n   - Sports meditation\n\n6. **Technology Mindfulness**:\n   - Screen time awareness\n   - Notification management\n   - Mindful scrolling\n   - Digital detox practices\n   - App-assisted mindfulness\n\n7. **Relationship Applications**:\n   - Family mindfulness\n   - Parenting with presence\n   - Romantic mindfulness\n   - Social gathering awareness\n   - Boundary setting\n\n8. **Life Transition Support**:\n   - Change navigation\n   - Loss and grief presence\n   - Joy amplification\n   - Decision-making clarity\n   - Future planning mindfulness\n\nReturn as structured JSON with keys: dailyRoutines (object), workIntegration (object), communicationPractices (object), stressResponse (array), movementMindfulness (object), technologyBalance (object), relationshipApplications (object), transitionSupport (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "basicSkills",
+                "id": "skills_input",
+                "label": "Learned Techniques",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Mindfulness techniques you've already learned...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "dailyActivities",
+                "id": "activities_input",
+                "label": "Daily Activities",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Your typical daily activities and routines...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "stressfulSituations",
+                "id": "stress_input",
+                "label": "Challenging Situations",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Common stressful situations you face...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "workEnvironment",
+                "id": "work_input",
+                "label": "Work Environment",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Your work setting and demands...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "personalGoals",
+                "id": "goals_input",
+                "label": "Integration Goals",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What you hope to achieve through mindful living...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "integrationPlan",
+                "id": "plan_output",
+                "label": "Daily Life Integration Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "practicalStrategies",
+                "id": "strategies_output",
+                "label": "Practical Strategies",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848290",
+          "language": "en-US",
+          "description": "Integrates mindfulness into work, relationships, and daily activities with practical strategies",
+          "instructions": "Share your learned techniques and daily activities. The system will create an integration plan for mindful living.",
+          "name": "Mindfulness Integration Coach"
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Challenge & Context",
                 "description": "Clarifies the problem or opportunity and establishes constraints",
-                "subroutineId": "TODO: Need reasoning subroutine for problem clarification",
+                "subroutineId": "7829564732190848315",
                 "inputMap": {
                   "challengeDescription": "problemStatement",
                   "contextInfo": "situationalContext",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Generate Initial Ideas",
                 "description": "Creates diverse initial concepts using various brainstorming techniques",
-                "subroutineId": "TODO: Need generation subroutine for creative ideation",
+                "subroutineId": "7829564732190848318",
                 "inputMap": {
                   "clarifiedChallenge": "refinedProblem",
                   "brainstormingStyle": "ideationMethod",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Expand & Build Ideas",
                 "description": "Develops promising concepts and creates variations",
-                "subroutineId": "TODO: Need expansion subroutine for idea development",
+                "subroutineId": "7829564732190848321",
                 "inputMap": {
                   "initialIdeas": "generatedConcepts",
                   "userFeedback": "selectedConcepts",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Challenge & Provoke",
                 "description": "Introduces provocative questions and alternative perspectives",
-                "subroutineId": "TODO: Need reasoning subroutine for critical thinking",
+                "subroutineId": "7829564732190848324",
                 "inputMap": {
                   "expandedIdeas": "developedConcepts",
                   "assumptionChecking": "currentAssumptions",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Organize & Prioritize",
                 "description": "Structures ideas and identifies most promising concepts",
-                "subroutineId": "TODO: Need organization subroutine for idea clustering",
+                "subroutineId": "7829564732190848327",
                 "inputMap": {
                   "allIdeas": "combinedConcepts",
                   "evaluationCriteria": "selectionFactors",

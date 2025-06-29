@@ -1,0 +1,143 @@
+{
+  "id": "7829564732190848165",
+  "publicId": "question-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847097",
+      "publicId": "learning-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "learning"
+    },
+    {
+      "id": "7829564732190847100",
+      "publicId": "student-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "student"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848166",
+      "publicId": "question-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates educational questions from content for quiz creation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Educational",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Generate educational questions from content for quiz and flashcard creation:\n\nContent: {{input.content}}\nQuestion Types: {{input.questionTypes}}\nDifficulty Level: {{input.difficultyLevel}}\nLearning Objectives: {{input.learningObjectives}}\nQuestion Count: {{input.questionCount}}\n\nGenerate diverse educational questions:\n\n1. Multiple Choice Questions:\n   - Clear stems\n   - Plausible distractors\n   - Single correct answers\n   - Balanced difficulty\n   - Concept testing\n\n2. True/False Questions:\n   - Factual statements\n   - Common misconceptions\n   - Principle applications\n   - Clear right/wrong\n   - Explanation rationales\n\n3. Short Answer Questions:\n   - Definition requests\n   - Concept explanations\n   - Process descriptions\n   - Application scenarios\n   - Example generations\n\n4. Fill-in-the-Blank:\n   - Key term identification\n   - Process step completion\n   - Formula components\n   - Relationship completion\n   - Context understanding\n\n5. Application Questions:\n   - Scenario-based problems\n   - Real-world applications\n   - Transfer situations\n   - Problem-solving tasks\n   - Critical thinking\n\n6. Analysis Questions:\n   - Comparison tasks\n   - Cause-effect relationships\n   - Pattern recognition\n   - Classification exercises\n   - Evaluation criteria\n\n7. Synthesis Questions:\n   - Concept combination\n   - Creative applications\n   - Design challenges\n   - Innovation tasks\n   - Integration exercises\n\n8. Memory Reinforcement:\n   - Spaced repetition targets\n   - Progressive difficulty\n   - Retrieval practice\n   - Active recall\n   - Interleaving concepts\n\nReturn as structured JSON with keys: multipleChoice (array), trueFalse (array), shortAnswer (array), fillInBlanks (array), applicationQuestions (array), analysisQuestions (array), synthesisQuestions (array), memoryReinforcers (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "content",
+                "id": "content_input",
+                "label": "Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter the educational content to create questions from...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "questionTypes",
+                "id": "types_input",
+                "label": "Question Types",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Multiple choice, true/false, short answer, fill-in-blank, etc."
+                }
+              },
+              {
+                "fieldName": "difficultyLevel",
+                "id": "difficulty_input",
+                "label": "Difficulty Level",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Beginner, intermediate, advanced, or mixed"
+                }
+              },
+              {
+                "fieldName": "learningObjectives",
+                "id": "objectives_input",
+                "label": "Learning Objectives",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What should students learn or demonstrate?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "questionCount",
+                "id": "count_input",
+                "label": "Question Count",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How many questions of each type?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "generatedQuestions",
+                "id": "questions_output",
+                "label": "Generated Questions",
+                "type": "Text"
+              },
+              {
+                "fieldName": "questionMetadata",
+                "id": "metadata_output",
+                "label": "Question Metadata",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848167",
+          "language": "en-US",
+          "description": "Generates diverse educational questions from content for quizzes, flashcards, and learning assessments",
+          "instructions": "Enter educational content and question preferences. The system will generate various types of questions suitable for testing and reinforcing learning.",
+          "name": "Question Generator"
+        }
+      ]
+    }
+  ]
+}

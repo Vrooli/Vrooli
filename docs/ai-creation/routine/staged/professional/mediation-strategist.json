@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848768",
+  "publicId": "mediation-strategist-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847072",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847172",
+          "language": "en",
+          "description": "Team management and development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848769",
+      "publicId": "mediation-strategist-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops mediation strategies",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "conflictAnalysis",
+                "id": "conflict_analysis_input",
+                "label": "Conflict Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Analysis of the conflict situation"
+              },
+              {
+                "fieldName": "stakeholderData",
+                "id": "stakeholder_data_input",
+                "label": "Stakeholder Information",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Stakeholder positions and interests"
+              },
+              {
+                "fieldName": "mediationGoals",
+                "id": "mediation_goals_input",
+                "label": "Mediation Goals",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Desired outcomes from mediation"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "mediationStrategy",
+                "id": "mediation_strategy_output",
+                "label": "Mediation Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "conversationFramework",
+                "id": "conversation_framework_output",
+                "label": "Conversation Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "resolutionOptions",
+                "id": "resolution_options_output",
+                "label": "Resolution Options",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848770",
+          "language": "en",
+          "name": "Mediation Strategist",
+          "description": "Develops mediation strategies and conversation frameworks for conflict resolution.",
+          "instructions": "Provide conflict analysis and stakeholder data. The routine will create mediation strategies."
+        }
+      ]
+    }
+  ]
+}

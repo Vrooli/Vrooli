@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848669",
+  "publicId": "action-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848670",
+      "publicId": "action-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates delegation action plans",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "delegationPlan",
+                "id": "delegation_plan_input",
+                "label": "Delegation Plan",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Delegation recommendations"
+              },
+              {
+                "fieldName": "automationPlan",
+                "id": "automation_plan_input",
+                "label": "Automation Plan",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Automation recommendations"
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Timeline",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Implementation timeline"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Complete Action Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "prioritizedSteps",
+                "id": "prioritized_steps_output",
+                "label": "Priority Order",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "expectedOutcomes",
+                "id": "expected_outcomes_output",
+                "label": "Expected Results",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848671",
+          "language": "en",
+          "name": "Delegation Action Planner",
+          "description": "Creates comprehensive action plans for delegation and automation implementation.",
+          "instructions": "Provide delegation and automation plans. The routine will create a unified action plan."
+        }
+      ]
+    }
+  ]
+}

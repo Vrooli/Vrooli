@@ -1,0 +1,2426 @@
+{
+  "lastUpdated": "2025-06-29T14:50:11Z",
+  "totalRoutines": 432,
+  "availableNames": [
+    "Habit Adjustment Planner",
+    "Progress Tracker",
+    "Milestone Creator",
+    "Symp Patt",
+    "Feedback Generator",
+    "Habit Implementation",
+    "Sleep Analysis",
+    "Action Planning",
+    "Workout Build",
+    "Morning Plan",
+    "Fitness Planner",
+    "Motivation Designer",
+    "Gift Rec",
+    "Health Track",
+    "Habit Coach",
+    "Growth Identification",
+    "Digital Presence Planner",
+    "Medical Summary Creator",
+    "Health Insights Generator",
+    "Action Planner",
+    "Mindfulness",
+    "Weekly Habit Goal Setter",
+    "Brand Identity Creator",
+    "Messaging Developer",
+    "Plan Assembler",
+    "Habit Pattern Analyzer",
+    "Nutrition Planner",
+    "Habit Obstacle Manager",
+    "Health Action Planner",
+    "Meal Plan",
+    "Mindfulness Practice Designer",
+    "Morning Wellness Check",
+    "Habit Track",
+    "Mental Wellness Planner",
+    "Tracker Setup",
+    "Wellness Chk",
+    "Accomplishment Analyzer",
+    "Health Ins",
+    "Habit Logger",
+    "Self Review",
+    "Strategy Adapter",
+    "Wellness Plan",
+    "Habit Analysis Assistant",
+    "Goal Planner",
+    "Mindfulness Habit Builder",
+    "Trig Ident",
+    "Habit Coach",
+    "Health Trigger Identifier",
+    "Daily Task Prioritizer",
+    "Visual Design Creator",
+    "Journal Ins",
+    "Motivation Booster",
+    "Challenge Identifier",
+    "Habit Optimization Assistant",
+    "Insight Synthesizer",
+    "Progress Monitoring",
+    "Daily Briefing Generator",
+    "Home Maint",
+    "Self Assessment",
+    "Smart Goal Creator",
+    "Implementation Planner",
+    "Mindfulness Progress Tracker",
+    "Symptom Logger",
+    "Brand Build",
+    "Mindfulness Integration Coach",
+    "Audience Analyzer",
+    "Networking Strategist",
+    "Mindfulness Needs Assessor",
+    "Habit Reward System",
+    "Vision Setting",
+    "Health Pattern Analyzer",
+    "Habit Coaching Advisor",
+    "Pattern Analyzer",
+    "Habit Strategy Designer",
+    "Performance Data Collector",
+    "Habit Trigger Setup",
+    "Mindfulness Technique Trainer",
+    "Personal Dev",
+    "Habit Report Generator",
+    "Schedule Optimizer",
+    "Habit Framework Setup",
+    "Stress Coach",
+    "Goal Setter",
+    "Role Optimize",
+    "Resume Helper",
+    "Role Optimizer",
+    "Exp Parser",
+    "Document Formatter",
+    "Interview Prep",
+    "Workload Evaluator",
+    "Perf Review",
+    "Role Optimization Generator",
+    "Conflict Res",
+    "Experience Analyzer",
+    "Bullet Writer",
+    "Impact Evaluator",
+    "Ats Optimizer",
+    "Team Build",
+    "Skills Gap Analyzer",
+    "Speaking Coach",
+    "Implementation Planner",
+    "Cover Letter Drafter",
+    "Career Nav",
+    "Team Anal",
+    "Cover Letter Writer",
+    "Resume Bullet Creator",
+    "Skills Assess",
+    "Team Analysis",
+    "Onboarding",
+    "Code Gen Test",
+    "Dev Troubleshoot",
+    "Data Insight",
+    "Doc Summ",
+    "Perf Optimize",
+    "Code Review",
+    "Git Workflow",
+    "Data Viz",
+    "Api Docs Gen",
+    "Tech Stack",
+    "Debug Assist",
+    "Debug Assist",
+    "Api Integrate",
+    "Bug Fix",
+    "Api Docs Gen",
+    "Regex Gen",
+    "Data Viz",
+    "Price Comp",
+    "Income Analyzer",
+    "Tax Organizer",
+    "Budget Scenario Modeler",
+    "Expense Track",
+    "Invest Analyze",
+    "Subscription Mgr",
+    "Sub Manage",
+    "Budget Calc",
+    "Financial Independence",
+    "Fin Goal Track",
+    "Budget Track",
+    "Loan Calc",
+    "Budget Plan",
+    "Coupon Finder",
+    "Scenario Mod",
+    "Invest Research",
+    "Budget Implementation Planner",
+    "Fin Indep",
+    "Budget Framework Applier",
+    "Fin Report Summ",
+    "Travel Plan",
+    "Yes Man Av",
+    "Travel Plan",
+    "Travel Plan",
+    "Digital Detox",
+    "Home Maint",
+    "Relationship Comm",
+    "Rel Comm",
+    "Event Plan",
+    "Home Org",
+    "Motiv Des",
+    "Habit Anal",
+    "Smart Goal",
+    "Motiv Gen",
+    "Habit Strat",
+    "Wellness Assessor",
+    "Task Decomposer",
+    "Opp Eval",
+    "Negotiate",
+    "Contract Review",
+    "Prod Analyzer",
+    "Project Scope Analyzer",
+    "Trend Analyzer",
+    "Compliance Checker",
+    "Resource Alloc",
+    "Risk Assessor",
+    "Strategic Plan",
+    "Scope Analyzer",
+    "Customer Journey",
+    "Proj Plan",
+    "Timeline Creator",
+    "Product Analyzer",
+    "Data Parser",
+    "Contract Recommendation Generator",
+    "Feedback Sum",
+    "Team Structure Analyzer",
+    "Policy Summ",
+    "Contract Summary Compiler",
+    "Proposal Ast",
+    "Sentiment Analyzer",
+    "Meeting Orch",
+    "Metrics Report",
+    "Journey Map",
+    "Task Decomposer",
+    "Invoice Proc",
+    "Implementation Planner",
+    "Report Compiler",
+    "Marketing Camp",
+    "Feedback Parser",
+    "Standup Syn",
+    "Narrative Builder",
+    "Contract Parser",
+    "Insight Extractor",
+    "Term Extractor",
+    "Timeline Creator",
+    "Feedback Summary Generator",
+    "Excel Db Import",
+    "Keyword Extract",
+    "Survey Anl",
+    "Content Cluster",
+    "Corr Find",
+    "Data Cleaner",
+    "Cont Cat",
+    "Ab Test Eval",
+    "Data Viz",
+    "Chart Gen",
+    "Task Decomposer",
+    "Milestone Cr",
+    "Note Parser",
+    "Delegation Assessor",
+    "Goal Align",
+    "Project Scope Analyzer",
+    "Weekly Rev",
+    "Triage Reporter",
+    "Email Classifier",
+    "Project Phase Breakdown",
+    "Note To Task",
+    "Automation Evaluator",
+    "Risk Assess",
+    "Action Plan",
+    "Activity Analyzer",
+    "Goal Parser",
+    "Plan Assem",
+    "Recur Sched",
+    "Time Block",
+    "Project Plan",
+    "Summary Organizer",
+    "Prod Audit",
+    "Lesson Extractor",
+    "Email Parser",
+    "Task Evaluator",
+    "Task Prior",
+    "Time Block",
+    "Tracker Set",
+    "Project Plan Generator",
+    "Calendar Org",
+    "Task Prioritizer Core",
+    "Adv Prioritize",
+    "Task Analyzer",
+    "Matrix Organizer",
+    "Effort Estimator",
+    "Deadline Mon",
+    "Task Prior",
+    "Note Summary",
+    "Daily Plan",
+    "Review Compiler",
+    "Alignment Assessor",
+    "Weekly Data Aggregator",
+    "Summary Generator",
+    "Priority Matrix",
+    "Time Mgmt",
+    "Task Alloc",
+    "Theme Identifier",
+    "Delegate Auto",
+    "Proj Org",
+    "Implementation Planner",
+    "Priority Mx",
+    "Time Block",
+    "Pomodoro",
+    "Goal Align",
+    "Email Triage",
+    "Time Block Scheduler Core",
+    "Alignment Advisor",
+    "Task Extractor",
+    "Followup Suggester",
+    "Timeline Creator",
+    "Deep Dive",
+    "Fact Check",
+    "Brief Assist",
+    "Verdict Synthesizer",
+    "News Digest",
+    "Comp Analysis",
+    "Web Research",
+    "Company Res",
+    "Fact Check Report Generator",
+    "Research Synth",
+    "Local Scout",
+    "Web Research Agent",
+    "Product Compare",
+    "Expert Adv",
+    "Research Syn",
+    "Multi Synth",
+    "Comp Analysis",
+    "Market Researcher",
+    "Historical Comparison Searcher",
+    "Evidence Quality Evaluator",
+    "Context Search",
+    "Trends Monitor",
+    "Claim Decomposer",
+    "Contextual Search",
+    "Email Cond",
+    "Highlight Ext",
+    "Glossary Gen",
+    "Context Search",
+    "Mkt Compiler",
+    "Landing Pg",
+    "Platform Adapt",
+    "Content Out",
+    "Pr Statement",
+    "Meet Mins",
+    "Lang Trans Sum",
+    "Content Repurpose",
+    "Email Camp",
+    "Doc Formatter",
+    "Present Design",
+    "Essay Coach",
+    "Ad Copy Gen",
+    "Essay Coach",
+    "Writing Mentor",
+    "Brief Comp",
+    "Social Plan",
+    "Email Draft",
+    "Tone Style",
+    "Campaign Theme",
+    "Social Batch",
+    "Slide Cond",
+    "Report Writer",
+    "Auto Mkt Mcp",
+    "Content Anal",
+    "Doc Summary",
+    "Followup Email",
+    "Meet Agenda",
+    "Agenda Email",
+    "Vid Script",
+    "Email Temp",
+    "Story Metaphor",
+    "Email Triage",
+    "Report Writer",
+    "Format Gen",
+    "Edit Proof",
+    "Social Post",
+    "Email Campaign",
+    "Brand Voice",
+    "News Sentiment Analyzer",
+    "Market Research Assistant",
+    "Investment Research Compiler",
+    "Investment Trend Analyzer",
+    "Flashcard Formatter",
+    "Study Organizer",
+    "Lecture Sum",
+    "Study Sched",
+    "Study Plan",
+    "Writing Feedback",
+    "Question Generator",
+    "Study Plan",
+    "Flashcard Quiz",
+    "Learn Plan",
+    "Learn Reflect",
+    "Research Paper",
+    "Content Analyzer",
+    "Essay Outl",
+    "Structure Evaluator",
+    "Lang Coach",
+    "Learn Path",
+    "Lang Trans",
+    "Requirement Analyzer",
+    "News Sentiment Analyzer",
+    "Trend Analyzer",
+    "Weakness Detector",
+    "Concept Synthesizer",
+    "Brainstorm",
+    "Ideation Facilitation",
+    "Idea Refine",
+    "Strength Finder",
+    "Idea Expander",
+    "Workshop Design",
+    "Problem Solve",
+    "Problem Reframe",
+    "Enhance Sug",
+    "Idea Analyzer",
+    "Innovation Wrkshp",
+    "Brainstorm",
+    "Differentiation Analyzer",
+    "Creative Idea Generator",
+    "Problem Clarifier",
+    "Critical Challenger",
+    "Creative Solve",
+    "Idea Organizer",
+    "Innovation Workshop",
+    "What If Plan",
+    "Crisis Mgmt",
+    "Dec Recomm",
+    "Decision Fw",
+    "Pros Cons",
+    "Option Generation",
+    "Criteria Extractor",
+    "Weight Calc",
+    "Decision Frm",
+    "Matrix Builder",
+    "Tradeoff Structurer",
+    "Risk Assess",
+    "Tradeoff Advisor",
+    "Advanced Decision",
+    "Decision Framing",
+    "Crisis Mgmt",
+    "Option Scor",
+    "Gain Loss Analyzer",
+    "Matrix Fmt",
+    "Decision Matrix",
+    "Swot Analysis",
+    "Score Calc",
+    "Tradeoff",
+    "Seo Optimizer",
+    "Outline Gen",
+    "Intro Writer",
+    "Body Content",
+    "Conclusion Writer",
+    "Blog Writer",
+    "Seo Opt",
+    "Content Assembler",
+    "Slogan Gen",
+    "Character Dial",
+    "Campaign Fact",
+    "Design Brain",
+    "Question Storm",
+    "Title Gen",
+    "Tabular Formatter",
+    "Knowledge Base Updater",
+    "Anomaly Detect",
+    "Anomaly Detect",
+    "Memory Maint",
+    "Memory Maint",
+    "Cap Gap",
+    "Memory Maint",
+    "Strategic Plan"
+  ],
+  "routinesByName": {
+    "Habit Adjustment Planner": {
+      "id": "7829564732190848309",
+      "type": null,
+      "description": null
+    },
+    "Progress Tracker": {
+      "id": "7829564732190848486",
+      "type": null,
+      "description": null
+    },
+    "Milestone Creator": {
+      "id": "7829564732190848192",
+      "type": null,
+      "description": null
+    },
+    "Symp Patt": {
+      "id": "7829564732190847937",
+      "type": null,
+      "description": null
+    },
+    "Feedback Generator": {
+      "id": "7829564732190848492",
+      "type": null,
+      "description": null
+    },
+    "Habit Implementation": {
+      "id": "7829564732190848549",
+      "type": null,
+      "description": null
+    },
+    "Sleep Analysis": {
+      "id": "7829564732190847183",
+      "type": null,
+      "description": null
+    },
+    "Action Planning": {
+      "id": "7829564732190848546",
+      "type": null,
+      "description": null
+    },
+    "Workout Build": {
+      "id": "7829564732190847126",
+      "type": null,
+      "description": null
+    },
+    "Morning Plan": {
+      "id": "7829564732190847033",
+      "type": null,
+      "description": null
+    },
+    "Fitness Planner": {
+      "id": "7829564732190848474",
+      "type": null,
+      "description": null
+    },
+    "Motivation Designer": {
+      "id": "7829564732190848201",
+      "type": null,
+      "description": null
+    },
+    "Gift Rec": {
+      "id": "7829564732190847177",
+      "type": null,
+      "description": null
+    },
+    "Health Track": {
+      "id": "7829564732190847826",
+      "type": null,
+      "description": null
+    },
+    "Habit Coach": {
+      "id": "7829564732190847892",
+      "type": null,
+      "description": null
+    },
+    "Growth Identification": {
+      "id": "7829564732190848543",
+      "type": null,
+      "description": null
+    },
+    "Digital Presence Planner": {
+      "id": "7829564732190848531",
+      "type": null,
+      "description": null
+    },
+    "Medical Summary Creator": {
+      "id": "7829564732190848582",
+      "type": null,
+      "description": null
+    },
+    "Health Insights Generator": {
+      "id": "7829564732190848579",
+      "type": null,
+      "description": null
+    },
+    "Action Planner": {
+      "id": "7829564732190848195",
+      "type": null,
+      "description": null
+    },
+    "Mindfulness": {
+      "id": "7829564732190847763",
+      "type": null,
+      "description": null
+    },
+    "Weekly Habit Goal Setter": {
+      "id": "7829564732190848312",
+      "type": null,
+      "description": null
+    },
+    "Brand Identity Creator": {
+      "id": "7829564732190848519",
+      "type": null,
+      "description": null
+    },
+    "Messaging Developer": {
+      "id": "7829564732190848525",
+      "type": null,
+      "description": null
+    },
+    "Plan Assembler": {
+      "id": "7829564732190848204",
+      "type": null,
+      "description": null
+    },
+    "Habit Pattern Analyzer": {
+      "id": "7829564732190848303",
+      "type": null,
+      "description": null
+    },
+    "Nutrition Planner": {
+      "id": "7829564732190848477",
+      "type": null,
+      "description": null
+    },
+    "Habit Obstacle Manager": {
+      "id": "7829564732190848246",
+      "type": null,
+      "description": null
+    },
+    "Health Action Planner": {
+      "id": "7829564732190848585",
+      "type": null,
+      "description": null
+    },
+    "Meal Plan": {
+      "id": "7829564732190847123",
+      "type": null,
+      "description": null
+    },
+    "Mindfulness Practice Designer": {
+      "id": "7829564732190848255",
+      "type": null,
+      "description": null
+    },
+    "Morning Wellness Check": {
+      "id": "7829564732190848555",
+      "type": null,
+      "description": null
+    },
+    "Habit Track": {
+      "id": "7829564732190847634",
+      "type": null,
+      "description": null
+    },
+    "Mental Wellness Planner": {
+      "id": "7829564732190848480",
+      "type": null,
+      "description": null
+    },
+    "Tracker Setup": {
+      "id": "7829564732190848198",
+      "type": null,
+      "description": null
+    },
+    "Wellness Chk": {
+      "id": "7829564732190847030",
+      "type": null,
+      "description": null
+    },
+    "Accomplishment Analyzer": {
+      "id": "7829564732190848369",
+      "type": null,
+      "description": null
+    },
+    "Health Ins": {
+      "id": "7829564732190847943",
+      "type": null,
+      "description": null
+    },
+    "Habit Logger": {
+      "id": "7829564732190848300",
+      "type": null,
+      "description": null
+    },
+    "Self Review": {
+      "id": "7829564732190847577",
+      "type": null,
+      "description": null
+    },
+    "Strategy Adapter": {
+      "id": "7829564732190848495",
+      "type": null,
+      "description": null
+    },
+    "Wellness Plan": {
+      "id": "7829564732190847718",
+      "type": null,
+      "description": null
+    },
+    "Habit Analysis Assistant": {
+      "id": "7829564732190848219",
+      "type": null,
+      "description": null
+    },
+    "Goal Planner": {
+      "id": "7829564732190848099",
+      "type": null,
+      "description": null
+    },
+    "Mindfulness Habit Builder": {
+      "id": "7829564732190848285",
+      "type": null,
+      "description": null
+    },
+    "Trig Ident": {
+      "id": "7829564732190847940",
+      "type": null,
+      "description": null
+    },
+    "Health Trigger Identifier": {
+      "id": "7829564732190848576",
+      "type": null,
+      "description": null
+    },
+    "Daily Task Prioritizer": {
+      "id": "7829564732190848558",
+      "type": null,
+      "description": null
+    },
+    "Visual Design Creator": {
+      "id": "7829564732190848528",
+      "type": null,
+      "description": null
+    },
+    "Journal Ins": {
+      "id": "7829564732190847027",
+      "type": null,
+      "description": null
+    },
+    "Motivation Booster": {
+      "id": "7829564732190848567",
+      "type": null,
+      "description": null
+    },
+    "Challenge Identifier": {
+      "id": "7829564732190848372",
+      "type": null,
+      "description": null
+    },
+    "Habit Optimization Assistant": {
+      "id": "7829564732190848249",
+      "type": null,
+      "description": null
+    },
+    "Insight Synthesizer": {
+      "id": "7829564732190848465",
+      "type": null,
+      "description": null
+    },
+    "Progress Monitoring": {
+      "id": "7829564732190848552",
+      "type": null,
+      "description": null
+    },
+    "Daily Briefing Generator": {
+      "id": "7829564732190848564",
+      "type": null,
+      "description": null
+    },
+    "Home Maint": {
+      "id": "7829564732190847835",
+      "type": null,
+      "description": null
+    },
+    "Self Assessment": {
+      "id": "7829564732190848537",
+      "type": null,
+      "description": null
+    },
+    "Smart Goal Creator": {
+      "id": "7829564732190848189",
+      "type": null,
+      "description": null
+    },
+    "Implementation Planner": {
+      "id": "7829564732190848069",
+      "type": null,
+      "description": null
+    },
+    "Mindfulness Progress Tracker": {
+      "id": "7829564732190848291",
+      "type": null,
+      "description": null
+    },
+    "Symptom Logger": {
+      "id": "7829564732190848570",
+      "type": null,
+      "description": null
+    },
+    "Brand Build": {
+      "id": "7829564732190847715",
+      "type": null,
+      "description": null
+    },
+    "Mindfulness Integration Coach": {
+      "id": "7829564732190848288",
+      "type": null,
+      "description": null
+    },
+    "Audience Analyzer": {
+      "id": "7829564732190848522",
+      "type": null,
+      "description": null
+    },
+    "Networking Strategist": {
+      "id": "7829564732190848534",
+      "type": null,
+      "description": null
+    },
+    "Mindfulness Needs Assessor": {
+      "id": "7829564732190848252",
+      "type": null,
+      "description": null
+    },
+    "Habit Reward System": {
+      "id": "7829564732190848228",
+      "type": null,
+      "description": null
+    },
+    "Vision Setting": {
+      "id": "7829564732190848540",
+      "type": null,
+      "description": null
+    },
+    "Health Pattern Analyzer": {
+      "id": "7829564732190848573",
+      "type": null,
+      "description": null
+    },
+    "Habit Coaching Advisor": {
+      "id": "7829564732190848306",
+      "type": null,
+      "description": null
+    },
+    "Pattern Analyzer": {
+      "id": "7829564732190848459",
+      "type": null,
+      "description": null
+    },
+    "Habit Strategy Designer": {
+      "id": "7829564732190848222",
+      "type": null,
+      "description": null
+    },
+    "Performance Data Collector": {
+      "id": "7829564732190848375",
+      "type": null,
+      "description": null
+    },
+    "Habit Trigger Setup": {
+      "id": "7829564732190848225",
+      "type": null,
+      "description": null
+    },
+    "Mindfulness Technique Trainer": {
+      "id": "7829564732190848282",
+      "type": null,
+      "description": null
+    },
+    "Personal Dev": {
+      "id": "7829564732190847778",
+      "type": null,
+      "description": null
+    },
+    "Habit Report Generator": {
+      "id": "7829564732190848498",
+      "type": null,
+      "description": null
+    },
+    "Schedule Optimizer": {
+      "id": "7829564732190848561",
+      "type": null,
+      "description": null
+    },
+    "Habit Framework Setup": {
+      "id": "7829564732190848381",
+      "type": null,
+      "description": null
+    },
+    "Stress Coach": {
+      "id": "7829564732190847186",
+      "type": null,
+      "description": null
+    },
+    "Goal Setter": {
+      "id": "7829564732190848471",
+      "type": null,
+      "description": null
+    },
+    "Role Optimize": {
+      "id": "7829564732190847859",
+      "type": null,
+      "description": null
+    },
+    "Resume Helper": {
+      "id": "7829564732190848102",
+      "type": null,
+      "description": null
+    },
+    "Role Optimizer": {
+      "id": "7829564732190847934",
+      "type": null,
+      "description": null
+    },
+    "Exp Parser": {
+      "id": "7829564732190847904",
+      "type": null,
+      "description": null
+    },
+    "Document Formatter": {
+      "id": "7829564732190848600",
+      "type": null,
+      "description": null
+    },
+    "Interview Prep": {
+      "id": "7829564732190847685",
+      "type": null,
+      "description": null
+    },
+    "Workload Evaluator": {
+      "id": "7829564732190848603",
+      "type": null,
+      "description": null
+    },
+    "Perf Review": {
+      "id": "7829564732190847742",
+      "type": null,
+      "description": null
+    },
+    "Role Optimization Generator": {
+      "id": "7829564732190848609",
+      "type": null,
+      "description": null
+    },
+    "Conflict Res": {
+      "id": "7829564732190847754",
+      "type": null,
+      "description": null
+    },
+    "Experience Analyzer": {
+      "id": "7829564732190848588",
+      "type": null,
+      "description": null
+    },
+    "Bullet Writer": {
+      "id": "7829564732190848084",
+      "type": null,
+      "description": null
+    },
+    "Impact Evaluator": {
+      "id": "7829564732190848612",
+      "type": null,
+      "description": null
+    },
+    "Ats Optimizer": {
+      "id": "7829564732190848597",
+      "type": null,
+      "description": null
+    },
+    "Team Build": {
+      "id": "7829564732190847748",
+      "type": null,
+      "description": null
+    },
+    "Skills Gap Analyzer": {
+      "id": "7829564732190848606",
+      "type": null,
+      "description": null
+    },
+    "Speaking Coach": {
+      "id": "7829564732190847760",
+      "type": null,
+      "description": null
+    },
+    "Cover Letter Drafter": {
+      "id": "7829564732190848594",
+      "type": null,
+      "description": null
+    },
+    "Career Nav": {
+      "id": "7829564732190847706",
+      "type": null,
+      "description": null
+    },
+    "Team Anal": {
+      "id": "7829564732190847919",
+      "type": null,
+      "description": null
+    },
+    "Cover Letter Writer": {
+      "id": "7829564732190848048",
+      "type": null,
+      "description": null
+    },
+    "Resume Bullet Creator": {
+      "id": "7829564732190848591",
+      "type": null,
+      "description": null
+    },
+    "Skills Assess": {
+      "id": "7829564732190847739",
+      "type": null,
+      "description": null
+    },
+    "Team Analysis": {
+      "id": "7829564732190848126",
+      "type": null,
+      "description": null
+    },
+    "Onboarding": {
+      "id": "7829564732190847757",
+      "type": null,
+      "description": null
+    },
+    "Code Gen Test": {
+      "id": "7829564732190847811",
+      "type": null,
+      "description": null
+    },
+    "Dev Troubleshoot": {
+      "id": "7829564732190847216",
+      "type": null,
+      "description": null
+    },
+    "Data Insight": {
+      "id": "7829564732190847871",
+      "type": null,
+      "description": null
+    },
+    "Doc Summ": {
+      "id": "7829564732190847072",
+      "type": null,
+      "description": null
+    },
+    "Perf Optimize": {
+      "id": "7829564732190847219",
+      "type": null,
+      "description": null
+    },
+    "Code Review": {
+      "id": "7829564732190847655",
+      "type": null,
+      "description": null
+    },
+    "Git Workflow": {
+      "id": "7829564732190847225",
+      "type": null,
+      "description": null
+    },
+    "Data Viz": {
+      "id": "7829564732190847054",
+      "type": null,
+      "description": null
+    },
+    "Api Docs Gen": {
+      "id": "7829564732190847922",
+      "type": null,
+      "description": null
+    },
+    "Tech Stack": {
+      "id": "7829564732190847105",
+      "type": null,
+      "description": null
+    },
+    "Debug Assist": {
+      "id": "7829564732190847850",
+      "type": null,
+      "description": null
+    },
+    "Api Integrate": {
+      "id": "7829564732190847222",
+      "type": null,
+      "description": null
+    },
+    "Bug Fix": {
+      "id": "7829564732190847069",
+      "type": null,
+      "description": null
+    },
+    "Regex Gen": {
+      "id": "7829564732190847102",
+      "type": null,
+      "description": null
+    },
+    "Price Comp": {
+      "id": "7829564732190847048",
+      "type": null,
+      "description": null
+    },
+    "Income Analyzer": {
+      "id": "7829564732190848618",
+      "type": null,
+      "description": null
+    },
+    "Tax Organizer": {
+      "id": "7829564732190847246",
+      "type": null,
+      "description": null
+    },
+    "Budget Scenario Modeler": {
+      "id": "7829564732190848624",
+      "type": null,
+      "description": null
+    },
+    "Expense Track": {
+      "id": "7829564732190847823",
+      "type": null,
+      "description": null
+    },
+    "Invest Analyze": {
+      "id": "7829564732190847691",
+      "type": null,
+      "description": null
+    },
+    "Subscription Mgr": {
+      "id": "7829564732190847916",
+      "type": null,
+      "description": null
+    },
+    "Sub Manage": {
+      "id": "7829564732190847844",
+      "type": null,
+      "description": null
+    },
+    "Budget Calc": {
+      "id": "7829564732190847970",
+      "type": null,
+      "description": null
+    },
+    "Financial Independence": {
+      "id": "7829564732190847793",
+      "type": null,
+      "description": null
+    },
+    "Fin Goal Track": {
+      "id": "7829564732190847240",
+      "type": null,
+      "description": null
+    },
+    "Budget Track": {
+      "id": "7829564732190847649",
+      "type": null,
+      "description": null
+    },
+    "Loan Calc": {
+      "id": "7829564732190847243",
+      "type": null,
+      "description": null
+    },
+    "Budget Plan": {
+      "id": "7829564732190847937",
+      "type": null,
+      "description": null
+    },
+    "Coupon Finder": {
+      "id": "7829564732190847237",
+      "type": null,
+      "description": null
+    },
+    "Scenario Mod": {
+      "id": "7829564732190847973",
+      "type": null,
+      "description": null
+    },
+    "Invest Research": {
+      "id": "7829564732190847946",
+      "type": null,
+      "description": null
+    },
+    "Budget Implementation Planner": {
+      "id": "7829564732190848627",
+      "type": null,
+      "description": null
+    },
+    "Fin Indep": {
+      "id": "7829564732190847724",
+      "type": null,
+      "description": null
+    },
+    "Budget Framework Applier": {
+      "id": "7829564732190848621",
+      "type": null,
+      "description": null
+    },
+    "Fin Report Summ": {
+      "id": "7829564732190847249",
+      "type": null,
+      "description": null
+    },
+    "Travel Plan": {
+      "id": "7829564732190847658",
+      "type": null,
+      "description": null
+    },
+    "Yes Man Av": {
+      "id": "7829564732190847562",
+      "type": null,
+      "description": null
+    },
+    "Digital Detox": {
+      "id": "7829564732190847712",
+      "type": null,
+      "description": null
+    },
+    "Relationship Comm": {
+      "id": "7829564732190847775",
+      "type": null,
+      "description": null
+    },
+    "Rel Comm": {
+      "id": "7829564732190847721",
+      "type": null,
+      "description": null
+    },
+    "Event Plan": {
+      "id": "7829564732190847697",
+      "type": null,
+      "description": null
+    },
+    "Home Org": {
+      "id": "7829564732190847709",
+      "type": null,
+      "description": null
+    },
+    "Motiv Des": {
+      "id": "7829564732190847964",
+      "type": null,
+      "description": null
+    },
+    "Habit Anal": {
+      "id": "7829564732190847916",
+      "type": null,
+      "description": null
+    },
+    "Smart Goal": {
+      "id": "7829564732190847901",
+      "type": null,
+      "description": null
+    },
+    "Motiv Gen": {
+      "id": "7829564732190847934",
+      "type": null,
+      "description": null
+    },
+    "Habit Strat": {
+      "id": "7829564732190847952",
+      "type": null,
+      "description": null
+    },
+    "Wellness Assessor": {
+      "id": "7829564732190848378",
+      "type": null,
+      "description": null
+    },
+    "Task Decomposer": {
+      "id": "7829564732190848267",
+      "type": null,
+      "description": null
+    },
+    "Opp Eval": {
+      "id": "7829564732190847132",
+      "type": null,
+      "description": null
+    },
+    "Negotiate": {
+      "id": "7829564732190847727",
+      "type": null,
+      "description": null
+    },
+    "Contract Review": {
+      "id": "7829564732190847832",
+      "type": null,
+      "description": null
+    },
+    "Prod Analyzer": {
+      "id": "7829564732190848000",
+      "type": null,
+      "description": null
+    },
+    "Project Scope Analyzer": {
+      "id": "7829564732190848264",
+      "type": null,
+      "description": null
+    },
+    "Trend Analyzer": {
+      "id": "7829564732190848066",
+      "type": null,
+      "description": null
+    },
+    "Compliance Checker": {
+      "id": "7829564732190848510",
+      "type": null,
+      "description": null
+    },
+    "Resource Alloc": {
+      "id": "7829564732190847195",
+      "type": null,
+      "description": null
+    },
+    "Risk Assessor": {
+      "id": "7829564732190848507",
+      "type": null,
+      "description": null
+    },
+    "Strategic Plan": {
+      "id": "7829564732190847745",
+      "type": null,
+      "description": null
+    },
+    "Scope Analyzer": {
+      "id": "7829564732190848150",
+      "type": null,
+      "description": null
+    },
+    "Customer Journey": {
+      "id": "7829564732190847730",
+      "type": null,
+      "description": null
+    },
+    "Proj Plan": {
+      "id": "7829564732190847904",
+      "type": null,
+      "description": null
+    },
+    "Timeline Creator": {
+      "id": "7829564732190848276",
+      "type": null,
+      "description": null
+    },
+    "Product Analyzer": {
+      "id": "7829564732190848366",
+      "type": null,
+      "description": null
+    },
+    "Data Parser": {
+      "id": "7829564732190848630",
+      "type": null,
+      "description": null
+    },
+    "Contract Recommendation Generator": {
+      "id": "7829564732190848513",
+      "type": null,
+      "description": null
+    },
+    "Feedback Sum": {
+      "id": "7829564732190847925",
+      "type": null,
+      "description": null
+    },
+    "Team Structure Analyzer": {
+      "id": "7829564732190848384",
+      "type": null,
+      "description": null
+    },
+    "Policy Summ": {
+      "id": "7829564732190847192",
+      "type": null,
+      "description": null
+    },
+    "Contract Summary Compiler": {
+      "id": "7829564732190848516",
+      "type": null,
+      "description": null
+    },
+    "Proposal Ast": {
+      "id": "7829564732190847039",
+      "type": null,
+      "description": null
+    },
+    "Sentiment Analyzer": {
+      "id": "7829564732190848351",
+      "type": null,
+      "description": null
+    },
+    "Meeting Orch": {
+      "id": "7829564732190847099",
+      "type": null,
+      "description": null
+    },
+    "Metrics Report": {
+      "id": "7829564732190847928",
+      "type": null,
+      "description": null
+    },
+    "Journey Map": {
+      "id": "7829564732190847838",
+      "type": null,
+      "description": null
+    },
+    "Invoice Proc": {
+      "id": "7829564732190847189",
+      "type": null,
+      "description": null
+    },
+    "Report Compiler": {
+      "id": "7829564732190848639",
+      "type": null,
+      "description": null
+    },
+    "Marketing Camp": {
+      "id": "7829564732190847751",
+      "type": null,
+      "description": null
+    },
+    "Feedback Parser": {
+      "id": "7829564732190848348",
+      "type": null,
+      "description": null
+    },
+    "Standup Syn": {
+      "id": "7829564732190847036",
+      "type": null,
+      "description": null
+    },
+    "Narrative Builder": {
+      "id": "7829564732190848636",
+      "type": null,
+      "description": null
+    },
+    "Contract Parser": {
+      "id": "7829564732190848501",
+      "type": null,
+      "description": null
+    },
+    "Insight Extractor": {
+      "id": "7829564732190848354",
+      "type": null,
+      "description": null
+    },
+    "Term Extractor": {
+      "id": "7829564732190848504",
+      "type": null,
+      "description": null
+    },
+    "Feedback Summary Generator": {
+      "id": "7829564732190848357",
+      "type": null,
+      "description": null
+    },
+    "Excel Db Import": {
+      "id": "7829564732190847207",
+      "type": null,
+      "description": null
+    },
+    "Keyword Extract": {
+      "id": "7829564732190847252",
+      "type": null,
+      "description": null
+    },
+    "Survey Anl": {
+      "id": "7829564732190847060",
+      "type": null,
+      "description": null
+    },
+    "Content Cluster": {
+      "id": "7829564732190847213",
+      "type": null,
+      "description": null
+    },
+    "Corr Find": {
+      "id": "7829564732190847057",
+      "type": null,
+      "description": null
+    },
+    "Data Cleaner": {
+      "id": "7829564732190847201",
+      "type": null,
+      "description": null
+    },
+    "Cont Cat": {
+      "id": "7829564732190847063",
+      "type": null,
+      "description": null
+    },
+    "Ab Test Eval": {
+      "id": "7829564732190847204",
+      "type": null,
+      "description": null
+    },
+    "Chart Gen": {
+      "id": "7829564732190847210",
+      "type": null,
+      "description": null
+    },
+    "Milestone Cr": {
+      "id": "7829564732190847955",
+      "type": null,
+      "description": null
+    },
+    "Note Parser": {
+      "id": "7829564732190848648",
+      "type": null,
+      "description": null
+    },
+    "Delegation Assessor": {
+      "id": "7829564732190848663",
+      "type": null,
+      "description": null
+    },
+    "Goal Align": {
+      "id": "7829564732190847910",
+      "type": null,
+      "description": null
+    },
+    "Weekly Rev": {
+      "id": "7829564732190847607",
+      "type": null,
+      "description": null
+    },
+    "Triage Reporter": {
+      "id": "7829564732190848057",
+      "type": null,
+      "description": null
+    },
+    "Email Classifier": {
+      "id": "7829564732190848039",
+      "type": null,
+      "description": null
+    },
+    "Project Phase Breakdown": {
+      "id": "7829564732190848270",
+      "type": null,
+      "description": null
+    },
+    "Note To Task": {
+      "id": "7829564732190847865",
+      "type": null,
+      "description": null
+    },
+    "Automation Evaluator": {
+      "id": "7829564732190848666",
+      "type": null,
+      "description": null
+    },
+    "Risk Assess": {
+      "id": "7829564732190847601",
+      "type": null,
+      "description": null
+    },
+    "Action Plan": {
+      "id": "7829564732190847958",
+      "type": null,
+      "description": null
+    },
+    "Activity Analyzer": {
+      "id": "7829564732190848141",
+      "type": null,
+      "description": null
+    },
+    "Goal Parser": {
+      "id": "7829564732190848138",
+      "type": null,
+      "description": null
+    },
+    "Plan Assem": {
+      "id": "7829564732190847967",
+      "type": null,
+      "description": null
+    },
+    "Recur Sched": {
+      "id": "7829564732190847108",
+      "type": null,
+      "description": null
+    },
+    "Time Block": {
+      "id": "7829564732190847928",
+      "type": null,
+      "description": null
+    },
+    "Project Plan": {
+      "id": "7829564732190847898",
+      "type": null,
+      "description": null
+    },
+    "Summary Organizer": {
+      "id": "7829564732190848654",
+      "type": null,
+      "description": null
+    },
+    "Prod Audit": {
+      "id": "7829564732190847673",
+      "type": null,
+      "description": null
+    },
+    "Lesson Extractor": {
+      "id": "7829564732190848642",
+      "type": null,
+      "description": null
+    },
+    "Email Parser": {
+      "id": "7829564732190848036",
+      "type": null,
+      "description": null
+    },
+    "Task Evaluator": {
+      "id": "7829564732190848411",
+      "type": null,
+      "description": null
+    },
+    "Task Prior": {
+      "id": "7829564732190847574",
+      "type": null,
+      "description": null
+    },
+    "Tracker Set": {
+      "id": "7829564732190847961",
+      "type": null,
+      "description": null
+    },
+    "Project Plan Generator": {
+      "id": "7829564732190848279",
+      "type": null,
+      "description": null
+    },
+    "Calendar Org": {
+      "id": "7829564732190848030",
+      "type": null,
+      "description": null
+    },
+    "Task Prioritizer Core": {
+      "id": "7829564732190848114",
+      "type": null,
+      "description": null
+    },
+    "Adv Prioritize": {
+      "id": "7829564732190847802",
+      "type": null,
+      "description": null
+    },
+    "Task Analyzer": {
+      "id": "7829564732190848660",
+      "type": null,
+      "description": null
+    },
+    "Matrix Organizer": {
+      "id": "7829564732190848414",
+      "type": null,
+      "description": null
+    },
+    "Effort Estimator": {
+      "id": "7829564732190848273",
+      "type": null,
+      "description": null
+    },
+    "Deadline Mon": {
+      "id": "7829564732190847595",
+      "type": null,
+      "description": null
+    },
+    "Note Summary": {
+      "id": "7829564732190847934",
+      "type": null,
+      "description": null
+    },
+    "Daily Plan": {
+      "id": "7829564732190847565",
+      "type": null,
+      "description": null
+    },
+    "Review Compiler": {
+      "id": "7829564732190848645",
+      "type": null,
+      "description": null
+    },
+    "Alignment Assessor": {
+      "id": "7829564732190848144",
+      "type": null,
+      "description": null
+    },
+    "Weekly Data Aggregator": {
+      "id": "7829564732190848237",
+      "type": null,
+      "description": null
+    },
+    "Summary Generator": {
+      "id": "7829564732190848162",
+      "type": null,
+      "description": null
+    },
+    "Priority Matrix": {
+      "id": "7829564732190847883",
+      "type": null,
+      "description": null
+    },
+    "Time Mgmt": {
+      "id": "7829564732190847769",
+      "type": null,
+      "description": null
+    },
+    "Task Alloc": {
+      "id": "7829564732190847592",
+      "type": null,
+      "description": null
+    },
+    "Theme Identifier": {
+      "id": "7829564732190848651",
+      "type": null,
+      "description": null
+    },
+    "Delegate Auto": {
+      "id": "7829564732190847919",
+      "type": null,
+      "description": null
+    },
+    "Proj Org": {
+      "id": "7829564732190847604",
+      "type": null,
+      "description": null
+    },
+    "Priority Mx": {
+      "id": "7829564732190847901",
+      "type": null,
+      "description": null
+    },
+    "Pomodoro": {
+      "id": "7829564732190847622",
+      "type": null,
+      "description": null
+    },
+    "Email Triage": {
+      "id": "7829564732190847913",
+      "type": null,
+      "description": null
+    },
+    "Time Block Scheduler Core": {
+      "id": "7829564732190848117",
+      "type": null,
+      "description": null
+    },
+    "Alignment Advisor": {
+      "id": "7829564732190848147",
+      "type": null,
+      "description": null
+    },
+    "Task Extractor": {
+      "id": "7829564732190848042",
+      "type": null,
+      "description": null
+    },
+    "Followup Suggester": {
+      "id": "7829564732190848657",
+      "type": null,
+      "description": null
+    },
+    "Deep Dive": {
+      "id": "7829564732190847093",
+      "type": null,
+      "description": null
+    },
+    "Fact Check": {
+      "id": "7829564732190847586",
+      "type": null,
+      "description": null
+    },
+    "Brief Assist": {
+      "id": "7829564732190847114",
+      "type": null,
+      "description": null
+    },
+    "Verdict Synthesizer": {
+      "id": "7829564732190848294",
+      "type": null,
+      "description": null
+    },
+    "News Digest": {
+      "id": "7829564732190847234",
+      "type": null,
+      "description": null
+    },
+    "Comp Analysis": {
+      "id": "7829564732190847667",
+      "type": null,
+      "description": null
+    },
+    "Web Research": {
+      "id": "7829564732190847583",
+      "type": null,
+      "description": null
+    },
+    "Company Res": {
+      "id": "7829564732190847907",
+      "type": null,
+      "description": null
+    },
+    "Fact Check Report Generator": {
+      "id": "7829564732190848297",
+      "type": null,
+      "description": null
+    },
+    "Research Synth": {
+      "id": "7829564732190847805",
+      "type": null,
+      "description": null
+    },
+    "Local Scout": {
+      "id": "7829564732190847228",
+      "type": null,
+      "description": null
+    },
+    "Web Research Agent": {
+      "id": "7829564732190848360",
+      "type": null,
+      "description": null
+    },
+    "Product Compare": {
+      "id": "7829564732190847231",
+      "type": null,
+      "description": null
+    },
+    "Expert Adv": {
+      "id": "7829564732190847117",
+      "type": null,
+      "description": null
+    },
+    "Research Syn": {
+      "id": "7829564732190847598",
+      "type": null,
+      "description": null
+    },
+    "Multi Synth": {
+      "id": "7829564732190847610",
+      "type": null,
+      "description": null
+    },
+    "Market Researcher": {
+      "id": "7829564732190848087",
+      "type": null,
+      "description": null
+    },
+    "Historical Comparison Searcher": {
+      "id": "7829564732190848462",
+      "type": null,
+      "description": null
+    },
+    "Evidence Quality Evaluator": {
+      "id": "7829564732190848243",
+      "type": null,
+      "description": null
+    },
+    "Context Search": {
+      "id": "7829564732190847075",
+      "type": null,
+      "description": null
+    },
+    "Trends Monitor": {
+      "id": "7829564732190847907",
+      "type": null,
+      "description": null
+    },
+    "Claim Decomposer": {
+      "id": "7829564732190848240",
+      "type": null,
+      "description": null
+    },
+    "Contextual Search": {
+      "id": "7829564732190847943",
+      "type": null,
+      "description": null
+    },
+    "Email Cond": {
+      "id": "7829564732190847135",
+      "type": null,
+      "description": null
+    },
+    "Highlight Ext": {
+      "id": "7829564732190847141",
+      "type": null,
+      "description": null
+    },
+    "Glossary Gen": {
+      "id": "7829564732190847138",
+      "type": null,
+      "description": null
+    },
+    "Mkt Compiler": {
+      "id": "7829564732190848018",
+      "type": null,
+      "description": null
+    },
+    "Landing Pg": {
+      "id": "7829564732190848015",
+      "type": null,
+      "description": null
+    },
+    "Platform Adapt": {
+      "id": "7829564732190848024",
+      "type": null,
+      "description": null
+    },
+    "Content Out": {
+      "id": "7829564732190847637",
+      "type": null,
+      "description": null
+    },
+    "Pr Statement": {
+      "id": "7829564732190847171",
+      "type": null,
+      "description": null
+    },
+    "Meet Mins": {
+      "id": "7829564732190847619",
+      "type": null,
+      "description": null
+    },
+    "Lang Trans Sum": {
+      "id": "7829564732190847162",
+      "type": null,
+      "description": null
+    },
+    "Content Repurpose": {
+      "id": "7829564732190847922",
+      "type": null,
+      "description": null
+    },
+    "Email Camp": {
+      "id": "7829564732190848012",
+      "type": null,
+      "description": null
+    },
+    "Doc Formatter": {
+      "id": "7829564732190848060",
+      "type": null,
+      "description": null
+    },
+    "Present Design": {
+      "id": "7829564732190847829",
+      "type": null,
+      "description": null
+    },
+    "Essay Coach": {
+      "id": "7829564732190847853",
+      "type": null,
+      "description": null
+    },
+    "Ad Copy Gen": {
+      "id": "7829564732190848009",
+      "type": null,
+      "description": null
+    },
+    "Writing Mentor": {
+      "id": "7829564732190847694",
+      "type": null,
+      "description": null
+    },
+    "Brief Comp": {
+      "id": "7829564732190847931",
+      "type": null,
+      "description": null
+    },
+    "Social Plan": {
+      "id": "7829564732190847682",
+      "type": null,
+      "description": null
+    },
+    "Email Draft": {
+      "id": "7829564732190847613",
+      "type": null,
+      "description": null
+    },
+    "Tone Style": {
+      "id": "7829564732190848093",
+      "type": null,
+      "description": null
+    },
+    "Campaign Theme": {
+      "id": "7829564732190848006",
+      "type": null,
+      "description": null
+    },
+    "Social Batch": {
+      "id": "7829564732190847174",
+      "type": null,
+      "description": null
+    },
+    "Slide Cond": {
+      "id": "7829564732190847165",
+      "type": null,
+      "description": null
+    },
+    "Report Writer": {
+      "id": "7829564732190847901",
+      "type": null,
+      "description": null
+    },
+    "Auto Mkt Mcp": {
+      "id": "7829564732190847015",
+      "type": null,
+      "description": null
+    },
+    "Content Anal": {
+      "id": "7829564732190848021",
+      "type": null,
+      "description": null
+    },
+    "Doc Summary": {
+      "id": "7829564732190847568",
+      "type": null,
+      "description": null
+    },
+    "Followup Email": {
+      "id": "7829564732190847159",
+      "type": null,
+      "description": null
+    },
+    "Meet Agenda": {
+      "id": "7829564732190847652",
+      "type": null,
+      "description": null
+    },
+    "Agenda Email": {
+      "id": "7829564732190847168",
+      "type": null,
+      "description": null
+    },
+    "Vid Script": {
+      "id": "7829564732190847024",
+      "type": null,
+      "description": null
+    },
+    "Email Temp": {
+      "id": "7829564732190847661",
+      "type": null,
+      "description": null
+    },
+    "Story Metaphor": {
+      "id": "7829564732190847012",
+      "type": null,
+      "description": null
+    },
+    "Format Gen": {
+      "id": "7829564732190848027",
+      "type": null,
+      "description": null
+    },
+    "Edit Proof": {
+      "id": "7829564732190847018",
+      "type": null,
+      "description": null
+    },
+    "Social Post": {
+      "id": "7829564732190847889",
+      "type": null,
+      "description": null
+    },
+    "Email Campaign": {
+      "id": "7829564732190847817",
+      "type": null,
+      "description": null
+    },
+    "Brand Voice": {
+      "id": "7829564732190848003",
+      "type": null,
+      "description": null
+    },
+    "News Sentiment Analyzer": {
+      "id": "7829564732190848090",
+      "type": null,
+      "description": null
+    },
+    "Market Research Assistant": {
+      "id": "7829564732190848258",
+      "type": null,
+      "description": null
+    },
+    "Investment Research Compiler": {
+      "id": "7829564732190848333",
+      "type": null,
+      "description": null
+    },
+    "Investment Trend Analyzer": {
+      "id": "7829564732190848330",
+      "type": null,
+      "description": null
+    },
+    "Flashcard Formatter": {
+      "id": "7829564732190848447",
+      "type": null,
+      "description": null
+    },
+    "Study Organizer": {
+      "id": "7829564732190848450",
+      "type": null,
+      "description": null
+    },
+    "Lecture Sum": {
+      "id": "7829564732190847042",
+      "type": null,
+      "description": null
+    },
+    "Study Sched": {
+      "id": "7829564732190847670",
+      "type": null,
+      "description": null
+    },
+    "Study Plan": {
+      "id": "7829564732190847814",
+      "type": null,
+      "description": null
+    },
+    "Writing Feedback": {
+      "id": "7829564732190847943",
+      "type": null,
+      "description": null
+    },
+    "Question Generator": {
+      "id": "7829564732190848165",
+      "type": null,
+      "description": null
+    },
+    "Flashcard Quiz": {
+      "id": "7829564732190847940",
+      "type": null,
+      "description": null
+    },
+    "Learn Plan": {
+      "id": "7829564732190847904",
+      "type": null,
+      "description": null
+    },
+    "Learn Reflect": {
+      "id": "7829564732190847676",
+      "type": null,
+      "description": null
+    },
+    "Research Paper": {
+      "id": "7829564732190847679",
+      "type": null,
+      "description": null
+    },
+    "Content Analyzer": {
+      "id": "7829564732190848441",
+      "type": null,
+      "description": null
+    },
+    "Essay Outl": {
+      "id": "7829564732190847045",
+      "type": null,
+      "description": null
+    },
+    "Structure Evaluator": {
+      "id": "7829564732190848456",
+      "type": null,
+      "description": null
+    },
+    "Lang Coach": {
+      "id": "7829564732190847703",
+      "type": null,
+      "description": null
+    },
+    "Learn Path": {
+      "id": "7829564732190847646",
+      "type": null,
+      "description": null
+    },
+    "Lang Trans": {
+      "id": "7829564732190847111",
+      "type": null,
+      "description": null
+    },
+    "Requirement Analyzer": {
+      "id": "7829564732190848453",
+      "type": null,
+      "description": null
+    },
+    "Weakness Detector": {
+      "id": "7829564732190848105",
+      "type": null,
+      "description": null
+    },
+    "Concept Synthesizer": {
+      "id": "7829564732190848210",
+      "type": null,
+      "description": null
+    },
+    "Brainstorm": {
+      "id": "7829564732190847640",
+      "type": null,
+      "description": null
+    },
+    "Ideation Facilitation": {
+      "id": "7829564732190848135",
+      "type": null,
+      "description": null
+    },
+    "Idea Refine": {
+      "id": "7829564732190848108",
+      "type": null,
+      "description": null
+    },
+    "Strength Finder": {
+      "id": "7829564732190848183",
+      "type": null,
+      "description": null
+    },
+    "Idea Expander": {
+      "id": "7829564732190848321",
+      "type": null,
+      "description": null
+    },
+    "Workshop Design": {
+      "id": "7829564732190848132",
+      "type": null,
+      "description": null
+    },
+    "Problem Solve": {
+      "id": "7829564732190847700",
+      "type": null,
+      "description": null
+    },
+    "Problem Reframe": {
+      "id": "7829564732190847910",
+      "type": null,
+      "description": null
+    },
+    "Enhance Sug": {
+      "id": "7829564732190847997",
+      "type": null,
+      "description": null
+    },
+    "Idea Analyzer": {
+      "id": "7829564732190848063",
+      "type": null,
+      "description": null
+    },
+    "Innovation Wrkshp": {
+      "id": "7829564732190847733",
+      "type": null,
+      "description": null
+    },
+    "Differentiation Analyzer": {
+      "id": "7829564732190848186",
+      "type": null,
+      "description": null
+    },
+    "Creative Idea Generator": {
+      "id": "7829564732190848318",
+      "type": null,
+      "description": null
+    },
+    "Problem Clarifier": {
+      "id": "7829564732190848315",
+      "type": null,
+      "description": null
+    },
+    "Critical Challenger": {
+      "id": "7829564732190848324",
+      "type": null,
+      "description": null
+    },
+    "Creative Solve": {
+      "id": "7829564732190847772",
+      "type": null,
+      "description": null
+    },
+    "Idea Organizer": {
+      "id": "7829564732190848327",
+      "type": null,
+      "description": null
+    },
+    "Innovation Workshop": {
+      "id": "7829564732190847790",
+      "type": null,
+      "description": null
+    },
+    "What If Plan": {
+      "id": "7829564732190847880",
+      "type": null,
+      "description": null
+    },
+    "Crisis Mgmt": {
+      "id": "7829564732190847736",
+      "type": null,
+      "description": null
+    },
+    "Dec Recomm": {
+      "id": "7829564732190847994",
+      "type": null,
+      "description": null
+    },
+    "Decision Fw": {
+      "id": "7829564732190847571",
+      "type": null,
+      "description": null
+    },
+    "Pros Cons": {
+      "id": "7829564732190847616",
+      "type": null,
+      "description": null
+    },
+    "Option Generation": {
+      "id": "7829564732190848129",
+      "type": null,
+      "description": null
+    },
+    "Criteria Extractor": {
+      "id": "7829564732190848174",
+      "type": null,
+      "description": null
+    },
+    "Weight Calc": {
+      "id": "7829564732190847985",
+      "type": null,
+      "description": null
+    },
+    "Decision Frm": {
+      "id": "7829564732190847922",
+      "type": null,
+      "description": null
+    },
+    "Matrix Builder": {
+      "id": "7829564732190848435",
+      "type": null,
+      "description": null
+    },
+    "Tradeoff Structurer": {
+      "id": "7829564732190848429",
+      "type": null,
+      "description": null
+    },
+    "Tradeoff Advisor": {
+      "id": "7829564732190848438",
+      "type": null,
+      "description": null
+    },
+    "Advanced Decision": {
+      "id": "7829564732190847784",
+      "type": null,
+      "description": null
+    },
+    "Decision Framing": {
+      "id": "7829564732190848123",
+      "type": null,
+      "description": null
+    },
+    "Option Scor": {
+      "id": "7829564732190847982",
+      "type": null,
+      "description": null
+    },
+    "Gain Loss Analyzer": {
+      "id": "7829564732190848432",
+      "type": null,
+      "description": null
+    },
+    "Matrix Fmt": {
+      "id": "7829564732190847991",
+      "type": null,
+      "description": null
+    },
+    "Decision Matrix": {
+      "id": "7829564732190848111",
+      "type": null,
+      "description": null
+    },
+    "Swot Analysis": {
+      "id": "7829564732190847886",
+      "type": null,
+      "description": null
+    },
+    "Score Calc": {
+      "id": "7829564732190847988",
+      "type": null,
+      "description": null
+    },
+    "Tradeoff": {
+      "id": "7829564732190847916",
+      "type": null,
+      "description": null
+    },
+    "Seo Optimizer": {
+      "id": "7829564732190848078",
+      "type": null,
+      "description": null
+    },
+    "Outline Gen": {
+      "id": "7829564732190847078",
+      "type": null,
+      "description": null
+    },
+    "Intro Writer": {
+      "id": "7829564732190848096",
+      "type": null,
+      "description": null
+    },
+    "Body Content": {
+      "id": "7829564732190848075",
+      "type": null,
+      "description": null
+    },
+    "Conclusion Writer": {
+      "id": "7829564732190848216",
+      "type": null,
+      "description": null
+    },
+    "Blog Writer": {
+      "id": "1734567890123456792",
+      "type": null,
+      "description": null
+    },
+    "Seo Opt": {
+      "id": "7829564732190847120",
+      "type": null,
+      "description": null
+    },
+    "Content Assembler": {
+      "id": "7829564732190848081",
+      "type": null,
+      "description": null
+    },
+    "Slogan Gen": {
+      "id": "7829564732190847084",
+      "type": null,
+      "description": null
+    },
+    "Character Dial": {
+      "id": "7829564732190847156",
+      "type": null,
+      "description": null
+    },
+    "Campaign Fact": {
+      "id": "7829564732190847153",
+      "type": null,
+      "description": null
+    },
+    "Design Brain": {
+      "id": "7829564732190847144",
+      "type": null,
+      "description": null
+    },
+    "Question Storm": {
+      "id": "7829564732190847150",
+      "type": null,
+      "description": null
+    },
+    "Title Gen": {
+      "id": "7829564732190847147",
+      "type": null,
+      "description": null
+    },
+    "Tabular Formatter": {
+      "id": "7829564732190848363",
+      "type": null,
+      "description": null
+    },
+    "Knowledge Base Updater": {
+      "id": "7829564732190848468",
+      "type": null,
+      "description": null
+    },
+    "Anomaly Detect": {
+      "id": "7829564732190847919",
+      "type": null,
+      "description": null
+    },
+    "Memory Maint": {
+      "id": "7829564732190847796",
+      "type": null,
+      "description": null
+    },
+    "Cap Gap": {
+      "id": "7829564732190847589",
+      "type": null,
+      "description": null
+    }
+  },
+  "notes": "This file maps routine names to routine metadata for agent validation"
+}

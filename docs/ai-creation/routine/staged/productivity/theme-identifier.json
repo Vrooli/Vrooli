@@ -1,0 +1,134 @@
+{
+  "id": "7829564732190848651",
+  "publicId": "theme-identifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847075",
+      "tag": "note-taking",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Note organization and management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848652",
+      "publicId": "theme-identifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies themes and patterns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "parsedContent",
+                "id": "parsed_content_input",
+                "label": "Structured Content",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Parsed note content"
+              },
+              {
+                "fieldName": "keyInfo",
+                "id": "key_info_input",
+                "label": "Extracted Info",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Key information"
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": [
+                  "basic",
+                  "standard",
+                  "deep",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "mainThemes",
+                "id": "main_themes_output",
+                "label": "Key Themes",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "subTopics",
+                "id": "sub_topics_output",
+                "label": "Related Topics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "patterns",
+                "id": "patterns_output",
+                "label": "Recurring Patterns",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848653",
+          "language": "en",
+          "name": "Theme Identifier",
+          "description": "Identifies main themes, topics, and recurring patterns within parsed notes and content.",
+          "instructions": "Provide parsed content. The routine will identify themes and patterns."
+        }
+      ]
+    }
+  ]
+}

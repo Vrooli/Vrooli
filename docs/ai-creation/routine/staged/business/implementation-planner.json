@@ -1,0 +1,137 @@
+{
+  "id": "7829564732190848345",
+  "publicId": "implementation-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847033",
+      "publicId": "business-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "business"
+    },
+    {
+      "id": "7829564732190847035",
+      "publicId": "project-management-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "project-management"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848346",
+      "publicId": "implementation-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates actionable implementation plans",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Create actionable implementation plan with next steps:\n\nTimeline: {{input.timeline}}\nMilestone Data: {{input.milestoneData}}\nCritical Path: {{input.criticalPath}}\nBuffer Plan: {{input.bufferPlan}}\n\nGenerate comprehensive implementation plan:\n\n1. **Kickoff Strategy**:\n   - Project launch activities\n   - Team mobilization\n   - Communication plan\n   - Initial setup tasks\n   - Quick wins identification\n\n2. **Immediate Actions (Week 1-2)**:\n   - Priority task list\n   - Resource allocation\n   - Tool setup\n   - Team onboarding\n   - Baseline establishment\n\n3. **Short-term Plan (Month 1)**:\n   - Weekly objectives\n   - Deliverable schedule\n   - Review cycles\n   - Progress checkpoints\n   - Early risk mitigation\n\n4. **Phase Implementation**:\n   - Phase kickoff procedures\n   - Transition planning\n   - Quality gates\n   - Approval processes\n   - Phase closure criteria\n\n5. **Monitoring Framework**:\n   - KPI definition\n   - Tracking mechanisms\n   - Reporting structure\n   - Dashboard setup\n   - Alert thresholds\n\n6. **Communication Plan**:\n   - Stakeholder updates\n   - Team meetings\n   - Status reports\n   - Escalation paths\n   - Documentation standards\n\n7. **Risk Mitigation Actions**:\n   - Preventive measures\n   - Contingency activation\n   - Issue management\n   - Change control\n   - Decision protocols\n\n8. **Success Enablers**:\n   - Team empowerment\n   - Process optimization\n   - Tool utilization\n   - Knowledge sharing\n   - Continuous improvement\n\nReturn as structured JSON with keys: actionPlan (object), immediateActions (array), monitoringPlan (object), communicationStrategy (object), riskMitigation (object), phaseTransitions (array), successFactors (object), nextSteps (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Master Schedule",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Project timeline and schedule...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "milestoneData",
+                "id": "milestones_input",
+                "label": "Key Milestones",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Major milestones and deliverables...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "criticalPath",
+                "id": "critical_input",
+                "label": "Critical Tasks",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Critical path activities...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "bufferPlan",
+                "id": "buffer_input",
+                "label": "Time Buffers",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Buffer and contingency allocations...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "implementationPlan",
+                "id": "plan_output",
+                "label": "Implementation Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "nextSteps",
+                "id": "steps_output",
+                "label": "Immediate Next Steps",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848347",
+          "language": "en-US",
+          "description": "Creates actionable implementation plans with monitoring frameworks and risk mitigation",
+          "instructions": "Provide timeline and milestones. The system will create an implementation plan with next steps.",
+          "name": "Implementation Planner"
+        }
+      ]
+    }
+  ]
+}

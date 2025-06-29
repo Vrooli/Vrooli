@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848552",
+  "publicId": "progress-monitoring-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "personal-development",
+      "translations": [
+        {
+          "id": "7829564732190847141",
+          "language": "en",
+          "description": "Personal growth and development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847046",
+      "tag": "tracking",
+      "translations": [
+        {
+          "id": "7829564732190847146",
+          "language": "en",
+          "description": "Progress tracking and monitoring"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848553",
+      "publicId": "progress-monitoring-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Monitors and adapts personal development progress",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dailyHabits",
+                "id": "daily_habits_input",
+                "label": "Implemented Daily Habits",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current habit implementation data"
+              },
+              {
+                "fieldName": "progressMetrics",
+                "id": "progress_metrics_input",
+                "label": "Progress Metrics",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Development indicators and measurements"
+              },
+              {
+                "fieldName": "reviewFrequency",
+                "id": "review_frequency_input",
+                "label": "Review Frequency",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "weekly",
+                "options": [
+                  "daily",
+                  "weekly",
+                  "biweekly",
+                  "monthly",
+                  "quarterly"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "progressAssessment",
+                "id": "progress_assessment_output",
+                "label": "Development Progress Assessment",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848554",
+          "language": "en",
+          "name": "Progress Monitoring",
+          "description": "Tracks personal development progress, analyzes results, and adjusts strategies based on performance and changing priorities.",
+          "instructions": "Provide habit implementation and progress metrics for assessment. The routine will evaluate your development journey."
+        }
+      ]
+    }
+  ]
+}

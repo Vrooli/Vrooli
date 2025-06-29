@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190848666",
+  "publicId": "automation-evaluator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847091",
+      "tag": "automation",
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "description": "Automation and workflow optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848667",
+      "publicId": "automation-evaluator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Evaluates automation potential",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskDetails",
+                "id": "task_details_input",
+                "label": "Task Details",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Detailed task information"
+              },
+              {
+                "fieldName": "automationTools",
+                "id": "automation_tools_input",
+                "label": "Available Tools",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Tools and platforms available"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "automationOptions",
+                "id": "automation_options_output",
+                "label": "Automation Possibilities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "toolRecommendations",
+                "id": "tool_recommendations_output",
+                "label": "Recommended Tools",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationSteps",
+                "id": "implementation_steps_output",
+                "label": "Implementation Guide",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848668",
+          "language": "en",
+          "name": "Automation Evaluator",
+          "description": "Identifies tasks that can be automated and recommends specific tools and methods.",
+          "instructions": "Provide task details and available tools. The routine will suggest automation options."
+        }
+      ]
+    }
+  ]
+}

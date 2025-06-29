@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Analyze Task Characteristics",
                 "description": "Evaluates task complexity, frequency, and skill requirements",
-                "subroutineId": "task-analyzer-v1",
+                "subroutineId": "7829564732190848660",
                 "inputMap": {
                   "originalTaskList": "taskList",
                   "originalTeamCapabilities": "teamCapabilities",
@@ -44,7 +44,7 @@
                 "id": "step-2",
                 "name": "Assess Delegation Potential",
                 "description": "Evaluates which tasks are suitable for delegation",
-                "subroutineId": "delegation-assessor-v1",
+                "subroutineId": "7829564732190848663",
                 "inputMap": {
                   "complexityAnalysis": "taskComplexity",
                   "taskFrequency": "frequencyData",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Evaluate Automation Opportunities",
                 "description": "Identifies tasks suitable for automation",
-                "subroutineId": "automation-evaluator-v1",
+                "subroutineId": "7829564732190848666",
                 "inputMap": {
                   "taskComplexity": "complexityScores",
                   "frequencyData": "taskFrequency",
@@ -80,7 +80,7 @@
                 "id": "step-4",
                 "name": "Generate Action Plan",
                 "description": "Creates prioritized recommendations for delegation and automation",
-                "subroutineId": "action-planner-v1",
+                "subroutineId": "7829564732190848669",
                 "inputMap": {
                   "delegatableTasks": "delegationOptions",
                   "skillAlignment": "teamMatching",

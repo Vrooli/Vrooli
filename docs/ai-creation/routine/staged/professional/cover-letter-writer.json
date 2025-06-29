@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190848048",
+  "publicId": "cover-letter-writer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847031",
+      "publicId": "professional-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "professional"
+    },
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848049",
+      "publicId": "cover-letter-writer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates cover letter paragraphs targeting specific roles",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Create targeted cover letter content based on structured experience data:\n\nStructured Experience: {{input.structuredExperience}}\nJob Description: {{input.jobDescription}}\nCompany Information: {{input.companyInfo}}\nPersonal Brand: {{input.personalBrand}}\n\nGenerate cover letter components:\n\n1. Opening Paragraph:\n   - Hook statement\n   - Position applied for\n   - Brief value proposition\n   - Connection to company\n   - Enthusiasm indicator\n\n2. Experience Paragraph(s):\n   - Most relevant achievements\n   - Quantified results\n   - Skills alignment\n   - Problem-solving examples\n   - Leadership instances\n\n3. Company Fit Paragraph:\n   - Company research insights\n   - Value alignment\n   - Cultural fit indicators\n   - Specific contributions\n   - Future vision\n\n4. Closing Paragraph:\n   - Call to action\n   - Availability mention\n   - Professional courtesy\n   - Contact information\n   - Follow-up indication\n\n5. Content Optimization:\n   - Keyword integration\n   - ATS-friendly language\n   - Professional tone\n   - Concise messaging\n   - Error-free writing\n\n6. Personalization Elements:\n   - Hiring manager name\n   - Company-specific details\n   - Role-specific language\n   - Industry terminology\n   - Recent company news\n\n7. Format Guidelines:\n   - Business letter format\n   - Appropriate length\n   - Paragraph structure\n   - Professional language\n   - Clear transitions\n\nReturn as structured JSON with keys: openingParagraph, experienceParagraphs (array), companyFitParagraph, closingParagraph, keywordOptimization (array), personalizationNotes (array), formattingTips (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "structuredExperience",
+                "id": "experience_input",
+                "label": "Structured Experience Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output from experience parser with structured work history...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "jobDescription",
+                "id": "job_input",
+                "label": "Job Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Full job posting or description for the target role...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "companyInfo",
+                "id": "company_input",
+                "label": "Company Information",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Company details, values, recent news, etc.",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "personalBrand",
+                "id": "brand_input",
+                "label": "Personal Brand/Message",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Your unique value proposition or career focus"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "coverLetterContent",
+                "id": "letter_output",
+                "label": "Cover Letter Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "optimizationNotes",
+                "id": "optimization_output",
+                "label": "Optimization Notes",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848050",
+          "language": "en-US",
+          "description": "Creates targeted cover letter content from structured experience data and job requirements",
+          "instructions": "Enter your structured experience and target job details. The system will generate compelling cover letter content tailored to the specific role and company.",
+          "name": "Cover Letter Writer"
+        }
+      ]
+    }
+  ]
+}

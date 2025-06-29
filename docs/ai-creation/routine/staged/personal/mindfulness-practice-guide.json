@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Mindfulness Needs & Goals",
                 "description": "Evaluates current stress levels, lifestyle, and wellness objectives",
-                "subroutineId": "TODO: Need mindfulness assessment subroutine",
+                "subroutineId": "7829564732190848252",
                 "inputMap": {
                   "currentStressLevel": "stressProfile",
                   "lifestyleFactors": "dailyPatterns",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Design Personalized Practice Plan",
                 "description": "Creates tailored meditation and mindfulness routine",
-                "subroutineId": "TODO: Need practice design subroutine",
+                "subroutineId": "7829564732190848255",
                 "inputMap": {
                   "mindfulnessRequirements": "practiceNeeds",
                   "timeAvailability": "scheduleConstraints",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Learn Foundational Techniques",
                 "description": "Teaches core mindfulness and meditation practices",
-                "subroutineId": "TODO: Need technique training subroutine",
+                "subroutineId": "7829564732190848282",
                 "inputMap": {
                   "practiceMethodology": "techniqueSelection",
                   "learningStyle": "instructionalPreference",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Establish Daily Practice",
                 "description": "Builds consistent mindfulness habits and routines",
-                "subroutineId": "TODO: Need habit formation subroutine",
+                "subroutineId": "7829564732190848285",
                 "inputMap": {
                   "mindfulnessRoutine": "practiceSchedule",
                   "environmentSetup": "practiceSpace",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Apply Mindfulness in Daily Life",
                 "description": "Integrates mindful awareness into everyday activities",
-                "subroutineId": "TODO: Need integration training subroutine",
+                "subroutineId": "7829564732190848288",
                 "inputMap": {
                   "fundamentalTechniques": "basicSkills",
                   "dailyActivities": "lifecontextIntegration",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Track Progress & Deepen Practice",
                 "description": "Monitors development and advances to deeper techniques",
-                "subroutineId": "TODO: Need progress tracking subroutine",
+                "subroutineId": "7829564732190848291",
                 "inputMap": {
                   "practiceData": "meditationLogs",
                   "wellnessMetrics": "improvementIndicators",

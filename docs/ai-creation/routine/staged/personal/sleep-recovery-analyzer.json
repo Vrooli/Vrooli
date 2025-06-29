@@ -1,0 +1,159 @@
+{
+  "id": "7829564732190847183",
+  "publicId": "sleep-analysis-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847184",
+      "publicId": "sleep-analyzer-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import json\nimport datetime\nfrom statistics import mean, median\n\ndef analyze_sleep_patterns():\n    # Get inputs\n    sleep_data = globals().get('sleep_data', '')\n    lifestyle_factors = globals().get('lifestyle_factors', '')\n    sleep_goals = globals().get('sleep_goals', '7-8 hours')\n    current_issues = globals().get('current_issues', '')\n    tracking_period = globals().get('tracking_period', '1 week')\n    \n    def parse_sleep_data(data_text):\n        \"\"\"Parse sleep/wake times and quality ratings\"\"\"\n        sleep_entries = []\n        if not data_text:\n            # Create sample data for demonstration\n            sample_entries = [\n                {'bedtime': '23:30', 'wake_time': '07:00', 'quality': 7, 'notes': 'Good sleep'},\n                {'bedtime': '00:15', 'wake_time': '07:30', 'quality': 6, 'notes': 'Woke up once'},\n                {'bedtime': '23:45', 'wake_time': '06:45', 'quality': 8, 'notes': 'Great sleep'},\n                {'bedtime': '00:30', 'wake_time': '08:00', 'quality': 5, 'notes': 'Restless'},\n                {'bedtime': '23:00', 'wake_time': '07:15', 'quality': 7, 'notes': 'Average'},\n                {'bedtime': '01:00', 'wake_time': '08:30', 'quality': 4, 'notes': 'Poor sleep'},\n                {'bedtime': '23:15', 'wake_time': '07:00', 'quality': 8, 'notes': 'Refreshed'}\n            ]\n            return sample_entries\n        \n        lines = data_text.strip().split('\\n')\n        for line in lines:\n            if line.strip():\n                try:\n                    # Try to parse different formats\n                    parts = line.split(',')\n                    if len(parts) >= 3:\n                        bedtime = parts[0].strip()\n                        wake_time = parts[1].strip()\n                        quality = int(parts[2].strip())\n                        notes = parts[3].strip() if len(parts) > 3 else ''\n                        \n                        sleep_entries.append({\n                            'bedtime': bedtime,\n                            'wake_time': wake_time,\n                            'quality': quality,\n                            'notes': notes\n                        })\n                except:\n                    continue\n        \n        return sleep_entries if sleep_entries else [\n            {'bedtime': '23:30', 'wake_time': '07:00', 'quality': 7, 'notes': 'Sample data'}\n        ]\n    \n    def calculate_sleep_duration(bedtime, wake_time):\n        \"\"\"Calculate sleep duration in hours\"\"\"\n        try:\n            # Parse times\n            bed_hour, bed_min = map(int, bedtime.split(':'))\n            wake_hour, wake_min = map(int, wake_time.split(':'))\n            \n            # Convert to minutes\n            bed_minutes = bed_hour * 60 + bed_min\n            wake_minutes = wake_hour * 60 + wake_min\n            \n            # Handle overnight sleep\n            if wake_minutes < bed_minutes:\n                wake_minutes += 24 * 60\n            \n            duration_minutes = wake_minutes - bed_minutes\n            return duration_minutes / 60.0\n        except:\n            return 7.5  # Default assumption\n    \n    def analyze_sleep_patterns(sleep_entries):\n        \"\"\"Analyze sleep patterns and trends\"\"\"\n        if not sleep_entries:\n            return {}\n        \n        durations = []\n        qualities = []\n        bedtimes = []\n        wake_times = []\n        \n        for entry in sleep_entries:\n            duration = calculate_sleep_duration(entry['bedtime'], entry['wake_time'])\n            durations.append(duration)\n            qualities.append(entry['quality'])\n            \n            # Convert times to minutes for analysis\n            bed_hour, bed_min = map(int, entry['bedtime'].split(':'))\n            wake_hour, wake_min = map(int, entry['wake_time'].split(':'))\n            \n            bedtimes.append(bed_hour * 60 + bed_min)\n            wake_times.append(wake_hour * 60 + wake_min)\n        \n        analysis = {\n            'average_duration': round(mean(durations), 1),\n            'duration_range': f\"{min(durations):.1f} - {max(durations):.1f} hours\",\n            'average_quality': round(mean(qualities), 1),\n            'quality_range': f\"{min(qualities)} - {max(qualities)}/10\",\n            'average_bedtime': minutes_to_time(int(mean(bedtimes))),\n            'average_wake_time': minutes_to_time(int(mean(wake_times))),\n            'consistency_score': calculate_consistency(durations, bedtimes),\n            'total_entries': len(sleep_entries)\n        }\n        \n        return analysis\n    \n    def minutes_to_time(minutes):\n        \"\"\"Convert minutes to time format\"\"\"\n        if minutes >= 24 * 60:\n            minutes -= 24 * 60\n        hours = minutes // 60\n        mins = minutes % 60\n        return f\"{hours:02d}:{mins:02d}\"\n    \n    def calculate_consistency(durations, bedtimes):\n        \"\"\"Calculate sleep consistency score\"\"\"\n        if len(durations) < 2:\n            return 8.0\n        \n        duration_std = calculate_std_dev(durations)\n        bedtime_std = calculate_std_dev(bedtimes)\n        \n        # Score based on variability (lower variability = higher score)\n        duration_score = max(0, 10 - (duration_std * 2))\n        bedtime_score = max(0, 10 - (bedtime_std / 30))  # 30 minutes = 1 point\n        \n        return round((duration_score + bedtime_score) / 2, 1)\n    \n    def calculate_std_dev(values):\n        \"\"\"Calculate standard deviation\"\"\"\n        if len(values) < 2:\n            return 0\n        avg = mean(values)\n        variance = sum((x - avg) ** 2 for x in values) / len(values)\n        return variance ** 0.5\n    \n    def identify_patterns(sleep_entries):\n        \"\"\"Identify sleep patterns and issues\"\"\"\n        patterns = []\n        \n        # Analyze quality vs duration\n        high_quality_nights = [e for e in sleep_entries if e['quality'] >= 8]\n        low_quality_nights = [e for e in sleep_entries if e['quality'] <= 5]\n        \n        if high_quality_nights:\n            avg_duration_good = mean([calculate_sleep_duration(e['bedtime'], e['wake_time']) for e in high_quality_nights])\n            patterns.append(f\"High quality sleep averaging {avg_duration_good:.1f} hours\")\n        \n        if low_quality_nights:\n            avg_duration_poor = mean([calculate_sleep_duration(e['bedtime'], e['wake_time']) for e in low_quality_nights])\n            patterns.append(f\"Poor quality sleep averaging {avg_duration_poor:.1f} hours\")\n        \n        # Check for late bedtimes\n        late_nights = [e for e in sleep_entries if int(e['bedtime'].split(':')[0]) >= 24 or int(e['bedtime'].split(':')[0]) <= 1]\n        if len(late_nights) > len(sleep_entries) / 2:\n            patterns.append(\"Frequent late bedtimes (after midnight)\")\n        \n        # Check for early wake times\n        early_wakes = [e for e in sleep_entries if int(e['wake_time'].split(':')[0]) <= 6]\n        if len(early_wakes) > len(sleep_entries) / 2:\n            patterns.append(\"Frequently waking up early (before 6 AM)\")\n        \n        return patterns\n    \n    def generate_recommendations(analysis, patterns, sleep_goals, lifestyle_factors, current_issues):\n        \"\"\"Generate personalized sleep improvement recommendations\"\"\"\n        recommendations = []\n        \n        # Duration recommendations\n        target_hours = 7.5  # Default\n        if '7-8' in sleep_goals:\n            target_hours = 7.5\n        elif '8-9' in sleep_goals:\n            target_hours = 8.5\n        elif '6-7' in sleep_goals:\n            target_hours = 6.5\n        \n        if analysis.get('average_duration', 7) < target_hours - 0.5:\n            recommendations.append({\n                'category': 'Duration',\n                'priority': 'High',\n                'recommendation': f\"Increase sleep duration to {target_hours} hours by going to bed 30-60 minutes earlier\",\n                'rationale': f\"Currently averaging {analysis.get('average_duration', 7):.1f} hours, below your goal range\"\n            })\n        \n        # Quality recommendations\n        if analysis.get('average_quality', 7) < 7:\n            recommendations.append({\n                'category': 'Sleep Quality',\n                'priority': 'High',\n                'recommendation': 'Focus on sleep hygiene: dark room, cool temperature (65-68°F), no screens 1 hour before bed',\n                'rationale': f\"Average sleep quality is {analysis.get('average_quality', 7):.1f}/10, which can be improved\"\n            })\n        \n        # Consistency recommendations\n        if analysis.get('consistency_score', 8) < 7:\n            recommendations.append({\n                'category': 'Consistency',\n                'priority': 'Medium',\n                'recommendation': 'Maintain consistent bedtime and wake time, even on weekends',\n                'rationale': f\"Consistency score is {analysis.get('consistency_score', 8):.1f}/10, indicating irregular patterns\"\n            })\n        \n        # Lifestyle-based recommendations\n        if lifestyle_factors:\n            factors_lower = lifestyle_factors.lower()\n            if 'caffeine' in factors_lower:\n                recommendations.append({\n                    'category': 'Lifestyle',\n                    'priority': 'Medium',\n                    'recommendation': 'Limit caffeine intake after 2 PM to improve sleep quality',\n                    'rationale': 'Caffeine can interfere with sleep even 6 hours before bedtime'\n                })\n            \n            if 'exercise' in factors_lower or 'workout' in factors_lower:\n                recommendations.append({\n                    'category': 'Lifestyle',\n                    'priority': 'Low',\n                    'recommendation': 'Finish intense exercise at least 3 hours before bedtime',\n                    'rationale': 'Exercise can be stimulating and raise body temperature'\n                })\n            \n            if 'stress' in factors_lower or 'anxiety' in factors_lower:\n                recommendations.append({\n                    'category': 'Mental Health',\n                    'priority': 'High',\n                    'recommendation': 'Implement relaxation techniques: meditation, deep breathing, or journaling before bed',\n                    'rationale': 'Stress and anxiety are major contributors to poor sleep quality'\n                })\n        \n        # Issue-specific recommendations\n        if current_issues:\n            issues_lower = current_issues.lower()\n            if 'wake up' in issues_lower or 'waking' in issues_lower:\n                recommendations.append({\n                    'category': 'Sleep Maintenance',\n                    'priority': 'Medium',\n                    'recommendation': 'Avoid checking time if you wake up at night, practice relaxation breathing',\n                    'rationale': 'Frequent awakenings disrupt sleep cycles and quality'\n                })\n            \n            if 'fall asleep' in issues_lower or 'falling asleep' in issues_lower:\n                recommendations.append({\n                    'category': 'Sleep Initiation',\n                    'priority': 'High',\n                    'recommendation': 'Establish a 30-minute wind-down routine with consistent activities',\n                    'rationale': 'Difficulty falling asleep often indicates insufficient preparation for sleep'\n                })\n        \n        return recommendations\n    \n    def calculate_sleep_deficit(analysis, target_hours):\n        \"\"\"Calculate sleep debt\"\"\"\n        current_avg = analysis.get('average_duration', 7)\n        deficit_per_night = max(0, target_hours - current_avg)\n        weekly_deficit = deficit_per_night * 7\n        \n        return {\n            'nightly_deficit': round(deficit_per_night, 1),\n            'weekly_deficit': round(weekly_deficit, 1),\n            'deficit_status': 'None' if deficit_per_night < 0.5 else 'Moderate' if deficit_per_night < 1 else 'Significant'\n        }\n    \n    def generate_action_plan(recommendations):\n        \"\"\"Generate a practical action plan\"\"\"\n        high_priority = [r for r in recommendations if r['priority'] == 'High']\n        medium_priority = [r for r in recommendations if r['priority'] == 'Medium']\n        \n        action_plan = {\n            'week_1_focus': [\n                'Set a consistent bedtime and wake time',\n                'Create a 30-minute wind-down routine',\n                'Optimize bedroom environment (temperature, darkness, quiet)'\n            ],\n            'week_2_additions': [\n                'Implement the highest priority recommendations',\n                'Start tracking sleep quality daily',\n                'Address any lifestyle factors affecting sleep'\n            ],\n            'ongoing_habits': [\n                'Maintain sleep schedule consistency',\n                'Regular exercise (but not close to bedtime)',\n                'Manage stress through relaxation techniques',\n                'Monitor and adjust based on sleep quality'\n            ]\n        }\n        \n        if high_priority:\n            action_plan['immediate_priorities'] = [r['recommendation'] for r in high_priority[:2]]\n        \n        return action_plan\n    \n    # Main execution\n    try:\n        sleep_entries = parse_sleep_data(sleep_data)\n        analysis = analyze_sleep_patterns(sleep_entries)\n        patterns = identify_patterns(sleep_entries)\n        \n        # Extract target hours from goals\n        target_hours = 7.5\n        if '8-9' in sleep_goals:\n            target_hours = 8.5\n        elif '6-7' in sleep_goals:\n            target_hours = 6.5\n        \n        deficit_analysis = calculate_sleep_deficit(analysis, target_hours)\n        recommendations = generate_recommendations(analysis, patterns, sleep_goals, lifestyle_factors, current_issues)\n        action_plan = generate_action_plan(recommendations)\n        \n        output = {\n            'sleep_analysis': {\n                'tracking_period': tracking_period,\n                'sleep_goal': sleep_goals,\n                'current_performance': analysis,\n                'identified_patterns': patterns,\n                'sleep_deficit': deficit_analysis\n            },\n            'recommendations': {\n                'total_recommendations': len(recommendations),\n                'high_priority': [r for r in recommendations if r['priority'] == 'High'],\n                'medium_priority': [r for r in recommendations if r['priority'] == 'Medium'],\n                'low_priority': [r for r in recommendations if r['priority'] == 'Low']\n            },\n            'action_plan': action_plan,\n            'sleep_optimization_tips': [\n                'Keep bedroom temperature between 65-68°F (18-20°C)',\n                'Use blackout curtains or eye mask for complete darkness',\n                'Avoid large meals, caffeine, and alcohol 3 hours before bed',\n                'Get 10-15 minutes of morning sunlight to regulate circadian rhythm',\n                'Use your bed only for sleep and intimacy',\n                'If you can\\'t fall asleep within 20 minutes, get up and do a quiet activity'\n            ],\n            'tracking_improvements': [\n                'Rate sleep quality on a 1-10 scale daily',\n                'Note factors that affect sleep (stress, caffeine, exercise)',\n                'Track bedtime and wake time consistency',\n                'Monitor how recommendations impact sleep quality',\n                'Review weekly patterns to identify trends'\n            ],\n            'when_to_seek_help': [\n                'Consistently poor sleep quality despite good habits',\n                'Excessive daytime sleepiness',\n                'Loud snoring or breathing interruptions',\n                'Difficulty staying asleep multiple times per night',\n                'Sleep problems affecting daily functioning'\n            ]\n        }\n        \n        return json.dumps(output, indent=2)\n        \n    except Exception as e:\n        return json.dumps({\n            'error': f'Error analyzing sleep patterns: {str(e)}',\n            'basic_recommendations': [\n                'Maintain consistent sleep schedule',\n                'Create relaxing bedtime routine',\n                'Optimize sleep environment',\n                'Limit screen time before bed',\n                'Consider consulting a sleep specialist if problems persist'\n            ]\n        }, indent=2)\n\n# Execute the function\nresult = analyze_sleep_patterns()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "sleep_data",
+                "id": "sleep_data_input",
+                "label": "Sleep Data",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Enter your sleep data (one per line): bedtime, wake time, quality (1-10), notes\nExample: 23:30, 07:00, 7, Good sleep\n\nLeave blank to use sample data for demonstration.",
+                  "minRows": 6
+                }
+              },
+              {
+                "fieldName": "sleep_goals",
+                "id": "sleep_goals_input",
+                "label": "Sleep Goals",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["6-7 hours", "7-8 hours", "8-9 hours", "9+ hours", "Variable/flexible"],
+                  "defaultValue": "7-8 hours"
+                }
+              },
+              {
+                "fieldName": "tracking_period",
+                "id": "tracking_period_input",
+                "label": "Tracking Period",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["1 week", "2 weeks", "1 month", "2 months", "3+ months"],
+                  "defaultValue": "1 week"
+                }
+              },
+              {
+                "fieldName": "lifestyle_factors",
+                "id": "lifestyle_factors_input",
+                "label": "Lifestyle Factors (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What factors might affect your sleep? (caffeine, exercise, stress, work schedule, medications...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "current_issues",
+                "id": "current_issues_input",
+                "label": "Current Sleep Issues (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What sleep problems are you experiencing? (trouble falling asleep, waking up frequently, not feeling rested...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "sleepEnvironment",
+                "id": "sleep_environment_input",
+                "label": "Sleep Environment",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Excellent (dark, quiet, cool)", "Good (mostly optimal)", "Fair (some issues)", "Poor (many disturbances)", "Very poor (major problems)"],
+                  "defaultValue": "Good (mostly optimal)"
+                }
+              },
+              {
+                "fieldName": "improvementPriority",
+                "id": "improvement_priority_input",
+                "label": "Improvement Priority",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Sleep duration", "Sleep quality", "Consistency", "Falling asleep faster", "Staying asleep", "Feeling more rested"],
+                  "defaultValue": "Sleep quality"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_sleep_analysis_output",
+                "label": "Complete Sleep Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "sleepTrends",
+                "id": "sleep_trends_output",
+                "label": "Sleep Trends & Patterns",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Personalized Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Sleep Improvement Action Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847185",
+          "language": "en",
+          "name": "Sleep & Recovery Analyzer",
+          "description": "Analyzes sleep patterns and provides optimization advice. Tracks patterns over time for personalized recommendations including deficit analysis and improvement suggestions.",
+          "instructions": "1. Enter your sleep data (or use sample data)\n2. Set your sleep goals\n3. Choose tracking period\n4. Add lifestyle factors (optional)\n5. Describe current sleep issues (optional)\n6. Rate your sleep environment\n7. Choose improvement priority\n\nThe analyzer will provide:\n- Comprehensive sleep pattern analysis\n- Sleep deficit calculations\n- Personalized improvement recommendations\n- Practical action plan\n- Sleep optimization tips\n- Progress tracking suggestions\n- When to seek professional help\n\nPerfect for anyone wanting to improve their sleep quality and develop better sleep habits through data-driven insights."
+        }
+      ]
+    }
+  ]
+}

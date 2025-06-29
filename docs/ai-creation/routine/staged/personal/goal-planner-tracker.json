@@ -1,5 +1,5 @@
 {
-  "id": "1734567890123456810",
+  "id": "7829564732190848099",
   "publicId": "goal-planner-v1",
   "resourceType": "Routine",
   "isPrivate": false,
@@ -8,7 +8,7 @@
   "tags": [],
   "versions": [
     {
-      "id": "1734567890123456811",
+      "id": "7829564732190848100",
       "publicId": "goal-planner-v1-0",
       "versionLabel": "1.0.0",
       "versionNotes": "Initial version",
@@ -27,7 +27,7 @@
                 "id": "goal_structuring",
                 "name": "Structure Goal Definition",
                 "description": "Convert goal description into SMART format with clear parameters",
-                "subroutineId": "smart-goal-creator-v1",
+                "subroutineId": "7829564732190848189",
                 "inputMap": {
                   "goalDescription": "originalGoalDesc",
                   "timelineInfo": "originalTimeline",
@@ -42,7 +42,7 @@
                 "id": "milestone_breakdown",
                 "name": "Break Down into Milestones",
                 "description": "Create intermediate milestones and checkpoints",
-                "subroutineId": "milestone-creator-v1",
+                "subroutineId": "7829564732190848192",
                 "inputMap": {
                   "structuredGoal": "step1SmartGoal",
                   "overallTimeline": "originalTimeline",
@@ -57,7 +57,7 @@
                 "id": "action_planning",
                 "name": "Create Action Plan",
                 "description": "Define specific actions and tasks for each milestone",
-                "subroutineId": "action-planner-v1",
+                "subroutineId": "7829564732190848195",
                 "inputMap": {
                   "milestonesToPlan": "step2Milestones",
                   "availableResources": "originalConstraints",
@@ -72,7 +72,7 @@
                 "id": "progress_tracking_setup",
                 "name": "Setup Progress Tracking",
                 "description": "Create tracking mechanisms and progress indicators",
-                "subroutineId": "tracker-setup-v1",
+                "subroutineId": "7829564732190848198",
                 "inputMap": {
                   "goalDefinition": "step1SmartGoal",
                   "milestoneData": "step2Milestones",
@@ -87,7 +87,7 @@
                 "id": "motivation_strategy",
                 "name": "Design Motivation Strategy",
                 "description": "Create encouragement system and accountability measures",
-                "subroutineId": "motivation-designer-v1",
+                "subroutineId": "7829564732190848201",
                 "inputMap": {
                   "goalImportance": "originalGoalDesc",
                   "timelineStress": "step2Schedule",
@@ -102,7 +102,7 @@
                 "id": "comprehensive_plan_assembly",
                 "name": "Assemble Complete Plan",
                 "description": "Combine all elements into a comprehensive goal plan",
-                "subroutineId": "plan-assembler-v1",
+                "subroutineId": "7829564732190848204",
                 "inputMap": {
                   "goalStructure": "step1SmartGoal",
                   "milestoneFramework": "step2Milestones",
@@ -241,7 +241,7 @@
       },
       "translations": [
         {
-          "id": "1734567890123456812",
+          "id": "7829564732190848101",
           "language": "en",
           "name": "Goal Planner & Tracker",
           "description": "Helps set specific goals, break into steps, and track progress with adjustments. Creates SMART goals, milestone plans, action items, progress tracking systems, and motivation strategies.",

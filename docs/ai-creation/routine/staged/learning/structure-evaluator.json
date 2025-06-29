@@ -1,0 +1,108 @@
+{
+  "id": "7829564732190848456",
+  "publicId": "structure-evaluator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847013",
+      "tag": "learning",
+      "translations": [
+        {
+          "id": "7829564732190847113",
+          "language": "en",
+          "description": "Learning and education tools"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847024",
+      "tag": "writing",
+      "translations": [
+        {
+          "id": "7829564732190847124",
+          "language": "en",
+          "description": "Writing assistance and feedback"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848457",
+      "publicId": "structure-evaluator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Evaluates writing structure and organization",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "writingSubmission",
+                "id": "writing_submission_input",
+                "label": "Writing Submission",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Student writing to evaluate for structure"
+              },
+              {
+                "fieldName": "requirementAnalysis",
+                "id": "requirement_analysis_input",
+                "label": "Requirement Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Analysis data from requirement analyzer"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "structureEvaluation",
+                "id": "structure_evaluation_output",
+                "label": "Structure Evaluation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848458",
+          "language": "en",
+          "name": "Structure Evaluator",
+          "description": "Evaluates writing structure, organization, and flow against assignment requirements to provide targeted feedback.",
+          "instructions": "Provide writing submission and requirement analysis for structure evaluation. The routine will assess organization and flow."
+        }
+      ]
+    }
+  ]
+}

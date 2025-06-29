@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848711",
+  "publicId": "campaign-theme-creator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847086",
+      "tag": "marketing",
+      "translations": [
+        {
+          "id": "7829564732190847186",
+          "language": "en",
+          "description": "Marketing and advertising"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847084",
+      "tag": "creative",
+      "translations": [
+        {
+          "id": "7829564732190847184",
+          "language": "en",
+          "description": "Creative design"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848712",
+      "publicId": "campaign-theme-creator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates campaign themes",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "campaignObjective",
+                "id": "campaign_objective_input",
+                "label": "Campaign Objective",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "What is the campaign trying to achieve?"
+              },
+              {
+                "fieldName": "brandPersonality",
+                "id": "brand_personality_input",
+                "label": "Brand Personality",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Brand characteristics and values"
+              },
+              {
+                "fieldName": "campaignConstraints",
+                "id": "campaign_constraints_input",
+                "label": "Campaign Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Budget, timeline, platform limitations"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "themeOptions",
+                "id": "theme_options_output",
+                "label": "Campaign Theme Options",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "visualConcepts",
+                "id": "visual_concepts_output",
+                "label": "Visual Concepts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "messagingFramework",
+                "id": "messaging_framework_output",
+                "label": "Messaging Framework",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848713",
+          "language": "en",
+          "name": "Marketing Campaign Theme Creator",
+          "description": "Develops creative themes and concepts for marketing campaigns.",
+          "instructions": "Provide campaign objectives and brand personality. The routine will create theme options."
+        }
+      ]
+    }
+  ]
+}

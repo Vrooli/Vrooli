@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190847991",
+  "publicId": "matrix-fmt-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847098",
+      "publicId": "decision-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "decision-making"
+    },
+    {
+      "id": "7829564732190847105",
+      "publicId": "visualization-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "visualization"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847992",
+      "publicId": "matrix-fmt-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Formats decision matrices for display",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Format the decision analysis results into a clear, visual matrix representation:\n\nScore Results: {{input.scoreResults}}\nRanking Data: {{input.rankingData}}\nOriginal Options Data: {{input.originalOptionsData}}\nDisplay Preferences: {{input.displayPreferences}}\n\nCreate comprehensive matrix formatting:\n\n1. Standard Decision Matrix:\n   ```\n   | Option      | Criterion 1 | Criterion 2 | ... | Total Score | Rank |\n   |-------------|-------------|-------------|-----|-------------|------|\n   | Option A    | 8 (0.4)     | 6 (0.18)    | ... | 7.2         | 1    |\n   | Option B    | 6 (0.3)     | 9 (0.27)    | ... | 6.9         | 2    |\n   ```\n   - Show raw scores and weighted scores\n   - Include totals and rankings\n   - Color coding suggestions\n\n2. Comparison Highlights:\n   - Best score per criterion (bold/highlight)\n   - Worst score per criterion (different color)\n   - Close scores (within 10%)\n   - Dominant options\n\n3. Visual Elements:\n   - Bar chart representation\n   - Heat map coloring\n   - Spider/radar chart data\n   - Score distribution\n\n4. Summary Statistics:\n   - Winner and margin\n   - Average scores\n   - Score ranges\n   - Consensus indicators\n\n5. Detailed Breakdown:\n   - Criterion-by-criterion analysis\n   - Strengths/weaknesses per option\n   - Trade-off visualization\n   - Gap analysis\n\n6. Alternative Views:\n   - Simplified view (top 3 only)\n   - Detailed view (all data)\n   - Comparative view (pairwise)\n   - Executive summary\n\n7. Export Formats:\n   - Plain text table\n   - Markdown format\n   - CSV structure\n   - HTML table\n\nReturn as structured JSON with keys: formattedMatrix (string with formatted table), visualSummary (object with key insights), comparisonHighlights (array), detailedBreakdown (object by option), alternativeViews (object), exportFormats (object with different format strings), colorScheme (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "scoreResults",
+                "id": "scores_input",
+                "label": "Score Results",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Weighted scores and calculations...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "rankingData",
+                "id": "rankings_input",
+                "label": "Ranking Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Final rankings and order...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "originalOptionsData",
+                "id": "options_input",
+                "label": "Original Options",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Original option names and descriptions",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "displayPreferences",
+                "id": "display_input",
+                "label": "Display Preferences",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Format preferences (simple, detailed, visual)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "formattedMatrix",
+                "id": "matrix_output",
+                "label": "Formatted Decision Matrix",
+                "type": "Text"
+              },
+              {
+                "fieldName": "visualSummary",
+                "id": "summary_output",
+                "label": "Visual Summary",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847993",
+          "language": "en-US",
+          "description": "Formats decision analysis results into clear, visual matrix representations",
+          "instructions": "Enter your score results and rankings. The system will create a formatted decision matrix with multiple viewing options.",
+          "name": "Matrix Formatter"
+        }
+      ]
+    }
+  ]
+}

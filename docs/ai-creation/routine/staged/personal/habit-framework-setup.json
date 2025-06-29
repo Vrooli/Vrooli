@@ -1,0 +1,143 @@
+{
+  "id": "7829564732190848381",
+  "publicId": "habit-framework-setup-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847039",
+      "publicId": "habit-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "habit"
+    },
+    {
+      "id": "7829564732190847040",
+      "publicId": "framework-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "framework"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848382",
+      "publicId": "habit-framework-setup-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Sets up habit tracking frameworks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Design comprehensive habit tracking framework for sustained behavior change:\n\nTarget Habits: {{input.targetHabits}}\nCurrent Routine: {{input.currentRoutine}}\nMotivation Level: {{input.motivationLevel}}\nTracking Preferences: {{input.trackingPreferences}}\nLifestyle Constraints: {{input.lifestyleConstraints}}\n\nCreate systematic habit tracking framework:\n\n1. **Habit Architecture Design**:\n   - Habit stack creation\n   - Trigger identification\n   - Routine structuring\n   - Reward system design\n   - Environment optimization\n\n2. **Tracking System Setup**:\n   - Measurement methods\n   - Data collection tools\n   - Progress indicators\n   - Success metrics\n   - Feedback mechanisms\n\n3. **Implementation Strategy**:\n   - Start date planning\n   - Gradual introduction\n   - Difficulty progression\n   - Milestone creation\n   - Checkpoint scheduling\n\n4. **Motivation Framework**:\n   - Intrinsic motivators\n   - Extrinsic rewards\n   - Accountability systems\n   - Progress visualization\n   - Celebration rituals\n\n5. **Obstacle Management**:\n   - Common challenges\n   - Mitigation strategies\n   - Backup plans\n   - Recovery protocols\n   - Resilience building\n\n6. **Support Systems**:\n   - Accountability partners\n   - Community involvement\n   - Professional support\n   - Resource allocation\n   - Environmental modifications\n\n7. **Progress Assessment**:\n   - Regular check-ins\n   - Performance evaluation\n   - Adjustment protocols\n   - Success celebration\n   - Learning extraction\n\n8. **Long-term Sustainability**:\n   - Habit maintenance\n   - Evolution planning\n   - Integration strategies\n   - Lifestyle alignment\n   - Continuous improvement\n\nReturn as structured JSON with keys: habitArchitecture (object), trackingSystem (object), implementationPlan (array), motivationFramework (object), obstacleManagement (array), supportSystems (array), progressAssessment (object), sustainabilityPlan (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "targetHabits",
+                "id": "habits_input",
+                "label": "Target Habits",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the habits you want to develop or track (exercise, reading, meditation, etc.)...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "currentRoutine",
+                "id": "routine_input",
+                "label": "Current Routine",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe your current daily/weekly routine and existing habits...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "motivationLevel",
+                "id": "motivation_input",
+                "label": "Motivation Level",
+                "type": "Selector",
+                "props": {
+                  "options": ["Very High", "High", "Moderate", "Low", "Variable"]
+                }
+              },
+              {
+                "fieldName": "trackingPreferences",
+                "id": "tracking_input",
+                "label": "Tracking Preferences",
+                "type": "Selector",
+                "props": {
+                  "options": ["Digital Apps", "Paper Journal", "Spreadsheet", "Simple Check-offs", "Detailed Metrics", "Mixed Approach"]
+                }
+              },
+              {
+                "fieldName": "lifestyleConstraints",
+                "id": "constraints_input",
+                "label": "Lifestyle Constraints (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any schedule limitations, travel, work constraints, or other factors that might affect habit tracking...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "frameworkGuide",
+                "id": "framework_output",
+                "label": "Habit Tracking Framework",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationPlan",
+                "id": "implementation_output",
+                "label": "Implementation Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848383",
+          "language": "en-US",
+          "description": "Designs comprehensive habit tracking frameworks with implementation strategies, motivation systems, and sustainability plans",
+          "instructions": "Specify your target habits and current routine. The system will create a customized tracking framework with implementation strategies and support systems.",
+          "name": "Habit Framework Setup"
+        }
+      ]
+    }
+  ]
+}

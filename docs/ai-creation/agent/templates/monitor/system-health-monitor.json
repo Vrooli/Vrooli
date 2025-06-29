@@ -1,0 +1,74 @@
+{
+  "identity": {
+    "name": "system-health-monitor", 
+    "version": "1.0.0"
+  },
+  "goal": "Monitor swarm execution health and alert on critical issues",
+  "role": "monitor",
+  "subscriptions": [
+    "run/failed",
+    "step/failed", 
+    "swarm/state/changed",
+    "swarm/resource/updated"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "run/failed"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Failure Alert Generator",
+        "inputMap": {
+          "error": "event.data.error",
+          "runId": "event.data.runId",
+          "retryable": "event.data.retryable"
+        }
+      },
+      "qos": 2
+    },
+    {
+      "trigger": {
+        "topic": "swarm/resource/updated",
+        "when": "remaining < allocated * 0.1"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze resource consumption patterns and alert on critical depletion"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "swarm/state/changed",
+        "when": "newState == 'FAILED' || newState == 'TERMINATED'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Swarm Failure Analyzer",
+        "inputMap": {
+          "swarmId": "event.data.swarmId",
+          "oldState": "event.data.oldState",
+          "newState": "event.data.newState"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "alert-on-critical-failures"
+    },
+    {
+      "modality": "permission",
+      "target": "aggregate-failure-patterns"
+    }
+  ],
+  "resources": [
+    "alert-channels",
+    "failure-analytics",
+    "resource-monitors",
+    "escalation-policies"
+  ]
+}

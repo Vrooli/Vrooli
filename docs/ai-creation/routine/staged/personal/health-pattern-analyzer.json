@@ -1,0 +1,136 @@
+{
+  "id": "7829564732190848573",
+  "publicId": "health-pattern-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847047",
+      "tag": "wellness",
+      "translations": [
+        {
+          "id": "7829564732190847147",
+          "language": "en",
+          "description": "Health and wellness"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847054",
+      "tag": "health-monitoring",
+      "translations": [
+        {
+          "id": "7829564732190847154",
+          "language": "en",
+          "description": "Health tracking and monitoring"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848574",
+      "publicId": "health-pattern-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes health patterns and trends",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "healthEntry",
+                "id": "health_entry_input",
+                "label": "Current Health Entry",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Latest symptom record"
+              },
+              {
+                "fieldName": "historicalData",
+                "id": "historical_data_input",
+                "label": "Past Records",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Previous health entries"
+              },
+              {
+                "fieldName": "analysisWindow",
+                "id": "analysis_window_input",
+                "label": "Timeframe Scope",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "30-days",
+                "options": [
+                  "7-days",
+                  "14-days",
+                  "30-days",
+                  "90-days",
+                  "6-months",
+                  "1-year"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trendAnalysis",
+                "id": "trend_analysis_output",
+                "label": "Pattern Identification",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "correlationMapping",
+                "id": "correlation_mapping_output",
+                "label": "Symptom Relationships",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "frequencyPatterns",
+                "id": "frequency_patterns_output",
+                "label": "Occurrence Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848575",
+          "language": "en",
+          "name": "Health Pattern Analyzer",
+          "description": "Examines historical health data to identify trends, correlations, and frequency patterns in symptoms.",
+          "instructions": "Provide current and historical health data. The routine will analyze patterns and relationships."
+        }
+      ]
+    }
+  ]
+}

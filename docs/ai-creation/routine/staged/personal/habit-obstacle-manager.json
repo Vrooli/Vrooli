@@ -1,0 +1,147 @@
+{
+  "id": "7829564732190848246",
+  "publicId": "habit-obstacle-manager-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847105",
+      "publicId": "habits-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "habits"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848247",
+      "publicId": "habit-obstacle-manager-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Manages obstacles and setbacks in habit formation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Supportive",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Develop strategies for managing habit formation obstacles and setbacks:\n\nPotential Barriers: {{input.potentialBarriers}}\nHistorical Struggles: {{input.historicalStruggles}}\nResilience Factors: {{input.resilienceFactors}}\nCurrent Challenges: {{input.currentChallenges}}\nHabit Context: {{input.habitContext}}\n\nCreate comprehensive obstacle management system:\n\n1. **Obstacle Identification & Analysis**:\n   - Common barrier categorization\n   - Personal challenge patterns\n   - Environmental obstacles\n   - Internal resistance factors\n   - External disruption sources\n\n2. **Preventive Strategies**:\n   - Early warning systems\n   - Environmental modifications\n   - Backup plan activation\n   - Support system alerts\n   - Motivation reserves\n\n3. **Response Protocols**:\n   - Immediate setback response\n   - Quick recovery actions\n   - Damage limitation strategies\n   - Momentum preservation\n   - Emergency interventions\n\n4. **Recovery Frameworks**:\n   - Gradual re-engagement\n   - Modified habit approaches\n   - Confidence rebuilding\n   - Pattern interruption\n   - Fresh start protocols\n\n5. **Resilience Building**:\n   - Mental strength development\n   - Flexibility cultivation\n   - Stress management tools\n   - Coping skill enhancement\n   - Self-compassion practices\n\n6. **Adaptation Mechanisms**:\n   - Habit modification options\n   - Alternative approaches\n   - Difficulty adjustment\n   - Timeline flexibility\n   - Goal reassessment\n\n7. **Learning Integration**:\n   - Failure analysis methods\n   - Pattern recognition skills\n   - Experience documentation\n   - Wisdom extraction\n   - Future preparation\n\n8. **Support System Activation**:\n   - Accountability partner roles\n   - Professional help seeking\n   - Community resource access\n   - Peer support networks\n   - Expert consultation\n\nReturn as structured JSON with keys: obstacleAnalysis (object), preventiveStrategies (array), responseProtocols (object), recoveryFramework (object), resilienceBuilding (array), adaptationMechanisms (object), learningIntegration (object), supportActivation (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "potentialBarriers",
+                "id": "barriers_input",
+                "label": "Potential Barriers",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What obstacles might prevent you from maintaining this habit?",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "historicalStruggles",
+                "id": "struggles_input",
+                "label": "Historical Struggles",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Past difficulties with similar habits or goals...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "resilienceFactors",
+                "id": "resilience_input",
+                "label": "Resilience Factors",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Your strengths, coping skills, and recovery abilities...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "currentChallenges",
+                "id": "current_input",
+                "label": "Current Challenges",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Immediate obstacles or difficulties you're facing...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "habitContext",
+                "id": "context_input",
+                "label": "Habit Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Details about the habit you're working on and your situation..."
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "obstacleManagement",
+                "id": "management_output",
+                "label": "Obstacle Management Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recoveryStrategies",
+                "id": "recovery_output",
+                "label": "Recovery Strategies",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848248",
+          "language": "en-US",
+          "description": "Manages obstacles and setbacks in habit formation with preventive strategies and recovery protocols",
+          "instructions": "Describe potential barriers, past struggles, and your resilience factors. The system will create a comprehensive obstacle management plan with recovery strategies.",
+          "name": "Habit Obstacle Manager"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848375",
+  "publicId": "performance-data-collector-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847037",
+      "publicId": "performance-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "performance"
+    },
+    {
+      "id": "7829564732190847031",
+      "publicId": "data-collection-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "data-collection"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848376",
+      "publicId": "performance-data-collector-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Collects and organizes performance data",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Collect and organize performance data for comprehensive self-assessment:\n\nPerformance Areas: {{input.performanceAreas}}\nMetrics Available: {{input.availableMetrics}}\nTime Period: {{input.timePeriod}}\nData Sources: {{input.dataSources}}\nSuccess Indicators: {{input.successIndicators}}\n\nSystematically collect and organize performance data:\n\n1. **Data Source Identification**:\n   - Quantitative metrics\n   - Qualitative feedback\n   - Self-observations\n   - External evaluations\n   - System-generated data\n\n2. **Performance Categories**:\n   - Task completion rates\n   - Quality indicators\n   - Efficiency measures\n   - Learning progress\n   - Goal achievement\n\n3. **Data Organization**:\n   - Structured formatting\n   - Trend identification\n   - Baseline establishment\n   - Progress tracking\n   - Comparison points\n\n4. **Key Performance Indicators**:\n   - Primary metrics\n   - Secondary indicators\n   - Leading measures\n   - Lagging measures\n   - Context factors\n\n5. **Data Validation**:\n   - Accuracy checking\n   - Completeness assessment\n   - Relevance evaluation\n   - Reliability confirmation\n   - Bias identification\n\n6. **Gap Analysis**:\n   - Missing data points\n   - Collection opportunities\n   - Measurement improvements\n   - Tool requirements\n   - Process enhancements\n\n7. **Data Synthesis**:\n   - Pattern recognition\n   - Correlation identification\n   - Trend analysis\n   - Anomaly detection\n   - Insight extraction\n\n8. **Reporting Framework**:\n   - Data visualization\n   - Summary statistics\n   - Narrative context\n   - Action implications\n   - Future tracking\n\nReturn as structured JSON with keys: dataInventory (object), performanceMetrics (array), trendAnalysis (object), dataGaps (array), keyInsights (array), qualityAssessment (object), reportingSummary (object), improvementRecommendations (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "performanceAreas",
+                "id": "areas_input",
+                "label": "Performance Areas",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Areas where you want to collect performance data (work productivity, learning, health, relationships, etc.)...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "availableMetrics",
+                "id": "metrics_input",
+                "label": "Available Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the data points, metrics, or measurements you have access to...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "period_input",
+                "label": "Time Period",
+                "type": "Selector",
+                "props": {
+                  "options": ["Last Week", "Last Month", "Last Quarter", "Last 6 Months", "Last Year", "Custom Period"]
+                }
+              },
+              {
+                "fieldName": "dataSources",
+                "id": "sources_input",
+                "label": "Data Sources (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Where your data comes from (apps, journals, feedback, observations, etc.)...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "successIndicators",
+                "id": "indicators_input",
+                "label": "Success Indicators (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How you define success or good performance in these areas...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dataReport",
+                "id": "report_output",
+                "label": "Performance Data Report",
+                "type": "Text"
+              },
+              {
+                "fieldName": "insights",
+                "id": "insights_output",
+                "label": "Data Insights & Trends",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848377",
+          "language": "en-US",
+          "description": "Systematically collects and organizes performance data from various sources for comprehensive self-assessment and improvement",
+          "instructions": "Specify performance areas and available metrics. The system will help organize your data, identify trends, and provide insights for performance improvement.",
+          "name": "Performance Data Collector"
+        }
+      ]
+    }
+  ]
+}

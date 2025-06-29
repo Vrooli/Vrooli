@@ -1,0 +1,142 @@
+{
+  "id": "7829564732190848621",
+  "publicId": "budget-framework-applier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847067",
+      "tag": "finance",
+      "translations": [
+        {
+          "id": "7829564732190847167",
+          "language": "en",
+          "description": "Financial planning and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847068",
+      "tag": "budgeting",
+      "translations": [
+        {
+          "id": "7829564732190847168",
+          "language": "en",
+          "description": "Budget planning and tracking"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848622",
+      "publicId": "budget-framework-applier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Applies budgeting frameworks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "monthlyIncome",
+                "id": "monthly_income_input",
+                "label": "Income Amount",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Total monthly income"
+              },
+              {
+                "fieldName": "incomeReliability",
+                "id": "income_reliability_input",
+                "label": "Income Stability",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Income reliability assessment"
+              },
+              {
+                "fieldName": "currentSpending",
+                "id": "current_spending_input",
+                "label": "Expense Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current spending patterns"
+              },
+              {
+                "fieldName": "savingsGoals",
+                "id": "savings_goals_input",
+                "label": "Goal Data",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Savings objectives"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "budgetFramework",
+                "id": "budget_framework_output",
+                "label": "Selected Framework",
+                "type": "Text"
+              },
+              {
+                "fieldName": "categoryAllocations",
+                "id": "category_allocations_output",
+                "label": "Budget Categories",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recommendedAmounts",
+                "id": "recommended_amounts_output",
+                "label": "Allocation Amounts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "flexibilityMargin",
+                "id": "flexibility_margin_output",
+                "label": "Budget Buffer",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848623",
+          "language": "en",
+          "name": "Budget Framework Applier",
+          "description": "Applies appropriate budgeting methodology (50/30/20, zero-based, etc.) and calculates category allocations.",
+          "instructions": "Provide income and expense data. The routine will apply the best budgeting framework."
+        }
+      ]
+    }
+  ]
+}

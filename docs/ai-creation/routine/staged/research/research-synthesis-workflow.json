@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Research Scope",
                 "description": "Clarifies research objectives and parameters",
-                "subroutineId": "TODO: Need reasoning subroutine for scope definition",
+                "subroutineId": "7829564732190848732",
                 "inputMap": {
                   "researchTopic": "originalTopic",
                   "scopeParameters": "researchScope",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Gather Information",
                 "description": "Searches multiple sources for relevant information",
-                "subroutineId": "web-research-v1",
+                "subroutineId": "7829564732190848696",
                 "inputMap": {
                   "primaryQuery": "searchQueries",
                   "searchDepth": "researchScope",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Evaluate Source Credibility",
                 "description": "Assesses reliability and bias of sources",
-                "subroutineId": "TODO: Need reasoning subroutine for credibility assessment",
+                "subroutineId": "7829564732190848735",
                 "inputMap": {
                   "allSources": "sourceLinks",
                   "sourceQuality": "credibilityNotes",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Extract Key Information",
                 "description": "Pulls out relevant data points from each source",
-                "subroutineId": "TODO: Need reasoning subroutine for information extraction",
+                "subroutineId": "7829564732190848738",
                 "inputMap": {
                   "rawFindings": "allFindings",
                   "filteredSources": "reliableSources",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Synthesize Findings",
                 "description": "Combines information into unified analysis",
-                "subroutineId": "TODO: Need reasoning subroutine for synthesis",
+                "subroutineId": "7829564732190848726",
                 "inputMap": {
                   "extractedData": "keyDataPoints",
                   "conflictingInfo": "discrepancies",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Research Report",
                 "description": "Creates structured report with citations",
-                "subroutineId": "TODO: Need generation subroutine for report writing",
+                "subroutineId": "7829564732190848744",
                 "inputMap": {
                   "synthesis": "unifiedAnalysis",
                   "commonThemes": "thematicFindings",

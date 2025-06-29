@@ -1,0 +1,149 @@
+{
+  "id": "7829564732190848249",
+  "publicId": "habit-optimization-assistant-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847105",
+      "publicId": "habits-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "habits"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848250",
+      "publicId": "habit-optimization-assistant-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Optimizes and scales successful habits for maximum impact",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Optimize and scale successful habits for maximum long-term impact:\n\nProgress Data: {{input.progressData}}\nSuccess Patterns: {{input.successPatterns}}\nExpansion Goals: {{input.expansionGoals}}\nCurrent Performance: {{input.currentPerformance}}\nGrowth Opportunities: {{input.growthOpportunities}}\n\nDevelop optimization and scaling strategy:\n\n1. **Performance Analysis**:\n   - Current habit effectiveness\n   - Success rate measurement\n   - Time efficiency assessment\n   - Energy expenditure analysis\n   - Outcome quality evaluation\n\n2. **Optimization Opportunities**:\n   - Efficiency improvements\n   - Quality enhancements\n   - Time optimization\n   - Energy conservation\n   - Resource utilization\n\n3. **Scaling Strategies**:\n   - Habit intensity increase\n   - Frequency adjustments\n   - Duration extensions\n   - Complexity additions\n   - Multi-dimensional growth\n\n4. **Habit Stacking Integration**:\n   - Complementary habit identification\n   - Sequential habit chains\n   - Synergistic combinations\n   - Compound effect creation\n   - System-level optimization\n\n5. **Advanced Techniques**:\n   - Micro-habit expansion\n   - Progressive overload\n   - Skill development layers\n   - Mastery progression\n   - Innovation integration\n\n6. **Sustainability Framework**:\n   - Long-term maintenance\n   - Burnout prevention\n   - Flexibility preservation\n   - Motivation renewal\n   - Lifestyle integration\n\n7. **Measurement Evolution**:\n   - Advanced tracking metrics\n   - Success indicator refinement\n   - Progress benchmarking\n   - Impact assessment\n   - ROI evaluation\n\n8. **Expansion Planning**:\n   - New habit integration\n   - Cross-domain application\n   - Skill transfer opportunities\n   - Network effect creation\n   - Multiplicative benefits\n\nReturn as structured JSON with keys: performanceAnalysis (object), optimizationPlan (object), scalingStrategy (object), habitStacking (array), advancedTechniques (object), sustainabilityFramework (object), measurementEvolution (object), expansionPlan (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "progressData",
+                "id": "progress_input",
+                "label": "Progress Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current habit performance, consistency rates, outcomes achieved...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "successPatterns",
+                "id": "patterns_input",
+                "label": "Success Patterns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What's working well? Identify successful strategies and approaches...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "expansionGoals",
+                "id": "goals_input",
+                "label": "Expansion Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How do you want to grow or improve this habit?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "currentPerformance",
+                "id": "performance_input",
+                "label": "Current Performance",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Quantitative measures of your current habit performance...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "growthOpportunities",
+                "id": "opportunities_input",
+                "label": "Growth Opportunities",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Areas where you see potential for improvement or expansion...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizationPlan",
+                "id": "optimization_output",
+                "label": "Habit Optimization Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "scalingRoadmap",
+                "id": "scaling_output",
+                "label": "Scaling Roadmap",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848251",
+          "language": "en-US",
+          "description": "Optimizes and scales successful habits for maximum long-term impact with advanced techniques and sustainability",
+          "instructions": "Provide your habit progress data, success patterns, and expansion goals. The system will create an optimization plan and scaling roadmap for continued growth.",
+          "name": "Habit Optimization Assistant"
+        }
+      ]
+    }
+  ]
+}

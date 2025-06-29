@@ -1,0 +1,149 @@
+{
+  "id": "7829564732190847967",
+  "publicId": "plan-assem-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847100",
+      "publicId": "planning-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "planning"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847968",
+      "publicId": "plan-assem-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assembles comprehensive goal plans from components",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Assemble a comprehensive goal achievement plan from the following components:\n\nSMART Goal: {{input.smartGoal}}\nMilestones: {{input.milestones}}\nAction Plans: {{input.actionPlans}}\nTracking System: {{input.trackingSystem}}\nMotivation Strategy: {{input.motivationStrategy}}\n\nCreate an integrated plan that includes:\n\n1. Executive Summary:\n   - Goal statement and vision\n   - Key success metrics\n   - Timeline overview\n   - Critical success factors\n\n2. Master Timeline:\n   - Phase breakdown\n   - Milestone schedule with dependencies\n   - Action item calendar\n   - Review and adjustment points\n   - Buffer time allocation\n\n3. Implementation Roadmap:\n   - Week 1-2: Launch phase\n   - Month 1: Foundation building\n   - Ongoing: Execution rhythm\n   - Final phase: Completion and celebration\n\n4. Resource Dashboard:\n   - Time requirements summary\n   - Budget/cost overview\n   - Tool and material list\n   - Support network mapping\n   - Learning resources\n\n5. Success Framework:\n   - Daily success habits\n   - Weekly review protocol\n   - Monthly milestone checks\n   - Adjustment triggers\n   - Celebration plan\n\n6. Risk Management:\n   - Identified risks and mitigation\n   - Early warning indicators\n   - Pivot strategies\n   - Recovery protocols\n\n7. Quick Reference Guide:\n   - One-page summary\n   - Key metrics dashboard\n   - Daily/weekly checklist\n   - Emergency motivation kit\n   - Contact/resource list\n\nStructure for clarity and actionability with visual organization suggestions.\n\nReturn as structured JSON with keys: executiveSummary (object), masterTimeline (object), implementationRoadmap (object), resourceDashboard (object), successFramework (object), riskManagement (array), quickReference (object), launchChecklist (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "smartGoal",
+                "id": "goal_input",
+                "label": "SMART Goal",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "The structured SMART goal...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "milestones",
+                "id": "milestones_input",
+                "label": "Milestones",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List of milestones with dates...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "actionPlans",
+                "id": "actions_input",
+                "label": "Action Plans",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Detailed action steps for each milestone...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "trackingSystem",
+                "id": "tracking_input",
+                "label": "Tracking System",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Metrics and tracking methods...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "motivationStrategy",
+                "id": "motivation_input",
+                "label": "Motivation Strategy",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Motivation and accountability methods...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "comprehensivePlan",
+                "id": "plan_output",
+                "label": "Complete Goal Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "quickStartGuide",
+                "id": "guide_output",
+                "label": "Quick Start Guide",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847969",
+          "language": "en-US",
+          "description": "Assembles comprehensive goal achievement plans from individual components",
+          "instructions": "Enter all components of your goal plan. The system will assemble them into a comprehensive, actionable plan with timeline, resources, and success framework.",
+          "name": "Plan Assembler"
+        }
+      ]
+    }
+  ]
+}

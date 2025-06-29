@@ -1,0 +1,108 @@
+{
+  "id": "7829564732190848480",
+  "publicId": "mental-wellness-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847008",
+      "tag": "wellness",
+      "translations": [
+        {
+          "id": "7829564732190847108",
+          "language": "en",
+          "description": "Health and wellness optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847031",
+      "tag": "mental-health",
+      "translations": [
+        {
+          "id": "7829564732190847131",
+          "language": "en",
+          "description": "Mental health and wellbeing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848481",
+      "publicId": "mental-wellness-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates mental wellness and stress management plans",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "stressLevel",
+                "id": "stress_level_input",
+                "label": "Current Stress Level",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current stress and mental health status"
+              },
+              {
+                "fieldName": "copingStrategies",
+                "id": "coping_strategies_input",
+                "label": "Current Coping Strategies",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Existing stress management approaches"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "mentalWellnessPlan",
+                "id": "mental_wellness_plan_output",
+                "label": "Mental Wellness Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848482",
+          "language": "en",
+          "name": "Mental Wellness Planner",
+          "description": "Creates personalized mental wellness and stress management plans with mindfulness practices and coping strategies.",
+          "instructions": "Provide current stress levels and coping strategies. The routine will create a mental wellness plan with stress management techniques."
+        }
+      ]
+    }
+  ]
+}

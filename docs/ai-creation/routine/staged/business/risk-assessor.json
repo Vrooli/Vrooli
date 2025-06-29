@@ -1,0 +1,114 @@
+{
+  "id": "7829564732190848507",
+  "publicId": "risk-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847098",
+      "tag": "risk-assessment",
+      "translations": [
+        {
+          "id": "7829564732190847198",
+          "language": "en",
+          "description": "Risk evaluation and assessment"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847033",
+      "tag": "legal",
+      "translations": [
+        {
+          "id": "7829564732190847133",
+          "language": "en",
+          "description": "Legal analysis and compliance"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848508",
+      "publicId": "risk-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assesses legal and business risks in contracts",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "extractedTerms",
+                "id": "extracted_terms_input",
+                "label": "Extracted Terms",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Key terms data from term extractor"
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Tolerance",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "conservative",
+                  "moderate",
+                  "aggressive",
+                  "custom"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "riskAssessment",
+                "id": "risk_assessment_output",
+                "label": "Risk Assessment",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848509",
+          "language": "en",
+          "name": "Risk Assessor",
+          "description": "Assesses legal and business risks in contract terms, identifying potential liabilities, compliance issues, and financial exposures.",
+          "instructions": "Provide extracted contract terms for risk assessment. The routine will evaluate potential risks and liabilities."
+        }
+      ]
+    }
+  ]
+}

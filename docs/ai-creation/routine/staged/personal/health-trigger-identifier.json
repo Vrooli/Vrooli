@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848576",
+  "publicId": "health-trigger-identifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847047",
+      "tag": "wellness",
+      "translations": [
+        {
+          "id": "7829564732190847147",
+          "language": "en",
+          "description": "Health and wellness"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847055",
+      "tag": "prevention",
+      "translations": [
+        {
+          "id": "7829564732190847155",
+          "language": "en",
+          "description": "Prevention and risk management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848577",
+      "publicId": "health-trigger-identifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies health triggers and contributing factors",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "symptomRelationships",
+                "id": "symptom_relationships_input",
+                "label": "Correlation Mapping",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Symptom correlation data"
+              },
+              {
+                "fieldName": "lifestyleData",
+                "id": "lifestyle_data_input",
+                "label": "Behavior Patterns",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Diet, sleep, exercise, stress"
+              },
+              {
+                "fieldName": "environmentalFactors",
+                "id": "environmental_factors_input",
+                "label": "External Influences",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Weather, allergens, work environment"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "triggerIdentification",
+                "id": "trigger_identification_output",
+                "label": "Causative Factors",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "riskFactorAnalysis",
+                "id": "risk_factor_analysis_output",
+                "label": "Contributing Elements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "preventionInsights",
+                "id": "prevention_insights_output",
+                "label": "Avoidance Strategies",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848578",
+          "language": "en",
+          "name": "Health Trigger Identifier",
+          "description": "Discovers potential triggers and contributing factors for health symptoms through lifestyle and environmental analysis.",
+          "instructions": "Provide symptom correlations and lifestyle data. The routine will identify triggers and prevention strategies."
+        }
+      ]
+    }
+  ]
+}

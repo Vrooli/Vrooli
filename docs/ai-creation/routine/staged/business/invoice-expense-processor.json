@@ -1,0 +1,158 @@
+{
+  "id": "7829564732190847189",
+  "publicId": "invoice-proc-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847190",
+      "publicId": "expense-proc-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import json\nimport re\nfrom datetime import datetime\n\ndef process_invoice_expense():\n    # Get inputs\n    invoice_text = globals().get('invoice_text', '')\n    expense_categories = globals().get('expense_categories', 'Office supplies, Travel, Meals, Software, Equipment')\n    document_type = globals().get('document_type', 'Invoice')\n    business_name = globals().get('business_name', '')\n    accounting_method = globals().get('accounting_method', 'Accrual')\n    \n    def extract_vendor_info(text):\n        \"\"\"Extract vendor/supplier information\"\"\"\n        vendor_info = {\n            'name': '',\n            'address': '',\n            'phone': '',\n            'email': '',\n            'tax_id': ''\n        }\n        \n        # Common patterns for vendor names (usually at top of invoice)\n        lines = text.split('\\n')[:10]  # Look in first 10 lines\n        for line in lines:\n            line = line.strip()\n            if line and not any(word in line.lower() for word in ['invoice', 'bill', 'receipt', 'date', 'total']):\n                if len(line) > 3 and not re.match(r'^\\d+', line):\n                    vendor_info['name'] = line\n                    break\n        \n        # Extract contact information\n        phone_pattern = r'\\b(?:\\+?1[-.]?)?\\(?([0-9]{3})\\)?[-.]?([0-9]{3})[-.]?([0-9]{4})\\b'\n        phone_match = re.search(phone_pattern, text)\n        if phone_match:\n            vendor_info['phone'] = phone_match.group(0)\n        \n        email_pattern = r'\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b'\n        email_match = re.search(email_pattern, text)\n        if email_match:\n            vendor_info['email'] = email_match.group(0)\n        \n        # Extract tax ID patterns\n        tax_patterns = [\n            r'EIN[:\\s]*([0-9]{2}-[0-9]{7})',\n            r'Tax ID[:\\s]*([0-9-]+)',\n            r'Federal ID[:\\s]*([0-9-]+)'\n        ]\n        for pattern in tax_patterns:\n            match = re.search(pattern, text, re.IGNORECASE)\n            if match:\n                vendor_info['tax_id'] = match.group(1)\n                break\n        \n        return vendor_info\n    \n    def extract_financial_data(text):\n        \"\"\"Extract amounts, dates, and financial information\"\"\"\n        financial_data = {\n            'total_amount': 0.0,\n            'subtotal': 0.0,\n            'tax_amount': 0.0,\n            'tax_rate': 0.0,\n            'currency': 'USD',\n            'invoice_number': '',\n            'date': '',\n            'due_date': '',\n            'line_items': []\n        }\n        \n        # Extract amounts (looking for various currency formats)\n        amount_patterns = [\n            r'Total[:\\s]*\\$?([0-9,]+\\.?[0-9]*)',\n            r'Amount Due[:\\s]*\\$?([0-9,]+\\.?[0-9]*)',\n            r'Balance[:\\s]*\\$?([0-9,]+\\.?[0-9]*)',\n            r'\\$([0-9,]+\\.?[0-9]*)(?=\\s*$|\\s*total|\\s*due)',\n        ]\n        \n        for pattern in amount_patterns:\n            match = re.search(pattern, text, re.IGNORECASE)\n            if match:\n                amount_str = match.group(1).replace(',', '')\n                try:\n                    financial_data['total_amount'] = float(amount_str)\n                    break\n                except:\n                    continue\n        \n        # Extract subtotal\n        subtotal_patterns = [\n            r'Subtotal[:\\s]*\\$?([0-9,]+\\.?[0-9]*)',\n            r'Sub-total[:\\s]*\\$?([0-9,]+\\.?[0-9]*)',\n        ]\n        for pattern in subtotal_patterns:\n            match = re.search(pattern, text, re.IGNORECASE)\n            if match:\n                amount_str = match.group(1).replace(',', '')\n                try:\n                    financial_data['subtotal'] = float(amount_str)\n                    break\n                except:\n                    continue\n        \n        # Extract tax\n        tax_patterns = [\n            r'Tax[:\\s]*\\$?([0-9,]+\\.?[0-9]*)',\n            r'Sales Tax[:\\s]*\\$?([0-9,]+\\.?[0-9]*)',\n            r'VAT[:\\s]*\\$?([0-9,]+\\.?[0-9]*)',\n        ]\n        for pattern in tax_patterns:\n            match = re.search(pattern, text, re.IGNORECASE)\n            if match:\n                amount_str = match.group(1).replace(',', '')\n                try:\n                    financial_data['tax_amount'] = float(amount_str)\n                    break\n                except:\n                    continue\n        \n        # Calculate tax rate if possible\n        if financial_data['subtotal'] > 0 and financial_data['tax_amount'] > 0:\n            financial_data['tax_rate'] = round((financial_data['tax_amount'] / financial_data['subtotal']) * 100, 2)\n        \n        # Extract invoice number\n        invoice_patterns = [\n            r'Invoice[\\s#]*([A-Za-z0-9-]+)',\n            r'Invoice Number[:\\s]*([A-Za-z0-9-]+)',\n            r'#([A-Za-z0-9-]+)',\n        ]\n        for pattern in invoice_patterns:\n            match = re.search(pattern, text, re.IGNORECASE)\n            if match:\n                financial_data['invoice_number'] = match.group(1)\n                break\n        \n        # Extract dates\n        date_patterns = [\n            r'Date[:\\s]*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})',\n            r'Invoice Date[:\\s]*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})',\n            r'([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})'\n        ]\n        for pattern in date_patterns:\n            match = re.search(pattern, text, re.IGNORECASE)\n            if match:\n                financial_data['date'] = match.group(1)\n                break\n        \n        # Extract due date\n        due_patterns = [\n            r'Due Date[:\\s]*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})',\n            r'Payment Due[:\\s]*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})',\n        ]\n        for pattern in due_patterns:\n            match = re.search(pattern, text, re.IGNORECASE)\n            if match:\n                financial_data['due_date'] = match.group(1)\n                break\n        \n        return financial_data\n    \n    def categorize_expense(text, categories):\n        \"\"\"Categorize the expense based on content and categories\"\"\"\n        text_lower = text.lower()\n        category_list = [cat.strip() for cat in categories.split(',')]\n        \n        # Keywords for different categories\n        category_keywords = {\n            'office supplies': ['paper', 'pen', 'staple', 'folder', 'office', 'supplies', 'stationery'],\n            'travel': ['hotel', 'flight', 'airline', 'uber', 'taxi', 'gas', 'mileage', 'travel', 'accommodation'],\n            'meals': ['restaurant', 'food', 'lunch', 'dinner', 'catering', 'meal', 'coffee', 'dining'],\n            'software': ['software', 'subscription', 'saas', 'license', 'app', 'cloud', 'hosting'],\n            'equipment': ['computer', 'laptop', 'phone', 'equipment', 'hardware', 'monitor', 'keyboard'],\n            'marketing': ['advertising', 'marketing', 'promotion', 'ad', 'campaign', 'social media'],\n            'utilities': ['electric', 'gas', 'water', 'internet', 'phone', 'utility', 'power'],\n            'professional services': ['consulting', 'legal', 'accounting', 'professional', 'service', 'attorney'],\n            'maintenance': ['repair', 'maintenance', 'cleaning', 'service', 'fix'],\n            'insurance': ['insurance', 'policy', 'premium', 'coverage'],\n            'education': ['training', 'course', 'education', 'workshop', 'seminar', 'conference']\n        }\n        \n        # Score each category\n        category_scores = {}\n        for category in category_list:\n            category_lower = category.lower().strip()\n            score = 0\n            \n            # Direct match\n            if category_lower in text_lower:\n                score += 10\n            \n            # Keyword matching\n            if category_lower in category_keywords:\n                keywords = category_keywords[category_lower]\n                for keyword in keywords:\n                    if keyword in text_lower:\n                        score += 1\n            \n            category_scores[category] = score\n        \n        # Return best match or 'Other'\n        if category_scores:\n            best_category = max(category_scores, key=category_scores.get)\n            if category_scores[best_category] > 0:\n                return best_category\n        \n        return 'Other'\n    \n    def generate_accounting_entries(financial_data, vendor_info, category):\n        \"\"\"Generate accounting entries\"\"\"\n        entries = []\n        \n        if financial_data['total_amount'] > 0:\n            # Expense entry\n            entries.append({\n                'account': f'{category} Expense',\n                'debit': financial_data['subtotal'] if financial_data['subtotal'] > 0 else financial_data['total_amount'],\n                'credit': 0,\n                'description': f'{category} expense - {vendor_info[\"name\"] or \"Vendor\"}'\n            })\n            \n            # Tax entry (if applicable)\n            if financial_data['tax_amount'] > 0:\n                entries.append({\n                    'account': 'Sales Tax Payable',\n                    'debit': financial_data['tax_amount'],\n                    'credit': 0,\n                    'description': 'Sales tax on purchase'\n                })\n            \n            # Accounts Payable or Cash entry\n            if document_type.lower() == 'invoice':\n                entries.append({\n                    'account': 'Accounts Payable',\n                    'debit': 0,\n                    'credit': financial_data['total_amount'],\n                    'description': f'Invoice from {vendor_info[\"name\"] or \"Vendor\"}'\n                })\n            else:  # Receipt - paid immediately\n                entries.append({\n                    'account': 'Cash',\n                    'debit': 0,\n                    'credit': financial_data['total_amount'],\n                    'description': f'Payment to {vendor_info[\"name\"] or \"Vendor\"}'\n                })\n        \n        return entries\n    \n    def extract_line_items(text):\n        \"\"\"Extract individual line items if possible\"\"\"\n        line_items = []\n        \n        # Look for patterns that might be line items\n        lines = text.split('\\n')\n        for line in lines:\n            line = line.strip()\n            # Look for lines with descriptions and amounts\n            amount_match = re.search(r'\\$?([0-9,]+\\.?[0-9]*)$', line)\n            if amount_match and len(line) > 10:\n                description = line[:amount_match.start()].strip()\n                amount_str = amount_match.group(1).replace(',', '')\n                try:\n                    amount = float(amount_str)\n                    if amount > 0 and description:\n                        line_items.append({\n                            'description': description,\n                            'amount': amount\n                        })\n                except:\n                    continue\n        \n        return line_items[:10]  # Limit to first 10 items\n    \n    def validate_and_suggest_corrections(financial_data, vendor_info):\n        \"\"\"Validate extracted data and suggest corrections\"\"\"\n        issues = []\n        suggestions = []\n        \n        # Check for missing vendor name\n        if not vendor_info['name']:\n            issues.append('Vendor name not found')\n            suggestions.append('Manually enter vendor name for better record keeping')\n        \n        # Check for missing amount\n        if financial_data['total_amount'] <= 0:\n            issues.append('Total amount not found or zero')\n            suggestions.append('Verify and manually enter the correct amount')\n        \n        # Check date format\n        if not financial_data['date']:\n            issues.append('Invoice date not found')\n            suggestions.append('Add the invoice date for proper record keeping')\n        \n        # Check if subtotal + tax = total\n        if (financial_data['subtotal'] > 0 and financial_data['tax_amount'] > 0 and \n            abs((financial_data['subtotal'] + financial_data['tax_amount']) - financial_data['total_amount']) > 0.01):\n            issues.append('Subtotal + tax does not equal total amount')\n            suggestions.append('Verify the amounts are correctly extracted')\n        \n        return issues, suggestions\n    \n    def generate_summary_report(vendor_info, financial_data, category, accounting_entries):\n        \"\"\"Generate a summary report\"\"\"\n        summary = {\n            'document_summary': {\n                'type': document_type,\n                'vendor': vendor_info['name'] or 'Unknown Vendor',\n                'amount': financial_data['total_amount'],\n                'date': financial_data['date'] or 'Not specified',\n                'category': category,\n                'invoice_number': financial_data['invoice_number'] or 'Not found'\n            },\n            'financial_breakdown': {\n                'subtotal': financial_data['subtotal'],\n                'tax_amount': financial_data['tax_amount'],\n                'tax_rate': f\"{financial_data['tax_rate']}%\" if financial_data['tax_rate'] > 0 else 'Not calculated',\n                'total': financial_data['total_amount'],\n                'currency': financial_data['currency']\n            },\n            'accounting_impact': {\n                'total_debits': sum(entry['debit'] for entry in accounting_entries),\n                'total_credits': sum(entry['credit'] for entry in accounting_entries),\n                'accounts_affected': len(set(entry['account'] for entry in accounting_entries))\n            }\n        }\n        \n        return summary\n    \n    # Main processing\n    try:\n        if not invoice_text.strip():\n            return json.dumps({\n                'error': 'No invoice text provided',\n                'sample_format': {\n                    'vendor_info': 'ABC Company, 123 Main St, (555) 123-4567',\n                    'amounts': 'Subtotal: $100.00, Tax: $8.50, Total: $108.50',\n                    'other_info': 'Invoice #12345, Date: 01/15/2024'\n                }\n            }, indent=2)\n        \n        # Extract all information\n        vendor_info = extract_vendor_info(invoice_text)\n        financial_data = extract_financial_data(invoice_text)\n        category = categorize_expense(invoice_text, expense_categories)\n        accounting_entries = generate_accounting_entries(financial_data, vendor_info, category)\n        line_items = extract_line_items(invoice_text)\n        issues, suggestions = validate_and_suggest_corrections(financial_data, vendor_info)\n        summary = generate_summary_report(vendor_info, financial_data, category, accounting_entries)\n        \n        # Create comprehensive output\n        output = {\n            'extraction_results': {\n                'vendor_information': vendor_info,\n                'financial_data': financial_data,\n                'expense_category': category,\n                'line_items': line_items\n            },\n            'accounting_entries': accounting_entries,\n            'summary_report': summary,\n            'quality_check': {\n                'extraction_issues': issues,\n                'improvement_suggestions': suggestions,\n                'confidence_score': calculate_confidence_score(vendor_info, financial_data)\n            },\n            'next_steps': [\n                'Review extracted information for accuracy',\n                'Verify vendor information and update records if needed',\n                'Post accounting entries to your accounting system',\n                'File the original document with proper naming convention',\n                'Update expense tracking and budget reports'\n            ],\n            'integration_ready': {\n                'quickbooks_format': format_for_quickbooks(vendor_info, financial_data, category),\n                'csv_export': format_for_csv(vendor_info, financial_data, category),\n                'tax_preparation': format_for_tax_prep(financial_data, category)\n            }\n        }\n        \n        return json.dumps(output, indent=2)\n        \n    except Exception as e:\n        return json.dumps({\n            'error': f'Error processing invoice: {str(e)}',\n            'fallback_suggestion': 'Please manually review the document and extract key information'\n        }, indent=2)\n\ndef calculate_confidence_score(vendor_info, financial_data):\n    \"\"\"Calculate confidence score for extraction\"\"\"\n    score = 0\n    max_score = 100\n    \n    # Vendor information (30 points)\n    if vendor_info['name']: score += 20\n    if vendor_info['phone'] or vendor_info['email']: score += 10\n    \n    # Financial data (50 points)\n    if financial_data['total_amount'] > 0: score += 25\n    if financial_data['date']: score += 15\n    if financial_data['invoice_number']: score += 10\n    \n    # Additional details (20 points)\n    if financial_data['subtotal'] > 0: score += 10\n    if financial_data['tax_amount'] > 0: score += 10\n    \n    return min(score, max_score)\n\ndef format_for_quickbooks(vendor_info, financial_data, category):\n    \"\"\"Format data for QuickBooks import\"\"\"\n    return {\n        'vendor_name': vendor_info['name'] or 'Unknown Vendor',\n        'amount': financial_data['total_amount'],\n        'expense_account': f'{category} Expense',\n        'date': financial_data['date'] or datetime.now().strftime('%m/%d/%Y'),\n        'memo': f\"Invoice {financial_data['invoice_number']}\" if financial_data['invoice_number'] else ''\n    }\n\ndef format_for_csv(vendor_info, financial_data, category):\n    \"\"\"Format data for CSV export\"\"\"\n    return {\n        'Date': financial_data['date'] or datetime.now().strftime('%m/%d/%Y'),\n        'Vendor': vendor_info['name'] or 'Unknown Vendor',\n        'Category': category,\n        'Amount': financial_data['total_amount'],\n        'Tax': financial_data['tax_amount'],\n        'Invoice_Number': financial_data['invoice_number'] or '',\n        'Description': f\"{category} expense from {vendor_info['name'] or 'vendor'}\"\n    }\n\ndef format_for_tax_prep(financial_data, category):\n    \"\"\"Format data for tax preparation\"\"\"\n    return {\n        'deductible_amount': financial_data['subtotal'] if financial_data['subtotal'] > 0 else financial_data['total_amount'],\n        'category': category,\n        'date': financial_data['date'] or datetime.now().strftime('%m/%d/%Y'),\n        'business_purpose': f'{category} business expense',\n        'tax_amount': financial_data['tax_amount']\n    }\n\n# Execute the function\nresult = process_invoice_expense()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "invoice_text",
+                "id": "invoice_text_input",
+                "label": "Invoice/Receipt Text",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the text from your invoice or receipt here. Include vendor name, amounts, dates, and any other relevant information...",
+                  "minRows": 8
+                }
+              },
+              {
+                "fieldName": "document_type",
+                "id": "document_type_input",
+                "label": "Document Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Invoice", "Receipt", "Bill", "Statement", "Expense report"],
+                  "defaultValue": "Invoice"
+                }
+              },
+              {
+                "fieldName": "expense_categories",
+                "id": "expense_categories_input",
+                "label": "Expense Categories",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter your expense categories separated by commas (e.g., Office supplies, Travel, Meals, Software, Equipment...)",
+                  "defaultValue": "Office supplies, Travel, Meals, Software, Equipment, Marketing, Utilities, Professional services"
+                }
+              },
+              {
+                "fieldName": "business_name",
+                "id": "business_name_input",
+                "label": "Business Name (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Your business name for accounting records"
+                }
+              },
+              {
+                "fieldName": "accounting_method",
+                "id": "accounting_method_input",
+                "label": "Accounting Method",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Accrual", "Cash", "Modified cash"],
+                  "defaultValue": "Accrual"
+                }
+              },
+              {
+                "fieldName": "processingPurpose",
+                "id": "processing_purpose_input",
+                "label": "Processing Purpose",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Accounting entry", "Expense tracking", "Tax preparation", "Budget analysis", "Vendor management", "Complete processing"],
+                  "defaultValue": "Complete processing"
+                }
+              },
+              {
+                "fieldName": "automationLevel",
+                "id": "automation_level_input",
+                "label": "Automation Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Manual review required", "Semi-automatic", "Fully automatic (high confidence)", "Validation only"],
+                  "defaultValue": "Semi-automatic"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_invoice_processing_output",
+                "label": "Complete Invoice Processing Results",
+                "type": "Text"
+              },
+              {
+                "fieldName": "extractedData",
+                "id": "extracted_data_output",
+                "label": "Extracted Financial Data",
+                "type": "Text"
+              },
+              {
+                "fieldName": "accountingEntries",
+                "id": "accounting_entries_output",
+                "label": "Accounting Entries",
+                "type": "Text"
+              },
+              {
+                "fieldName": "integrationFormats",
+                "id": "integration_formats_output",
+                "label": "Integration-Ready Formats",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847191",
+          "language": "en",
+          "name": "Invoice & Expense Processor",
+          "description": "Extracts and records financial data from invoices/receipts. Processes vendor information, amounts, dates, generates accounting entries, and provides integration-ready formats for accounting systems.",
+          "instructions": "1. Paste invoice or receipt text\n2. Select document type\n3. Define expense categories\n4. Add business name (optional)\n5. Choose accounting method\n6. Select processing purpose\n7. Set automation level\n\nThe processor will:\n- Extract vendor and financial information\n- Categorize expenses automatically\n- Generate accounting entries\n- Create integration-ready formats\n- Provide quality validation\n- Format for QuickBooks, CSV, tax prep\n- Suggest improvements and next steps\n\nPerfect for small businesses, freelancers, and accountants who need to efficiently process invoices and receipts into structured financial data."
+        }
+      ]
+    }
+  ]
+}

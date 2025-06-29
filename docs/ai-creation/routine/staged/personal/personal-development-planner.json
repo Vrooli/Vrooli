@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Conduct Self-Assessment",
                 "description": "Evaluates current strengths, weaknesses, values, and life satisfaction",
-                "subroutineId": "TODO: Need self-assessment subroutine",
+                "subroutineId": "7829564732190848537",
                 "inputMap": {
                   "currentLifeState": "personalProfile",
                   "valuesBeliefs": "coreValues",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Define Vision & Life Goals",
                 "description": "Creates compelling future vision and sets meaningful long-term objectives",
-                "subroutineId": "TODO: Need vision setting subroutine",
+                "subroutineId": "7829564732190848540",
                 "inputMap": {
                   "personalInsights": "selfAwareness",
                   "lifeAspirations": "futureDesires",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Growth Areas & Skills",
                 "description": "Determines specific areas for improvement and skill development",
-                "subroutineId": "TODO: Need growth identification subroutine",
+                "subroutineId": "7829564732190848543",
                 "inputMap": {
                   "capabilityMap": "strengthsWeaknesses",
                   "primaryObjectives": "coreGoals",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Development Action Plan",
                 "description": "Designs structured plan with specific actions and timelines",
-                "subroutineId": "TODO: Need action planning subroutine",
+                "subroutineId": "7829564732190848546",
                 "inputMap": {
                   "developmentAreas": "growthPriorities",
                   "availableResources": "resourceInventory",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Implement Habits & Practices",
                 "description": "Establishes daily routines and practices supporting growth",
-                "subroutineId": "TODO: Need habit implementation subroutine",
+                "subroutineId": "7829564732190848549",
                 "inputMap": {
                   "developmentStrategy": "actionPlan",
                   "lifestyleIntegration": "routineIncorporation",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Monitor Progress & Adapt",
                 "description": "Tracks development and adjusts plan based on results",
-                "subroutineId": "TODO: Need progress monitoring subroutine",
+                "subroutineId": "7829564732190848552",
                 "inputMap": {
                   "progressMetrics": "developmentIndicators",
                   "experienceReflection": "learningInsights",

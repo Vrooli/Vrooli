@@ -1,0 +1,139 @@
+{
+  "id": "7829564732190847072",
+  "publicId": "doc-summ-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847073",
+      "publicId": "doc-sum-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "Create a concise, developer-friendly summary of the following technical documentation:\n\n**Documentation Type:** {{input.docType}}\n**Focus Areas:** {{input.focusAreas}}\n\n**Documentation Text:**\n{{input.documentationText}}\n\n{{#if input.useCase}}**My Use Case:** {{input.useCase}}{{/if}}\n\nProvide a comprehensive technical summary including:\n\n1. **Overview**\n   - What this API/library/tool does\n   - Primary purpose and use cases\n   - Key benefits and features\n   - Version information (if mentioned)\n\n2. **Core Concepts**\n   - Essential concepts to understand\n   - Architecture overview (if applicable)\n   - Key terminology explained\n   - Design patterns used\n\n3. **Key Functions/Classes/Endpoints**\n   - Most important functions/methods/endpoints\n   - Brief description of what each does\n   - Parameters and return values\n   - Common usage patterns\n\n4. **Quick Start Guide**\n   - Installation/setup steps\n   - Basic configuration\n   - Minimal working example\n   - Common initialization patterns\n\n5. **Usage Examples**\n   - Practical code examples for common tasks\n   - Best practices demonstrated\n   - Error handling patterns\n   - Real-world scenarios\n\n6. **Important Parameters/Options**\n   - Key configuration options\n   - Required vs optional parameters\n   - Default values and their implications\n   - Performance-related settings\n\n7. **Common Patterns & Best Practices**\n   - Recommended usage patterns\n   - Anti-patterns to avoid\n   - Performance tips\n   - Security considerations\n\n8. **Error Handling**\n   - Common errors and their meanings\n   - How to handle exceptions\n   - Debugging tips\n   - Troubleshooting guide\n\n9. **Limitations & Gotchas**\n   - Known limitations\n   - Common pitfalls\n   - Version compatibility issues\n   - Platform-specific considerations\n\n10. **Quick Reference**\n    - Cheat sheet of most-used items\n    - Import statements\n    - Common snippets\n    - Useful resources/links\n\nFocus on practical, actionable information that developers need most. Use code examples where helpful.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "documentationText",
+                "id": "documentation_text_input",
+                "label": "Documentation Text/Link",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the API documentation, technical manual, or library docs here...",
+                  "minRows": 10
+                }
+              },
+              {
+                "fieldName": "docType",
+                "id": "doc_type_input",
+                "label": "Documentation Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["API Documentation", "Library/Framework Docs", "Technical Manual", "SDK Documentation", "Tool Documentation", "Protocol Specification"],
+                  "defaultValue": "API Documentation"
+                }
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Focus Areas",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What aspects are most important? (e.g., authentication, data models, specific endpoints, performance...)"
+                }
+              },
+              {
+                "fieldName": "useCase",
+                "id": "use_case_input",
+                "label": "Your Use Case (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What are you trying to build or accomplish with this API/library?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "experienceLevel",
+                "id": "experience_level_input",
+                "label": "Experience Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Beginner", "Intermediate", "Advanced"],
+                  "defaultValue": "Intermediate"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_summary_output",
+                "label": "Complete Documentation Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "quickReference",
+                "id": "quick_reference_output",
+                "label": "Quick Reference Guide",
+                "type": "Text"
+              },
+              {
+                "fieldName": "examples",
+                "id": "usage_examples_output",
+                "label": "Key Usage Examples",
+                "type": "Text"
+              },
+              {
+                "fieldName": "bestPractices",
+                "id": "best_practices_output",
+                "label": "Best Practices & Tips",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847074",
+          "language": "en",
+          "name": "Documentation Summarizer",
+          "description": "Summarizes API docs, technical manuals, or libraries for quick understanding. Extracts key functions, usage patterns, examples, and best practices. Creates developer-friendly quick reference guides from verbose documentation.",
+          "instructions": "1. Paste the technical documentation you want summarized\n2. Select the type of documentation\n3. Specify which areas to focus on\n4. Optionally describe your use case\n5. Choose your experience level\n\nThe summarizer will provide:\n- Concise overview of functionality\n- Key functions/endpoints with examples\n- Quick start guide\n- Common patterns and best practices\n- Error handling guidance\n- Important gotchas and limitations\n- Quick reference cheat sheet\n\nPerfect for quickly understanding new APIs or libraries."
+        }
+      ]
+    }
+  ]
+}

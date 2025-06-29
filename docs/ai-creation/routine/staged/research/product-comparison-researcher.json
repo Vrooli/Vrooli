@@ -1,0 +1,61 @@
+{
+  "id": "7829564732190847231",
+  "publicId": "product-compare-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847232",
+      "publicId": "comparison-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "steps": [
+          {
+            "stepId": "research_products",
+            "name": "Web Research Agent",
+            "description": "Research product information from multiple sources",
+            "type": "Subroutine",
+            "subroutineId": "7829564732190848360"
+          },
+          {
+            "stepId": "format_comparison",
+            "name": "Tabular Formatter",
+            "description": "Format comparison data into clear tables",
+            "type": "Subroutine",
+            "subroutineId": "7829564732190848363"
+          }
+        ],
+        "inputMapping": {
+          "research_products": {
+            "query": "{{input.productList}} comparison {{input.comparisonCriteria}}",
+            "depth": "comprehensive"
+          },
+          "format_comparison": {
+            "data": "{{research_products.output}}",
+            "format": "comparison_table"
+          }
+        },
+        "executionStrategy": "sequential"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847233",
+          "language": "en",
+          "name": "Product Comparison Researcher",
+          "description": "Compares multiple products or options before decision-making. Uses Web Research Agent and Tabular Formatter to create comprehensive comparison charts with pros/cons analysis.",
+          "instructions": "1. List products to compare\n2. Define comparison criteria\n3. Set budget constraints (optional)\n4. Choose product category\n5. Add specific requirements (optional)\n6. Select decision factors\n7. Set comparison depth\n\nThe researcher will:\n- Gather data from multiple sources\n- Create detailed comparison tables\n- Analyze pros and cons\n- Calculate value propositions\n- Provide recommendations\n- Include user reviews summary\n- Show price history trends\n- Identify best use cases\n- Highlight deal breakers\n- Suggest alternatives\n\nCompares:\n- Features and specifications\n- Pricing and value\n- User ratings and reviews\n- Availability and shipping\n- Warranty and support\n- Compatibility\n- Long-term costs\n- Environmental impact"
+        }
+      ]
+    }
+  ]
+}

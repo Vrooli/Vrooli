@@ -1,0 +1,161 @@
+{
+  "id": "7829564732190848009",
+  "publicId": "ad-copy-gen-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847107",
+      "publicId": "marketing-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "marketing"
+    },
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848010",
+      "publicId": "ad-copy-gen-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates advertising copy for various formats",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Generate compelling advertising copy based on:\n\nCampaign Theme: {{input.campaignTheme}}\nSlogans: {{input.slogans}}\nKey Features: {{input.keyFeatures}}\nBenefits: {{input.benefits}}\nBrand Voice: {{input.brandVoice}}\nAd Platforms: {{input.adPlatforms}}\n\nCreate comprehensive ad copy variations:\n\n1. Short Ad Copy (Under 50 words):\n   - Headlines (5-10 words)\n   - Sub-headlines\n   - Google Ads format\n   - Social media ads\n   - Banner ad text\n\n2. Medium Ad Copy (50-150 words):\n   - Facebook/Instagram ads\n   - LinkedIn sponsored content\n   - Display ad copy\n   - Video ad scripts\n   - Radio spots (30 sec)\n\n3. Long Ad Copy (150+ words):\n   - Landing page hero text\n   - Email body copy\n   - Blog ad content\n   - Native advertising\n   - Advertorial copy\n\n4. Call-to-Action Variations:\n   - Urgency-based CTAs\n   - Benefit-focused CTAs\n   - Curiosity CTAs\n   - Social proof CTAs\n   - Personalized CTAs\n\n5. Platform-Specific Copy:\n   - Google Search Ads (headlines + descriptions)\n   - Facebook/Instagram (primary text + headline)\n   - LinkedIn (intro text + headline)\n   - Twitter/X (character-limited)\n   - YouTube (video description)\n\n6. A/B Test Variations:\n   - Different angles\n   - Emotional vs rational\n   - Feature vs benefit focus\n   - Question vs statement\n   - Short vs detailed\n\n7. Compliance Elements:\n   - Disclaimers if needed\n   - Terms and conditions\n   - Promotional details\n   - Legal requirements\n\n8. Performance Copy:\n   - High-converting phrases\n   - Power words usage\n   - Psychological triggers\n   - FOMO elements\n   - Trust signals\n\nReturn as structured JSON with keys: shortAdCopy (array), mediumAdCopy (array), longAdCopy (array), callToActions (array categorized), platformSpecific (object by platform), abTestVariations (array), complianceElements (array), performanceCopy (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "campaignTheme",
+                "id": "theme_input",
+                "label": "Campaign Theme",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Overall campaign theme and messaging",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "slogans",
+                "id": "slogans_input",
+                "label": "Campaign Slogans",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Main slogans or taglines to incorporate"
+                }
+              },
+              {
+                "fieldName": "keyFeatures",
+                "id": "features_input",
+                "label": "Key Features",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Product/service features to highlight",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "benefits",
+                "id": "benefits_input",
+                "label": "Key Benefits",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Customer benefits and value propositions",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "brandVoice",
+                "id": "voice_input",
+                "label": "Brand Voice",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Tone and style guidelines"
+                }
+              },
+              {
+                "fieldName": "adPlatforms",
+                "id": "platforms_input",
+                "label": "Ad Platforms",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Where will these ads run? (Google, Facebook, etc.)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "shortAdCopy",
+                "id": "short_output",
+                "label": "Short Ad Copy",
+                "type": "Text"
+              },
+              {
+                "fieldName": "longAdCopy",
+                "id": "long_output",
+                "label": "Long Ad Copy",
+                "type": "Text"
+              },
+              {
+                "fieldName": "callToActions",
+                "id": "cta_output",
+                "label": "Call-to-Actions",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848011",
+          "language": "en-US",
+          "description": "Generates advertising copy in multiple formats with platform-specific variations",
+          "instructions": "Enter your campaign theme and key messages. The system will generate ad copy in various lengths and formats for different platforms.",
+          "name": "Ad Copy Generator"
+        }
+      ]
+    }
+  ]
+}

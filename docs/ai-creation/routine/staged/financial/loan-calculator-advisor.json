@@ -1,0 +1,163 @@
+{
+  "id": "7829564732190847243",
+  "publicId": "loan-calc-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847244",
+      "publicId": "loan-advisor-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import json\nimport math\nfrom datetime import datetime, timedelta\n\ndef calculate_loan_details():\n    # Get inputs\n    loan_amount = globals().get('loan_amount', 25000)\n    interest_rate = globals().get('interest_rate', 5.5)\n    loan_term_years = globals().get('loan_term_years', 5)\n    loan_type = globals().get('loan_type', 'Personal loan')\n    down_payment = globals().get('down_payment', 0)\n    extra_payment = globals().get('extra_payment', 0)\n    \n    def calculate_monthly_payment(principal, annual_rate, years):\n        \"\"\"Calculate monthly payment using amortization formula\"\"\"\n        if annual_rate == 0:\n            return principal / (years * 12)\n        \n        monthly_rate = annual_rate / 100 / 12\n        num_payments = years * 12\n        \n        # Monthly payment formula\n        monthly_payment = principal * (monthly_rate * (1 + monthly_rate)**num_payments) / ((1 + monthly_rate)**num_payments - 1)\n        \n        return monthly_payment\n    \n    def generate_amortization_schedule(principal, annual_rate, years, extra_payment=0):\n        \"\"\"Generate full amortization schedule\"\"\"\n        monthly_rate = annual_rate / 100 / 12\n        monthly_payment = calculate_monthly_payment(principal, annual_rate, years)\n        total_payment = monthly_payment + extra_payment\n        \n        schedule = []\n        balance = principal\n        total_interest = 0\n        total_principal = 0\n        \n        for month in range(1, years * 12 + 1):\n            if balance <= 0:\n                break\n                \n            # Calculate interest and principal portions\n            interest_payment = balance * monthly_rate\n            principal_payment = min(total_payment - interest_payment, balance)\n            \n            # Update totals\n            total_interest += interest_payment\n            total_principal += principal_payment\n            balance -= principal_payment\n            \n            # Add to schedule (show only key months)\n            if month in [1, 6, 12, 24, 36, 48, 60, years * 12]:\n                schedule.append({\n                    'month': month,\n                    'payment': round(total_payment, 2),\n                    'principal': round(principal_payment, 2),\n                    'interest': round(interest_payment, 2),\n                    'balance': round(max(0, balance), 2),\n                    'total_paid': round(total_payment * month, 2)\n                })\n            \n            if balance <= 0:\n                break\n        \n        return schedule, total_interest, month\n    \n    def compare_loan_scenarios(principal, base_rate, base_years):\n        \"\"\"Compare different loan scenarios\"\"\"\n        scenarios = []\n        \n        # Different term lengths\n        terms = [3, 5, 7, 10, 15] if loan_type in ['Mortgage', 'Auto loan'] else [1, 3, 5, 7]\n        for term in terms:\n            monthly = calculate_monthly_payment(principal, base_rate, term)\n            total_interest = (monthly * term * 12) - principal\n            \n            scenarios.append({\n                'scenario': f'{term}-year term',\n                'monthly_payment': round(monthly, 2),\n                'total_interest': round(total_interest, 2),\n                'total_cost': round(principal + total_interest, 2),\n                'interest_rate': base_rate,\n                'term_years': term\n            })\n        \n        # Different interest rates\n        rate_adjustments = [-1.0, -0.5, 0, 0.5, 1.0]\n        for adjustment in rate_adjustments:\n            adjusted_rate = max(0.1, base_rate + adjustment)\n            monthly = calculate_monthly_payment(principal, adjusted_rate, base_years)\n            total_interest = (monthly * base_years * 12) - principal\n            \n            scenarios.append({\n                'scenario': f'{adjusted_rate}% interest rate',\n                'monthly_payment': round(monthly, 2),\n                'total_interest': round(total_interest, 2),\n                'total_cost': round(principal + total_interest, 2),\n                'interest_rate': adjusted_rate,\n                'term_years': base_years\n            })\n        \n        return sorted(scenarios, key=lambda x: x['total_cost'])\n    \n    def calculate_affordability(monthly_payment, loan_type):\n        \"\"\"Calculate required income and affordability metrics\"\"\"\n        # Debt-to-income ratio guidelines\n        dti_limits = {\n            'Mortgage': 0.28,  # Front-end ratio\n            'Auto loan': 0.15,\n            'Personal loan': 0.20,\n            'Student loan': 0.10,\n            'Business loan': 0.25\n        }\n        \n        max_dti = dti_limits.get(loan_type, 0.20)\n        required_monthly_income = monthly_payment / max_dti\n        required_annual_income = required_monthly_income * 12\n        \n        # Calculate for different DTI ratios\n        affordability_table = []\n        for dti in [0.10, 0.15, 0.20, 0.25, 0.30, 0.35]:\n            income = monthly_payment / dti\n            affordability_table.append({\n                'dti_ratio': f'{int(dti * 100)}%',\n                'required_monthly_income': round(income, 2),\n                'required_annual_income': round(income * 12, 2),\n                'risk_level': 'Low' if dti <= 0.20 else 'Medium' if dti <= 0.30 else 'High'\n            })\n        \n        return {\n            'recommended_income': round(required_annual_income, 2),\n            'monthly_income_needed': round(required_monthly_income, 2),\n            'max_dti_ratio': f'{int(max_dti * 100)}%',\n            'affordability_table': affordability_table\n        }\n    \n    def calculate_prepayment_savings(principal, rate, years, extra_payment):\n        \"\"\"Calculate savings from making extra payments\"\"\"\n        # Standard loan\n        standard_payment = calculate_monthly_payment(principal, rate, years)\n        standard_total = standard_payment * years * 12\n        standard_interest = standard_total - principal\n        \n        # With extra payments\n        _, extra_interest, extra_months = generate_amortization_schedule(principal, rate, years, extra_payment)\n        extra_total = (standard_payment + extra_payment) * extra_months\n        \n        # Calculate savings\n        interest_saved = standard_interest - extra_interest\n        time_saved_months = (years * 12) - extra_months\n        \n        return {\n            'interest_saved': round(interest_saved, 2),\n            'time_saved_months': time_saved_months,\n            'time_saved_years': round(time_saved_months / 12, 1),\n            'new_payoff_months': extra_months,\n            'total_saved': round(standard_total - extra_total, 2)\n        }\n    \n    def generate_loan_advice(loan_type, rate, term, dti_ratio):\n        \"\"\"Generate personalized loan advice\"\"\"\n        advice = []\n        warnings = []\n        tips = []\n        \n        # Rate-based advice\n        market_rates = {\n            'Mortgage': 7.0,\n            'Auto loan': 6.5,\n            'Personal loan': 11.0,\n            'Student loan': 5.5,\n            'Business loan': 9.0\n        }\n        \n        typical_rate = market_rates.get(loan_type, 10.0)\n        if rate > typical_rate + 2:\n            warnings.append(f'Your rate is significantly above market average ({typical_rate}%)')\n            advice.append('Consider shopping for better rates or improving credit score')\n        elif rate < typical_rate - 1:\n            tips.append('You have an excellent rate - take advantage of it')\n        \n        # Term-based advice\n        if loan_type == 'Auto loan' and term > 6:\n            warnings.append('Long auto loans often result in negative equity')\n            advice.append('Consider a shorter term to avoid owing more than car value')\n        elif loan_type == 'Personal loan' and term > 5:\n            warnings.append('Long personal loan terms significantly increase total interest')\n        \n        # General tips\n        tips.extend([\n            'Make extra payments toward principal when possible',\n            'Set up automatic payments to avoid late fees',\n            'Review loan terms for prepayment penalties',\n            'Consider refinancing if rates drop significantly'\n        ])\n        \n        # Loan-specific tips\n        loan_tips = {\n            'Mortgage': [\n                'Extra payments early in loan save the most interest',\n                'Consider bi-weekly payments to pay off faster',\n                'Keep emergency fund despite homeownership costs'\n            ],\n            'Auto loan': [\n                'Gap insurance recommended for new cars',\n                'Consider total cost of ownership, not just payment',\n                'Refinance if credit improves significantly'\n            ],\n            'Student loan': [\n                'Check for forgiveness programs',\n                'Consider income-driven repayment if struggling',\n                'Prioritize high-interest private loans'\n            ]\n        }\n        \n        if loan_type in loan_tips:\n            tips.extend(loan_tips[loan_type])\n        \n        return {\n            'advice': advice[:3],\n            'warnings': warnings[:2],\n            'tips': tips[:5]\n        }\n    \n    # Main execution\n    try:\n        # Convert inputs\n        loan_amount = float(loan_amount)\n        interest_rate = float(interest_rate)\n        loan_term_years = int(loan_term_years)\n        down_payment = float(down_payment)\n        extra_payment = float(extra_payment)\n        \n        # Calculate loan principal\n        principal = loan_amount - down_payment\n        \n        # Calculate base loan details\n        monthly_payment = calculate_monthly_payment(principal, interest_rate, loan_term_years)\n        total_payments = monthly_payment * loan_term_years * 12\n        total_interest = total_payments - principal\n        \n        # Generate amortization schedule\n        schedule, _, _ = generate_amortization_schedule(principal, interest_rate, loan_term_years)\n        \n        # Compare scenarios\n        scenarios = compare_loan_scenarios(principal, interest_rate, loan_term_years)\n        \n        # Calculate affordability\n        affordability = calculate_affordability(monthly_payment, loan_type)\n        \n        # Calculate prepayment savings\n        prepayment_savings = None\n        if extra_payment > 0:\n            prepayment_savings = calculate_prepayment_savings(principal, interest_rate, loan_term_years, extra_payment)\n        \n        # Generate advice\n        advice = generate_loan_advice(loan_type, interest_rate, loan_term_years, 0.25)\n        \n        # Calculate key dates\n        today = datetime.now()\n        first_payment = today + timedelta(days=30)\n        payoff_date = today + timedelta(days=loan_term_years * 365)\n        \n        # Create comprehensive output\n        output = {\n            'loan_calculation_results': {\n                'loan_summary': {\n                    'loan_type': loan_type,\n                    'total_loan_amount': f'${loan_amount:,.2f}',\n                    'down_payment': f'${down_payment:,.2f}',\n                    'principal_amount': f'${principal:,.2f}',\n                    'interest_rate': f'{interest_rate}%',\n                    'loan_term': f'{loan_term_years} years ({loan_term_years * 12} months)',\n                    'first_payment_date': first_payment.strftime('%Y-%m-%d'),\n                    'payoff_date': payoff_date.strftime('%Y-%m-%d')\n                },\n                'payment_breakdown': {\n                    'monthly_payment': f'${monthly_payment:,.2f}',\n                    'total_payments': f'${total_payments:,.2f}',\n                    'total_interest': f'${total_interest:,.2f}',\n                    'interest_percentage': f'{(total_interest / principal * 100):.1f}%',\n                    'daily_interest_cost': f'${(total_interest / (loan_term_years * 365)):.2f}'\n                }\n            },\n            'amortization_highlights': schedule[:5],  # First 5 key months\n            'affordability_analysis': affordability,\n            'scenario_comparison': scenarios[:8],  # Top 8 scenarios\n            'prepayment_analysis': prepayment_savings if prepayment_savings else {\n                'note': 'Add extra monthly payment amount to see savings'\n            },\n            'loan_advice': advice,\n            'cost_breakdown': {\n                'year_1_interest': f'${sum(s[\"interest\"] for s in schedule[:1]):,.2f}' if schedule else 'N/A',\n                'year_1_principal': f'${sum(s[\"principal\"] for s in schedule[:1]):,.2f}' if schedule else 'N/A',\n                'halfway_point': {\n                    'months': loan_term_years * 6,\n                    'principal_paid_percentage': '~40%',\n                    'interest_paid_percentage': '~70%',\n                    'note': 'Most interest paid in first half of loan'\n                }\n            },\n            'decision_factors': {\n                'monthly_budget_impact': {\n                    'payment_amount': monthly_payment,\n                    'as_percentage_of_income': 'See affordability analysis',\n                    'other_debts_consideration': 'Include all monthly obligations'\n                },\n                'total_cost_analysis': {\n                    'interest_cost': total_interest,\n                    'opportunity_cost': 'Consider investment alternatives',\n                    'tax_implications': 'Consult tax advisor for deductions'\n                },\n                'alternatives': [\n                    'Larger down payment to reduce principal',\n                    'Shorter term to save on interest',\n                    'Shop multiple lenders for better rates',\n                    'Improve credit score before applying'\n                ]\n            }\n        }\n        \n        return json.dumps(output, indent=2)\n        \n    except Exception as e:\n        return json.dumps({\n            'error': f'Error calculating loan details: {str(e)}',\n            'troubleshooting': {\n                'common_issues': [\n                    'Ensure all amounts are numbers',\n                    'Interest rate should be annual percentage',\n                    'Loan term should be in years',\n                    'Down payment cannot exceed loan amount'\n                ]\n            }\n        }, indent=2)\n\n# Execute the function\nresult = calculate_loan_details()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "loan_amount",
+                "id": "loan_amount_input",
+                "label": "Total Loan Amount ($)",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 1000,
+                  "max": 10000000,
+                  "defaultValue": 25000
+                }
+              },
+              {
+                "fieldName": "interest_rate",
+                "id": "interest_rate_input",
+                "label": "Annual Interest Rate (%)",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter interest rate (e.g., 5.5 for 5.5%)",
+                  "defaultValue": "5.5"
+                }
+              },
+              {
+                "fieldName": "loan_term_years",
+                "id": "loan_term_years_input",
+                "label": "Loan Term (Years)",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 1,
+                  "max": 30,
+                  "defaultValue": 5
+                }
+              },
+              {
+                "fieldName": "loan_type",
+                "id": "loan_type_input",
+                "label": "Loan Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Personal loan", "Auto loan", "Mortgage", "Student loan", "Business loan", "Other"],
+                  "defaultValue": "Personal loan"
+                }
+              },
+              {
+                "fieldName": "down_payment",
+                "id": "down_payment_input",
+                "label": "Down Payment ($)",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 0,
+                  "max": 10000000,
+                  "defaultValue": 0
+                }
+              },
+              {
+                "fieldName": "extra_payment",
+                "id": "extra_payment_input",
+                "label": "Extra Monthly Payment (Optional)",
+                "type": "IntegerInput",
+                "isRequired": false,
+                "props": {
+                  "min": 0,
+                  "max": 10000,
+                  "defaultValue": 0
+                }
+              },
+              {
+                "fieldName": "creditScore",
+                "id": "credit_score_input",
+                "label": "Credit Score Range (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Excellent (750+)", "Good (700-749)", "Fair (650-699)", "Poor (below 650)", "Not sure"],
+                  "defaultValue": "Good (700-749)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_loan_analysis_output",
+                "label": "Complete Loan Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "paymentBreakdown",
+                "id": "payment_breakdown_output",
+                "label": "Payment Breakdown",
+                "type": "Text"
+              },
+              {
+                "fieldName": "scenarioComparison",
+                "id": "scenario_comparison_output",
+                "label": "Scenario Comparison",
+                "type": "Text"
+              },
+              {
+                "fieldName": "adviceRecommendations",
+                "id": "advice_recommendations_output",
+                "label": "Advice & Recommendations",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847245",
+          "language": "en",
+          "name": "Loan Calculator & Advisor",
+          "description": "Calculates loan payments and provides guidance on loan decisions. Shows payment breakdowns, total interest, and explains trade-offs in plain language.",
+          "instructions": "1. Enter total loan amount\n2. Enter annual interest rate\n3. Select loan term in years\n4. Choose loan type\n5. Enter down payment (if applicable)\n6. Add extra monthly payment (optional)\n7. Select credit score range (optional)\n\nThe calculator will:\n- Calculate monthly payments\n- Show total interest costs\n- Create amortization schedule\n- Compare different scenarios\n- Analyze affordability\n- Calculate prepayment savings\n- Provide personalized advice\n- Show cost breakdowns\n- Suggest alternatives\n\nFeatures:\n- Multiple loan types supported\n- Scenario comparisons\n- Affordability analysis\n- Prepayment calculations\n- Expert advice and warnings\n- Plain language explanations\n\nPerfect for anyone considering a loan, refinancing, or wanting to understand their current loan better."
+        }
+      ]
+    }
+  ]
+}

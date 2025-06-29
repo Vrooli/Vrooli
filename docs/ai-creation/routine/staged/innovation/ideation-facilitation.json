@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190848135",
+  "publicId": "ideation-facilitation-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847033",
+      "publicId": "innovation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "innovation"
+    },
+    {
+      "id": "7829564732190847106",
+      "publicId": "creativity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "creativity"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848136",
+      "publicId": "ideation-facilitation-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Guides structured brainstorming sessions using various creative techniques",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Design and facilitate a structured ideation session for creative problem-solving:\n\nProblem Statement: {{input.problemStatement}}\nParticipants: {{input.participants}}\nSession Duration: {{input.sessionDuration}}\nIdeation Goals: {{input.ideationGoals}}\n\nCreate comprehensive ideation facilitation plan:\n\n1. Session Structure:\n   - Warm-up activities\n   - Problem reframing\n   - Ideation techniques\n   - Idea clustering\n   - Initial evaluation\n\n2. Ideation Techniques:\n   - Classic brainstorming\n   - Mind mapping\n   - SCAMPER method\n   - Six thinking hats\n   - Analogical thinking\n   - Random word association\n   - Reverse brainstorming\n\n3. Facilitation Guidelines:\n   - Ground rules establishment\n   - Participation encouragement\n   - Energy management\n   - Time management\n   - Idea documentation\n\n4. Creative Stimulation:\n   - Provocative questions\n   - Assumption challenging\n   - Perspective shifting\n   - Constraint removal\n   - Wild idea encouragement\n\n5. Group Dynamics Management:\n   - Equal participation\n   - Dominant personality management\n   - Shy participant inclusion\n   - Conflict prevention\n   - Momentum maintenance\n\n6. Idea Documentation:\n   - Real-time capture methods\n   - Visual representation\n   - Categorization systems\n   - Digital tools usage\n   - Backup documentation\n\n7. Evaluation Preparation:\n   - Initial sorting criteria\n   - Clustering methods\n   - Voting techniques\n   - Priority setting\n   - Next steps planning\n\n8. Session Outputs:\n   - Idea inventory\n   - Categorized concepts\n   - Priority rankings\n   - Development recommendations\n   - Follow-up actions\n\nReturn as structured JSON with keys: sessionStructure (object), ideationTechniques (array), facilitationGuidelines (object), creativeTriggers (array), groupManagement (object), documentationPlan (object), evaluationMethod (object), expectedOutputs (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "problemStatement",
+                "id": "problem_input",
+                "label": "Problem Statement",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What problem or challenge are you trying to solve creatively?",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "participants",
+                "id": "participants_input",
+                "label": "Participants",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Who will participate? (number, roles, expertise levels)",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "sessionDuration",
+                "id": "duration_input",
+                "label": "Session Duration",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How long is the ideation session? (1 hour, half day, etc.)"
+                }
+              },
+              {
+                "fieldName": "ideationGoals",
+                "id": "goals_input",
+                "label": "Ideation Goals",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What specific outcomes do you want from this session?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "facilitationPlan",
+                "id": "plan_output",
+                "label": "Ideation Facilitation Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "facilitatorScript",
+                "id": "script_output",
+                "label": "Facilitator Script & Guidance",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848137",
+          "language": "en-US",
+          "description": "Guides structured brainstorming sessions using proven creative techniques and facilitation methods",
+          "instructions": "Enter your problem statement, participant information, and session goals. The system will create a comprehensive ideation facilitation plan with techniques and guidance.",
+          "name": "Ideation Facilitation"
+        }
+      ]
+    }
+  ]
+}

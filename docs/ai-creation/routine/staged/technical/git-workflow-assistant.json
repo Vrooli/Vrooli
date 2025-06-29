@@ -1,0 +1,162 @@
+{
+  "id": "7829564732190847225",
+  "publicId": "git-workflow-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847226",
+      "publicId": "git-assistant-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 1400,
+            "model": null,
+            "prompt": "Help resolve the following Git version control scenario:\n\n**Git Scenario:** {{input.gitScenario}}\n**Error Messages (if any):** {{input.errorMessages}}\n**Repository State:** {{input.repositoryState}}\n**Git Experience Level:** {{input.experienceLevel}}\n{{#if input.branchInfo}}**Branch Information:** {{input.branchInfo}}{{/if}}\n{{#if input.teamSize}}**Team Size:** {{input.teamSize}}{{/if}}\n\nProvide comprehensive Git workflow guidance:\n\n1. **Situation Analysis**\n   - Identify the core issue or task\n   - Assess current repository state\n   - Determine risk level\n   - Check for data loss potential\n   - Understand team impact\n\n2. **Immediate Actions**\n   If in error state:\n   - Safety checks to run first\n   - Backup commands if needed\n   - State preservation steps\n   ```bash\n   # Example safety commands\n   git status\n   git stash save \"backup before fix\"\n   ```\n\n3. **Step-by-Step Solution**\n   Provide exact commands with explanations:\n   ```bash\n   # Step 1: [Description]\n   git [command] [options]\n   \n   # Step 2: [Description]\n   git [command] [options]\n   ```\n   - Expected output for each step\n   - Verification commands\n   - Alternative approaches\n\n4. **Common Scenarios & Solutions**\n   Based on the issue type:\n   \n   **Merge Conflicts:**\n   - Conflict identification\n   - Resolution strategies\n   - Tool recommendations\n   - Testing after resolution\n   \n   **Branch Management:**\n   - Creating/deleting branches\n   - Switching branches safely\n   - Remote branch tracking\n   - Branch naming conventions\n   \n   **History Management:**\n   - Undoing commits\n   - Rewriting history safely\n   - Cherry-picking changes\n   - Interactive rebase\n   \n   **Collaboration Issues:**\n   - Pull/push problems\n   - Fork and PR workflow\n   - Team synchronization\n   - Access permissions\n\n5. **Best Practices**\n   - Workflow recommendations\n   - Commit message guidelines\n   - Branch strategy (GitFlow, GitHub Flow, etc.)\n   - Code review process\n   - CI/CD integration\n\n6. **Error Recovery**\n   If something goes wrong:\n   - Rollback procedures\n   - Data recovery options\n   - Reflog usage\n   - When to use --force (carefully!)\n   - Seeking help resources\n\n7. **Prevention Strategies**\n   - Pre-commit hooks\n   - Automated checks\n   - Team agreements\n   - Documentation standards\n   - Training recommendations\n\n8. **Advanced Techniques**\n   For experienced users:\n   - Submodules management\n   - Worktrees usage\n   - Custom aliases\n   - Scripting Git workflows\n   - Performance optimization\n\n9. **Visualization & Understanding**\n   - Command to visualize history\n   - Understanding the commit graph\n   - Branch relationships\n   - Remote tracking visualization\n   ```bash\n   git log --oneline --graph --all\n   ```\n\n10. **Tool Recommendations**\n    - GUI clients for beginners\n    - Merge tools\n    - Diff tools\n    - Git extensions\n    - IDE integrations\n\n11. **Team Workflows**\n    - Pull request best practices\n    - Code review guidelines\n    - Release management\n    - Hotfix procedures\n    - Feature branch workflow\n\n12. **Troubleshooting Checklist**\n    - Verify remote URLs\n    - Check SSH keys\n    - Confirm permissions\n    - Network connectivity\n    - Disk space issues\n\n13. **Git Configuration**\n    - Essential configs\n    - User setup\n    - Aliases for efficiency\n    - Global vs local settings\n    - Credential management\n\n14. **Learning Resources**\n    - Official documentation\n    - Interactive tutorials\n    - Practice repositories\n    - Common scenarios guide\n    - Team training materials\n\n15. **Emergency Contacts**\n    - When to escalate\n    - What info to provide\n    - Backup strategies\n    - Repository recovery\n    - Professional help options\n\nProvide clear, safe, and effective Git solutions appropriate to the user's experience level.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "gitScenario",
+                "id": "git_scenario_input",
+                "label": "Git Scenario/Task",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe what you're trying to do or what went wrong:\n- Merge conflict during pull\n- Need to undo last commit\n- Can't push to remote\n- Want to clean up history\n- Setting up new repository",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "errorMessages",
+                "id": "error_messages_input",
+                "label": "Error Messages",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Paste any error messages you're seeing...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "repositoryState",
+                "id": "repository_state_input",
+                "label": "Current Repository State",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output of 'git status' or describe current state:\n- Clean working directory\n- Uncommitted changes\n- In the middle of merge\n- Detached HEAD state",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "experienceLevel",
+                "id": "experience_level_input",
+                "label": "Git Experience Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Beginner (just learning)", "Intermediate (daily use)", "Advanced (complex workflows)", "Expert (Git internals)"],
+                  "defaultValue": "Intermediate (daily use)"
+                }
+              },
+              {
+                "fieldName": "branchInfo",
+                "id": "branch_info_input",
+                "label": "Branch Information (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Current branch, target branch, remote info...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "teamSize",
+                "id": "team_size_input",
+                "label": "Team Size (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Solo developer", "Small team (2-5)", "Medium team (6-20)", "Large team (20+)"],
+                  "defaultValue": "Small team (2-5)"
+                }
+              },
+              {
+                "fieldName": "urgency",
+                "id": "urgency_input",
+                "label": "Urgency",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Low - Learning/exploring", "Medium - Regular work", "High - Blocking others", "Critical - Production issue"],
+                  "defaultValue": "Medium - Regular work"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_git_solution_output",
+                "label": "Complete Git Solution",
+                "type": "Text"
+              },
+              {
+                "fieldName": "commandSequence",
+                "id": "command_sequence_output",
+                "label": "Command Sequence",
+                "type": "Text"
+              },
+              {
+                "fieldName": "bestPractices",
+                "id": "best_practices_output",
+                "label": "Best Practices & Prevention",
+                "type": "Text"
+              },
+              {
+                "fieldName": "troubleshooting",
+                "id": "troubleshooting_output",
+                "label": "Troubleshooting & Resources",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847227",
+          "language": "en",
+          "name": "Git Workflow Assistant",
+          "description": "Guides through Git version control tasks and issues. Helps with merges, conflicts, history management, and provides command sequences with best practices.",
+          "instructions": "1. Describe your Git scenario or problem\n2. Paste any error messages (optional)\n3. Describe current repository state\n4. Select your Git experience level\n5. Add branch information (optional)\n6. Specify team size (optional)\n7. Set urgency level\n\nThe assistant will provide:\n- Situation analysis and risk assessment\n- Step-by-step command sequences\n- Safety checks and backup procedures\n- Multiple solution approaches\n- Best practices for your scenario\n- Error recovery procedures\n- Prevention strategies\n- Team workflow recommendations\n- Learning resources\n\nHandles common scenarios:\n- Merge conflicts\n- Undoing changes\n- Branch management\n- Remote repository issues\n- History rewriting\n- Collaboration workflows\n- Recovery from mistakes"
+        }
+      ]
+    }
+  ]
+}

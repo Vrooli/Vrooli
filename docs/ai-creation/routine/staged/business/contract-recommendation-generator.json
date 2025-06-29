@@ -1,0 +1,114 @@
+{
+  "id": "7829564732190848513",
+  "publicId": "contract-recommendation-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847033",
+      "tag": "legal",
+      "translations": [
+        {
+          "id": "7829564732190847133",
+          "language": "en",
+          "description": "Legal analysis and compliance"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847021",
+      "tag": "content-generation",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Content creation and generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848514",
+      "publicId": "contract-recommendation-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates contract improvement recommendations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "complianceReport",
+                "id": "compliance_report_input",
+                "label": "Compliance Report",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Compliance assessment data from compliance checker"
+              },
+              {
+                "fieldName": "recommendationStyle",
+                "id": "recommendation_style_input",
+                "label": "Recommendation Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "practical",
+                "options": [
+                  "conservative",
+                  "practical",
+                  "comprehensive",
+                  "aggressive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contractRecommendations",
+                "id": "contract_recommendations_output",
+                "label": "Contract Recommendations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848515",
+          "language": "en",
+          "name": "Contract Recommendation Generator",
+          "description": "Generates actionable recommendations for contract improvements based on compliance analysis and risk assessment.",
+          "instructions": "Provide compliance report for recommendation generation. The routine will create specific improvement suggestions."
+        }
+      ]
+    }
+  ]
+}

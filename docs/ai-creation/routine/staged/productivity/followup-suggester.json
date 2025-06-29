@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848657",
+  "publicId": "followup-suggester-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847075",
+      "tag": "note-taking",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Note organization and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847078",
+      "tag": "action-items",
+      "translations": [
+        {
+          "id": "7829564732190847178",
+          "language": "en",
+          "description": "Action items and follow-ups"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848658",
+      "publicId": "followup-suggester-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Suggests follow-up actions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "summaryContent",
+                "id": "summary_content_input",
+                "label": "Summary Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Meeting summary"
+              },
+              {
+                "fieldName": "keyTakeaways",
+                "id": "key_takeaways_input",
+                "label": "Key Takeaways",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Important points"
+              },
+              {
+                "fieldName": "contextInfo",
+                "id": "context_info_input",
+                "label": "Context",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Additional context"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "actionItems",
+                "id": "action_items_output",
+                "label": "Action Items",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "followUpTasks",
+                "id": "followup_tasks_output",
+                "label": "Follow-up Tasks",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "reminderSchedule",
+                "id": "reminder_schedule_output",
+                "label": "Reminder Timeline",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848659",
+          "language": "en",
+          "name": "Follow-up Suggester",
+          "description": "Analyzes summaries to suggest actionable follow-ups, tasks, and reminder schedules.",
+          "instructions": "Provide summary and takeaways. The routine will suggest follow-up actions."
+        }
+      ]
+    }
+  ]
+}

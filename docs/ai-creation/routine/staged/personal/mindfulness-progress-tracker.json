@@ -1,0 +1,147 @@
+{
+  "id": "7829564732190848291",
+  "publicId": "mindfulness-progress-tracker-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847103",
+      "publicId": "mindfulness-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "mindfulness"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848292",
+      "publicId": "mindfulness-progress-tracker-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Tracks mindfulness development and advances practice",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Track mindfulness progress and suggest advanced practices:\n\nPractice Data: {{input.practiceData}}\nWellness Metrics: {{input.wellnessMetrics}}\nSkill Progression: {{input.skillProgression}}\nChallenges Faced: {{input.challengesFaced}}\nPractice Duration: {{input.practiceDuration}}\n\nAnalyze progress and provide advancement guidance:\n\n1. **Practice Consistency Analysis**:\n   - Frequency tracking\n   - Duration trends\n   - Missed session patterns\n   - Consistency score\n   - Habit strength assessment\n\n2. **Skill Development Evaluation**:\n   - Concentration improvements\n   - Awareness expansion\n   - Emotional regulation progress\n   - Body awareness growth\n   - Insight development\n\n3. **Wellness Impact Measurement**:\n   - Stress level changes\n   - Sleep quality improvements\n   - Mood stability tracking\n   - Energy level shifts\n   - Overall life satisfaction\n\n4. **Challenge Pattern Recognition**:\n   - Recurring obstacles\n   - Breakthrough moments\n   - Plateau identification\n   - Growth edge awareness\n   - Resistance patterns\n\n5. **Advanced Practice Readiness**:\n   - Foundation stability check\n   - Next level indicators\n   - Capacity assessment\n   - Interest alignment\n   - Teacher recommendation\n\n6. **Practice Deepening Options**:\n   - Extended session guidance\n   - Retreat preparation\n   - Advanced techniques\n   - Philosophical study\n   - Community involvement\n\n7. **Personalized Next Steps**:\n   - Short-term goals\n   - Medium-term objectives\n   - Long-term vision\n   - Skill focus areas\n   - Practice experiments\n\n8. **Celebration & Integration**:\n   - Achievement recognition\n   - Progress milestones\n   - Insight documentation\n   - Gratitude practices\n   - Wisdom integration\n\nReturn as structured JSON with keys: consistencyAnalysis (object), skillEvaluation (object), wellnessImpact (object), challengePatterns (array), readinessAssessment (object), advancedOptions (object), nextSteps (array), celebrations (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "practiceData",
+                "id": "data_input",
+                "label": "Practice Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Your meditation logs, frequency, duration...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "wellnessMetrics",
+                "id": "wellness_input",
+                "label": "Wellness Indicators",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Changes in stress, sleep, mood, energy...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "skillProgression",
+                "id": "skills_input",
+                "label": "Skill Development",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Improvements in concentration, awareness, calmness...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "challengesFaced",
+                "id": "challenges_input",
+                "label": "Challenges Encountered",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Difficulties, obstacles, or plateaus experienced...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "practiceDuration",
+                "id": "duration_input",
+                "label": "Practice Duration",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How long have you been practicing?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "progressReport",
+                "id": "report_output",
+                "label": "Progress Analysis Report",
+                "type": "Text"
+              },
+              {
+                "fieldName": "advancementPlan",
+                "id": "advancement_output",
+                "label": "Practice Advancement Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848293",
+          "language": "en-US",
+          "description": "Analyzes mindfulness practice progress and suggests advanced techniques for deepening",
+          "instructions": "Share your practice data and wellness changes. The system will analyze progress and suggest advancement options.",
+          "name": "Mindfulness Progress Tracker"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,147 @@
+{
+  "id": "7829564732190848192",
+  "publicId": "milestone-creator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847092",
+      "publicId": "goal-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "goals"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848193",
+      "publicId": "milestone-creator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates meaningful milestones and checkpoints for goal achievement",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Create meaningful milestones for the following goal:\n\nSMART Goal: {{input.smartGoal}}\nGoal Timeline: {{input.timeline}}\nMeasurable Metrics: {{input.metrics}}\nKey Success Factors: {{input.successFactors}}\nPotential Obstacles: {{input.obstacles}}\n\nDevelop milestone framework:\n\n1. **Milestone Strategy**:\n   - Progress tracking approach\n   - Milestone spacing rationale\n   - Measurement frequency\n   - Checkpoint alignment with timeline\n   - Motivational considerations\n\n2. **Major Milestones** (3-7 key checkpoints):\n   - Milestone description\n   - Target completion date\n   - Success criteria\n   - Measurable indicators\n   - Required deliverables\n\n3. **Mini-Milestones** (weekly/monthly):\n   - Short-term achievement markers\n   - Progress indicators\n   - Momentum builders\n   - Quick wins identification\n   - Habit formation checkpoints\n\n4. **Milestone Dependencies**:\n   - Sequential milestone relationships\n   - Critical path identification\n   - Resource dependencies\n   - Skill development milestones\n   - External dependency mapping\n\n5. **Progress Monitoring**:\n   - Tracking methods for each milestone\n   - Data collection approaches\n   - Review and adjustment protocols\n   - Warning signal identification\n   - Course correction triggers\n\n6. **Celebration & Motivation**:\n   - Reward system for milestone achievement\n   - Motivation maintenance strategies\n   - Progress visualization methods\n   - Support system engagement\n   - Momentum preservation techniques\n\nReturn as structured JSON with keys: milestoneStrategy (object), majorMilestones (array), miniMilestones (array), dependencies (object), monitoringPlan (object), motivationSystem (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "smartGoal",
+                "id": "smart_goal_input",
+                "label": "SMART Goal Statement",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter your SMART goal statement...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Goal Timeline",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Overall timeline and key dates..."
+                }
+              },
+              {
+                "fieldName": "metrics",
+                "id": "metrics_input",
+                "label": "Measurable Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How will you measure progress and success?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "successFactors",
+                "id": "success_input",
+                "label": "Key Success Factors",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What factors are critical for success?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "obstacles",
+                "id": "obstacles_input",
+                "label": "Potential Obstacles",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Anticipated challenges or roadblocks...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "milestoneFramework",
+                "id": "milestones_output",
+                "label": "Milestone Framework",
+                "type": "Text"
+              },
+              {
+                "fieldName": "trackingPlan",
+                "id": "tracking_output",
+                "label": "Progress Tracking Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848194",
+          "language": "en-US",
+          "description": "Creates meaningful milestones and checkpoints to track progress toward goal achievement with clear success criteria",
+          "instructions": "Provide your SMART goal statement, timeline, metrics, and success factors. The system will create a comprehensive milestone framework with major and mini-milestones, dependencies, and progress monitoring plan.",
+          "name": "Milestone Creator"
+        }
+      ]
+    }
+  ]
+}

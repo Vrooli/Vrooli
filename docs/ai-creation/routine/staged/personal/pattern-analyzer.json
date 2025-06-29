@@ -1,0 +1,114 @@
+{
+  "id": "7829564732190848459",
+  "publicId": "pattern-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847006",
+      "tag": "personal-development",
+      "translations": [
+        {
+          "id": "7829564732190847106",
+          "language": "en",
+          "description": "Personal growth and self-improvement"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847100",
+      "tag": "pattern-recognition",
+      "translations": [
+        {
+          "id": "7829564732190847200",
+          "language": "en",
+          "description": "Pattern identification and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848460",
+      "publicId": "pattern-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes patterns in decision-making and behavior",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "performanceData",
+                "id": "performance_data_input",
+                "label": "Performance Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Aggregated performance data for pattern analysis"
+              },
+              {
+                "fieldName": "analysisScope",
+                "id": "analysis_scope_input",
+                "label": "Analysis Scope",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "behavioral",
+                  "decision-patterns",
+                  "comprehensive",
+                  "performance-trends"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "patternAnalysis",
+                "id": "pattern_analysis_output",
+                "label": "Pattern Analysis Results",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848461",
+          "language": "en",
+          "name": "Pattern Analyzer",
+          "description": "Analyzes behavioral and decision-making patterns from performance data to identify trends, biases, and recurring themes.",
+          "instructions": "Provide performance data for pattern analysis. The routine will identify behavioral patterns, decision trends, and recurring themes."
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Gather from Sources",
                 "description": "Collects information from specified sources",
-                "subroutineId": "web-research-v1",
+                "subroutineId": "7829564732190848696",
                 "inputMap": {
                   "primaryQuery": "synthesisTopics",
                   "searchDepth": "searchDepth",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Summarize Each Source",
                 "description": "Creates summaries of each individual source",
-                "subroutineId": "doc-summary-v1",
+                "subroutineId": "7829564732190848699",
                 "inputMap": {
                   "documentText": "rawSourceData",
                   "summaryLength": "summaryPreference",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Compare Sources",
                 "description": "Identifies agreements, conflicts, and unique insights",
-                "subroutineId": "TODO: Need reasoning subroutine for source comparison",
+                "subroutineId": "7829564732190848723",
                 "inputMap": {
                   "individualSummaries": "sourceSummaries",
                   "sourceKeyPoints": "keyPointsPerSource",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Synthesize Findings",
                 "description": "Combines all findings into unified analysis",
-                "subroutineId": "TODO: Need reasoning subroutine for synthesis",
+                "subroutineId": "7829564732190848741",
                 "inputMap": {
                   "sharedInsights": "commonThemes",
                   "discrepancies": "conflictingInfo",
@@ -126,7 +126,7 @@
                 "id": "step-5",
                 "name": "Generate Unified Report",
                 "description": "Creates comprehensive report with all sources cited",
-                "subroutineId": "TODO: Need generation subroutine for report creation",
+                "subroutineId": "7829564732190848729",
                 "inputMap": {
                   "integratedAnalysis": "unifiedSynthesis",
                   "notableQuotes": "importantQuotes",

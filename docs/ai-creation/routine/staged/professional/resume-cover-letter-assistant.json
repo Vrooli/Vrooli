@@ -1,5 +1,5 @@
 {
-  "id": "1734567890123456807",
+  "id": "7829564732190848102",
   "publicId": "resume-helper-v1",
   "resourceType": "Routine",
   "isPrivate": false,
@@ -8,7 +8,7 @@
   "tags": [],
   "versions": [
     {
-      "id": "1734567890123456808",
+      "id": "7829564732190848103",
       "publicId": "resume-helper-v1-0",
       "versionLabel": "1.0.0",
       "versionNotes": "Initial version",
@@ -27,7 +27,7 @@
                 "id": "experience_analysis",
                 "name": "Analyze Experience Data",
                 "description": "Parse and structure the job experience and skills information",
-                "subroutineId": "experience-parser-v1",
+                "subroutineId": "7829564732190848588",
                 "inputMap": {
                   "rawExperience": "originalExperience",
                   "skillsList": "originalSkills",
@@ -43,7 +43,7 @@
                 "id": "resume_bullet_creation",
                 "name": "Create Resume Bullets",
                 "description": "Transform experience into compelling resume bullet points",
-                "subroutineId": "bullet-writer-v1",
+                "subroutineId": "7829564732190848591",
                 "inputMap": {
                   "experienceData": "step1ParsedExp",
                   "achievementHighlights": "step1Achievements",
@@ -58,7 +58,7 @@
                 "id": "cover_letter_creation",
                 "name": "Draft Cover Letter",
                 "description": "Create cover letter paragraphs targeting the specific role",
-                "subroutineId": "cover-letter-writer-v1",
+                "subroutineId": "7829564732190848594",
                 "inputMap": {
                   "targetJobDescription": "originalJobDescription",
                   "relevantExperience": "step1ParsedExp",
@@ -73,7 +73,7 @@
                 "id": "ats_optimization",
                 "name": "ATS Optimization",
                 "description": "Optimize content for Applicant Tracking Systems",
-                "subroutineId": "ats-optimizer-v1",
+                "subroutineId": "7829564732190848597",
                 "inputMap": {
                   "resumeContent": "step2ResumeBullets",
                   "jobDescription": "originalJobDescription",
@@ -88,7 +88,7 @@
                 "id": "final_formatting",
                 "name": "Format Final Documents",
                 "description": "Combine and format resume and cover letter content",
-                "subroutineId": "document-formatter-v1",
+                "subroutineId": "7829564732190848600",
                 "inputMap": {
                   "optimizedBullets": "step4OptimizedResume",
                   "coverLetterContent": "step3CoverLetter",
@@ -201,7 +201,7 @@
       },
       "translations": [
         {
-          "id": "1734567890123456809",
+          "id": "7829564732190848104",
           "language": "en",
           "name": "Resume and Cover Letter Assistant",
           "description": "Crafts resume bullets and cover letter paragraphs from raw experience data. Uses action verbs, quantifies results, and ties experience to job requirements for ATS optimization.",

@@ -1,0 +1,114 @@
+{
+  "id": "7829564732190848516",
+  "publicId": "contract-summary-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847033",
+      "tag": "legal",
+      "translations": [
+        {
+          "id": "7829564732190847133",
+          "language": "en",
+          "description": "Legal analysis and compliance"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "reporting",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Report generation and summarization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847021",
+      "tag": "content-generation",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Content creation and generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848517",
+      "publicId": "contract-summary-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles comprehensive contract review summaries",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contractRecommendations",
+                "id": "contract_recommendations_input",
+                "label": "Contract Recommendations",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Recommendations data from recommendation generator"
+              },
+              {
+                "fieldName": "summaryFormat",
+                "id": "summary_format_input",
+                "label": "Summary Format",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "executive",
+                "options": [
+                  "brief",
+                  "executive",
+                  "detailed",
+                  "technical"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reviewSummary",
+                "id": "review_summary_output",
+                "label": "Contract Review Summary",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848518",
+          "language": "en",
+          "name": "Contract Summary Compiler",
+          "description": "Compiles comprehensive contract review summaries with key findings, risks, recommendations, and action items.",
+          "instructions": "Provide contract recommendations for summary compilation. The routine will create comprehensive review summaries."
+        }
+      ]
+    }
+  ]
+}

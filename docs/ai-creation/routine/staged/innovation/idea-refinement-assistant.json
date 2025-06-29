@@ -1,5 +1,5 @@
 {
-  "id": "1734567890123456801",
+  "id": "7829564732190848108",
   "publicId": "idea-refine-v1",
   "resourceType": "Routine",
   "isPrivate": false,
@@ -8,7 +8,7 @@
   "tags": [],
   "versions": [
     {
-      "id": "1734567890123456802",
+      "id": "7829564732190848109",
       "publicId": "idea-refine-v1-0",
       "versionLabel": "1.0.0",
       "versionNotes": "Initial version",
@@ -27,7 +27,7 @@
                 "id": "idea_analysis",
                 "name": "Analyze Raw Idea",
                 "description": "Break down and understand the core components of the idea",
-                "subroutineId": "idea-analyzer-v1",
+                "subroutineId": "7829564732190848063",
                 "inputMap": {
                   "rawIdeaDescription": "originalIdea",
                   "initialGoals": "originalGoals",
@@ -43,7 +43,7 @@
                 "id": "strength_identification",
                 "name": "Identify Strengths",
                 "description": "Find what's already strong about the idea",
-                "subroutineId": "strength-finder-v1",
+                "subroutineId": "7829564732190848183",
                 "inputMap": {
                   "ideaComponents": "step1Components",
                   "stakeholderInfo": "step1Stakeholders",
@@ -58,7 +58,7 @@
                 "id": "weakness_assessment",
                 "name": "Assess Weaknesses",
                 "description": "Identify potential problems and areas for improvement",
-                "subroutineId": "weakness-detector-v1",
+                "subroutineId": "7829564732190848105",
                 "inputMap": {
                   "ideaComponents": "step1Components",
                   "assumptions": "step1Assumptions",
@@ -74,7 +74,7 @@
                 "id": "enhancement_generation",
                 "name": "Generate Enhancements",
                 "description": "Create specific suggestions to improve the idea",
-                "subroutineId": "enhancement-generator-v1",
+                "subroutineId": "7829564732190847997",
                 "inputMap": {
                   "currentStrengths": "step2Strengths",
                   "identifiedWeaknesses": "step3Weaknesses",
@@ -89,7 +89,7 @@
                 "id": "differentiation_analysis",
                 "name": "Analyze Differentiation",
                 "description": "Explore how to make the idea more unique and competitive",
-                "subroutineId": "differentiation-analyzer-v1",
+                "subroutineId": "7829564732190848186",
                 "inputMap": {
                   "uniqueValueProps": "step2UniqueValue",
                   "enhancementIdeas": "step4Enhancements",
@@ -104,7 +104,7 @@
                 "id": "refined_concept_synthesis",
                 "name": "Synthesize Refined Concept",
                 "description": "Combine all insights into an improved version of the idea",
-                "subroutineId": "concept-synthesizer-v1",
+                "subroutineId": "7829564732190848210",
                 "inputMap": {
                   "originalConcept": "originalIdea",
                   "identifiedStrengths": "step2Strengths",
@@ -225,7 +225,7 @@
       },
       "translations": [
         {
-          "id": "1734567890123456803",
+          "id": "7829564732190848110",
           "language": "en",
           "name": "Idea Refinement Assistant",
           "description": "Takes raw ideas and helps elaborate/improve them. Identifies strengths, weaknesses, and enhancement opportunities through systematic analysis to transform initial concepts into well-developed proposals.",

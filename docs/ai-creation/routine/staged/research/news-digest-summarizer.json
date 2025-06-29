@@ -1,0 +1,161 @@
+{
+  "id": "7829564732190847234",
+  "publicId": "news-digest-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847235",
+      "publicId": "news-summary-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Informative",
+            "maxTokens": 1400,
+            "model": null,
+            "prompt": "Create a comprehensive news digest based on the following parameters:\n\n**Topics of Interest:** {{input.topicsList}}\n**Time Period:** {{input.timePeriod}}\n**Source Preferences:** {{input.sourcePreferences}}\n**Coverage Depth:** {{input.coverageDepth}}\n{{#if input.regionFocus}}**Regional Focus:** {{input.regionFocus}}{{/if}}\n{{#if input.excludeTopics}}**Exclude Topics:** {{input.excludeTopics}}{{/if}}\n\nCompile a well-organized news digest:\n\n1. **Executive Summary**\n   - Key headlines at a glance\n   - Most significant developments\n   - Emerging trends identified\n   - Market/sector movements\n   - Notable announcements\n   - Time period coverage\n\n2. **Top Stories by Topic**\n   For each topic area:\n   - **Headline**: Clear, informative title\n   - **Summary**: 2-3 sentence overview\n   - **Key Points**: Bullet point highlights\n   - **Impact**: Why this matters\n   - **Sources**: Where reported\n   - **Related developments**: Connected stories\n\n3. **Breaking News**\n   - Latest developments (last 24-48 hours)\n   - Urgency level\n   - Expected evolution\n   - Action items if applicable\n   - Follow-up timing\n\n4. **In-Depth Analysis**\n   For major stories:\n   - Background context\n   - Multiple perspectives\n   - Expert opinions\n   - Data and statistics\n   - Historical comparison\n   - Future implications\n\n5. **Trend Analysis**\n   - Emerging patterns\n   - Shifting narratives\n   - Sentiment changes\n   - Volume of coverage\n   - Geographic spread\n   - Cross-topic connections\n\n6. **Regional Highlights**\n   {{#if regionFocus}}\n   - Local impact of global stories\n   - Region-specific developments\n   - Cultural context\n   - Local expert views\n   {{/if}}\n\n7. **Business & Market Impact**\n   - Economic implications\n   - Market reactions\n   - Industry effects\n   - Investment considerations\n   - Risk factors\n   - Opportunity indicators\n\n8. **Technology & Innovation**\n   - Tech-related developments\n   - Digital transformation news\n   - Cybersecurity updates\n   - Platform changes\n   - Emerging technologies\n\n9. **Policy & Regulation**\n   - Government actions\n   - Regulatory changes\n   - Legal developments\n   - Compliance updates\n   - International agreements\n\n10. **Human Interest & Culture**\n    - Notable achievements\n    - Cultural events\n    - Social movements\n    - Lifestyle trends\n    - Entertainment highlights\n\n11. **Data Insights**\n    - Key statistics\n    - Polling results\n    - Market data\n    - Demographic trends\n    - Comparative metrics\n\n12. **Opinion Landscape**\n    - Editorial positions\n    - Public sentiment\n    - Social media trends\n    - Influencer perspectives\n    - Debate summaries\n\n13. **Looking Ahead**\n    - Upcoming events\n    - Expected announcements\n    - Developing stories\n    - Calendar markers\n    - Preparation suggestions\n\n14. **Quick Reference**\n    - Glossary of terms\n    - Key figures mentioned\n    - Organization index\n    - Timeline of events\n    - Fact-check notes\n\n15. **Personalized Insights**\n    Based on your interests:\n    - Most relevant stories\n    - Action recommendations\n    - Deep-dive suggestions\n    - Related reading\n    - Subscription suggestions\n\nCreate a balanced, informative digest that saves time while ensuring comprehensive awareness of important developments.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "topicsList",
+                "id": "topics_list_input",
+                "label": "Topics of Interest",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List topics to track (one per line):\nTechnology\nBusiness & Finance\nPolitics\nHealth & Science\nClimate & Environment",
+                  "minRows": 5
+                }
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "time_period_input",
+                "label": "Time Period",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Last 24 hours", "Last 3 days", "Last week", "Last 2 weeks", "Last month", "Custom range"],
+                  "defaultValue": "Last week"
+                }
+              },
+              {
+                "fieldName": "sourcePreferences",
+                "id": "source_preferences_input",
+                "label": "Source Preferences",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Preferred news sources or types:\n- Major newspapers\n- Industry publications\n- International sources\n- Local news\n- Specific outlets",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "coverageDepth",
+                "id": "coverage_depth_input",
+                "label": "Coverage Depth",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Headlines only", "Brief summaries", "Detailed analysis", "Comprehensive coverage"],
+                  "defaultValue": "Brief summaries"
+                }
+              },
+              {
+                "fieldName": "regionFocus",
+                "id": "region_focus_input",
+                "label": "Regional Focus (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specific regions or countries to emphasize"
+                }
+              },
+              {
+                "fieldName": "excludeTopics",
+                "id": "exclude_topics_input",
+                "label": "Topics to Exclude (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Topics you want to avoid:\n- Sports\n- Celebrity news\n- etc.",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "digestFormat",
+                "id": "digest_format_input",
+                "label": "Digest Format",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Executive briefing", "Detailed report", "Newsletter style", "Bullet points"],
+                  "defaultValue": "Newsletter style"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_news_digest_output",
+                "label": "Complete News Digest",
+                "type": "Text"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "topStories",
+                "id": "top_stories_output",
+                "label": "Top Stories by Topic",
+                "type": "Text"
+              },
+              {
+                "fieldName": "trendsAnalysis",
+                "id": "trends_analysis_output",
+                "label": "Trends & Insights",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847236",
+          "language": "en",
+          "name": "News Digest Summarizer",
+          "description": "Compiles daily/weekly news digests on topics of interest. Categorizes news, highlights key developments, and identifies trends without information overload.",
+          "instructions": "1. List topics you want to track\n2. Select time period to cover\n3. Specify preferred news sources\n4. Choose coverage depth\n5. Add regional focus (optional)\n6. Exclude unwanted topics (optional)\n7. Select digest format\n\nThe summarizer will create:\n- Executive summary of key news\n- Categorized stories by topic\n- Breaking news highlights\n- In-depth analysis of major stories\n- Trend identification\n- Regional perspectives\n- Market and business impact\n- Opinion landscape summary\n- Upcoming events preview\n- Personalized insights\n\nPerfect for:\n- Busy professionals\n- Industry monitoring\n- Research projects\n- Investment tracking\n- Policy watchers\n- General awareness"
+        }
+      ]
+    }
+  ]
+}

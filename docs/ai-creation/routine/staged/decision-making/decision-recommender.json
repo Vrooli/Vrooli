@@ -1,0 +1,145 @@
+{
+  "id": "7829564732190847994",
+  "publicId": "dec-recomm-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847098",
+      "publicId": "decision-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "decision-making"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847995",
+      "publicId": "dec-recomm-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Provides decision recommendations based on analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Generate decision recommendations based on the analysis results:\n\nFinal Scores: {{input.finalScores}}\nRanking Results: {{input.rankingResults}}\nScoring Justification: {{input.scoringJustification}}\nDecision Context: {{input.decisionContext}}\nRisk Tolerance: {{input.riskTolerance}}\n\nProvide comprehensive decision recommendations:\n\n1. Primary Recommendation:\n   - Clear recommendation statement\n   - Confidence level (high/medium/low)\n   - Key supporting factors\n   - Score margin analysis\n   - Risk assessment\n\n2. Rationale Development:\n   - Why this option wins\n   - Strength analysis\n   - Weakness mitigation\n   - Alignment with goals\n   - Trade-off acknowledgment\n\n3. Alternative Considerations:\n   - Close second options\n   - Conditions for reconsidering\n   - Hybrid approaches\n   - Phased implementation\n\n4. Risk Analysis:\n   - Implementation risks\n   - Opportunity costs\n   - Mitigation strategies\n   - Contingency planning\n   - Exit strategies\n\n5. Implementation Guidance:\n   - Next steps\n   - Success factors\n   - Timeline considerations\n   - Resource requirements\n   - Monitoring plan\n\n6. Stakeholder Considerations:\n   - Who to involve\n   - Communication approach\n   - Buy-in strategies\n   - Objection handling\n\n7. Decision Quality:\n   - Confidence assessment\n   - Data limitations\n   - Assumption validation\n   - Review triggers\n   - Decision reversibility\n\n8. Final Insights:\n   - Key learnings\n   - Process improvements\n   - Future considerations\n   - Success metrics\n\nReturn as structured JSON with keys: topRecommendation (object with option, confidence, keyFactors), recommendationRationale (detailed explanation), alternatives (array), riskAnalysis (object), implementationPlan (object), stakeholderStrategy (object), qualityAssessment (object), finalInsights (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "finalScores",
+                "id": "scores_input",
+                "label": "Final Scores",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Weighted scores for all options...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "rankingResults",
+                "id": "rankings_input",
+                "label": "Ranking Results",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Final rankings and score differences",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "scoringJustification",
+                "id": "justification_input",
+                "label": "Scoring Justification",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Key scoring rationale and notes...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "decisionContext",
+                "id": "context_input",
+                "label": "Decision Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Additional context about the decision"
+                }
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_input",
+                "label": "Risk Tolerance",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Risk appetite (conservative, moderate, aggressive)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "topRecommendation",
+                "id": "recommendation_output",
+                "label": "Top Recommendation",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recommendationRationale",
+                "id": "rationale_output",
+                "label": "Detailed Rationale",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847996",
+          "language": "en-US",
+          "description": "Provides comprehensive decision recommendations based on scoring analysis",
+          "instructions": "Enter the analysis results and context. The system will provide a detailed recommendation with rationale and implementation guidance.",
+          "name": "Decision Recommender"
+        }
+      ]
+    }
+  ]
+}

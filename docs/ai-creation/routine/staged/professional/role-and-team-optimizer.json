@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Current Structure",
                 "description": "Evaluates existing team roles and agent capabilities",
-                "subroutineId": "TODO: Need team analysis subroutine",
+                "subroutineId": "7829564732190848747",
                 "inputMap": {
                   "teamRoster": "currentAgents",
                   "roleDefinitions": "agentCapabilities",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Assess Performance Metrics",
                 "description": "Reviews task distribution and collaboration effectiveness",
-                "subroutineId": "TODO: Need performance assessment subroutine",
+                "subroutineId": "7829564732190848750",
                 "inputMap": {
                   "teamAssessment": "structureAnalysis",
                   "taskHistory": "completedWork",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Optimization Opportunities",
                 "description": "Finds gaps, redundancies, and improvement areas",
-                "subroutineId": "TODO: Need optimization identification subroutine",
+                "subroutineId": "7829564732190848753",
                 "inputMap": {
                   "teamEfficiency": "performanceMetrics",
                   "capabilityMatrix": "skillInventory",

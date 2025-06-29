@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190848081",
+  "publicId": "content-assembler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848082",
+      "publicId": "content-assembler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Combines content sections into complete documents",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Assemble content sections into a complete, polished document:\n\nIntroduction Content: {{input.introductionContent}}\nBody Content: {{input.bodyContent}}\nSEO Elements: {{input.seoElements}}\nConclusion Guidelines: {{input.conclusionGuidelines}}\n\nCreate complete assembled document:\n\n1. Document Integration:\n   - Seamless section transitions\n   - Consistent tone and style\n   - Logical content flow\n   - Unified narrative voice\n   - Coherent message delivery\n\n2. Content Quality Assurance:\n   - Grammar and spelling check\n   - Sentence structure review\n   - Paragraph flow optimization\n   - Redundancy elimination\n   - Clarity improvements\n\n3. Structure Optimization:\n   - Header hierarchy validation\n   - Bullet point consistency\n   - Section balance assessment\n   - Reading flow enhancement\n   - Visual organization\n\n4. SEO Integration:\n   - Natural keyword placement\n   - Meta elements incorporation\n   - Internal linking suggestions\n   - Featured snippet optimization\n   - Search intent alignment\n\n5. Conclusion Development:\n   - Key points summarization\n   - Call-to-action creation\n   - Next steps guidance\n   - Reader engagement closing\n   - Value reinforcement\n\n6. Final Polish:\n   - Professional formatting\n   - Engaging subheadings\n   - Transition improvements\n   - Readability optimization\n   - Impact maximization\n\n7. Quality Metrics:\n   - Word count analysis\n   - Readability score\n   - Engagement potential\n   - SEO effectiveness\n   - Value delivery assessment\n\nReturn as structured JSON with keys: finalDocument, conclusionText, qualityMetrics (object), improvementSuggestions (array), formattingNotes (array), publicationChecklist (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "introductionContent",
+                "id": "intro_input",
+                "label": "Introduction Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Introduction section content...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "bodyContent",
+                "id": "body_input",
+                "label": "Body Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Main body content sections...",
+                  "multiline": true,
+                  "rows": 5
+                }
+              },
+              {
+                "fieldName": "seoElements",
+                "id": "seo_input",
+                "label": "SEO Elements",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "SEO optimization elements and suggestions...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "conclusionGuidelines",
+                "id": "conclusion_input",
+                "label": "Conclusion Guidelines",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How should the article conclude? Call-to-action preferences..."
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "completeArticle",
+                "id": "article_output",
+                "label": "Complete Article",
+                "type": "Text"
+              },
+              {
+                "fieldName": "publicationNotes",
+                "id": "notes_output",
+                "label": "Publication Notes",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848083",
+          "language": "en-US",
+          "description": "Combines content sections into complete, polished documents ready for publication",
+          "instructions": "Enter your introduction, body content, and SEO elements. The system will assemble everything into a complete, publication-ready article.",
+          "name": "Content Assembler"
+        }
+      ]
+    }
+  ]
+}

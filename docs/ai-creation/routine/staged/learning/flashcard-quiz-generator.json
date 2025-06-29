@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Analyze Source Material",
                 "description": "Extracts key concepts, facts, and testable information from study material",
-                "subroutineId": "content-analyzer-v1",
+                "subroutineId": "7829564732190848441",
                 "inputMap": {
                   "originalStudyMaterial": "studyMaterial",
                   "originalTopicList": "topicList",
@@ -44,7 +44,7 @@
                 "id": "step-2",
                 "name": "Generate Question Types",
                 "description": "Creates diverse question formats for effective active recall",
-                "subroutineId": "question-generator-v1",
+                "subroutineId": "7829564732190848165",
                 "inputMap": {
                   "extractedConcepts": "concepts",
                   "importantFacts": "facts",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Create Flashcards",
                 "description": "Formats questions and answers into flashcard pairs",
-                "subroutineId": "flashcard-formatter-v1",
+                "subroutineId": "7829564732190848447",
                 "inputMap": {
                   "basicQuestions": "simpleQA",
                   "deepQuestions": "complexQA",
@@ -80,7 +80,7 @@
                 "id": "step-4",
                 "name": "Organize Study Sets",
                 "description": "Organizes flashcards and quizzes into structured study sessions",
-                "subroutineId": "study-organizer-v1",
+                "subroutineId": "7829564732190848450",
                 "inputMap": {
                   "fundamentalCards": "basicSet",
                   "conceptualCards": "advancedSet",

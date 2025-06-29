@@ -1,0 +1,114 @@
+{
+  "id": "7829564732190848450",
+  "publicId": "study-organizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847013",
+      "tag": "learning",
+      "translations": [
+        {
+          "id": "7829564732190847113",
+          "language": "en",
+          "description": "Learning and education tools"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847095",
+      "tag": "optimization",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Performance optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848451",
+      "publicId": "study-organizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Organizes flashcards into study plans",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "formattedFlashcards",
+                "id": "formatted_flashcards_input",
+                "label": "Formatted Flashcards",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Flashcard data from flashcard formatter"
+              },
+              {
+                "fieldName": "studySchedule",
+                "id": "study_schedule_input",
+                "label": "Study Schedule",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "spaced-repetition",
+                "options": [
+                  "daily-review",
+                  "spaced-repetition",
+                  "difficulty-based",
+                  "custom"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "studyPlan",
+                "id": "study_plan_output",
+                "label": "Organized Study Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848452",
+          "language": "en",
+          "name": "Study Organizer",
+          "description": "Organizes formatted flashcards into optimized study plans with scheduling and difficulty progression for effective learning.",
+          "instructions": "Provide formatted flashcards for study organization. The routine will create optimal study plans with scheduling and progression."
+        }
+      ]
+    }
+  ]
+}

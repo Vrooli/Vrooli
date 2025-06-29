@@ -1,0 +1,137 @@
+{
+  "id": "7829564732190848339",
+  "publicId": "task-decomposer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847033",
+      "publicId": "business-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "business"
+    },
+    {
+      "id": "7829564732190847035",
+      "publicId": "project-management-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "project-management"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848340",
+      "publicId": "task-decomposer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates detailed task breakdown structure",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Methodical",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Create detailed task breakdown structure for each project phase:\n\nPhase List: {{input.phaseList}}\nScope Details: {{input.scopeDetails}}\nRisk Considerations: {{input.riskConsiderations}}\nWorking Assumptions: {{input.workingAssumptions}}\n\nDevelop comprehensive task breakdown:\n\n1. **Task Identification**:\n   - Major deliverables breakdown\n   - Work package definition\n   - Activity identification\n   - Sub-task creation\n   - Atomic task level\n\n2. **Task Specification**:\n   - Task descriptions\n   - Acceptance criteria\n   - Quality standards\n   - Output definitions\n   - Success metrics\n\n3. **Dependency Mapping**:\n   - Predecessor tasks\n   - Successor tasks\n   - Parallel activities\n   - Critical dependencies\n   - External dependencies\n\n4. **Effort Estimation**:\n   - Task duration estimates\n   - Work hour calculations\n   - Complexity ratings\n   - Skill requirements\n   - Learning curve factors\n\n5. **Resource Assignment**:\n   - Role requirements\n   - Skill matching\n   - Team allocation\n   - Tool requirements\n   - External resources\n\n6. **Priority Classification**:\n   - Critical path tasks\n   - High priority items\n   - Nice-to-have features\n   - Risk mitigation tasks\n   - Quality assurance tasks\n\n7. **Task Sequencing**:\n   - Logical order\n   - Optimal flow\n   - Parallel opportunities\n   - Bottleneck identification\n   - Fast-tracking options\n\n8. **Work Package Organization**:\n   - Task grouping\n   - Milestone alignment\n   - Phase distribution\n   - Team assignment\n   - Delivery scheduling\n\nReturn as structured JSON with keys: taskBreakdown (array), taskDependencies (object), effortEstimates (object), resourceRequirements (object), priorityMatrix (object), taskSequence (array), workPackages (array), criticalPath (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "phaseList",
+                "id": "phases_input",
+                "label": "Major Phases",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List of project phases from scope analysis...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "scopeDetails",
+                "id": "scope_input",
+                "label": "Detailed Scope",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Detailed scope information and deliverables...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "riskConsiderations",
+                "id": "risks_input",
+                "label": "Identified Risks",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Risk factors to consider in task planning...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "workingAssumptions",
+                "id": "assumptions_input",
+                "label": "Project Assumptions",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Assumptions about resources, timeline, etc...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "detailedTasks",
+                "id": "tasks_output",
+                "label": "Detailed Task List",
+                "type": "Text"
+              },
+              {
+                "fieldName": "taskRelationships",
+                "id": "relationships_output",
+                "label": "Task Dependencies",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848341",
+          "language": "en-US",
+          "description": "Creates detailed task breakdown with dependencies, estimates, and resource requirements",
+          "instructions": "Provide project phases and scope. The system will create a comprehensive task breakdown structure.",
+          "name": "Task Decomposer"
+        }
+      ]
+    }
+  ]
+}

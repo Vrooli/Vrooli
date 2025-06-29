@@ -1,0 +1,148 @@
+{
+  "id": "7829564732190847114",
+  "publicId": "brief-assist-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847115",
+      "publicId": "brief-bg-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineWeb",
+      "config": {
+        "__version": "1.0",
+        "callDataWeb": {
+          "__version": "1.0",
+          "schema": {
+            "queries": [
+              "{{input.entityName}} background information",
+              "{{input.entityName}} recent news",
+              "{{input.entityName}} company profile",
+              "{{input.entityName}} leadership team",
+              "{{input.entityName}} {{input.meetingContext}} background",
+              "{{input.entityName}} industry position",
+              "{{input.entityName}} recent developments",
+              "{{input.entityName}} key achievements",
+              "{{input.entityName}} public statements"
+            ],
+            "maxResults": 15,
+            "searchDepth": "comprehensive"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "entityName",
+                "id": "entity_name_input",
+                "label": "Person/Organization Name",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter the name of the person or organization you need background on..."
+                }
+              },
+              {
+                "fieldName": "meetingContext",
+                "id": "meeting_context_input",
+                "label": "Context/Purpose",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Business meeting", "Job interview", "Partnership discussion", "Sales meeting", "Investment pitch", "Media interview", "Conference presentation", "Networking event", "Due diligence", "General research"],
+                  "defaultValue": "Business meeting"
+                }
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Focus Areas",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What specific aspects are most important? (e.g., recent projects, company culture, leadership style, financial performance...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Information Timeframe",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Current/Recent (last 6 months)", "Last year", "Last 2 years", "Historical overview", "Focus on recent changes"],
+                  "defaultValue": "Current/Recent (last 6 months)"
+                }
+              },
+              {
+                "fieldName": "briefingDepth",
+                "id": "briefing_depth_input",
+                "label": "Briefing Depth",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Quick overview (5 min read)", "Standard briefing (10 min read)", "Comprehensive analysis (15+ min read)"],
+                  "defaultValue": "Standard briefing (10 min read)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_briefing_output",
+                "label": "Complete Background Briefing",
+                "type": "Text"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "conversationStarters",
+                "id": "conversation_starters_output",
+                "label": "Conversation Starters",
+                "type": "Text"
+              },
+              {
+                "fieldName": "keyInsights",
+                "id": "key_insights_output",
+                "label": "Key Insights & Talking Points",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "postProcessingPrompt": "Create a comprehensive background briefing based on the research:\n\n**Entity:** {{input.entityName}}\n**Context:** {{input.meetingContext}}\n**Focus Areas:** {{input.focusAreas}}\n**Timeframe:** {{input.timeframe}}\n**Depth:** {{input.briefingDepth}}\n\n**Web Research Results:**\n{{webSearchResults}}\n\nGenerate a professional background briefing:\n\n1. **Executive Summary**\n   - Who they are (role, position, organization)\n   - Key characteristics and reputation\n   - Current status and recent developments\n   - Why they matter in this context\n\n2. **Organization/Company Overview**\n   - Company profile and mission\n   - Industry position and market share\n   - Size, scope, and geographic presence\n   - Business model and revenue streams\n   - Key products/services\n\n3. **Leadership Profile**\n   - Key executives and their backgrounds\n   - Leadership style and philosophy\n   - Career highlights and achievements\n   - Public statements and positions\n   - Industry reputation\n\n4. **Recent Developments**\n   - Latest news and announcements\n   - Recent strategic initiatives\n   - Product launches or expansions\n   - Partnerships and acquisitions\n   - Leadership changes\n\n5. **Financial & Performance Insights**\n   - Financial performance trends\n   - Growth metrics and indicators\n   - Market valuation (if public)\n   - Investment rounds or funding\n   - Performance compared to competitors\n\n6. **Strategic Priorities**\n   - Current strategic focus areas\n   - Growth initiatives and investments\n   - Digital transformation efforts\n   - Sustainability and social responsibility\n   - Innovation and R&D priorities\n\n7. **Industry Context**\n   - Industry trends affecting them\n   - Competitive landscape position\n   - Market challenges and opportunities\n   - Regulatory environment impact\n   - Technology disruptions\n\n8. **Cultural & Values Insights**\n   - Company culture and values\n   - Employee satisfaction and retention\n   - Diversity and inclusion initiatives\n   - Corporate social responsibility\n   - Public image and brand perception\n\n9. **Conversation Starters & Talking Points**\n   - Recent achievements to congratulate\n   - Industry trends to discuss\n   - Mutual interests or connections\n   - Thoughtful questions to ask\n   - Topics that demonstrate preparation\n\n10. **Potential Discussion Areas**\n    - Opportunities for collaboration\n    - Shared challenges in the industry\n    - Innovation and future trends\n    - Market expansion possibilities\n    - Partnership or investment opportunities\n\n11. **Important Considerations**\n    - Sensitive topics to avoid\n    - Preferred communication style\n    - Corporate hierarchy and decision-making\n    - Cultural considerations\n    - Timing and market conditions\n\n12. **Key Questions to Prepare**\n    - Strategic questions about their business\n    - Industry insight questions\n    - Future planning and vision questions\n    - Operational excellence questions\n    - Partnership and collaboration questions\n\nEnsure all information is current, accurate, and relevant to the meeting context. Focus on publicly available information only."
+      },
+      "translations": [
+        {
+          "id": "7829564732190847116",
+          "language": "en",
+          "name": "Background Briefing Assistant",
+          "description": "Prepares quick background briefs on people or organizations. Uses only publicly available information to provide background summary, recent news, key points, and conversation starters for meeting preparation.",
+          "instructions": "1. Enter the person or organization name\n2. Select the context/purpose of your interaction\n3. Specify focus areas of interest\n4. Choose information timeframe\n5. Select briefing depth\n\nThe assistant will provide:\n- Comprehensive background overview\n- Recent developments and news\n- Key insights and talking points\n- Strategic priorities and initiatives\n- Conversation starters and questions\n- Industry context and positioning\n- Cultural and values insights\n\nPerfect for meeting preparation, networking events, interviews, and business development."
+        }
+      ]
+    }
+  ]
+}

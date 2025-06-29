@@ -1,0 +1,147 @@
+{
+  "id": "7829564732190848021",
+  "publicId": "content-anal-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848022",
+      "publicId": "content-anal-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes content for repurposing opportunities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Analyze the following source content for repurposing opportunities:\n\nSource Content: {{input.originalSourceContent}}\nTarget Formats: {{input.originalTargetFormats}}\nPlatform Requirements: {{input.originalPlatformRequirements}}\nContent Goals: {{input.contentGoals}}\n\nPerform comprehensive content analysis:\n\n1. Core Message Extraction:\n   - Main thesis or argument\n   - Key takeaways (3-5)\n   - Supporting points\n   - Unique insights\n   - Action items\n\n2. Content Structure Analysis:\n   - Introduction/hook\n   - Main sections\n   - Examples and case studies\n   - Data points and statistics\n   - Conclusion/call-to-action\n\n3. Quotable Content Identification:\n   - Stand-alone statements\n   - Memorable phrases\n   - Statistical highlights\n   - Expert opinions\n   - Actionable tips\n\n4. Audience Value Assessment:\n   - Educational value\n   - Entertainment factor\n   - Practical application\n   - Emotional resonance\n   - Shareability potential\n\n5. Repurposing Opportunities:\n   - Social media snippets\n   - Email newsletter content\n   - Blog post angles\n   - Video/podcast topics\n   - Infographic elements\n\n6. Content Themes:\n   - Primary topic areas\n   - Subtopics and niches\n   - Cross-cutting themes\n   - Related concepts\n   - Extension possibilities\n\n7. Format Suitability:\n   - Visual content potential\n   - Interactive elements\n   - Storytelling opportunities\n   - Educational frameworks\n   - Entertainment angles\n\n8. Engagement Hooks:\n   - Curiosity triggers\n   - Controversy points\n   - Surprising facts\n   - Personal stories\n   - Trending connections\n\nReturn as structured JSON with keys: coreMessages (array), keyInsights (array), quotableContent (array with context), contentStructure (object with sections), repurposingOpportunities (object by format), contentThemes (array), formatSuitability (object), engagementHooks (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "originalSourceContent",
+                "id": "source_input",
+                "label": "Source Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the original content to analyze and repurpose...",
+                  "multiline": true,
+                  "rows": 5
+                }
+              },
+              {
+                "fieldName": "originalTargetFormats",
+                "id": "formats_input",
+                "label": "Target Formats",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What formats do you want to create? (social posts, emails, etc.)",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "originalPlatformRequirements",
+                "id": "platforms_input",
+                "label": "Platform Requirements",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specific platform needs (character limits, tone, etc.)",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "contentGoals",
+                "id": "goals_input",
+                "label": "Content Goals",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What do you want to achieve with the repurposed content?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "coreMessages",
+                "id": "messages_output",
+                "label": "Core Messages",
+                "type": "Text"
+              },
+              {
+                "fieldName": "keyInsights",
+                "id": "insights_output",
+                "label": "Key Insights",
+                "type": "Text"
+              },
+              {
+                "fieldName": "quotableContent",
+                "id": "quotes_output",
+                "label": "Quotable Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "contentStructure",
+                "id": "structure_output",
+                "label": "Content Structure Analysis",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848023",
+          "language": "en-US",
+          "description": "Analyzes source content to extract key themes, insights, and repurposing opportunities",
+          "instructions": "Enter your source content and target formats. The system will analyze and extract key elements for effective repurposing across multiple channels.",
+          "name": "Content Analyzer"
+        }
+      ]
+    }
+  ]
+}

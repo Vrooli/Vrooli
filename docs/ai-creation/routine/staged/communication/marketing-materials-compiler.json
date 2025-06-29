@@ -1,0 +1,161 @@
+{
+  "id": "7829564732190848018",
+  "publicId": "mkt-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847107",
+      "publicId": "marketing-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "marketing"
+    },
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848019",
+      "publicId": "mkt-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles marketing materials into organized package",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Compile and organize all marketing materials into a comprehensive package:\n\nSlogans: {{input.slogans}}\nAd Copy: {{input.adCopy}}\nSocial Posts: {{input.socialPosts}}\nEmail Content: {{input.emailContent}}\nLanding Page Content: {{input.landingPageContent}}\nBrand Guidelines: {{input.brandGuidelines}}\n\nCreate organized marketing package:\n\n1. Executive Summary:\n   - Campaign overview\n   - Key messaging themes\n   - Target audience summary\n   - Success metrics\n   - Timeline overview\n\n2. Brand Guidelines Compilation:\n   - Voice and tone standards\n   - Messaging hierarchy\n   - Visual style notes\n   - Do's and don'ts\n   - Consistency checklist\n\n3. Core Messaging Library:\n   - Primary taglines\n   - Value propositions\n   - Elevator pitches\n   - Key benefit statements\n   - USP summaries\n\n4. Content Asset Inventory:\n   - Headlines collection\n   - Body copy variations\n   - Call-to-action library\n   - Subject line bank\n   - Social media captions\n\n5. Channel-Specific Materials:\n   - Website/Landing pages\n   - Email campaigns\n   - Social media content\n   - Paid advertising\n   - Print materials\n\n6. Implementation Timeline:\n   - Launch sequence\n   - Content publishing schedule\n   - Campaign milestones\n   - Review checkpoints\n   - Optimization windows\n\n7. Usage Guidelines:\n   - When to use each asset\n   - Customization instructions\n   - Approval workflows\n   - Quality standards\n   - Legal compliance\n\n8. Performance Tracking:\n   - Key metrics to monitor\n   - A/B testing opportunities\n   - Success benchmarks\n   - Reporting templates\n   - Optimization triggers\n\n9. Asset Organization:\n   - File naming conventions\n   - Version control system\n   - Access permissions\n   - Storage recommendations\n   - Backup procedures\n\n10. Next Steps Guide:\n    - Immediate actions\n    - Setup requirements\n    - Team assignments\n    - Resource allocation\n    - Success measurements\n\nReturn as structured JSON with keys: marketingPackage (comprehensive organized content), implementationGuide (step-by-step instructions), assetInventory (categorized materials), brandingGuidelines (consolidated standards), performanceFramework (tracking setup), nextSteps (action items).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "slogans",
+                "id": "slogans_input",
+                "label": "Campaign Slogans",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "All generated slogans and taglines",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "adCopy",
+                "id": "ad_copy_input",
+                "label": "Ad Copy",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Generated advertising copy",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "socialPosts",
+                "id": "social_input",
+                "label": "Social Media Posts",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Social media content",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "emailContent",
+                "id": "email_input",
+                "label": "Email Content",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Email campaign materials",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "landingPageContent",
+                "id": "landing_input",
+                "label": "Landing Page Content",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Landing page copy and elements",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "brandGuidelines",
+                "id": "brand_input",
+                "label": "Brand Guidelines",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Brand voice and messaging guidelines",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "marketingPackage",
+                "id": "package_output",
+                "label": "Complete Marketing Package",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "guide_output",
+                "label": "Implementation Guide",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848020",
+          "language": "en-US",
+          "description": "Compiles all marketing materials into an organized, actionable package",
+          "instructions": "Enter all your generated marketing materials. The system will organize them into a comprehensive package with implementation guidelines.",
+          "name": "Marketing Materials Compiler"
+        }
+      ]
+    }
+  ]
+}

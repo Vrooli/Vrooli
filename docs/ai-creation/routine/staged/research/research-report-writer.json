@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848744",
+  "publicId": "report-writer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847080",
+      "tag": "writing",
+      "translations": [
+        {
+          "id": "7829564732190847180",
+          "language": "en",
+          "description": "Writing and editing"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848745",
+      "publicId": "report-writer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Writes research reports",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "synthesis",
+                "id": "synthesis_input",
+                "label": "Research Synthesis",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Unified analysis"
+              },
+              {
+                "fieldName": "thematicFindings",
+                "id": "thematic_findings_input",
+                "label": "Common Themes",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Key themes identified"
+              },
+              {
+                "fieldName": "disputedPoints",
+                "id": "disputed_points_input",
+                "label": "Controversies",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Disputed points"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchReport",
+                "id": "research_report_output",
+                "label": "Final Report",
+                "type": "Text"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "bibliography",
+                "id": "bibliography_output",
+                "label": "Citations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848746",
+          "language": "en",
+          "name": "Research Report Writer",
+          "description": "Creates structured research reports with citations from synthesized findings.",
+          "instructions": "Provide synthesis and findings. The routine will generate a comprehensive research report."
+        }
+      ]
+    }
+  ]
+}

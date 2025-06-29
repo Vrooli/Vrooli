@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848264",
+  "publicId": "project-scope-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847031",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847035",
+      "publicId": "project-management-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "project-management"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848265",
+      "publicId": "project-scope-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes project scope and complexity for accurate planning",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Analyze project scope and complexity for accurate planning and task breakdown:\n\nProject Description: {{input.projectDescription}}\nProject Goals: {{input.projectGoals}}\nConstraints: {{input.constraints}}\nStakeholders: {{input.stakeholders}}\nProject Type: {{input.projectType}}\n\nConduct comprehensive scope analysis:\n\n1. **Scope Definition & Boundaries**:\n   - Core deliverables identification\n   - Scope boundary clarification\n   - Inclusion/exclusion criteria\n   - Success criteria definition\n   - Acceptance criteria establishment\n\n2. **Complexity Assessment**:\n   - Technical complexity rating\n   - Organizational complexity\n   - Integration complexity\n   - Risk complexity factors\n   - Stakeholder complexity\n\n3. **Work Package Identification**:\n   - Major work streams\n   - Functional area breakdown\n   - Deliverable categorization\n   - Milestone identification\n   - Dependency mapping\n\n4. **Resource Requirements Analysis**:\n   - Skill set requirements\n   - Team composition needs\n   - Technology requirements\n   - Infrastructure needs\n   - External resource dependencies\n\n5. **Timeline Estimation Factors**:\n   - Duration complexity factors\n   - Critical path indicators\n   - Scheduling constraints\n   - Buffer requirements\n   - Parallel work opportunities\n\n6. **Risk & Uncertainty Assessment**:\n   - Scope creep potential\n   - Technical risk factors\n   - Resource availability risks\n   - External dependency risks\n   - Assumption validation needs\n\n7. **Quality & Standards Framework**:\n   - Quality requirements\n   - Standards compliance needs\n   - Testing requirements\n   - Review and approval processes\n   - Documentation standards\n\n8. **Planning Recommendations**:\n   - Recommended approach\n   - Phasing strategy\n   - Team structure suggestions\n   - Tool and process recommendations\n   - Success measurement framework\n\nReturn as structured JSON with keys: scopeDefinition (object), complexityAssessment (object), workPackages (array), resourceRequirements (object), timelineFactors (object), riskAssessment (object), qualityFramework (object), planningRecommendations (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectDescription",
+                "id": "description_input",
+                "label": "Project Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Detailed description of the project, its purpose, and expected outcomes...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "projectGoals",
+                "id": "goals_input",
+                "label": "Project Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific goals and objectives for the project...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Budget, timeline, resource, or other constraints...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "stakeholders",
+                "id": "stakeholders_input",
+                "label": "Stakeholders",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Key stakeholders, their roles, and involvement level...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "projectType",
+                "id": "type_input",
+                "label": "Project Type",
+                "type": "Selector",
+                "props": {
+                  "options": ["Software Development", "Marketing Campaign", "Research Project", "Infrastructure", "Process Improvement", "Product Launch", "Event Planning", "Other"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "scopeAnalysis",
+                "id": "scope_output",
+                "label": "Project Scope Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "planningGuidance",
+                "id": "planning_output",
+                "label": "Planning Guidance",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848266",
+          "language": "en-US",
+          "description": "Analyzes project scope and complexity with work package identification and planning recommendations",
+          "instructions": "Provide project description, goals, and constraints. The system will analyze scope, assess complexity, and provide planning guidance.",
+          "name": "Project Scope Analyzer"
+        }
+      ]
+    }
+  ]
+}

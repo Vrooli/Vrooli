@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Analyze Project Scope",
                 "description": "Analyzes the project goal and breaks it into major phases",
-                "subroutineId": "scope-analyzer-v1",
+                "subroutineId": "7829564732190848336",
                 "inputMap": {
                   "originalProjectGoal": "projectGoal",
                   "originalConstraints": "constraints",
@@ -45,7 +45,7 @@
                 "id": "step-2",
                 "name": "Break Down Into Tasks",
                 "description": "Creates detailed task breakdown structure for each phase",
-                "subroutineId": "task-decomposer-v1",
+                "subroutineId": "7829564732190848339",
                 "inputMap": {
                   "majorPhases": "phaseList",
                   "detailedScope": "scopeDetails",
@@ -63,7 +63,7 @@
                 "id": "step-3",
                 "name": "Create Timeline and Milestones",
                 "description": "Establishes project timeline with milestones and critical path",
-                "subroutineId": "timeline-creator-v1",
+                "subroutineId": "7829564732190848342",
                 "inputMap": {
                   "detailedTasks": "taskList",
                   "taskRelationships": "dependencies",
@@ -81,7 +81,7 @@
                 "id": "step-4",
                 "name": "Generate Implementation Plan",
                 "description": "Creates actionable implementation plan with next steps",
-                "subroutineId": "implementation-planner-v1",
+                "subroutineId": "7829564732190848345",
                 "inputMap": {
                   "masterSchedule": "timeline",
                   "keyMilestones": "milestoneData",

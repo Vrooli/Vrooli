@@ -1,0 +1,114 @@
+{
+  "id": "7829564732190848429",
+  "publicId": "tradeoff-structurer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847012",
+      "tag": "decision-making",
+      "translations": [
+        {
+          "id": "7829564732190847112",
+          "language": "en",
+          "description": "Decision analysis and choice optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848430",
+      "publicId": "tradeoff-structurer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Structures trade-off scenarios for analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "decisionContext",
+                "id": "decision_context_input",
+                "label": "Decision Context",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Description of the decision scenario and options"
+              },
+              {
+                "fieldName": "structuringDepth",
+                "id": "structuring_depth_input",
+                "label": "Structuring Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "basic",
+                  "standard",
+                  "comprehensive",
+                  "detailed"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "structuredTradeoffs",
+                "id": "structured_tradeoffs_output",
+                "label": "Structured Trade-off Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848431",
+          "language": "en",
+          "name": "Trade-off Structurer",
+          "description": "Structures complex trade-off scenarios into organized analysis frameworks with clear options, criteria, and considerations.",
+          "instructions": "Provide decision context and scenario details. The routine will structure the trade-offs into organized analysis frameworks for systematic evaluation."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848324",
+  "publicId": "critical-challenger-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847034",
+      "publicId": "innovation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "innovation"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848325",
+      "publicId": "critical-challenger-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Introduces provocative questions and alternative perspectives",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Provocative",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Challenge ideas with provocative questions and alternative perspectives:\n\nDeveloped Ideas: {{input.developedIdeas}}\nAssumptions Made: {{input.assumptionsMade}}\nChallenge Intensity: {{input.challengeIntensity}}\nTaboo Topics: {{input.tabooTopics}}\nSacred Cows: {{input.sacredCows}}\n\nProvide critical thinking challenges:\n\n1. **Assumption Questioning**:\n   - Hidden assumptions exposure\n   - Validity challenges\n   - Alternative premises\n   - Foundation questioning\n   - Belief examination\n\n2. **Devil's Advocate Position**:\n   - Opposite viewpoints\n   - Contrarian arguments\n   - Weakness highlighting\n   - Failure scenarios\n   - Unintended consequences\n\n3. **Perspective Shifting**:\n   - Competitor viewpoint\n   - Customer criticism\n   - Future historian view\n   - Child's perspective\n   - Alien observer angle\n\n4. **Resource Challenges**:\n   - 10x less budget\n   - 10x more scale\n   - No technology\n   - Different timeline\n   - Resource abundance\n\n5. **Ethical & Social Probes**:\n   - Moral implications\n   - Social justice angles\n   - Environmental impact\n   - Power dynamics\n   - Equity considerations\n\n6. **System Thinking Questions**:\n   - Second-order effects\n   - Feedback loops\n   - Emergent properties\n   - System boundaries\n   - Interconnections\n\n7. **Innovation Blockers**:\n   - Status quo benefits\n   - Resistance sources\n   - Political obstacles\n   - Cultural barriers\n   - Economic interests\n\n8. **Radical Alternatives**:\n   - Completely different approach\n   - Problem elimination\n   - Need questioning\n   - Revolutionary thinking\n   - Paradigm shifts\n\nReturn as structured JSON with keys: assumptionChallenges (array), devilsAdvocate (object), perspectiveShifts (array), resourceQuestions (object), ethicalProbes (array), systemQuestions (object), blockerAnalysis (object), radicalAlternatives (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "developedIdeas",
+                "id": "ideas_input",
+                "label": "Developed Ideas",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "The expanded ideas to challenge...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "assumptionsMade",
+                "id": "assumptions_input",
+                "label": "Key Assumptions",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What assumptions are these ideas based on?",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "challengeIntensity",
+                "id": "intensity_input",
+                "label": "Challenge Intensity",
+                "type": "Selector",
+                "props": {
+                  "options": ["Gentle Questioning", "Moderate Challenge", "Intense Scrutiny", "Brutal Honesty", "No Holds Barred"]
+                }
+              },
+              {
+                "fieldName": "tabooTopics",
+                "id": "taboo_input",
+                "label": "Taboo Topics",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Are there sensitive areas to handle carefully?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "sacredCows",
+                "id": "sacred_input",
+                "label": "Sacred Cows",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What assumptions or ideas are considered untouchable?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "criticalAnalysis",
+                "id": "analysis_output",
+                "label": "Critical Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "strengthenedIdeas",
+                "id": "strengthened_output",
+                "label": "Strengthened Ideas",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848326",
+          "language": "en-US",
+          "description": "Challenges ideas with devil's advocate positions, assumption questioning, and perspective shifts",
+          "instructions": "Provide ideas and assumptions. The system will challenge them to strengthen and improve concepts.",
+          "name": "Critical Challenger"
+        }
+      ]
+    }
+  ]
+}

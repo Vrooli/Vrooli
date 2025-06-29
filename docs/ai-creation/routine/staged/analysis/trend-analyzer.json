@@ -1,0 +1,133 @@
+{
+  "id": "7829564732190848066",
+  "publicId": "trend-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    },
+    {
+      "id": "7829564732190847034",
+      "publicId": "research-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "research"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848067",
+      "publicId": "trend-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes trends and patterns in data and market information",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Analyze trends and patterns in the provided data:\n\nData to Analyze: {{input.dataToAnalyze}}\nTime Period: {{input.timePeriod}}\nAnalysis Focus: {{input.analysisFocus}}\nComparison Benchmarks: {{input.comparisonBenchmarks}}\n\nPerform comprehensive trend analysis:\n\n1. Pattern Identification:\n   - Upward/downward trends\n   - Cyclical patterns\n   - Seasonal variations\n   - Irregular fluctuations\n   - Trend reversals\n\n2. Statistical Analysis:\n   - Growth rates\n   - Percentage changes\n   - Moving averages\n   - Volatility measures\n   - Correlation factors\n\n3. Trend Classification:\n   - Short-term trends (days/weeks)\n   - Medium-term trends (months)\n   - Long-term trends (years)\n   - Macro trends (industry-wide)\n   - Micro trends (specific segments)\n\n4. Driving Forces:\n   - Market factors\n   - Economic indicators\n   - Consumer behavior\n   - Technology changes\n   - Regulatory impacts\n\n5. Comparative Analysis:\n   - Benchmark comparisons\n   - Peer performance\n   - Historical context\n   - Industry averages\n   - Best practices\n\n6. Future Projections:\n   - Trend continuation probability\n   - Potential inflection points\n   - Scenario modeling\n   - Risk factors\n   - Opportunity windows\n\n7. Key Insights:\n   - Most significant trends\n   - Unexpected patterns\n   - Acceleration/deceleration\n   - Emerging opportunities\n   - Warning signals\n\n8. Actionable Recommendations:\n   - Strategic implications\n   - Timing considerations\n   - Investment decisions\n   - Risk mitigation\n   - Opportunity capture\n\nReturn as structured JSON with keys: trendSummary (object), statisticalAnalysis (object), trendClassification (object), drivingForces (array), comparativeAnalysis (object), futureProjections (object), keyInsights (array), recommendations (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dataToAnalyze",
+                "id": "data_input",
+                "label": "Data to Analyze",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter data points, metrics, or information to analyze for trends...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "period_input",
+                "label": "Time Period",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Time range for the data (last 6 months, 2019-2024, etc.)"
+                }
+              },
+              {
+                "fieldName": "analysisFocus",
+                "id": "focus_input",
+                "label": "Analysis Focus",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What aspects to focus on (growth, seasonality, volatility, etc.)",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "comparisonBenchmarks",
+                "id": "benchmarks_input",
+                "label": "Comparison Benchmarks",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Industry averages, competitor data, historical baselines, etc."
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trendAnalysis",
+                "id": "analysis_output",
+                "label": "Trend Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "strategicInsights",
+                "id": "insights_output",
+                "label": "Strategic Insights",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848068",
+          "language": "en-US",
+          "description": "Analyzes trends and patterns in data to identify opportunities and strategic insights",
+          "instructions": "Enter data to analyze for trends. The system will identify patterns, compare to benchmarks, and provide strategic insights with future projections.",
+          "name": "Trend Analyzer"
+        }
+      ]
+    }
+  ]
+}

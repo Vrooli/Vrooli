@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848636",
+  "publicId": "narrative-builder-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847070",
+      "tag": "analytics",
+      "translations": [
+        {
+          "id": "7829564732190847170",
+          "language": "en",
+          "description": "Data analysis and metrics"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847071",
+      "tag": "reporting",
+      "translations": [
+        {
+          "id": "7829564732190847171",
+          "language": "en",
+          "description": "Report generation and metrics"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847021",
+      "tag": "content-generation",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Content creation and generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848637",
+      "publicId": "narrative-builder-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Builds performance narrative",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "performanceTrends",
+                "id": "performance_trends_input",
+                "label": "Trend Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Performance trend data"
+              },
+              {
+                "fieldName": "growthMetrics",
+                "id": "growth_metrics_input",
+                "label": "Growth Indicators",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Growth measurements"
+              },
+              {
+                "fieldName": "unusualPatterns",
+                "id": "unusual_patterns_input",
+                "label": "Anomalies",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Identified anomalies"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "High-Level Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "insightHighlights",
+                "id": "insight_highlights_output",
+                "label": "Key Insights",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Strategic Recommendations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848638",
+          "language": "en",
+          "name": "Performance Narrative Builder",
+          "description": "Creates compelling performance narratives with executive summaries and strategic recommendations.",
+          "instructions": "Provide trend analysis and growth metrics. The routine will build a performance narrative."
+        }
+      ]
+    }
+  ]
+}

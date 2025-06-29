@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848588",
+  "publicId": "experience-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847059",
+      "tag": "career",
+      "translations": [
+        {
+          "id": "7829564732190847159",
+          "language": "en",
+          "description": "Career development and job search"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847060",
+      "tag": "resume",
+      "translations": [
+        {
+          "id": "7829564732190847160",
+          "language": "en",
+          "description": "Resume and CV optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848589",
+      "publicId": "experience-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes and structures job experience data",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rawExperience",
+                "id": "raw_experience_input",
+                "label": "Work Experience",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Describe your work history and roles"
+              },
+              {
+                "fieldName": "skillsList",
+                "id": "skills_list_input",
+                "label": "Skills",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "List your skills and competencies"
+              },
+              {
+                "fieldName": "targetJobInfo",
+                "id": "target_job_info_input",
+                "label": "Target Job Description",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Job posting you're applying for"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "structuredExperience",
+                "id": "structured_experience_output",
+                "label": "Parsed Experience",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "relevantSkills",
+                "id": "relevant_skills_output",
+                "label": "Relevant Skills",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyAchievements",
+                "id": "key_achievements_output",
+                "label": "Key Achievements",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848590",
+          "language": "en",
+          "name": "Experience Analyzer",
+          "description": "Parses and structures job experience data, identifying relevant skills and key achievements for targeted applications.",
+          "instructions": "Provide your work experience, skills, and target job. The routine will analyze and structure your background."
+        }
+      ]
+    }
+  ]
+}

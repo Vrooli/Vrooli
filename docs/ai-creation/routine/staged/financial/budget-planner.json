@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Analyze Income and Financial Situation",
                 "description": "Evaluates all income sources and current financial standing",
-                "subroutineId": "income-analyzer-v1",
+                "subroutineId": "7829564732190848618",
                 "inputMap": {
                   "originalIncomeSources": "incomeSources",
                   "originalExpenses": "currentExpenses",
@@ -45,7 +45,7 @@
                 "id": "step-2",
                 "name": "Apply Budget Framework",
                 "description": "Applies appropriate budgeting methodology and calculates allocations",
-                "subroutineId": "budget-calculator-v1",
+                "subroutineId": "7829564732190848621",
                 "inputMap": {
                   "monthlyIncome": "incomeAmount",
                   "incomeReliability": "incomeStability",
@@ -63,7 +63,7 @@
                 "id": "step-3",
                 "name": "Create Scenario Models",
                 "description": "Generates different budget scenarios and what-if analyses",
-                "subroutineId": "scenario-modeler-v1",
+                "subroutineId": "7829564732190848624",
                 "inputMap": {
                   "selectedFramework": "budgetModel",
                   "budgetCategories": "categories",
@@ -81,7 +81,7 @@
                 "id": "step-4",
                 "name": "Generate Implementation Plan",
                 "description": "Creates actionable budget implementation and monitoring plan",
-                "subroutineId": "implementation-planner-v1",
+                "subroutineId": "7829564732190848627",
                 "inputMap": {
                   "conservativeBudget": "scenario1",
                   "balancedBudget": "scenario2",

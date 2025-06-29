@@ -1,0 +1,133 @@
+{
+  "id": "7829564732190848144",
+  "publicId": "alignment-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847092",
+      "publicId": "goal-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "goals"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848145",
+      "publicId": "alignment-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assesses alignment between goals and activities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Assess the alignment between structured goals and analyzed activities:\n\nStructured Goals: {{input.structuredGoals}}\nActivity Analysis: {{input.activityAnalysis}}\nAlignment Criteria: {{input.alignmentCriteria}}\nPriority Framework: {{input.priorityFramework}}\n\nPerform comprehensive alignment assessment:\n\n1. Direct Alignment Analysis:\n   - Activities supporting specific goals\n   - Goal-activity mapping strength\n   - Contribution measurement\n   - Progress acceleration\n   - Outcome dependency\n\n2. Resource Allocation Assessment:\n   - Time investment vs goal priority\n   - Effort distribution patterns\n   - Resource utilization efficiency\n   - Capacity alignment\n   - Investment optimization\n\n3. Strategic Alignment Evaluation:\n   - Long-term goal support\n   - Strategic objective advancement\n   - Vision alignment\n   - Value creation\n   - Mission contribution\n\n4. Gap Identification:\n   - Under-supported goals\n   - Over-invested activities\n   - Missing activities\n   - Redundant efforts\n   - Misaligned priorities\n\n5. Alignment Scoring:\n   - Goal coverage percentage\n   - Activity relevance scores\n   - Strategic alignment ratings\n   - Efficiency indicators\n   - Overall alignment index\n\n6. Impact Assessment:\n   - High-impact alignments\n   - Low-impact activities\n   - Multiplier effects\n   - Synergy opportunities\n   - Conflict areas\n\n7. Time-Priority Mismatch:\n   - High-priority, low-time goals\n   - Low-priority, high-time activities\n   - Urgency-importance conflicts\n   - Resource reallocation needs\n   - Priority recalibration\n\n8. Alignment Quality Metrics:\n   - Coherence measures\n   - Consistency indicators\n   - Focus concentration\n   - Distraction levels\n   - Strategic clarity\n\nReturn as structured JSON with keys: alignmentScores (object), resourceAlignment (object), strategicAlignment (object), identifiedGaps (array), impactAssessment (object), priorityMismatches (array), alignmentMetrics (object), overallAssessment (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "structuredGoals",
+                "id": "goals_input",
+                "label": "Structured Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output from goal parser with structured goal information...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "activityAnalysis",
+                "id": "activities_input",
+                "label": "Activity Analysis",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output from activity analyzer with activity breakdown...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "alignmentCriteria",
+                "id": "criteria_input",
+                "label": "Alignment Criteria",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What constitutes good alignment for your situation?"
+                }
+              },
+              {
+                "fieldName": "priorityFramework",
+                "id": "priority_input",
+                "label": "Priority Framework",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How should priorities be weighted or assessed?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "alignmentAssessment",
+                "id": "assessment_output",
+                "label": "Alignment Assessment",
+                "type": "Text"
+              },
+              {
+                "fieldName": "alignmentInsights",
+                "id": "insights_output",
+                "label": "Alignment Insights",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848146",
+          "language": "en-US",
+          "description": "Assesses alignment between goals and activities to identify gaps and optimization opportunities",
+          "instructions": "Enter structured goals and activity analysis. The system will assess alignment quality and identify optimization opportunities.",
+          "name": "Alignment Assessor"
+        }
+      ]
+    }
+  ]
+}

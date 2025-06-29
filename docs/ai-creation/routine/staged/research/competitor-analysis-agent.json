@@ -1,0 +1,147 @@
+{
+  "id": "7829564732190847087",
+  "publicId": "comp-analysis-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847088",
+      "publicId": "comp-anly-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineWeb",
+      "config": {
+        "__version": "1.0",
+        "callDataWeb": {
+          "__version": "1.0",
+          "schema": {
+            "queries": [
+              "{{input.competitorList}} company information",
+              "{{input.competitorList}} products services features",
+              "{{input.competitorList}} pricing strategy",
+              "{{input.competitorList}} recent news developments",
+              "{{input.competitorList}} market position strategy",
+              "{{input.competitorList}} customer reviews feedback",
+              "{{input.competitorList}} financial performance",
+              "{{input.competitorList}} competitive advantages"
+            ],
+            "maxResults": 15,
+            "searchDepth": "comprehensive"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "competitorList",
+                "id": "competitor_list_input",
+                "label": "Competitor List",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the companies/products you want to analyze (separate with commas or new lines)...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "analysisDimensions",
+                "id": "analysis_dimensions_input",
+                "label": "Analysis Dimensions",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What aspects to focus on? (e.g., pricing, features, marketing strategy, customer satisfaction, technology...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "time_period_input",
+                "label": "Time Period",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Current snapshot", "Last 3 months", "Last 6 months", "Last year", "2-year trends"],
+                  "defaultValue": "Last 6 months"
+                }
+              },
+              {
+                "fieldName": "industryContext",
+                "id": "industry_context_input",
+                "label": "Industry/Market Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What industry or market segment? Any specific context or trends to consider?"
+                }
+              },
+              {
+                "fieldName": "yourPosition",
+                "id": "your_position_input",
+                "label": "Your Position (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Brief description of your company/product for comparative context...",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "analysis_summary_output",
+                "label": "Complete Competitive Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "competitorProfiles",
+                "id": "competitor_profiles_output",
+                "label": "Individual Competitor Profiles",
+                "type": "Text"
+              },
+              {
+                "fieldName": "strengthsWeaknesses",
+                "id": "strengths_weaknesses_output",
+                "label": "Strengths & Weaknesses Matrix",
+                "type": "Text"
+              },
+              {
+                "fieldName": "strategicInsights",
+                "id": "strategic_insights_output",
+                "label": "Strategic Insights & Opportunities",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "postProcessingPrompt": "Analyze the gathered competitive intelligence and create a comprehensive competitor analysis report:\n\n**Competitors:** {{input.competitorList}}\n**Analysis Focus:** {{input.analysisDimensions}}\n**Time Period:** {{input.timePeriod}}\n**Industry Context:** {{input.industryContext}}\n{{#if input.yourPosition}}**Your Position:** {{input.yourPosition}}{{/if}}\n\n**Web Research Results:**\n{{webSearchResults}}\n\nCreate a detailed competitive analysis report:\n\n1. **Executive Summary**\n   - Key competitive landscape insights\n   - Major trends and patterns\n   - Strategic implications\n   - Top 3 competitive threats and opportunities\n\n2. **Individual Competitor Profiles**\n   For each competitor:\n   - Company overview and positioning\n   - Core products/services\n   - Pricing strategy\n   - Market share and reach\n   - Recent developments\n   - Unique value propositions\n\n3. **Comparative Analysis Matrix**\n   - Feature comparison table\n   - Pricing comparison\n   - Market positioning map\n   - Strengths and weaknesses grid\n   - Performance metrics comparison\n\n4. **Strengths & Weaknesses Assessment**\n   For each competitor:\n   - Core strengths and competitive advantages\n   - Weaknesses and vulnerabilities\n   - Market positioning effectiveness\n   - Customer perception insights\n\n5. **Recent Developments & Trends**\n   - Product launches and updates\n   - Strategic partnerships\n   - Market expansion moves\n   - Technology investments\n   - Leadership changes\n\n6. **Market Positioning Analysis**\n   - How competitors position themselves\n   - Target audience strategies\n   - Brand messaging and differentiation\n   - Market segment focus\n\n7. **Strategic Insights**\n   - Market gaps and opportunities\n   - Emerging competitive threats\n   - Best practices to adopt\n   - Differentiation opportunities\n   - Potential partnership targets\n\n8. **Tactical Recommendations**\n   - Competitive response strategies\n   - Areas for differentiation\n   - Market positioning adjustments\n   - Product/service enhancement opportunities\n\n9. **Monitoring Recommendations**\n   - Key metrics to track\n   - Competitive intelligence sources\n   - Alert triggers for competitive changes\n   - Regular monitoring schedule\n\nFocus on actionable insights that inform strategic decision-making."
+      },
+      "translations": [
+        {
+          "id": "7829564732190847089",
+          "language": "en",
+          "name": "Competitor Analysis Agent",
+          "description": "Gathers intelligence on companies, products, or individuals for competitive research. Analyzes strengths/weaknesses, recent developments, and market positioning with strategic insights and recommendations.",
+          "instructions": "1. List the competitors you want to analyze\n2. Specify analysis dimensions (pricing, features, strategy, etc.)\n3. Choose time period for analysis\n4. Provide industry/market context\n5. Optionally describe your position for comparison\n\nThe agent will:\n- Research each competitor comprehensively\n- Create detailed competitor profiles\n- Build comparative analysis matrices\n- Identify strengths and weaknesses\n- Track recent developments\n- Provide strategic insights\n- Recommend monitoring strategies\n\nPerfect for strategic planning, market research, and competitive intelligence."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848771",
+  "publicId": "speaking-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847079",
+      "tag": "public-speaking",
+      "translations": [
+        {
+          "id": "7829564732190847179",
+          "language": "en",
+          "description": "Public speaking and presentation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848772",
+      "publicId": "speaking-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assesses speaking abilities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "speakingExperience",
+                "id": "speaking_experience_input",
+                "label": "Speaking Experience",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Current speaking experience and background"
+              },
+              {
+                "fieldName": "presentationGoals",
+                "id": "presentation_goals_input",
+                "label": "Presentation Goals",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "What you want to achieve with speaking"
+              },
+              {
+                "fieldName": "speakingChallenges",
+                "id": "speaking_challenges_input",
+                "label": "Speaking Challenges",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Areas where you struggle"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "strengthsAssessment",
+                "id": "strengths_assessment_output",
+                "label": "Speaking Strengths",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementAreas",
+                "id": "improvement_areas_output",
+                "label": "Areas for Improvement",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "skillLevel",
+                "id": "skill_level_output",
+                "label": "Current Skill Level",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848773",
+          "language": "en",
+          "name": "Speaking Assessor",
+          "description": "Assesses current speaking abilities, identifying strengths and improvement areas.",
+          "instructions": "Provide speaking experience and goals. The routine will assess your current abilities."
+        }
+      ]
+    }
+  ]
+}

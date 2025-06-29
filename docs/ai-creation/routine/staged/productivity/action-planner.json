@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190847958",
+  "publicId": "action-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847100",
+      "publicId": "planning-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "planning"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847959",
+      "publicId": "action-plan-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates specific action plans for milestones",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Create detailed action plans for the following milestones:\n\nMilestones to Plan: {{input.milestonesToPlan}}\nAvailable Resources: {{input.availableResources}}\nSchedule Framework: {{input.scheduleFramework}}\nConstraints: {{input.constraints}}\n\nFor each milestone, develop:\n\n1. Task Breakdown:\n   - Specific, actionable tasks (verb + noun format)\n   - Logical sequence and dependencies\n   - Time estimates for each task\n   - Difficulty/complexity rating\n   - Required skills or knowledge\n\n2. Resource Allocation:\n   - Tools and materials needed\n   - Time requirements\n   - Budget considerations\n   - Human resources (help needed)\n   - Learning resources\n\n3. Implementation Steps:\n   - Day-by-day or week-by-week plan\n   - Start and end triggers\n   - Quality checkpoints\n   - Definition of done\n\n4. Risk Mitigation:\n   - Potential obstacles\n   - Contingency plans\n   - Early warning signs\n   - Backup strategies\n\n5. Success Enablers:\n   - Environmental setup\n   - Habit triggers\n   - Accountability measures\n   - Progress tracking method\n\nStructure tasks using:\n- 2-minute rule (tasks under 2 min)\n- Time-boxing for larger tasks\n- Batch similar activities\n- Energy-based scheduling\n\nReturn as structured JSON with keys: actionSteps (array with task, timeEstimate, dependencies, resources), resourceRequirements (object), implementationSchedule (array), riskMitigation (array), successEnablers (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "milestonesToPlan",
+                "id": "milestones_input",
+                "label": "Milestones",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the milestones that need action plans...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "availableResources",
+                "id": "resources_input",
+                "label": "Available Resources",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Time, tools, budget, skills available...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "scheduleFramework",
+                "id": "schedule_input",
+                "label": "Schedule Framework",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "When can you work on these? Daily time available?"
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any limitations or restrictions to consider",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "actionSteps",
+                "id": "actions_output",
+                "label": "Action Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "resourceRequirements",
+                "id": "resources_output",
+                "label": "Resource Requirements",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847960",
+          "language": "en-US",
+          "description": "Creates detailed action plans with specific tasks for each milestone",
+          "instructions": "Enter your milestones and available resources. The system will create detailed action plans with specific tasks, timelines, and resource requirements.",
+          "name": "Action Planner"
+        }
+      ]
+    }
+  ]
+}

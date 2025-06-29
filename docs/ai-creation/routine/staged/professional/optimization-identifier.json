@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848753",
+  "publicId": "optimization-identifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847072",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847172",
+          "language": "en",
+          "description": "Team management and development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848754",
+      "publicId": "optimization-identifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies optimization opportunities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "teamAnalysis",
+                "id": "team_analysis_input",
+                "label": "Team Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Team strengths and gaps"
+              },
+              {
+                "fieldName": "performanceData",
+                "id": "performance_data_input",
+                "label": "Performance Assessment",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Performance ratings and areas"
+              },
+              {
+                "fieldName": "organizationalGoals",
+                "id": "organizational_goals_input",
+                "label": "Organizational Goals",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Key organizational objectives"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizationOpportunities",
+                "id": "optimization_opportunities_output",
+                "label": "Optimization Opportunities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "restructuringRecommendations",
+                "id": "restructuring_recommendations_output",
+                "label": "Restructuring Ideas",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "developmentPriorities",
+                "id": "development_priorities_output",
+                "label": "Development Priorities",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848755",
+          "language": "en",
+          "name": "Optimization Identifier",
+          "description": "Identifies team optimization opportunities and restructuring recommendations.",
+          "instructions": "Provide team analysis and performance data. The routine will identify optimization opportunities."
+        }
+      ]
+    }
+  ]
+}

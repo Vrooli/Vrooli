@@ -30,7 +30,7 @@
                   "id": "step_analyze_product",
                   "name": "Analyze Product/Service",
                   "description": "Understand the product/service and extract key features and benefits",
-                  "subroutineId": "TODO: Product Analyzer subroutine",
+                  "subroutineId": "7829564732190848366",
                   "inputMap": {
                     "productInfo": "productInfo",
                     "targetAudience": "targetAudience"
@@ -45,7 +45,7 @@
                   "id": "step_generate_brand_voice",
                   "name": "Define Brand Voice",
                   "description": "Create consistent brand voice and messaging guidelines",
-                  "subroutineId": "TODO: Brand Voice Generator subroutine",
+                  "subroutineId": "7829564732190848708",
                   "inputMap": {
                     "targetAudience": "targetAudience",
                     "campaignTone": "campaignTone",
@@ -60,7 +60,7 @@
                   "id": "step_create_campaign_theme",
                   "name": "Create Campaign Theme",
                   "description": "Develop overarching campaign theme and core messages",
-                  "subroutineId": "TODO: Campaign Theme Creator subroutine",
+                  "subroutineId": "7829564732190848711",
                   "inputMap": {
                     "productInfo": "productInfo",
                     "targetAudience": "targetAudience",
@@ -92,7 +92,7 @@
                   "id": "step_create_ad_copy",
                   "name": "Create Ad Copy",
                   "description": "Generate advertising copy for various formats",
-                  "subroutineId": "TODO: Ad Copy Generator subroutine",
+                  "subroutineId": "7829564732190848705",
                   "inputMap": {
                     "campaignTheme": "campaignTheme",
                     "slogans": "slogans",
@@ -127,7 +127,7 @@
                   "id": "step_email_campaigns",
                   "name": "Create Email Campaign Content",
                   "description": "Generate email marketing sequences",
-                  "subroutineId": "TODO: Email Campaign Generator subroutine",
+                  "subroutineId": "7829564732190848714",
                   "inputMap": {
                     "campaignTheme": "campaignTheme",
                     "targetAudience": "targetAudience",
@@ -145,7 +145,7 @@
                   "id": "step_landing_page_content",
                   "name": "Create Landing Page Content",
                   "description": "Generate content for campaign landing pages",
-                  "subroutineId": "TODO: Landing Page Content Generator subroutine",
+                  "subroutineId": "7829564732190848717",
                   "inputMap": {
                     "campaignTheme": "campaignTheme",
                     "keyFeatures": "keyFeatures",
@@ -163,7 +163,7 @@
                   "id": "step_compile_materials",
                   "name": "Compile Marketing Materials",
                   "description": "Organize all generated content into a comprehensive marketing package",
-                  "subroutineId": "TODO: Marketing Materials Compiler subroutine",
+                  "subroutineId": "7829564732190848720",
                   "inputMap": {
                     "slogans": "slogans",
                     "adCopy": "shortAdCopy",

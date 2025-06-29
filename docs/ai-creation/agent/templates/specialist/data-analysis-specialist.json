@@ -1,0 +1,72 @@
+{
+  "identity": {
+    "name": "data-analysis-specialist",
+    "version": "1.0.0"
+  },
+  "goal": "Analyze routine execution data to generate actionable performance insights",
+  "role": "specialist",
+  "subscriptions": [
+    "step/completed",
+    "run/completed",
+    "safety/post_action"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "step/completed"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Step Performance Analyzer",
+        "inputMap": {
+          "metrics": "event.data.metrics",
+          "stepId": "event.data.stepId",
+          "routineId": "event.data.routineId"
+        }
+      },
+      "qos": 0
+    },
+    {
+      "trigger": {
+        "topic": "run/completed"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Run Performance Aggregator",
+        "inputMap": {
+          "runId": "event.data.runId",
+          "outputs": "event.data.outputs",
+          "duration": "event.data.duration"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "safety/post_action",
+        "when": "actionType == 'routine_execution'"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze execution patterns and identify optimization opportunities"
+      },
+      "qos": 0
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "preserve-data-privacy"
+    },
+    {
+      "modality": "permission",
+      "target": "aggregate-anonymous-metrics"
+    }
+  ],
+  "resources": [
+    "performance-analytics",
+    "metric-aggregators",
+    "pattern-recognition",
+    "optimization-models"
+  ]
+}

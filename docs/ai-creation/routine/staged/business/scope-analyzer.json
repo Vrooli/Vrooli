@@ -1,0 +1,145 @@
+{
+  "id": "7829564732190848150",
+  "publicId": "scope-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "publicId": "business-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "business"
+    },
+    {
+      "id": "7829564732190847089",
+      "publicId": "project-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "project-management"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848151",
+      "publicId": "scope-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes project scope for complexity and task breakdown requirements",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Analyze project scope for complexity assessment and task breakdown planning:\n\nProject Description: {{input.projectDescription}}\nProject Goals: {{input.projectGoals}}\nDeliverables: {{input.deliverables}}\nConstraints: {{input.constraints}}\nStakeholders: {{input.stakeholders}}\n\nPerform comprehensive scope analysis:\n\n1. Scope Dimensions:\n   - Functional scope boundaries\n   - Technical complexity levels\n   - Resource requirements\n   - Time horizon analysis\n   - Quality standards\n\n2. Complexity Assessment:\n   - Technical complexity factors\n   - Integration complexity\n   - Stakeholder complexity\n   - Process complexity\n   - Risk complexity\n\n3. Work Package Identification:\n   - Major deliverable components\n   - Logical work groupings\n   - Dependency clusters\n   - Skill-based packages\n   - Timeline-based phases\n\n4. Breakdown Structure Readiness:\n   - Decomposition feasibility\n   - Definition clarity\n   - Estimation readiness\n   - Assignment potential\n   - Monitoring capability\n\n5. Scope Risks:\n   - Scope creep potential\n   - Unclear requirements\n   - Stakeholder alignment issues\n   - Technical uncertainties\n   - Resource availability\n\n6. Interface Analysis:\n   - Internal interfaces\n   - External dependencies\n   - System integrations\n   - Stakeholder touchpoints\n   - Process handoffs\n\n7. Success Criteria Definition:\n   - Acceptance criteria\n   - Quality measures\n   - Performance standards\n   - Completion indicators\n   - Value realization\n\n8. Scope Management Framework:\n   - Change control needs\n   - Approval processes\n   - Documentation requirements\n   - Communication protocols\n   - Review mechanisms\n\nReturn as structured JSON with keys: scopeDimensions (object), complexityAssessment (object), workPackages (array), breakdownReadiness (object), scopeRisks (array), interfaceAnalysis (object), successCriteria (object), managementFramework (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectDescription",
+                "id": "description_input",
+                "label": "Project Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the project and its objectives...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "projectGoals",
+                "id": "goals_input",
+                "label": "Project Goals",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What are the specific goals and success outcomes?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "deliverables",
+                "id": "deliverables_input",
+                "label": "Expected Deliverables",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What will be produced or delivered?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Budget, time, resource, or technical constraints"
+                }
+              },
+              {
+                "fieldName": "stakeholders",
+                "id": "stakeholders_input",
+                "label": "Stakeholders",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Who is involved in or affected by this project?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "scopeAnalysis",
+                "id": "analysis_output",
+                "label": "Scope Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "breakdownRecommendations",
+                "id": "recommendations_output",
+                "label": "Breakdown Recommendations",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848152",
+          "language": "en-US",
+          "description": "Analyzes project scope complexity and provides recommendations for task breakdown structure",
+          "instructions": "Enter project description and goals. The system will analyze scope complexity and provide recommendations for effective task breakdown and management.",
+          "name": "Scope Analyzer"
+        }
+      ]
+    }
+  ]
+}

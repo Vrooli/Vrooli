@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Gather Performance Data",
                 "description": "Collects recent performance logs and task outcomes",
-                "subroutineId": "TODO: Need data collection subroutine for performance metrics",
+                "subroutineId": "7829564732190848375",
                 "inputMap": {
                   "timePeriod": "reviewPeriod",
                   "performanceLogs": "recentLogs",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Decision Patterns",
                 "description": "Examines recent decisions for patterns and effectiveness",
-                "subroutineId": "TODO: Need reasoning subroutine for pattern analysis",
+                "subroutineId": "7829564732190848459",
                 "inputMap": {
                   "aggregatedData": "performanceData",
                   "feedbackHistory": "userFeedback",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Compare with Past Performance",
                 "description": "Uses embedding search to find similar past experiences",
-                "subroutineId": "TODO: Need embedding search subroutine for historical comparison",
+                "subroutineId": "7829564732190848462",
                 "inputMap": {
                   "currentPerformance": "performanceData",
                   "identifiedPatterns": "decisionPatterns",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Insights and Recommendations",
                 "description": "Synthesizes findings into actionable insights",
-                "subroutineId": "TODO: Need generation subroutine for insight synthesis",
+                "subroutineId": "7829564732190848465",
                 "inputMap": {
                   "performanceData": "aggregatedData",
                   "identifiedPatterns": "decisionPatterns",
@@ -126,7 +126,7 @@
                 "id": "step-5",
                 "name": "Store Learning for Future",
                 "description": "Updates knowledge base with new insights",
-                "subroutineId": "TODO: Need action subroutine for knowledge base update",
+                "subroutineId": "7829564732190848468",
                 "inputMap": {
                   "selfAssessment": "assessmentReport",
                   "improvements": "recommendedActions",

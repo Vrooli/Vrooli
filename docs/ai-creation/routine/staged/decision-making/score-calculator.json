@@ -1,0 +1,133 @@
+{
+  "id": "7829564732190847988",
+  "publicId": "score-calc-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847098",
+      "publicId": "decision-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "decision-making"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847989",
+      "publicId": "score-calc-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Calculates weighted scores and rankings",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Calculate weighted scores and final rankings from raw scores and criteria weights:\n\nRaw Score Data: {{input.rawScoreData}}\nCriteria Weights: {{input.criteriaWeights}}\nCalculation Method: {{input.calculationMethod}}\nNormalization Preference: {{input.normalizationPref}}\n\nPerform comprehensive score calculations:\n\n1. Score Normalization:\n   - Normalize raw scores (0-1 or 0-100)\n   - Handle different score scales\n   - Address negative scores if present\n   - Document normalization method\n\n2. Weighted Score Calculation:\n   - Multiply normalized scores by weights\n   - Sum weighted scores per option\n   - Calculate percentage of maximum\n   - Round appropriately\n\n3. Ranking Generation:\n   - Order by total weighted score\n   - Handle tie-breaking rules\n   - Calculate score differences\n   - Identify clear winners vs close calls\n\n4. Statistical Analysis:\n   - Score distribution\n   - Standard deviation\n   - Confidence intervals\n   - Robustness check\n\n5. Sensitivity Analysis:\n   - Impact of ±10% weight changes\n   - Critical criteria identification\n   - Stability of rankings\n   - Break-even points\n\n6. Alternative Methods:\n   - Multiplicative vs additive\n   - Geometric mean option\n   - Min-max normalization\n   - Comparison of results\n\n7. Results Validation:\n   - Sanity checks\n   - Extreme value handling\n   - Missing data impact\n   - Calculation verification\n\nReturn as structured JSON with keys: weightedScores (array with option, totalScore, breakdown), finalRankings (array ordered), scoreDifferences (object), statisticalAnalysis (object), sensitivityResults (object), alternativeCalculations (object), confidenceLevel, recommendations (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rawScoreData",
+                "id": "scores_input",
+                "label": "Raw Score Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Raw scores for each option-criterion pair...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "criteriaWeights",
+                "id": "weights_input",
+                "label": "Criteria Weights",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Weight for each criterion (must sum to 100%)",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "calculationMethod",
+                "id": "method_input",
+                "label": "Calculation Method",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Additive (default), multiplicative, or custom"
+                }
+              },
+              {
+                "fieldName": "normalizationPref",
+                "id": "normalization_input",
+                "label": "Normalization Preference",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How to normalize scores (0-1, 0-100, etc.)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "weightedScores",
+                "id": "weighted_output",
+                "label": "Weighted Scores",
+                "type": "Text"
+              },
+              {
+                "fieldName": "finalRankings",
+                "id": "rankings_output",
+                "label": "Final Rankings",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847990",
+          "language": "en-US",
+          "description": "Calculates weighted scores from raw scores and criteria weights to produce final rankings",
+          "instructions": "Enter raw scores and criteria weights. The system will calculate weighted scores and provide final rankings with statistical analysis.",
+          "name": "Score Calculator"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848564",
+  "publicId": "daily-briefing-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847049",
+      "tag": "morning-routine",
+      "translations": [
+        {
+          "id": "7829564732190847149",
+          "language": "en",
+          "description": "Morning routines and practices"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847052",
+      "tag": "reporting",
+      "translations": [
+        {
+          "id": "7829564732190847152",
+          "language": "en",
+          "description": "Report generation and summaries"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848565",
+      "publicId": "daily-briefing-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles comprehensive morning briefing",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "wellnessData",
+                "id": "wellness_data_input",
+                "label": "Wellness Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Wellness strategies"
+              },
+              {
+                "fieldName": "prioritizedTasks",
+                "id": "prioritized_tasks_input",
+                "label": "Prioritized Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Today's task list"
+              },
+              {
+                "fieldName": "schedule",
+                "id": "schedule_input",
+                "label": "Daily Schedule",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Time-blocked schedule"
+              },
+              {
+                "fieldName": "affirmations",
+                "id": "affirmations_input",
+                "label": "Affirmations",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Morning affirmations"
+              },
+              {
+                "fieldName": "weatherData",
+                "id": "weather_data_input",
+                "label": "Weather Info",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Today's weather"
+              },
+              {
+                "fieldName": "newsHighlights",
+                "id": "news_highlights_input",
+                "label": "News Topics",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Key news items"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "briefingReport",
+                "id": "briefing_report_output",
+                "label": "Morning Briefing",
+                "type": "Text"
+              },
+              {
+                "fieldName": "quickReference",
+                "id": "quick_reference_output",
+                "label": "Day at a Glance",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848566",
+          "language": "en",
+          "name": "Daily Briefing Generator",
+          "description": "Compiles all morning planning elements into a comprehensive briefing document with quick reference summary.",
+          "instructions": "Provide wellness, task, and schedule data. The routine will create your complete morning briefing."
+        }
+      ]
+    }
+  ]
+}

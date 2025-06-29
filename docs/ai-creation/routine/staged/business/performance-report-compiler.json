@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848639",
+  "publicId": "report-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847071",
+      "tag": "reporting",
+      "translations": [
+        {
+          "id": "7829564732190847171",
+          "language": "en",
+          "description": "Report generation and metrics"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847057",
+      "tag": "documentation",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Documentation and record keeping"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847072",
+      "tag": "business",
+      "translations": [
+        {
+          "id": "7829564732190847172",
+          "language": "en",
+          "description": "Business operations and management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848640",
+      "publicId": "report-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles comprehensive performance reports",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "highLevelSummary",
+                "id": "high_level_summary_input",
+                "label": "Executive Summary",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Executive summary content"
+              },
+              {
+                "fieldName": "keyInsights",
+                "id": "key_insights_input",
+                "label": "Insight Highlights",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Key insights data"
+              },
+              {
+                "fieldName": "strategicRecommendations",
+                "id": "strategic_recommendations_input",
+                "label": "Recommendations",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Strategic recommendations"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "completeReport",
+                "id": "complete_report_output",
+                "label": "Full Performance Report",
+                "type": "Text"
+              },
+              {
+                "fieldName": "reportVisuals",
+                "id": "report_visuals_output",
+                "label": "Data Visualizations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionItems",
+                "id": "action_items_output",
+                "label": "Next Steps",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848641",
+          "language": "en",
+          "name": "Performance Report Compiler",
+          "description": "Compiles all performance analysis into comprehensive, presentation-ready reports with visualizations.",
+          "instructions": "Provide summary and insights. The routine will compile a complete performance report."
+        }
+      ]
+    }
+  ]
+}

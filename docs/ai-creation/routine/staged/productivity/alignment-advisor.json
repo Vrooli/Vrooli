@@ -1,0 +1,143 @@
+{
+  "id": "7829564732190848147",
+  "publicId": "alignment-advisor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847092",
+      "publicId": "goal-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "goals"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848148",
+      "publicId": "alignment-advisor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Provides recommendations for improving goal-activity alignment",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Generate actionable recommendations to improve goal-activity alignment:\n\nAlignment Assessment: {{input.alignmentAssessment}}\nIdentified Gaps: {{input.identifiedGaps}}\nPriority Mismatches: {{input.priorityMismatches}}\nOptimization Goals: {{input.optimizationGoals}}\nConstraints: {{input.constraints}}\n\nGenerate strategic alignment recommendations:\n\n1. Priority Realignment:\n   - High-impact goal activities to increase\n   - Low-value activities to reduce/eliminate\n   - Resource reallocation strategies\n   - Time investment adjustments\n   - Focus area recommendations\n\n2. Gap Closure Strategies:\n   - Missing activities to add\n   - Under-supported goals to strengthen\n   - Skill development priorities\n   - System/process improvements\n   - Resource acquisition needs\n\n3. Efficiency Improvements:\n   - Activity batching opportunities\n   - Process optimization suggestions\n   - Automation potential\n   - Delegation possibilities\n   - Tool/system upgrades\n\n4. Strategic Adjustments:\n   - Goal modification suggestions\n   - Priority recalibration\n   - Timeline adjustments\n   - Scope refinements\n   - Success metric updates\n\n5. Implementation Planning:\n   - Change management approach\n   - Transition strategies\n   - Milestone planning\n   - Risk mitigation\n   - Progress monitoring\n\n6. Habit and Behavior Changes:\n   - Daily routine adjustments\n   - Weekly planning improvements\n   - Decision-making frameworks\n   - Energy management\n   - Focus techniques\n\n7. Accountability Systems:\n   - Progress tracking methods\n   - Review frequencies\n   - Feedback mechanisms\n   - Support structures\n   - Course correction protocols\n\n8. Continuous Improvement:\n   - Regular alignment reviews\n   - Adaptation strategies\n   - Learning integration\n   - Goal evolution management\n   - Performance optimization\n\nReturn as structured JSON with keys: priorityRealignment (object), gapClosureStrategies (array), efficiencyImprovements (array), strategicAdjustments (object), implementationPlan (object), behaviorChanges (array), accountabilitySystem (object), continuousImprovement (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "alignmentAssessment",
+                "id": "assessment_input",
+                "label": "Alignment Assessment",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output from alignment assessor with detailed assessment...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "identifiedGaps",
+                "id": "gaps_input",
+                "label": "Identified Gaps",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Key gaps and misalignments identified",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "priorityMismatches",
+                "id": "mismatches_input",
+                "label": "Priority Mismatches",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Time-priority conflicts and resource misallocations"
+                }
+              },
+              {
+                "fieldName": "optimizationGoals",
+                "id": "optimization_input",
+                "label": "Optimization Goals",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What specific improvements are you seeking?"
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Time, resource, or other constraints to consider"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "alignmentRecommendations",
+                "id": "recommendations_output",
+                "label": "Alignment Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuidance",
+                "id": "guidance_output",
+                "label": "Implementation Guidance",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848149",
+          "language": "en-US",
+          "description": "Provides strategic recommendations for improving goal-activity alignment and optimization",
+          "instructions": "Enter alignment assessment results and optimization goals. The system will generate actionable recommendations for improving alignment and implementation guidance.",
+          "name": "Alignment Advisor"
+        }
+      ]
+    }
+  ]
+}

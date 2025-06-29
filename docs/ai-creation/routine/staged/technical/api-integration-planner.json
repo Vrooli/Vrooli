@@ -1,0 +1,162 @@
+{
+  "id": "7829564732190847222",
+  "publicId": "api-integrate-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847223",
+      "publicId": "api-planner-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 1400,
+            "model": null,
+            "prompt": "Create a comprehensive integration plan for the following API:\n\n**API Documentation/Info:** {{input.apiDocumentation}}\n**Integration Goals:** {{input.integrationGoals}}\n**Your Tech Stack:** {{input.techStack}}\n**Authentication Type:** {{input.authType}}\n{{#if input.constraints}}**Constraints:** {{input.constraints}}{{/if}}\n{{#if input.existingIntegrations}}**Existing Integrations:** {{input.existingIntegrations}}{{/if}}\n\nProvide a detailed API integration roadmap:\n\n1. **API Analysis**\n   - API type (REST, GraphQL, SOAP, etc.)\n   - Available endpoints and operations\n   - Rate limits and quotas\n   - Response formats and schemas\n   - Versioning strategy\n   - Documentation quality assessment\n\n2. **Authentication Setup**\n   Based on {{input.authType}}:\n   - Required credentials and where to obtain them\n   - Authentication flow implementation\n   - Token management strategy\n   - Security best practices\n   - Key/secret storage recommendations\n   - OAuth flow details (if applicable)\n\n3. **Integration Architecture**\n   - High-level integration design\n   - Component responsibilities\n   - Data flow diagrams\n   - Service layer structure\n   - Error boundary placement\n   - Caching layer design\n\n4. **Implementation Steps**\n   Step-by-step guide:\n   1. Environment setup and dependencies\n   2. Authentication implementation\n   3. API client creation\n   4. Core endpoint integration\n   5. Error handling setup\n   6. Testing framework\n   7. Monitoring and logging\n   8. Documentation\n\n5. **Code Structure**\n   ```\n   /api\n     /client\n       - apiClient.js\n       - authHandler.js\n     /services\n       - [resource]Service.js\n     /models\n       - apiModels.js\n     /utils\n       - errorHandler.js\n       - rateLimiter.js\n   ```\n\n6. **Error Handling Strategy**\n   - Common API errors and handling\n   - Retry logic implementation\n   - Circuit breaker pattern\n   - Fallback mechanisms\n   - User-friendly error messages\n   - Error logging and alerting\n\n7. **Rate Limiting & Optimization**\n   - Rate limit implementation\n   - Request queuing strategy\n   - Batch operations where possible\n   - Caching strategy\n   - Pagination handling\n   - Concurrent request management\n\n8. **Data Transformation**\n   - Request payload formatting\n   - Response data mapping\n   - Type definitions/interfaces\n   - Validation schemas\n   - Data sanitization\n   - Format conversions\n\n9. **Testing Strategy**\n   - Unit test examples\n   - Integration test setup\n   - Mock API responses\n   - End-to-end test scenarios\n   - Performance testing\n   - Security testing\n\n10. **Security Considerations**\n    - API key security\n    - HTTPS enforcement\n    - Input validation\n    - CORS configuration\n    - Rate limiting per user\n    - Audit logging\n\n11. **Monitoring & Observability**\n    - Key metrics to track\n    - Logging strategy\n    - Performance monitoring\n    - Error tracking setup\n    - Alerting thresholds\n    - Dashboard recommendations\n\n12. **Code Examples**\n    Provide starter code for:\n    - Basic API client setup\n    - Authentication handler\n    - Sample endpoint integration\n    - Error handling wrapper\n    - Response interceptor\n    - Rate limiter implementation\n\n13. **Development Workflow**\n    - Local development setup\n    - Environment variables\n    - API key management\n    - Version control practices\n    - CI/CD considerations\n    - Deployment strategies\n\n14. **Common Pitfalls**\n    - Frequent integration mistakes\n    - Performance bottlenecks\n    - Security vulnerabilities\n    - Maintenance challenges\n    - Scaling issues\n    - How to avoid each\n\n15. **Maintenance Plan**\n    - API version migration strategy\n    - Deprecation handling\n    - Performance optimization\n    - Documentation updates\n    - Team knowledge sharing\n    - Vendor communication\n\nCreate a practical, actionable plan that can be immediately implemented, with emphasis on reliability, security, and maintainability.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "apiDocumentation",
+                "id": "api_documentation_input",
+                "label": "API Documentation/Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Provide API details:\n- API name and provider\n- Documentation URL\n- Key endpoints you need\n- Any specific requirements",
+                  "minRows": 5
+                }
+              },
+              {
+                "fieldName": "integrationGoals",
+                "id": "integration_goals_input",
+                "label": "Integration Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What do you want to achieve?\n- Fetch user data\n- Process payments\n- Send notifications\n- Sync inventory\n- Analytics tracking",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "techStack",
+                "id": "tech_stack_input",
+                "label": "Your Technology Stack",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Your current setup:\n- Programming language\n- Framework\n- Database\n- Hosting environment",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "authType",
+                "id": "auth_type_input",
+                "label": "Authentication Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["API Key", "OAuth 2.0", "JWT", "Basic Auth", "Bearer Token", "Custom/Other", "No Auth"],
+                  "defaultValue": "API Key"
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints & Requirements (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any limitations or requirements:\n- Security policies\n- Performance requirements\n- Budget constraints\n- Timeline",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "existingIntegrations",
+                "id": "existing_integrations_input",
+                "label": "Existing Integrations (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Other APIs you've already integrated (for reference)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "complexityLevel",
+                "id": "complexity_level_input",
+                "label": "Expected Complexity",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Simple (few endpoints)", "Medium (standard integration)", "Complex (many features)", "Enterprise (high scale)"],
+                  "defaultValue": "Medium (standard integration)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_integration_plan_output",
+                "label": "Complete Integration Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationSteps",
+                "id": "implementation_steps_output",
+                "label": "Implementation Steps",
+                "type": "Text"
+              },
+              {
+                "fieldName": "codeExamples",
+                "id": "code_examples_output",
+                "label": "Code Examples",
+                "type": "Text"
+              },
+              {
+                "fieldName": "bestPractices",
+                "id": "best_practices_output",
+                "label": "Best Practices & Security",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847224",
+          "language": "en",
+          "name": "API Integration Planner",
+          "description": "Outlines steps for third-party API integration. Provides implementation roadmap, auth setup, code examples, and error handling strategies without making actual API calls.",
+          "instructions": "1. Provide API documentation or details\n2. Describe your integration goals\n3. Specify your technology stack\n4. Select authentication type\n5. Add constraints/requirements (optional)\n6. List existing integrations (optional)\n7. Set expected complexity level\n\nThe planner will create:\n- Comprehensive API analysis\n- Authentication setup guide\n- Integration architecture design\n- Step-by-step implementation plan\n- Code structure recommendations\n- Error handling strategies\n- Testing and monitoring setup\n- Security best practices\n- Sample code snippets\n- Maintenance guidelines\n\nPerfect for developers planning to integrate third-party APIs into their applications. Covers everything from initial setup to production deployment."
+        }
+      ]
+    }
+  ]
+}

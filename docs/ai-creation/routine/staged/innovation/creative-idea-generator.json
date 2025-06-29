@@ -1,0 +1,145 @@
+{
+  "id": "7829564732190848318",
+  "publicId": "creative-idea-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847034",
+      "publicId": "innovation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "innovation"
+    },
+    {
+      "id": "7829564732190847027",
+      "publicId": "content-creation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "content-creation"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848319",
+      "publicId": "creative-idea-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates diverse initial concepts using brainstorming techniques",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Generate diverse creative ideas using various brainstorming techniques:\n\nClarified Problem: {{input.clarifiedProblem}}\nBrainstorming Parameters: {{input.brainstormingParams}}\nInspiration Sources: {{input.inspirationSources}}\nCreativity Level: {{input.creativityLevel}}\nIdea Quantity Target: {{input.ideaQuantity}}\n\nGenerate creative ideas using multiple techniques:\n\n1. **Traditional Brainstorming**:\n   - Free association ideas\n   - Quantity over quality\n   - Wild ideas welcomed\n   - Building on concepts\n   - No judgment zone\n\n2. **SCAMPER Technique**:\n   - Substitute elements\n   - Combine concepts\n   - Adapt from other fields\n   - Modify/Magnify aspects\n   - Put to other uses\n   - Eliminate components\n   - Reverse/Rearrange\n\n3. **Lateral Thinking**:\n   - Random word associations\n   - Provocative operations\n   - Challenge assumptions\n   - Escape thinking\n   - Movement techniques\n\n4. **Analogical Thinking**:\n   - Nature-inspired solutions\n   - Cross-industry adaptations\n   - Historical parallels\n   - Metaphorical approaches\n   - System translations\n\n5. **Worst Possible Ideas**:\n   - Deliberately bad solutions\n   - Opposite approaches\n   - Failure scenarios\n   - Reversal insights\n   - Hidden gems extraction\n\n6. **Future Scenarios**:\n   - Ideal world solutions\n   - Technology-enabled ideas\n   - Resource-unlimited concepts\n   - Time-travel perspectives\n   - Sci-fi inspirations\n\n7. **Constraint Removal**:\n   - No-budget ideas\n   - No-time-limit solutions\n   - No-technology barriers\n   - No-policy restrictions\n   - Pure possibility thinking\n\n8. **Combinatorial Creativity**:\n   - Idea fusion\n   - Feature mixing\n   - Concept blending\n   - Hybrid solutions\n   - Synthesis approaches\n\nReturn as structured JSON with keys: traditionalIdeas (array), scamperIdeas (array), lateralIdeas (array), analogicalIdeas (array), worstIdeas (array), futureIdeas (array), unconstrainedIdeas (array), combinedIdeas (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedProblem",
+                "id": "problem_input",
+                "label": "Clarified Problem",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "The refined problem statement to solve...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "brainstormingParams",
+                "id": "params_input",
+                "label": "Brainstorming Parameters",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Constraints, focus areas, and guidelines...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "inspirationSources",
+                "id": "inspiration_input",
+                "label": "Inspiration Sources",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Reference points, examples, or inspiration...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "creativityLevel",
+                "id": "creativity_input",
+                "label": "Creativity Level",
+                "type": "Selector",
+                "props": {
+                  "options": ["Conservative", "Moderate", "Bold", "Wild", "Experimental"]
+                }
+              },
+              {
+                "fieldName": "ideaQuantity",
+                "id": "quantity_input",
+                "label": "Idea Quantity Target",
+                "type": "IntegerInput",
+                "props": {
+                  "min": 10,
+                  "max": 100,
+                  "placeholder": "20-50"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "ideaCollection",
+                "id": "ideas_output",
+                "label": "Generated Ideas",
+                "type": "Text"
+              },
+              {
+                "fieldName": "topConcepts",
+                "id": "top_output",
+                "label": "Top Concepts",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848320",
+          "language": "en-US",
+          "description": "Generates diverse creative ideas using SCAMPER, lateral thinking, and other techniques",
+          "instructions": "Provide the problem and parameters. The system will generate creative ideas using multiple techniques.",
+          "name": "Creative Idea Generator"
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "id": "1734567890123456795",
+  "id": "7829564732190848096",
   "publicId": "intro-writer-v1",
   "resourceType": "Routine",
   "isPrivate": false,
@@ -8,7 +8,7 @@
   "tags": [],
   "versions": [
     {
-      "id": "1734567890123456796",
+      "id": "7829564732190848097",
       "publicId": "intro-writer-v1-0",
       "versionLabel": "1.0.0",
       "versionNotes": "Initial version",
@@ -92,7 +92,7 @@
       },
       "translations": [
         {
-          "id": "1734567890123456797",
+          "id": "7829564732190848098",
           "language": "en",
           "name": "Introduction Writer",
           "description": "Creates engaging introductions for blog posts and articles. Focuses on hooking readers, establishing relevance, and previewing content while matching the target audience level.",

@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190848129",
+  "publicId": "option-generation-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847030",
+      "publicId": "decision-making-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "decision-making"
+    },
+    {
+      "id": "7829564732190847106",
+      "publicId": "creativity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "creativity"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848130",
+      "publicId": "option-generation-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates comprehensive sets of alternatives and solutions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Generate comprehensive alternatives and solutions for the decision problem:\n\nDecision Framework: {{input.decisionFramework}}\nConstraints: {{input.constraints}}\nObjectives: {{input.objectives}}\nCreativity Level: {{input.creativityLevel}}\n\nGenerate diverse and comprehensive options:\n\n1. Traditional Approaches:\n   - Conventional solutions\n   - Industry best practices\n   - Proven methodologies\n   - Standard procedures\n   - Established frameworks\n\n2. Innovation Opportunities:\n   - Creative alternatives\n   - Unconventional approaches\n   - Technology-enabled solutions\n   - Process innovations\n   - Disruptive options\n\n3. Hybrid Solutions:\n   - Combined approaches\n   - Phased implementations\n   - Partial solutions\n   - Compromise options\n   - Blended methodologies\n\n4. Risk-Based Variations:\n   - Conservative options\n   - Moderate risk choices\n   - High-risk/high-reward\n   - Safety-first approaches\n   - Experimental solutions\n\n5. Resource-Optimized Options:\n   - Low-cost alternatives\n   - Resource-intensive solutions\n   - Time-optimized approaches\n   - Skill-based options\n   - Technology leverage\n\n6. Stakeholder-Focused Alternatives:\n   - Stakeholder-specific solutions\n   - Collaborative approaches\n   - Delegation options\n   - Outsourcing alternatives\n   - Partnership solutions\n\n7. Timeline Variations:\n   - Immediate solutions\n   - Short-term fixes\n   - Long-term strategies\n   - Phased approaches\n   - Iterative solutions\n\n8. Option Evaluation Framework:\n   - Feasibility assessment\n   - Resource requirements\n   - Implementation complexity\n   - Success probability\n   - Risk considerations\n\nReturn as structured JSON with keys: traditionalOptions (array), innovativeOptions (array), hybridSolutions (array), riskBasedOptions (object), resourceOptimized (array), stakeholderFocused (array), timelineVariations (object), optionEvaluation (array with criteria).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "decisionFramework",
+                "id": "framework_input",
+                "label": "Decision Framework",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Structured decision problem from decision framing...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Budget, time, resource, or other limitations...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "objectives",
+                "id": "objectives_input",
+                "label": "Objectives",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What you want to achieve with the decision...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "creativityLevel",
+                "id": "creativity_input",
+                "label": "Creativity Level",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Conservative, moderate, or highly creative approaches preferred?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "generatedOptions",
+                "id": "options_output",
+                "label": "Generated Options",
+                "type": "Text"
+              },
+              {
+                "fieldName": "optionAnalysis",
+                "id": "analysis_output",
+                "label": "Option Analysis",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848131",
+          "language": "en-US",
+          "description": "Generates comprehensive sets of alternatives and solutions for decision problems using creative and analytical approaches",
+          "instructions": "Enter your decision framework, constraints, and objectives. The system will generate diverse options from traditional to innovative approaches.",
+          "name": "Option Generation"
+        }
+      ]
+    }
+  ]
+}

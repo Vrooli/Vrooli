@@ -1,0 +1,160 @@
+{
+  "id": "7829564732190847219",
+  "publicId": "perf-optimize-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847220",
+      "publicId": "code-optimizer-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 1400,
+            "model": null,
+            "prompt": "Analyze the following code for performance optimization opportunities:\n\n**Code to Analyze:** {{input.codeToAnalyze}}\n**Language/Framework:** {{input.languageFramework}}\n**Performance Metrics:** {{input.performanceMetrics}}\n**Constraints:** {{input.constraints}}\n{{#if input.targetPlatform}}**Target Platform:** {{input.targetPlatform}}{{/if}}\n{{#if input.currentBottlenecks}}**Known Bottlenecks:** {{input.currentBottlenecks}}{{/if}}\n\nProvide comprehensive performance optimization analysis:\n\n1. **Performance Analysis**\n   - Identify computational complexity (Big O)\n   - Detect performance hotspots\n   - Analyze memory usage patterns\n   - Find redundant operations\n   - Assess I/O operations efficiency\n   - Review algorithm choices\n\n2. **Bottleneck Identification**\n   - CPU-bound operations\n   - Memory-intensive sections\n   - I/O blocking operations\n   - Network request inefficiencies\n   - Database query problems\n   - Rendering/UI performance issues\n\n3. **Algorithmic Improvements**\n   - More efficient algorithms\n   - Better data structures\n   - Reduced time complexity\n   - Space-time trade-offs\n   - Caching opportunities\n   - Memoization candidates\n\n4. **Code-Level Optimizations**\n   - Loop optimizations\n   - Condition reordering\n   - Function inlining opportunities\n   - Dead code elimination\n   - Variable scope optimization\n   - Type conversion efficiency\n\n5. **Memory Optimization**\n   - Memory leak detection\n   - Object pooling opportunities\n   - Garbage collection optimization\n   - Reference management\n   - Buffer size optimization\n   - Memory allocation patterns\n\n6. **Async/Parallel Processing**\n   - Parallelization opportunities\n   - Async operation candidates\n   - Thread pool optimization\n   - Concurrent data structures\n   - Lock-free alternatives\n   - Work distribution strategies\n\n7. **Database/Query Optimization**\n   - Query optimization suggestions\n   - Index recommendations\n   - N+1 query problems\n   - Batch operation opportunities\n   - Connection pooling\n   - Caching strategies\n\n8. **Network Optimization**\n   - Request batching\n   - Compression opportunities\n   - Protocol optimization\n   - Connection reuse\n   - Payload size reduction\n   - CDN utilization\n\n9. **Caching Strategies**\n   - Cache implementation points\n   - Cache invalidation logic\n   - Multi-level caching\n   - Distributed caching options\n   - Cache key design\n   - TTL recommendations\n\n10. **Platform-Specific Optimizations**\n    - Language-specific idioms\n    - Framework best practices\n    - Platform feature utilization\n    - Hardware acceleration options\n    - Native API usage\n    - Compiler optimizations\n\n11. **Benchmarking Recommendations**\n    - Key metrics to measure\n    - Benchmarking tools\n    - Performance testing scenarios\n    - Profiling strategies\n    - Monitoring setup\n    - Baseline establishment\n\n12. **Optimization Priority Matrix**\n    Rank optimizations by:\n    - Performance impact (High/Medium/Low)\n    - Implementation effort (Easy/Medium/Hard)\n    - Risk level (Safe/Moderate/Risky)\n    - Dependencies and prerequisites\n    - Expected improvement percentage\n\n13. **Implementation Examples**\n    For top optimizations provide:\n    - Before and after code snippets\n    - Performance improvement estimates\n    - Implementation steps\n    - Testing approach\n    - Rollback strategy\n\n14. **Trade-offs and Considerations**\n    - Readability vs. performance\n    - Maintainability impact\n    - Development time required\n    - Testing complexity\n    - Platform compatibility\n    - Team skill requirements\n\n15. **Monitoring and Validation**\n    - Performance metrics to track\n    - Success criteria definition\n    - A/B testing approach\n    - Regression prevention\n    - Continuous monitoring setup\n    - Performance budgets\n\nProvide actionable optimization recommendations ordered by impact and feasibility, with clear implementation guidance and expected improvements.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "codeToAnalyze",
+                "id": "code_to_analyze_input",
+                "label": "Code to Analyze",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the code you want to optimize for performance...",
+                  "minRows": 10
+                }
+              },
+              {
+                "fieldName": "languageFramework",
+                "id": "language_framework_input",
+                "label": "Language/Framework",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "e.g., Python/Django, JavaScript/React, Java/Spring, etc."
+                }
+              },
+              {
+                "fieldName": "performanceMetrics",
+                "id": "performance_metrics_input",
+                "label": "Current Performance Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What performance issues are you experiencing?\n- Response time: 2.5 seconds\n- Memory usage: 500MB\n- CPU usage: 80%\n- Throughput: 100 req/sec",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints & Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Any constraints to consider?\n- Must maintain backward compatibility\n- Limited to 2GB memory\n- Cannot change database schema\n- Must support IE11",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "targetPlatform",
+                "id": "target_platform_input",
+                "label": "Target Platform (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Where does this code run? (cloud, mobile, embedded, etc.)"
+                }
+              },
+              {
+                "fieldName": "currentBottlenecks",
+                "id": "current_bottlenecks_input",
+                "label": "Known Bottlenecks (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific areas you suspect are causing problems?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "optimizationGoal",
+                "id": "optimization_goal_input",
+                "label": "Primary Optimization Goal",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Reduce latency", "Increase throughput", "Lower memory usage", "Reduce CPU usage", "Improve scalability", "Balanced optimization"],
+                  "defaultValue": "Reduce latency"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_optimization_analysis_output",
+                "label": "Complete Performance Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "bottleneckAnalysis",
+                "id": "bottleneck_analysis_output",
+                "label": "Bottleneck Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "optimizationRecommendations",
+                "id": "optimization_recommendations_output",
+                "label": "Optimization Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "implementation_guide_output",
+                "label": "Implementation Guide & Examples",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847221",
+          "language": "en",
+          "name": "Performance Optimizer",
+          "description": "Analyzes code for performance improvements. Identifies algorithmic optimizations, bottlenecks, and efficiency gains with implementation guidance.",
+          "instructions": "1. Paste the code to analyze\n2. Specify language and framework\n3. Describe current performance metrics\n4. List any constraints or requirements\n5. Add target platform details (optional)\n6. Note known bottlenecks (optional)\n7. Select primary optimization goal\n\nThe optimizer will:\n- Analyze computational complexity\n- Identify performance bottlenecks\n- Suggest algorithmic improvements\n- Recommend code-level optimizations\n- Propose memory usage improvements\n- Find parallelization opportunities\n- Suggest caching strategies\n- Provide platform-specific optimizations\n- Include implementation examples\n- Rank optimizations by impact/effort\n\nOptimization areas covered:\n- Algorithm efficiency\n- Data structure choices\n- Memory management\n- I/O operations\n- Database queries\n- Network requests\n- Caching strategies\n- Async processing\n\nPerfect for developers looking to improve application performance, reduce resource usage, or scale their systems."
+        }
+      ]
+    }
+  ]
+}

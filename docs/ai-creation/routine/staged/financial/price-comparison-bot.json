@@ -1,0 +1,134 @@
+{
+  "id": "7829564732190847048",
+  "publicId": "price-comp-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847049",
+      "publicId": "prc-comp-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineWeb",
+      "config": {
+        "__version": "1.0",
+        "callDataWeb": {
+          "__version": "1.0",
+          "schema": {
+            "query": "{{input.productName}} {{input.productSpecs}} price comparison shopping {{input.searchTerms}}",
+            "searchDomains": ["shopping.google.com", "amazon.com", "ebay.com", "walmart.com", "bestbuy.com", "target.com"],
+            "maxResults": 20,
+            "extractionInstructions": "Extract product listings with: exact product name, price (including currency), seller/store name, availability status, shipping cost (if shown), product URL, any special deals or discounts, customer ratings if available, and key product specifications that match the search."
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "productName",
+                "id": "product_name_input",
+                "label": "Product Name",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter the exact product name (e.g., iPhone 15 Pro, Sony WH-1000XM5...)"
+                }
+              },
+              {
+                "fieldName": "productSpecs",
+                "id": "product_specs_input",
+                "label": "Product Specifications",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specific model, color, size, capacity (e.g., 256GB, Black, Size 10...)"
+                }
+              },
+              {
+                "fieldName": "searchTerms",
+                "id": "search_terms_input",
+                "label": "Additional Search Terms",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any additional terms to refine search (e.g., 'new', 'refurbished', 'bundle'...)"
+                }
+              },
+              {
+                "fieldName": "priceRange",
+                "id": "price_range_input",
+                "label": "Price Range Preference",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Expected price range (e.g., $100-200, under $500...)"
+                }
+              },
+              {
+                "fieldName": "preferredStores",
+                "id": "preferred_stores_input",
+                "label": "Preferred Stores",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific stores to prioritize? (optional)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "searchResults",
+                "id": "search_results_output",
+                "label": "Price Comparison Results",
+                "type": "Text"
+              },
+              {
+                "fieldName": "bestDeals",
+                "id": "best_deals_output",
+                "label": "Best Deals Found",
+                "type": "Text"
+              },
+              {
+                "fieldName": "priceRange",
+                "id": "price_range_output",
+                "label": "Price Range Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Shopping Recommendations",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847050",
+          "language": "en",
+          "name": "Price Comparison Bot",
+          "description": "Compares prices for products across multiple online sources. Searches major shopping sites to find the best deals, shipping options, and availability. Provides comprehensive price analysis with vendor comparisons and recommendations.",
+          "instructions": "1. Enter the exact product name you're looking for\n2. Add specific model details, color, size, or capacity if relevant\n3. Include any additional search terms to refine results\n4. Optionally specify your price range and preferred stores\n\nThe bot will search across major retailers and provide:\n- Price comparisons from multiple vendors\n- Best deals and discounts available\n- Shipping costs and availability\n- Direct links to product pages\n- Shopping recommendations\n\nNote: Prices and availability are subject to change. Always verify before purchasing."
+        }
+      ]
+    }
+  ]
+}

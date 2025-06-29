@@ -1,0 +1,141 @@
+{
+  "id": "7829564732190848282",
+  "publicId": "mindfulness-technique-trainer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847103",
+      "publicId": "mindfulness-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "mindfulness"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848283",
+      "publicId": "mindfulness-technique-trainer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Teaches core mindfulness and meditation practices",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Gentle",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Teach foundational mindfulness and meditation techniques:\n\nPractice Methodology: {{input.practiceMethodology}}\nLearning Style: {{input.learningStyle}}\nExperience Level: {{input.experienceLevel}}\nSpecific Interests: {{input.specificInterests}}\nTime Available: {{input.timeAvailable}}\n\nProvide comprehensive technique training:\n\n1. **Breathing Techniques Foundation**:\n   - Diaphragmatic breathing basics\n   - 4-7-8 breathing pattern\n   - Box breathing method\n   - Coherent breathing rhythm\n   - Breath awareness practice\n\n2. **Body Scan Meditation**:\n   - Progressive relaxation approach\n   - Tension-release technique\n   - Mindful body awareness\n   - Pain management application\n   - Energy flow visualization\n\n3. **Focused Attention Practice**:\n   - Single-point concentration\n   - Candle gazing (trataka)\n   - Sound meditation\n   - Mantra repetition\n   - Object meditation\n\n4. **Open Awareness Meditation**:\n   - Choiceless awareness\n   - Sky-like mind practice\n   - Thought observation\n   - Emotion witnessing\n   - Spacious awareness\n\n5. **Loving-Kindness Practice**:\n   - Self-compassion cultivation\n   - Metta phrase development\n   - Expanding circles method\n   - Difficult person practice\n   - Universal loving-kindness\n\n6. **Walking Meditation**:\n   - Slow walking technique\n   - Nature walking practice\n   - Indoor walking method\n   - Mindful movement\n   - Walking with awareness\n\n7. **Common Challenges & Solutions**:\n   - Restlessness management\n   - Drowsiness prevention\n   - Thought spiral handling\n   - Physical discomfort\n   - Consistency struggles\n\n8. **Practice Integration Tips**:\n   - Morning routine setup\n   - Micro-practice moments\n   - Technology aids\n   - Community resources\n   - Progress tracking\n\nReturn as structured JSON with keys: breathingTechniques (object), bodyScanPractice (object), focusedAttention (object), openAwareness (object), lovingKindness (object), walkingMeditation (object), challengeSolutions (array), integrationTips (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "practiceMethodology",
+                "id": "methodology_input",
+                "label": "Selected Practice Types",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Which meditation techniques to focus on...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "learningStyle",
+                "id": "learning_input",
+                "label": "Learning Style",
+                "type": "Selector",
+                "props": {
+                  "options": ["Visual", "Auditory", "Kinesthetic", "Reading/Writing", "Mixed"]
+                }
+              },
+              {
+                "fieldName": "experienceLevel",
+                "id": "experience_input",
+                "label": "Experience Level",
+                "type": "Selector",
+                "props": {
+                  "options": ["Complete Beginner", "Some Experience", "Intermediate", "Returning Practitioner"]
+                }
+              },
+              {
+                "fieldName": "specificInterests",
+                "id": "interests_input",
+                "label": "Specific Interests",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Stress relief, better sleep, focus, spiritual growth...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "timeAvailable",
+                "id": "time_input",
+                "label": "Practice Time Available",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How much time per day for practice?"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "techniqueGuide",
+                "id": "guide_output",
+                "label": "Technique Training Guide",
+                "type": "Text"
+              },
+              {
+                "fieldName": "practiceInstructions",
+                "id": "instructions_output",
+                "label": "Step-by-Step Instructions",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848284",
+          "language": "en-US",
+          "description": "Teaches foundational mindfulness techniques with personalized guidance and challenge solutions",
+          "instructions": "Select practice types and provide your learning style. The system will teach techniques with step-by-step instructions.",
+          "name": "Mindfulness Technique Trainer"
+        }
+      ]
+    }
+  ]
+}

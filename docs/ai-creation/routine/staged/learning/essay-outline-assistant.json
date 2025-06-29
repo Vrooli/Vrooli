@@ -1,0 +1,161 @@
+{
+  "id": "7829564732190847045",
+  "publicId": "essay-outl-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847046",
+      "publicId": "ess-outl-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1000,
+            "model": null,
+            "prompt": "Create a structured essay outline based on the following information:\n\n**Essay Prompt/Topic:** {{input.essayPrompt}}\n**Essay Type:** {{input.essayType}}\n**Target Length:** {{input.targetLength}}\n{{#if input.thesisIdea}}**Thesis Idea:** {{input.thesisIdea}}{{/if}}\n{{#if input.keyPoints}}**Key Points to Include:** {{input.keyPoints}}{{/if}}\n{{#if input.sources}}**Available Sources:** {{input.sources}}{{/if}}\n**Academic Level:** {{input.academicLevel}}\n\nCreate a comprehensive essay outline including:\n\n1. **Thesis Statement**\n   - Clear, arguable thesis that addresses the prompt\n   - Specific and focused\n   - Sets up the essay's direction\n\n2. **Introduction Outline**\n   - Hook/attention grabber options\n   - Background context needed\n   - Thesis statement placement\n   - Essay roadmap/preview\n\n3. **Body Paragraphs** ({{#eq input.essayType \"5-Paragraph Essay\"}}3 paragraphs{{else}}appropriate number{{/eq}})\n   For each paragraph include:\n   - Topic sentence\n   - Main argument/point\n   - Supporting evidence needed\n   - Examples or data to find\n   - Analysis points\n   - Transition to next paragraph\n\n4. **Counter-argument Section** (if applicable)\n   - Opposing viewpoint\n   - Refutation strategy\n   - Strengthening your position\n\n5. **Conclusion Outline**\n   - Thesis restatement approach\n   - Summary of main points\n   - Broader implications\n   - Call to action or final thought\n\n6. **Evidence Placeholders**\n   - Types of evidence needed\n   - Where to place quotes/data\n   - Citation reminders\n\n7. **Transitions**\n   - Between paragraphs\n   - Between ideas within paragraphs\n   - Connecting back to thesis\n\n8. **Writing Tips**\n   - Style suggestions for this essay type\n   - Common pitfalls to avoid\n   - Strengthening strategies\n\nFormat the outline with clear Roman numerals, letters, and numbers. Make it detailed enough to guide writing but flexible enough for creativity.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "essayPrompt",
+                "id": "essay_prompt_input",
+                "label": "Essay Prompt/Topic",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter the essay prompt or topic you need to write about...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "essayType",
+                "id": "essay_type_input",
+                "label": "Essay Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Argumentative", "Analytical", "Expository", "Narrative", "Descriptive", "Compare/Contrast", "Cause/Effect", "5-Paragraph Essay", "Research Paper"],
+                  "defaultValue": "Argumentative"
+                }
+              },
+              {
+                "fieldName": "targetLength",
+                "id": "target_length_input",
+                "label": "Target Length",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["500-750 words", "750-1000 words", "1000-1500 words", "1500-2000 words", "2000+ words"],
+                  "defaultValue": "750-1000 words"
+                }
+              },
+              {
+                "fieldName": "thesisIdea",
+                "id": "thesis_idea_input",
+                "label": "Thesis Idea (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Your initial thesis or main argument idea..."
+                }
+              },
+              {
+                "fieldName": "keyPoints",
+                "id": "key_points_input",
+                "label": "Key Points to Include (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "List any specific points, arguments, or ideas you want to include...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "sources",
+                "id": "sources_input",
+                "label": "Available Sources (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "List any sources you plan to use or have available...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "academicLevel",
+                "id": "academic_level_input",
+                "label": "Academic Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["High School", "College Freshman", "College Upper Level", "Graduate", "Professional"],
+                  "defaultValue": "College Freshman"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_outline_output",
+                "label": "Complete Essay Outline",
+                "type": "Text"
+              },
+              {
+                "fieldName": "thesisStatement",
+                "id": "thesis_statement_output",
+                "label": "Refined Thesis Statement",
+                "type": "Text"
+              },
+              {
+                "fieldName": "topicSentences",
+                "id": "topic_sentences_output",
+                "label": "Topic Sentences for Each Paragraph",
+                "type": "Text"
+              },
+              {
+                "fieldName": "evidenceNeeded",
+                "id": "evidence_needed_output",
+                "label": "Evidence/Research Needed",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847047",
+          "language": "en",
+          "name": "Essay Outline Assistant",
+          "description": "Helps organize thoughts into structured essay outlines with logical flow. Creates comprehensive outlines including thesis development, topic sentences, evidence placeholders, and transitions. Perfect for academic writing at any level.",
+          "instructions": "1. Enter your essay prompt or topic\n2. Select the type of essay you're writing\n3. Choose your target word count\n4. Optionally add your thesis idea and key points\n5. Specify your academic level\n\nThe assistant will create:\n- A refined thesis statement\n- Detailed introduction outline\n- Body paragraph structure with topic sentences\n- Evidence and example placeholders\n- Conclusion framework\n- Transition suggestions\n- Writing tips specific to your essay type"
+        }
+      ]
+    }
+  ]
+}

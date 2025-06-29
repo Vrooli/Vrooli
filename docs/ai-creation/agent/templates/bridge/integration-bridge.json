@@ -1,0 +1,73 @@
+{
+  "identity": {
+    "name": "integration-bridge",
+    "version": "1.0.0"
+  },
+  "goal": "Bridge external data and actions with swarm execution through safety events",
+  "role": "bridge",
+  "subscriptions": [
+    "safety/pre_action",
+    "safety/post_action",
+    "run/decision/requested"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "safety/pre_action",
+        "when": "actionType == 'external_request'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "External Request Validator",
+        "inputMap": {
+          "actionDetails": "event.data.actionDetails",
+          "actorId": "event.data.actorId",
+          "actionId": "event.data.actionId"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "safety/post_action",
+        "when": "actionType == 'api_call'"
+      },
+      "action": {
+        "type": "routine",
+        "label": "API Response Transformer",
+        "inputMap": {
+          "result": "event.data.result",
+          "actionName": "event.data.actionName",
+          "success": "event.data.success"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/decision/requested"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Transform decision request into human-readable format and await response"
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "sanitize-external-data"
+    },
+    {
+      "modality": "prohibition",
+      "target": "bypass-safety-checks"
+    }
+  ],
+  "resources": [
+    "data-sanitizers",
+    "transformation-rules",
+    "validation-schemas",
+    "integration-adapters"
+  ]
+}

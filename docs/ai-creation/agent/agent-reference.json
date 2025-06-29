@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "lastUpdated": "2024-12-29T12:00:00Z",
+    "totalAgents": 0,
+    "version": "1.0.0",
+    "description": "Reference catalog of all agents in the Vrooli swarm ecosystem"
+  },
+  "agents": [],
+  "byRole": {
+    "coordinator": [],
+    "specialist": [],
+    "monitor": [],
+    "bridge": []
+  },
+  "bySwarmType": {
+    "business-intelligence": [],
+    "technical-operations": [],
+    "personal-productivity": [],
+    "innovation-research": []
+  },
+  "statistics": {
+    "totalCoordinators": 0,
+    "totalSpecialists": 0,
+    "totalMonitors": 0,
+    "totalBridges": 0
+  },
+  "usage": {
+    "description": "This reference file contains metadata about all agents in the system",
+    "queries": [
+      "Find all coordinator agents: jq '.byRole.coordinator' agent-reference.json",
+      "Search agents by name: jq '.agents[] | select(.name | test(\"pattern\"; \"i\"))' agent-reference.json",
+      "List all subscription topics: jq '[.agents[].subscriptions[]] | unique' agent-reference.json",
+      "Count agents by role: jq '.byRole | to_entries | map({role: .key, count: (.value | length)})' agent-reference.json"
+    ]
+  }
+}

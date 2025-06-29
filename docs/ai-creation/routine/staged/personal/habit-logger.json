@@ -1,0 +1,144 @@
+{
+  "id": "7829564732190848300",
+  "publicId": "habit-logger-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847105",
+      "publicId": "habits-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "habits"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848301",
+      "publicId": "habit-logger-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Records daily habit completion status",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Efficient",
+            "maxTokens": 500,
+            "model": null,
+            "prompt": "Log daily habit completion status and create tracking record:\n\nDate: {{input.date}}\nHabit List: {{input.habitList}}\nCompletion Status: {{input.completionStatus}}\nContext Notes: {{input.contextNotes}}\nDifficulty Levels: {{input.difficultyLevels}}\n\nCreate comprehensive daily habit log:\n\n1. **Daily Completion Record**:\n   - Habit completion checkmarks\n   - Partial completion tracking\n   - Missed habit documentation\n   - Time of completion\n   - Quality of execution\n\n2. **Context Capture**:\n   - Environmental factors\n   - Mood and energy levels\n   - External circumstances\n   - Support or obstacles\n   - Notable variations\n\n3. **Difficulty Assessment**:\n   - Ease/difficulty rating\n   - Resistance encountered\n   - Flow state moments\n   - Struggle points\n   - Success factors\n\n4. **Streak Tracking**:\n   - Current streak count\n   - Best streak record\n   - Streak breaks\n   - Recovery tracking\n   - Consistency percentage\n\n5. **Quick Insights**:\n   - Daily success rate\n   - Easiest habits\n   - Challenging habits\n   - Time patterns\n   - Energy correlations\n\n6. **Notes & Reflections**:\n   - Daily observations\n   - Lessons learned\n   - Celebration moments\n   - Adjustment ideas\n   - Tomorrow's focus\n\nReturn as structured JSON with keys: completionRecord (object), contextData (object), difficultyMetrics (object), streakInfo (object), dailyInsights (object), reflectionNotes (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "date",
+                "id": "date_input",
+                "label": "Date",
+                "type": "DateInput",
+                "isRequired": true
+              },
+              {
+                "fieldName": "habitList",
+                "id": "habits_input",
+                "label": "Habit List",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List of habits being tracked...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "completionStatus",
+                "id": "status_input",
+                "label": "Completion Status",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Which habits were completed, partially done, or missed...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "contextNotes",
+                "id": "context_input",
+                "label": "Context Notes",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any relevant context about today...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "difficultyLevels",
+                "id": "difficulty_input",
+                "label": "Difficulty Levels",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How difficult was each habit today?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "habitLog",
+                "id": "log_output",
+                "label": "Daily Habit Log",
+                "type": "Text"
+              },
+              {
+                "fieldName": "trackingMetrics",
+                "id": "metrics_output",
+                "label": "Tracking Metrics",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848302",
+          "language": "en-US",
+          "description": "Records daily habit completion with context, difficulty assessment, and streak tracking",
+          "instructions": "Enter today's date and habit completion status. The system will create a comprehensive log with metrics and insights.",
+          "name": "Habit Logger"
+        }
+      ]
+    }
+  ]
+}

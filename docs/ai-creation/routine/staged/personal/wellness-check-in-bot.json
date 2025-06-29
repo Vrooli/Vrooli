@@ -1,0 +1,152 @@
+{
+  "id": "7829564732190847030",
+  "publicId": "wellness-chk-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847031",
+      "publicId": "well-chk-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Casual",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Conduct a supportive wellness check-in based on the following information:\n\nCurrent Mood: {{input.currentMood}}\nEnergy Level: {{input.energyLevel}}/10\nStress Level: {{input.stressLevel}}/10\n{{#if input.stressors}}Current Stressors: {{input.stressors}}{{/if}}\n{{#if input.recentEvents}}Recent Events: {{input.recentEvents}}{{/if}}\n{{#if input.physicalState}}Physical State: {{input.physicalState}}{{/if}}\n\nProvide a warm, supportive response that includes:\n\n1. **Acknowledgment & Validation**\n   - Acknowledge their current state without judgment\n   - Validate their feelings and experiences\n   - Show understanding and empathy\n\n2. **Reflection Summary**\n   - Briefly summarize what you're hearing\n   - Identify patterns or connections\n   - Note any strengths or resilience shown\n\n3. **Coping Strategies** (2-3 tailored suggestions)\n   - Based on their specific mood and stressors\n   - Practical and immediately actionable\n   - Varied approaches (physical, mental, social)\n\n4. **Affirmations** (2-3 personalized)\n   - Addressing their specific situation\n   - Encouraging and empowering\n   - Realistic and genuine\n\n5. **Self-Care Reminders**\n   - Gentle suggestions for basic needs (rest, hydration, movement)\n   - Permission to prioritize wellbeing\n   - Small, manageable actions\n\n6. **Resources** (if applicable)\n   - Breathing exercises\n   - Grounding techniques\n   - When to seek additional support\n\n7. **Check-in Question**\n   - One thoughtful question for deeper reflection\n   - Open-ended and non-pressuring\n\nMaintain a tone that is:\n- Warm and conversational\n- Non-judgmental and accepting\n- Encouraging without toxic positivity\n- Supportive like a caring friend\n\nRemember: This is a wellness companion, not a replacement for professional mental health support.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentMood",
+                "id": "current_mood_input",
+                "label": "Current Mood",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Happy", "Calm", "Anxious", "Stressed", "Sad", "Frustrated", "Overwhelmed", "Tired", "Excited", "Neutral", "Mixed"],
+                  "defaultValue": "Neutral"
+                }
+              },
+              {
+                "fieldName": "energyLevel",
+                "id": "energy_level_input",
+                "label": "Energy Level (1-10)",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 1,
+                  "max": 10,
+                  "defaultValue": 5
+                }
+              },
+              {
+                "fieldName": "stressLevel",
+                "id": "stress_level_input",
+                "label": "Stress Level (1-10)",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 1,
+                  "max": 10,
+                  "defaultValue": 5
+                }
+              },
+              {
+                "fieldName": "stressors",
+                "id": "stressors_input",
+                "label": "Current Stressors (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What's on your mind? (work, relationships, health, finances...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "recentEvents",
+                "id": "recent_events_input",
+                "label": "Recent Events (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Anything significant happen recently?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "physicalState",
+                "id": "physical_state_input",
+                "label": "Physical State (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How's your body feeling? (sleep, pain, energy...)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "wellness_response_output",
+                "label": "Wellness Check-in Response",
+                "type": "Text"
+              },
+              {
+                "fieldName": "copingStrategies",
+                "id": "coping_strategies_output",
+                "label": "Recommended Coping Strategies",
+                "type": "Text"
+              },
+              {
+                "fieldName": "affirmations",
+                "id": "affirmations_output",
+                "label": "Personal Affirmations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "resources",
+                "id": "resources_output",
+                "label": "Helpful Resources",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847032",
+          "language": "en",
+          "name": "Wellness Check-in Bot",
+          "description": "Performs guided well-being check-ins with reflective questions and support. Provides personalized coping strategies, affirmations, and resources based on current mood and stress levels. Acts as a supportive daily wellness companion.",
+          "instructions": "1. Select your current mood from the options\n2. Rate your energy level (1-10)\n3. Rate your stress level (1-10)\n4. Optionally share what's causing stress or recent events\n5. Describe how you're feeling physically if relevant\n\nThe bot will provide:\n- Validation and understanding of your current state\n- Personalized coping strategies\n- Encouraging affirmations\n- Self-care reminders\n- Resources when helpful\n\nThis is a supportive tool, not a substitute for professional mental health care."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "id": "7829564732190847970",
+  "publicId": "budget-calc-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847025",
+      "publicId": "financial-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "financial"
+    },
+    {
+      "id": "7829564732190847094",
+      "publicId": "budget-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "budgeting"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847971",
+      "publicId": "budget-calc-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Calculates budget allocations using various methodologies",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Calculate optimal budget allocations using the following information:\n\nTotal Income: {{input.totalIncome}}\nFixed Expenses: {{input.fixedExpenses}}\nVariable Expenses: {{input.variableExpenses}}\nFinancial Goals: {{input.financialGoals}}\nPreferred Method: {{input.budgetMethod}}\n\nApply budgeting methodologies:\n\n1. 50/30/20 Rule:\n   - 50% needs (essentials)\n   - 30% wants (lifestyle)\n   - 20% savings and debt repayment\n   - Adjustments based on income level\n\n2. Zero-Based Budgeting:\n   - Every dollar assigned a purpose\n   - Income minus expenses equals zero\n   - Priority-based allocation\n   - Buffer for unexpected expenses\n\n3. Pay Yourself First:\n   - Savings/investment allocation first\n   - Essential expenses second\n   - Discretionary spending with remainder\n   - Emergency fund priority\n\n4. Envelope/Category Method:\n   - Spending categories with limits\n   - Virtual envelope allocations\n   - Rollover or reset options\n   - Category priority ranking\n\n5. Custom Hybrid Approach:\n   - Combine best elements\n   - Adapt to personal situation\n   - Flexible percentages\n   - Goal-oriented adjustments\n\nProvide:\n- Recommended allocations by category\n- Percentage and dollar amounts\n- Comparison between methods\n- Optimization suggestions\n- Warning flags for unsustainable allocations\n- Adjustment recommendations\n\nReturn as structured JSON with keys: recommendedMethod, allocations (object with categories and amounts), percentageBreakdown (object), comparisonTable (array), optimizationTips (array), warningFlags (array), flexibilityBuffer (amount).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "totalIncome",
+                "id": "income_input",
+                "label": "Total Monthly Income",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Total monthly income after taxes"
+                }
+              },
+              {
+                "fieldName": "fixedExpenses",
+                "id": "fixed_input",
+                "label": "Fixed Expenses",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List fixed expenses (rent, insurance, loans, etc.)",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "variableExpenses",
+                "id": "variable_input",
+                "label": "Variable Expenses",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Typical variable expenses (groceries, entertainment, etc.)",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "financialGoals",
+                "id": "goals_input",
+                "label": "Financial Goals",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Savings goals, debt payoff targets, investments...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "budgetMethod",
+                "id": "method_input",
+                "label": "Preferred Budget Method",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "50/30/20, Zero-based, or let me recommend"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "budgetAllocations",
+                "id": "allocations_output",
+                "label": "Budget Allocations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Budget Recommendations",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847972",
+          "language": "en-US",
+          "description": "Calculates optimal budget allocations using various proven methodologies",
+          "instructions": "Enter your income and expenses. The system will calculate optimal budget allocations using proven methodologies and provide personalized recommendations.",
+          "name": "Budget Calculator"
+        }
+      ]
+    }
+  ]
+}

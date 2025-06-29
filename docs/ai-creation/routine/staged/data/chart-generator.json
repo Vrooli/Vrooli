@@ -1,0 +1,159 @@
+{
+  "id": "7829564732190847210",
+  "publicId": "chart-gen-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847211",
+      "publicId": "chart-creator-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import json\nimport matplotlib.pyplot as plt\nimport numpy as np\nfrom io import StringIO\nimport base64\nfrom io import BytesIO\n\ndef generate_chart_visualization():\n    # Get inputs\n    data_values = globals().get('data_values', '')\n    chart_type = globals().get('chart_type', 'Bar chart')\n    chart_title = globals().get('chart_title', 'Data Visualization')\n    x_axis_label = globals().get('x_axis_label', 'X Axis')\n    y_axis_label = globals().get('y_axis_label', 'Y Axis')\n    color_scheme = globals().get('color_scheme', 'Default')\n    style_preferences = globals().get('style_preferences', 'Clean')\n    \n    def parse_data_input(data_text):\n        \"\"\"Parse input data into usable format\"\"\"\n        if not data_text.strip():\n            # Sample data for demonstration\n            return {\n                'labels': ['Q1', 'Q2', 'Q3', 'Q4'],\n                'datasets': [\n                    {\n                        'name': 'Revenue',\n                        'values': [250000, 300000, 280000, 350000]\n                    },\n                    {\n                        'name': 'Expenses',\n                        'values': [200000, 220000, 210000, 240000]\n                    }\n                ]\n            }\n        \n        # Try to parse structured data\n        lines = data_text.strip().split('\\n')\n        data = {'labels': [], 'datasets': []}\n        \n        if len(lines) > 0:\n            # First line might be labels\n            first_line = lines[0].split(',')\n            if all(not item.replace('.', '').replace('-', '').isdigit() for item in first_line):\n                data['labels'] = [item.strip() for item in first_line[1:]]\n                \n                # Process data rows\n                for line in lines[1:]:\n                    parts = [p.strip() for p in line.split(',')]\n                    if len(parts) > 1:\n                        dataset = {\n                            'name': parts[0],\n                            'values': []\n                        }\n                        for val in parts[1:]:\n                            try:\n                                dataset['values'].append(float(val))\n                            except:\n                                dataset['values'].append(0)\n                        data['datasets'].append(dataset)\n            else:\n                # Simple value list\n                values = []\n                labels = []\n                for i, line in enumerate(lines):\n                    parts = line.split(',')\n                    if len(parts) == 2:\n                        labels.append(parts[0].strip())\n                        try:\n                            values.append(float(parts[1].strip()))\n                        except:\n                            values.append(0)\n                    elif len(parts) == 1:\n                        labels.append(f'Item {i+1}')\n                        try:\n                            values.append(float(parts[0].strip()))\n                        except:\n                            values.append(0)\n                \n                if values:\n                    data['labels'] = labels\n                    data['datasets'] = [{'name': 'Values', 'values': values}]\n        \n        return data\n    \n    def get_color_palette(scheme, num_colors):\n        \"\"\"Get color palette based on scheme preference\"\"\"\n        palettes = {\n            'Default': ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'],\n            'Professional': ['#2c3e50', '#34495e', '#7f8c8d', '#95a5a6', '#bdc3c7', '#ecf0f1'],\n            'Vibrant': ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f7b731', '#5f27cd', '#00d2d3'],\n            'Pastel': ['#ffeaa7', '#fab1a0', '#74b9ff', '#a29bfe', '#fd79a8', '#e17055'],\n            'Earth': ['#8b6914', '#cd853f', '#daa520', '#b8860b', '#d2691e', '#bc8f8f'],\n            'Ocean': ['#006ba6', '#0496ff', '#87ceeb', '#4682b4', '#1e90ff', '#00bfff']\n        }\n        \n        colors = palettes.get(scheme, palettes['Default'])\n        # Cycle colors if needed\n        return [colors[i % len(colors)] for i in range(num_colors)]\n    \n    def apply_chart_style(ax, style):\n        \"\"\"Apply style preferences to chart\"\"\"\n        if style == 'Clean':\n            ax.spines['top'].set_visible(False)\n            ax.spines['right'].set_visible(False)\n            ax.grid(True, alpha=0.3, linestyle='--')\n        elif style == 'Minimal':\n            ax.spines['top'].set_visible(False)\n            ax.spines['right'].set_visible(False)\n            ax.spines['left'].set_visible(False)\n            ax.spines['bottom'].set_visible(False)\n            ax.grid(False)\n        elif style == 'Grid':\n            ax.grid(True, alpha=0.5)\n        elif style == 'Dark':\n            ax.set_facecolor('#2c3e50')\n            ax.spines['top'].set_color('white')\n            ax.spines['right'].set_color('white')\n            ax.spines['bottom'].set_color('white')\n            ax.spines['left'].set_color('white')\n            ax.tick_params(colors='white')\n            ax.xaxis.label.set_color('white')\n            ax.yaxis.label.set_color('white')\n            ax.title.set_color('white')\n    \n    def create_bar_chart(data, title, x_label, y_label, colors, style):\n        \"\"\"Create bar chart\"\"\"\n        fig, ax = plt.subplots(figsize=(10, 6))\n        \n        labels = data['labels']\n        x = np.arange(len(labels))\n        width = 0.8 / len(data['datasets'])\n        \n        for i, dataset in enumerate(data['datasets']):\n            offset = (i - len(data['datasets'])/2 + 0.5) * width\n            ax.bar(x + offset, dataset['values'], width, \n                   label=dataset['name'], color=colors[i])\n        \n        ax.set_xlabel(x_label)\n        ax.set_ylabel(y_label)\n        ax.set_title(title)\n        ax.set_xticks(x)\n        ax.set_xticklabels(labels)\n        if len(data['datasets']) > 1:\n            ax.legend()\n        \n        apply_chart_style(ax, style)\n        return fig\n    \n    def create_line_chart(data, title, x_label, y_label, colors, style):\n        \"\"\"Create line chart\"\"\"\n        fig, ax = plt.subplots(figsize=(10, 6))\n        \n        labels = data['labels']\n        x = np.arange(len(labels))\n        \n        for i, dataset in enumerate(data['datasets']):\n            ax.plot(x, dataset['values'], marker='o', \n                    label=dataset['name'], color=colors[i], linewidth=2)\n        \n        ax.set_xlabel(x_label)\n        ax.set_ylabel(y_label)\n        ax.set_title(title)\n        ax.set_xticks(x)\n        ax.set_xticklabels(labels)\n        if len(data['datasets']) > 1:\n            ax.legend()\n        \n        apply_chart_style(ax, style)\n        return fig\n    \n    def create_pie_chart(data, title, colors, style):\n        \"\"\"Create pie chart\"\"\"\n        fig, ax = plt.subplots(figsize=(10, 8))\n        \n        # Use first dataset for pie chart\n        if data['datasets']:\n            values = data['datasets'][0]['values']\n            labels = data['labels']\n            \n            # Create pie chart\n            wedges, texts, autotexts = ax.pie(values, labels=labels, colors=colors,\n                                               autopct='%1.1f%%', startangle=90)\n            \n            # Enhance text\n            for autotext in autotexts:\n                autotext.set_color('white')\n                autotext.set_weight('bold')\n        \n        ax.set_title(title)\n        return fig\n    \n    def create_scatter_plot(data, title, x_label, y_label, colors, style):\n        \"\"\"Create scatter plot\"\"\"\n        fig, ax = plt.subplots(figsize=(10, 6))\n        \n        for i, dataset in enumerate(data['datasets']):\n            # Use index as x values if only one dataset\n            x_vals = np.arange(len(dataset['values']))\n            ax.scatter(x_vals, dataset['values'], \n                      label=dataset['name'], color=colors[i], s=100, alpha=0.6)\n        \n        ax.set_xlabel(x_label)\n        ax.set_ylabel(y_label)\n        ax.set_title(title)\n        if len(data['datasets']) > 1:\n            ax.legend()\n        \n        apply_chart_style(ax, style)\n        return fig\n    \n    def create_area_chart(data, title, x_label, y_label, colors, style):\n        \"\"\"Create area chart\"\"\"\n        fig, ax = plt.subplots(figsize=(10, 6))\n        \n        labels = data['labels']\n        x = np.arange(len(labels))\n        \n        # Stack areas\n        y_stack = np.zeros(len(labels))\n        for i, dataset in enumerate(data['datasets']):\n            ax.fill_between(x, y_stack, y_stack + np.array(dataset['values']),\n                           label=dataset['name'], color=colors[i], alpha=0.7)\n            y_stack += np.array(dataset['values'])\n        \n        ax.set_xlabel(x_label)\n        ax.set_ylabel(y_label)\n        ax.set_title(title)\n        ax.set_xticks(x)\n        ax.set_xticklabels(labels)\n        if len(data['datasets']) > 1:\n            ax.legend()\n        \n        apply_chart_style(ax, style)\n        return fig\n    \n    def generate_insights(data, chart_type):\n        \"\"\"Generate data insights based on values\"\"\"\n        insights = []\n        \n        if data['datasets']:\n            # Overall statistics\n            all_values = [val for dataset in data['datasets'] for val in dataset['values']]\n            if all_values:\n                insights.append(f'Total data points: {len(all_values)}')\n                insights.append(f'Average value: {np.mean(all_values):,.2f}')\n                insights.append(f'Highest value: {max(all_values):,.2f}')\n                insights.append(f'Lowest value: {min(all_values):,.2f}')\n                insights.append(f'Range: {max(all_values) - min(all_values):,.2f}')\n            \n            # Dataset-specific insights\n            for dataset in data['datasets']:\n                if dataset['values']:\n                    name = dataset['name']\n                    values = dataset['values']\n                    insights.append(f\"\\n{name} Analysis:\")\n                    insights.append(f\"- Average: {np.mean(values):,.2f}\")\n                    insights.append(f\"- Trend: {'Increasing' if values[-1] > values[0] else 'Decreasing'}\")\n                    \n                    # Calculate growth rate\n                    if len(values) > 1 and values[0] != 0:\n                        growth = ((values[-1] - values[0]) / values[0]) * 100\n                        insights.append(f\"- Growth rate: {growth:,.1f}%\")\n        \n        return insights\n    \n    # Main execution\n    try:\n        # Parse input data\n        data = parse_data_input(data_values)\n        \n        # Get colors\n        num_colors = len(data['datasets']) if data['datasets'] else 6\n        colors = get_color_palette(color_scheme, num_colors)\n        \n        # Create appropriate chart\n        if chart_type == 'Bar chart':\n            fig = create_bar_chart(data, chart_title, x_axis_label, y_axis_label, colors, style_preferences)\n        elif chart_type == 'Line chart':\n            fig = create_line_chart(data, chart_title, x_axis_label, y_axis_label, colors, style_preferences)\n        elif chart_type == 'Pie chart':\n            fig = create_pie_chart(data, chart_title, colors, style_preferences)\n        elif chart_type == 'Scatter plot':\n            fig = create_scatter_plot(data, chart_title, x_axis_label, y_axis_label, colors, style_preferences)\n        elif chart_type == 'Area chart':\n            fig = create_area_chart(data, chart_title, x_axis_label, y_axis_label, colors, style_preferences)\n        else:\n            fig = create_bar_chart(data, chart_title, x_axis_label, y_axis_label, colors, style_preferences)\n        \n        # Save chart to base64 string\n        buffer = BytesIO()\n        plt.tight_layout()\n        fig.savefig(buffer, format='png', dpi=150, bbox_inches='tight')\n        buffer.seek(0)\n        chart_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')\n        plt.close(fig)\n        \n        # Generate insights\n        insights = generate_insights(data, chart_type)\n        \n        # Generate chart specifications\n        chart_specs = {\n            'type': chart_type,\n            'dimensions': '1500x900 pixels',\n            'format': 'PNG',\n            'dpi': 150,\n            'color_count': num_colors,\n            'data_series': len(data['datasets']),\n            'data_points': sum(len(d['values']) for d in data['datasets'])\n        }\n        \n        # Create comprehensive output\n        output = {\n            'chart_generation_results': {\n                'chart_image': f'data:image/png;base64,{chart_base64}',\n                'chart_specifications': chart_specs,\n                'data_summary': {\n                    'datasets': len(data['datasets']),\n                    'data_points': sum(len(d['values']) for d in data['datasets']),\n                    'labels': data['labels'],\n                    'series_names': [d['name'] for d in data['datasets']]\n                }\n            },\n            'data_insights': insights,\n            'chart_configuration': {\n                'title': chart_title,\n                'x_axis': x_axis_label,\n                'y_axis': y_axis_label,\n                'color_scheme': color_scheme,\n                'style': style_preferences,\n                'colors_used': colors[:num_colors]\n            },\n            'export_options': {\n                'formats_available': ['PNG', 'JPG', 'SVG', 'PDF'],\n                'recommended_uses': {\n                    'PNG': 'Web display, presentations',\n                    'SVG': 'Scalable graphics, print',\n                    'PDF': 'Reports, documentation'\n                },\n                'embed_code': f'<img src=\"data:image/png;base64,{chart_base64[:50]}...\" alt=\"{chart_title}\" />'\n            },\n            'customization_tips': [\n                'Adjust color scheme for brand consistency',\n                'Modify chart type based on data characteristics',\n                'Add data labels for precise values',\n                'Consider animation for presentations',\n                'Export at higher DPI for print quality'\n            ],\n            'accessibility_notes': {\n                'alt_text': f'{chart_type} showing {chart_title}',\n                'color_blind_friendly': color_scheme in ['Professional', 'Ocean'],\n                'recommendations': [\n                    'Use patterns in addition to colors',\n                    'Provide data table alternative',\n                    'Ensure sufficient contrast'\n                ]\n            }\n        }\n        \n        return json.dumps(output, indent=2)\n        \n    except Exception as e:\n        # Return error with sample chart\n        return json.dumps({\n            'error': f'Error generating chart: {str(e)}',\n            'sample_data_format': {\n                'format1': 'Label1,100,200,150\\nLabel2,120,180,160',\n                'format2': 'Series Name,Value1,Value2,Value3\\nRevenue,100,150,200\\nCosts,80,90,100',\n                'format3': 'Item A,25\\nItem B,35\\nItem C,40'\n            }\n        }, indent=2)\n\n# Execute the function\nresult = generate_chart_visualization()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "data_values",
+                "id": "data_values_input",
+                "label": "Data Values",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Enter your data in one of these formats:\n\nFormat 1 (Simple list):\nItem A,25\nItem B,35\nItem C,40\n\nFormat 2 (Multiple series):\n,Q1,Q2,Q3,Q4\nRevenue,250000,300000,280000,350000\nExpenses,200000,220000,210000,240000\n\nOr leave blank for sample data.",
+                  "minRows": 6
+                }
+              },
+              {
+                "fieldName": "chart_type",
+                "id": "chart_type_input",
+                "label": "Chart Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Bar chart", "Line chart", "Pie chart", "Scatter plot", "Area chart"],
+                  "defaultValue": "Bar chart"
+                }
+              },
+              {
+                "fieldName": "chart_title",
+                "id": "chart_title_input",
+                "label": "Chart Title",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter chart title",
+                  "defaultValue": "Data Visualization"
+                }
+              },
+              {
+                "fieldName": "x_axis_label",
+                "id": "x_axis_label_input",
+                "label": "X-Axis Label",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Label for X-axis (horizontal)",
+                  "defaultValue": "Categories"
+                }
+              },
+              {
+                "fieldName": "y_axis_label",
+                "id": "y_axis_label_input",
+                "label": "Y-Axis Label",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Label for Y-axis (vertical)",
+                  "defaultValue": "Values"
+                }
+              },
+              {
+                "fieldName": "color_scheme",
+                "id": "color_scheme_input",
+                "label": "Color Scheme",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Default", "Professional", "Vibrant", "Pastel", "Earth", "Ocean"],
+                  "defaultValue": "Default"
+                }
+              },
+              {
+                "fieldName": "style_preferences",
+                "id": "style_preferences_input",
+                "label": "Chart Style",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Clean", "Minimal", "Grid", "Dark", "Classic"],
+                  "defaultValue": "Clean"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_chart_output",
+                "label": "Complete Chart Generation Results",
+                "type": "Text"
+              },
+              {
+                "fieldName": "chartImage",
+                "id": "chart_image_output",
+                "label": "Generated Chart",
+                "type": "Text"
+              },
+              {
+                "fieldName": "dataInsights",
+                "id": "data_insights_output",
+                "label": "Data Insights & Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "exportOptions",
+                "id": "export_options_output",
+                "label": "Export Options & Usage",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847212",
+          "language": "en",
+          "name": "Chart Generator",
+          "description": "Creates visualizations from data on demand. Generates professional charts with multiple style options, automatic insights, and export-ready output formats.",
+          "instructions": "1. Enter your data values (or use sample data)\n2. Select chart type\n3. Set chart title\n4. Label axes (for bar/line charts)\n5. Choose color scheme\n6. Select chart style\n\nThe generator will:\n- Parse your data automatically\n- Create professional-quality charts\n- Generate data insights and statistics\n- Provide multiple export options\n- Include accessibility recommendations\n- Suggest customization tips\n\nSupported chart types:\n- Bar charts (single or grouped)\n- Line charts (single or multiple lines)\n- Pie charts (percentage breakdown)\n- Scatter plots (correlation analysis)\n- Area charts (stacked visualization)\n\nPerfect for reports, presentations, dashboards, and data analysis. The generated charts are web-ready and can be embedded directly into documents."
+        }
+      ]
+    }
+  ]
+}

@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Research Market Information",
                 "description": "Gathers current market data and basic information about target assets",
-                "subroutineId": "market-researcher-v1",
+                "subroutineId": "7829564732190848258",
                 "inputMap": {
                   "originalAssetList": "assetList",
                   "originalResearchFocus": "researchFocus",
@@ -44,7 +44,7 @@
                 "id": "step-2",
                 "name": "Gather News and Sentiment",
                 "description": "Collects recent news, analyst opinions, and market sentiment indicators",
-                "subroutineId": "news-sentiment-analyzer-v1",
+                "subroutineId": "7829564732190848261",
                 "inputMap": {
                   "assetList": "targetAssets",
                   "currentMarketData": "marketContext",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Analyze Investment Trends",
                 "description": "Evaluates price movements, technical indicators, and investment patterns",
-                "subroutineId": "trend-analyzer-v1",
+                "subroutineId": "7829564732190848330",
                 "inputMap": {
                   "currentMarketData": "priceData",
                   "financialMetrics": "fundamentalData",
@@ -80,7 +80,7 @@
                 "id": "step-4",
                 "name": "Generate Investment Research Summary",
                 "description": "Compiles findings into comprehensive investment research report",
-                "subroutineId": "research-compiler-v1",
+                "subroutineId": "7829564732190848333",
                 "inputMap": {
                   "recentNews": "newsData",
                   "marketSentiment": "sentimentData",

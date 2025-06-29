@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848750",
+  "publicId": "performance-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847072",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847172",
+          "language": "en",
+          "description": "Team management and development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847074",
+      "tag": "performance",
+      "translations": [
+        {
+          "id": "7829564732190847174",
+          "language": "en",
+          "description": "Performance evaluation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848751",
+      "publicId": "performance-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assesses performance metrics",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "performanceData",
+                "id": "performance_data_input",
+                "label": "Performance Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Team performance metrics"
+              },
+              {
+                "fieldName": "evaluationCriteria",
+                "id": "evaluation_criteria_input",
+                "label": "Evaluation Criteria",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Performance evaluation standards"
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Assessment Period",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Time period for assessment"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "performanceRatings",
+                "id": "performance_ratings_output",
+                "label": "Performance Ratings",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementAreas",
+                "id": "improvement_areas_output",
+                "label": "Areas for Improvement",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "strengths",
+                "id": "strengths_output",
+                "label": "Key Strengths",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848752",
+          "language": "en",
+          "name": "Performance Assessor",
+          "description": "Evaluates team and individual performance metrics to identify strengths and improvement areas.",
+          "instructions": "Provide performance data and criteria. The routine will assess and rate performance."
+        }
+      ]
+    }
+  ]
+}

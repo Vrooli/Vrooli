@@ -1,0 +1,113 @@
+{
+  "id": "7829564732190848039",
+  "publicId": "email-classifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848040",
+      "publicId": "email-classifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Categorizes emails by type, urgency, and required action",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Classify email by type, urgency, and required action:\n\nParsed Email Data: {{input.parsedEmailData}}\nUser Preferences: {{input.userPreferences}}\n\nClassify the email across multiple dimensions:\n\n1. Email Type Classification:\n   - Work/Business\n   - Personal\n   - Newsletter/Marketing\n   - Notification/System\n   - Spam/Promotional\n   - Meeting/Calendar\n   - Project-related\n\n2. Urgency Level:\n   - Critical (immediate action required)\n   - High (action needed today)\n   - Medium (action needed this week)\n   - Low (action needed eventually)\n   - FYI (no action required)\n\n3. Action Required:\n   - Reply required\n   - Task creation needed\n   - Calendar event\n   - File/review\n   - Forward to others\n   - No action\n   - Archive\n\n4. Priority Factors:\n   - Sender importance\n   - Deadline proximity\n   - Business impact\n   - Complexity level\n   - Dependencies\n\n5. Response Time:\n   - Immediate (within 1 hour)\n   - Same day\n   - Next business day\n   - This week\n   - When convenient\n\n6. Content Category:\n   - Decision request\n   - Information sharing\n   - Problem report\n   - Status update\n   - Question/inquiry\n   - Social/relationship\n   - Administrative\n\n7. Processing Recommendation:\n   - Quick response\n   - Detailed analysis needed\n   - Research required\n   - Delegate to others\n   - Schedule time block\n   - Add to task list\n   - Set reminder\n\nReturn as structured JSON with keys: emailType, urgencyLevel, actionRequired, priorityScore (1-10), responseTime, contentCategory, processingRecommendation, reasoning (explanation).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "parsedEmailData",
+                "id": "parsed_input",
+                "label": "Parsed Email Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output from email parser with structured email information...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "userPreferences",
+                "id": "preferences_input",
+                "label": "User Preferences",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "User's email handling preferences and priorities",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailClassification",
+                "id": "classification_output",
+                "label": "Email Classification",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionRecommendation",
+                "id": "action_output",
+                "label": "Action Recommendation",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848041",
+          "language": "en-US",
+          "description": "Categorizes emails by type, urgency, and required action for efficient processing",
+          "instructions": "Enter parsed email data to classify. The system will categorize the email and recommend appropriate actions and response timing.",
+          "name": "Email Classifier"
+        }
+      ]
+    }
+  ]
+}

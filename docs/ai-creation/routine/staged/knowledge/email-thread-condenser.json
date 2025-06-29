@@ -1,0 +1,150 @@
+{
+  "id": "7829564732190847135",
+  "publicId": "email-cond-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847136",
+      "publicId": "email-thread-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "Summarize the following email thread or chat conversation to bring someone up to speed quickly:\n\n**Communication Type:** {{input.communicationType}}\n**Key Participants:** {{input.keyParticipants}}\n**Context/Background:** {{input.contextBackground}}\n\n**Thread/Conversation Content:**\n{{input.threadContent}}\n\nCreate a comprehensive summary that preserves important information:\n\n1. **Executive Summary**\n   - Main topic and purpose of the thread\n   - Key outcome or current status\n   - Critical decisions made\n   - Next steps or action items\n\n2. **Chronological Timeline**\n   - Initial request or trigger\n   - Major discussion points in order\n   - Key milestones or turning points\n   - Resolution or current state\n\n3. **Key Participants & Roles**\n   - Who was involved and their roles\n   - Main contributors and their positions\n   - Decision makers identified\n   - Subject matter experts consulted\n\n4. **Main Discussion Points**\n   - Primary topics covered\n   - Different viewpoints expressed\n   - Areas of agreement and disagreement\n   - Technical details or specifications\n   - Concerns or objections raised\n\n5. **Decisions Made**\n   - Explicit decisions reached\n   - Approval or rejection of proposals\n   - Changes in direction or approach\n   - Budget or resource allocations\n   - Timeline or deadline adjustments\n\n6. **Action Items & Next Steps**\n   - Specific tasks assigned\n   - Responsible parties for each action\n   - Deadlines and timelines\n   - Follow-up meetings or check-ins\n   - Deliverables expected\n\n7. **Important Context & Background**\n   - Relevant history or previous discussions\n   - Dependencies on other projects\n   - Constraints or limitations mentioned\n   - External factors influencing decisions\n\n8. **Unresolved Issues**\n   - Open questions or concerns\n   - Items requiring further discussion\n   - Pending approvals or decisions\n   - Areas needing clarification\n\n9. **Key Information & Data**\n   - Important numbers, dates, or metrics\n   - Technical specifications or requirements\n   - Contact information or resources shared\n   - Links or documents referenced\n\n10. **Communication Flow Analysis**\n    - How the conversation evolved\n    - Major shifts in direction\n    - Points of confusion or clarification\n    - Efficiency of the discussion\n\n11. **Follow-up Requirements**\n    - Who needs to be informed\n    - Documentation that should be created\n    - Meetings that need to be scheduled\n    - Approvals still needed\n\n12. **Summary for New Participants**\n    - What someone joining now needs to know\n    - Current status and immediate context\n    - How they can contribute effectively\n    - Key relationships and dynamics\n\nMaintain accuracy to the original content while making the information easily digestible for someone who wasn't part of the original conversation.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "threadContent",
+                "id": "thread_content_input",
+                "label": "Email Thread/Chat Content",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the email thread or chat conversation here...",
+                  "minRows": 10
+                }
+              },
+              {
+                "fieldName": "communicationType",
+                "id": "communication_type_input",
+                "label": "Communication Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Email thread", "Slack/Teams chat", "Meeting transcript", "Forum discussion", "Support ticket thread", "Project discussion"],
+                  "defaultValue": "Email thread"
+                }
+              },
+              {
+                "fieldName": "keyParticipants",
+                "id": "key_participants_input",
+                "label": "Key Participants",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the main participants and their roles (e.g., John Smith - Project Manager, Sarah Lee - Developer...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "contextBackground",
+                "id": "context_background_input",
+                "label": "Context/Background (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any background context that would help understand the discussion?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "summaryPurpose",
+                "id": "summary_purpose_input",
+                "label": "Summary Purpose",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Catch up new team member", "Executive briefing", "Project handoff", "Status update", "Decision documentation", "General reference"],
+                  "defaultValue": "Catch up new team member"
+                }
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Focus Areas (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific aspects to emphasize? (decisions, action items, technical details, etc.)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_thread_summary_output",
+                "label": "Complete Thread Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionItems",
+                "id": "action_items_output",
+                "label": "Action Items & Next Steps",
+                "type": "Text"
+              },
+              {
+                "fieldName": "keyDecisions",
+                "id": "key_decisions_output",
+                "label": "Key Decisions & Outcomes",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847137",
+          "language": "en",
+          "name": "Email Thread Condenser",
+          "description": "Summarizes long email threads or chat conversations to bring someone up to speed quickly. Preserves chronological flow, key decisions, action items, and next steps with participant roles and context.",
+          "instructions": "1. Paste the email thread or chat conversation\n2. Select communication type\n3. List key participants and their roles\n4. Add context/background (optional)\n5. Choose summary purpose\n6. Specify focus areas (optional)\n\nThe condenser will create:\n- Executive summary of key outcomes\n- Chronological timeline of events\n- Participant roles and contributions\n- Key decisions and action items\n- Unresolved issues and next steps\n- Important context and background\n- Quick briefing for new participants\n\nPerfect for project handoffs, catching up team members, and documenting important discussions."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "id": "7829564732190847117",
+  "publicId": "expert-adv-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847118",
+      "publicId": "expert-agg-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineWeb",
+      "config": {
+        "__version": "1.0",
+        "callDataWeb": {
+          "__version": "1.0",
+          "schema": {
+            "queries": [
+              "{{input.questionTopic}} expert advice",
+              "{{input.questionTopic}} expert opinions",
+              "{{input.questionTopic}} best practices experts",
+              "{{input.questionTopic}} industry experts recommendations",
+              "{{input.questionTopic}} professional advice",
+              "{{input.questionTopic}} expert insights",
+              "{{input.questionTopic}} thought leaders advice",
+              "{{input.questionTopic}} expert interviews",
+              "{{input.questionTopic}} specialist recommendations"
+            ],
+            "maxResults": 20,
+            "searchDepth": "comprehensive"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "questionTopic",
+                "id": "question_topic_input",
+                "label": "Question/Topic",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What question or topic do you need expert advice on? Be as specific as possible...",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "expertiseLevel",
+                "id": "expertise_level_input",
+                "label": "Expertise Level Needed",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["General professional advice", "Industry specialists", "Academic/Research experts", "Practitioner insights", "Thought leaders", "Mixed expertise levels"],
+                  "defaultValue": "Industry specialists"
+                }
+              },
+              {
+                "fieldName": "sourcePreferences",
+                "id": "source_preferences_input",
+                "label": "Source Preferences",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What types of expert sources do you prefer? (e.g., published articles, interviews, research papers, industry reports, forums...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "specificDomain",
+                "id": "specific_domain_input",
+                "label": "Specific Domain/Field (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific industry, field, or domain to focus on? (e.g., healthcare, technology, finance...)"
+                }
+              },
+              {
+                "fieldName": "decisionContext",
+                "id": "decision_context_input",
+                "label": "Decision Context (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What decision or situation is this advice for? Context helps prioritize relevant insights...",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_advice_synthesis_output",
+                "label": "Complete Expert Advice Synthesis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "consensusRecommendations",
+                "id": "consensus_recommendations_output",
+                "label": "Consensus Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "uniqueInsights",
+                "id": "unique_insights_output",
+                "label": "Unique Insights & Perspectives",
+                "type": "Text"
+              },
+              {
+                "fieldName": "expertProfiles",
+                "id": "expert_profiles_output",
+                "label": "Expert Source Profiles",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "postProcessingPrompt": "Synthesize expert advice from the gathered sources:\n\n**Question/Topic:** {{input.questionTopic}}\n**Expertise Level:** {{input.expertiseLevel}}\n**Source Preferences:** {{input.sourcePreferences}}\n**Domain:** {{input.specificDomain}}\n**Context:** {{input.decisionContext}}\n\n**Web Research Results:**\n{{webSearchResults}}\n\nCreate a comprehensive expert advice synthesis:\n\n1. **Executive Summary**\n   - Core question or challenge addressed\n   - Key consensus points among experts\n   - Most actionable recommendations\n   - Critical considerations for decision-making\n\n2. **Expert Source Analysis**\n   - Credibility and background of sources\n   - Types of expertise represented\n   - Geographic and industry diversity\n   - Recency and relevance of advice\n   - Authority and reputation assessment\n\n3. **Consensus Recommendations**\n   - Advice points agreed upon by multiple experts\n   - Best practices consistently mentioned\n   - Common frameworks or approaches\n   - Widely accepted principles\n   - Strength of consensus (percentage agreeing)\n\n4. **Unique Insights & Contrarian Views**\n   - Novel perspectives from individual experts\n   - Contrarian or minority viewpoints\n   - Emerging trends identified by thought leaders\n   - Innovative approaches or solutions\n   - Underexplored considerations\n\n5. **Expert Methodology Comparison**\n   - Different approaches recommended\n   - Methodology preferences by expert type\n   - Academic vs. practitioner perspectives\n   - Regional or cultural differences\n   - Evolution of thinking over time\n\n6. **Practical Implementation Guidance**\n   - Step-by-step recommendations\n   - Priority order for actions\n   - Resource requirements identified\n   - Timeline suggestions\n   - Success metrics and milestones\n\n7. **Risk Assessment & Warnings**\n   - Common pitfalls identified by experts\n   - Risk mitigation strategies\n   - Warning signs to watch for\n   - Failure modes and prevention\n   - Contingency planning advice\n\n8. **Context-Specific Adaptations**\n   - How advice varies by situation\n   - Industry-specific considerations\n   - Scale and resource adaptations\n   - Cultural and geographic factors\n   - Timing and market condition impacts\n\n9. **Expert Credibility Assessment**\n   - Source reliability and track record\n   - Potential biases or conflicts of interest\n   - Expertise depth and breadth\n   - Peer recognition and citations\n   - Real-world application success\n\n10. **Conflicting Advice Analysis**\n    - Areas where experts disagree\n    - Reasons for different recommendations\n    - Situational factors causing variation\n    - Quality of evidence supporting each view\n    - Synthesis approach for conflicting advice\n\n11. **Knowledge Gaps & Limitations**\n    - Areas lacking expert consensus\n    - Emerging topics with limited guidance\n    - Geographic or demographic blind spots\n    - Rapidly evolving areas\n    - Need for additional research\n\n12. **Actionable Next Steps**\n    - Immediate actions to take\n    - Further research or consultation needed\n    - Expert networks to engage\n    - Pilot testing recommendations\n    - Decision-making framework\n\nFocus on providing actionable, well-sourced advice that acknowledges both consensus and diversity of expert opinion."
+      },
+      "translations": [
+        {
+          "id": "7829564732190847119",
+          "language": "en",
+          "name": "Expert Advice Aggregator",
+          "description": "Collects and synthesizes expert advice on specific questions. Searches expert articles, interviews, forums and highlights consensus vs unique views with credibility assessment and practical implementation guidance.",
+          "instructions": "1. Enter your specific question or topic\n2. Choose the expertise level needed\n3. Specify source preferences\n4. Add specific domain/field (optional)\n5. Provide decision context (optional)\n\nThe aggregator will:\n- Search multiple expert sources\n- Identify consensus recommendations\n- Highlight unique insights and contrarian views\n- Assess expert credibility and authority\n- Provide practical implementation guidance\n- Analyze conflicting advice\n- Suggest actionable next steps\n\nPerfect for strategic decisions, professional development, and complex problem-solving where expert guidance is crucial."
+        }
+      ]
+    }
+  ]
+}

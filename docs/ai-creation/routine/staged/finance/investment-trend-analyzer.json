@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848330",
+  "publicId": "investment-trend-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "finance-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "finance"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848331",
+      "publicId": "investment-trend-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Evaluates price movements and technical indicators",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Analyze investment trends, technical indicators, and market patterns:\n\nPrice Data: {{input.priceData}}\nFundamental Data: {{input.fundamentalData}}\nTrend Data: {{input.trendData}}\nSector Analysis: {{input.sectorAnalysis}}\nTime Period: {{input.timePeriod}}\n\nConduct comprehensive trend analysis:\n\n1. **Price Movement Analysis**:\n   - Price action patterns\n   - Support and resistance levels\n   - Volume analysis\n   - Momentum indicators\n   - Volatility assessment\n\n2. **Technical Indicator Evaluation**:\n   - Moving averages (SMA, EMA)\n   - RSI (Relative Strength Index)\n   - MACD patterns\n   - Bollinger Bands\n   - Fibonacci retracements\n\n3. **Market Pattern Recognition**:\n   - Chart patterns (head & shoulders, triangles, etc.)\n   - Trend line analysis\n   - Breakout/breakdown signals\n   - Reversal patterns\n   - Continuation patterns\n\n4. **Fundamental Integration**:\n   - P/E ratio trends\n   - Revenue growth patterns\n   - Margin evolution\n   - Cash flow trends\n   - Debt level changes\n\n5. **Relative Performance Analysis**:\n   - Sector comparison\n   - Peer benchmarking\n   - Index relative strength\n   - Market cap category performance\n   - Geographic comparison\n\n6. **Risk Assessment**:\n   - Beta analysis\n   - Drawdown evaluation\n   - Correlation analysis\n   - Concentration risk\n   - Liquidity assessment\n\n7. **Investment Signals**:\n   - Buy/sell signals\n   - Entry/exit points\n   - Position sizing recommendations\n   - Stop-loss levels\n   - Target price zones\n\n8. **Market Context**:\n   - Macro environment impact\n   - Sector rotation signals\n   - Market cycle positioning\n   - Sentiment indicators\n   - News flow impact\n\nReturn as structured JSON with keys: priceAnalysis (object), technicalIndicators (object), patternRecognition (array), fundamentalTrends (object), relativePerformance (object), riskAssessment (object), investmentSignals (array), marketContext (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "priceData",
+                "id": "price_input",
+                "label": "Current Market Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Price history, volume, and market data...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "fundamentalData",
+                "id": "fundamental_input",
+                "label": "Financial Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key financial ratios and fundamental data...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "trendData",
+                "id": "trend_input",
+                "label": "Market Trends",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Current market trends and momentum...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "sectorAnalysis",
+                "id": "sector_input",
+                "label": "Industry Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Sector performance and industry dynamics...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "period_input",
+                "label": "Analysis Time Period",
+                "type": "Selector",
+                "props": {
+                  "options": ["1 Day", "1 Week", "1 Month", "3 Months", "6 Months", "1 Year", "5 Years"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trendAnalysis",
+                "id": "analysis_output",
+                "label": "Technical Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "investmentSignals",
+                "id": "signals_output",
+                "label": "Investment Signals",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848332",
+          "language": "en-US",
+          "description": "Analyzes price movements, technical indicators, and investment patterns with risk assessment",
+          "instructions": "Provide market data and financial metrics. The system will analyze trends and generate investment signals.",
+          "name": "Investment Trend Analyzer"
+        }
+      ]
+    }
+  ]
+}

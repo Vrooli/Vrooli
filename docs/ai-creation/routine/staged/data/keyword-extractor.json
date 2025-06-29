@@ -1,0 +1,160 @@
+{
+  "id": "7829564732190847252",
+  "publicId": "keyword-extract-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847253",
+      "publicId": "keyword-finder-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import json\nimport re\nfrom collections import Counter, defaultdict\nimport math\n\ndef extract_keywords_from_text():\n    # Get inputs\n    text_documents = globals().get('text_documents', '')\n    extraction_method = globals().get('extraction_method', 'TF-IDF')\n    topic_focus = globals().get('topic_focus', '')\n    min_word_length = globals().get('min_word_length', 3)\n    max_keywords = globals().get('max_keywords', 20)\n    include_phrases = globals().get('include_phrases', 'Yes')\n    \n    def preprocess_text(text):\n        \"\"\"Clean and preprocess text for keyword extraction\"\"\"\n        # Convert to lowercase\n        text = text.lower()\n        \n        # Remove special characters but keep spaces and hyphens\n        text = re.sub(r'[^a-zA-Z0-9\\s\\-_]', ' ', text)\n        \n        # Remove extra whitespace\n        text = re.sub(r'\\s+', ' ', text).strip()\n        \n        return text\n    \n    def get_stopwords():\n        \"\"\"Return common English stopwords\"\"\"\n        return set([\n            'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',\n            'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',\n            'to', 'was', 'will', 'with', 'would', 'you', 'your', 'this', 'they',\n            'i', 'me', 'we', 'us', 'our', 'my', 'mine', 'his', 'her', 'hers',\n            'their', 'theirs', 'him', 'them', 'she', 'can', 'could', 'should',\n            'would', 'may', 'might', 'must', 'shall', 'do', 'does', 'did',\n            'have', 'had', 'been', 'being', 'am', 'were', 'not', 'no', 'but',\n            'or', 'so', 'if', 'when', 'where', 'what', 'how', 'why', 'who',\n            'which', 'there', 'here', 'then', 'than', 'more', 'most', 'some',\n            'any', 'all', 'each', 'every', 'both', 'either', 'neither', 'one',\n            'two', 'three', 'first', 'second', 'last', 'next', 'new', 'old',\n            'good', 'great', 'big', 'small', 'long', 'short', 'high', 'low',\n            'same', 'different', 'other', 'another', 'such', 'much', 'many',\n            'few', 'little', 'less', 'more', 'very', 'too', 'also', 'just',\n            'only', 'still', 'even', 'back', 'up', 'down', 'out', 'over',\n            'under', 'again', 'further', 'then', 'once'\n        ])\n    \n    def extract_words_and_phrases(text, min_length):\n        \"\"\"Extract individual words and meaningful phrases\"\"\"\n        words = []\n        phrases = []\n        \n        # Split into sentences\n        sentences = re.split(r'[.!?]+', text)\n        \n        for sentence in sentences:\n            sentence = sentence.strip()\n            if not sentence:\n                continue\n                \n            # Extract words\n            word_tokens = sentence.split()\n            words.extend([w for w in word_tokens if len(w) >= min_length])\n            \n            # Extract phrases (2-3 words)\n            if include_phrases == 'Yes':\n                tokens = sentence.split()\n                # 2-word phrases\n                for i in range(len(tokens) - 1):\n                    if len(tokens[i]) >= min_length and len(tokens[i+1]) >= min_length:\n                        phrases.append(f\"{tokens[i]} {tokens[i+1]}\")\n                \n                # 3-word phrases\n                for i in range(len(tokens) - 2):\n                    if all(len(tokens[i+j]) >= min_length for j in range(3)):\n                        phrases.append(f\"{tokens[i]} {tokens[i+1]} {tokens[i+2]}\")\n        \n        return words, phrases\n    \n    def calculate_tf_idf(documents, words_per_doc, total_words):\n        \"\"\"Calculate TF-IDF scores for words\"\"\"\n        tf_idf_scores = {}\n        num_docs = len(documents)\n        \n        # Calculate document frequency for each word\n        doc_frequency = defaultdict(int)\n        for doc_words in words_per_doc:\n            unique_words = set(doc_words)\n            for word in unique_words:\n                doc_frequency[word] += 1\n        \n        # Calculate TF-IDF for each word\n        for doc_idx, doc_words in enumerate(words_per_doc):\n            word_count = Counter(doc_words)\n            doc_length = len(doc_words)\n            \n            for word, count in word_count.items():\n                # Term Frequency\n                tf = count / doc_length\n                \n                # Inverse Document Frequency\n                idf = math.log(num_docs / doc_frequency[word])\n                \n                # TF-IDF Score\n                tf_idf = tf * idf\n                \n                if word not in tf_idf_scores:\n                    tf_idf_scores[word] = []\n                tf_idf_scores[word].append(tf_idf)\n        \n        # Average TF-IDF scores across documents\n        avg_tf_idf = {}\n        for word, scores in tf_idf_scores.items():\n            avg_tf_idf[word] = sum(scores) / len(scores)\n        \n        return avg_tf_idf\n    \n    def calculate_frequency_scores(all_words):\n        \"\"\"Calculate simple frequency-based scores\"\"\"\n        word_count = Counter(all_words)\n        total_words = len(all_words)\n        \n        frequency_scores = {}\n        for word, count in word_count.items():\n            frequency_scores[word] = count / total_words\n        \n        return frequency_scores\n    \n    def filter_by_topic_focus(keywords, topic_focus):\n        \"\"\"Filter keywords based on topic focus\"\"\"\n        if not topic_focus.strip():\n            return keywords\n        \n        focus_terms = [term.strip().lower() for term in topic_focus.split(',')]\n        filtered_keywords = []\n        \n        for keyword_data in keywords:\n            keyword = keyword_data['keyword'].lower()\n            # Check if keyword contains any focus terms or is semantically related\n            is_relevant = any(focus_term in keyword or keyword in focus_term for focus_term in focus_terms)\n            \n            if is_relevant:\n                keyword_data['relevance_boost'] = 1.5\n                keyword_data['score'] *= 1.5\n            \n            filtered_keywords.append(keyword_data)\n        \n        return filtered_keywords\n    \n    def group_keywords_by_topic(keywords):\n        \"\"\"Group keywords into thematic clusters\"\"\"\n        # Simple keyword grouping based on common patterns\n        topic_groups = defaultdict(list)\n        \n        # Technology-related terms\n        tech_patterns = ['tech', 'software', 'digital', 'data', 'system', 'platform', 'algorithm', 'ai', 'machine', 'computer']\n        \n        # Business-related terms\n        business_patterns = ['business', 'company', 'market', 'customer', 'sales', 'revenue', 'strategy', 'management', 'finance']\n        \n        # Research-related terms\n        research_patterns = ['research', 'study', 'analysis', 'method', 'result', 'finding', 'conclusion', 'evidence']\n        \n        # Education-related terms\n        education_patterns = ['education', 'learning', 'student', 'teacher', 'school', 'university', 'course', 'knowledge']\n        \n        pattern_groups = {\n            'Technology': tech_patterns,\n            'Business': business_patterns,\n            'Research': research_patterns,\n            'Education': education_patterns\n        }\n        \n        for keyword_data in keywords:\n            keyword = keyword_data['keyword'].lower()\n            assigned = False\n            \n            # Check if keyword matches any pattern group\n            for group_name, patterns in pattern_groups.items():\n                if any(pattern in keyword for pattern in patterns):\n                    topic_groups[group_name].append(keyword_data)\n                    assigned = True\n                    break\n            \n            # If no specific group, put in general\n            if not assigned:\n                topic_groups['General'].append(keyword_data)\n        \n        return dict(topic_groups)\n    \n    def generate_context_suggestions(keywords, original_text):\n        \"\"\"Generate context suggestions for how keywords might be used\"\"\"\n        suggestions = []\n        \n        for keyword_data in keywords[:10]:  # Top 10 keywords\n            keyword = keyword_data['keyword']\n            \n            # Find sentences containing the keyword\n            sentences = re.split(r'[.!?]+', original_text)\n            contexts = []\n            \n            for sentence in sentences:\n                if keyword.lower() in sentence.lower():\n                    # Clean and truncate sentence\n                    clean_sentence = sentence.strip()[:150]\n                    if clean_sentence:\n                        contexts.append(clean_sentence)\n            \n            suggestions.append({\n                'keyword': keyword,\n                'score': keyword_data['score'],\n                'context_examples': contexts[:3],  # Top 3 contexts\n                'usage_suggestions': [\n                    f'Use \"{keyword}\" for content categorization',\n                    f'Include \"{keyword}\" in search indexes',\n                    f'Tag content with \"{keyword}\" for findability'\n                ]\n            })\n        \n        return suggestions\n    \n    # Main execution\n    try:\n        # Parse input documents\n        if not text_documents.strip():\n            # Sample text for demonstration\n            text_documents = \"\"\"\n            Machine learning and artificial intelligence are transforming the way businesses operate.\n            Data analysis and predictive modeling help companies make better decisions.\n            Natural language processing enables computers to understand human language.\n            Deep learning algorithms can recognize patterns in large datasets.\n            Business intelligence tools provide insights for strategic planning.\n            Customer analytics help improve user experience and satisfaction.\n            \"\"\"\n        \n        # Split multiple documents if provided\n        documents = [doc.strip() for doc in text_documents.split('\\n\\n') if doc.strip()]\n        if len(documents) == 1:\n            # If no clear document separation, treat as single document\n            documents = [text_documents]\n        \n        # Preprocess all documents\n        processed_docs = [preprocess_text(doc) for doc in documents]\n        \n        # Get stopwords\n        stopwords = get_stopwords()\n        \n        # Extract words and phrases from each document\n        all_words = []\n        all_phrases = []\n        words_per_doc = []\n        \n        for doc in processed_docs:\n            words, phrases = extract_words_and_phrases(doc, min_word_length)\n            \n            # Filter stopwords\n            filtered_words = [w for w in words if w not in stopwords]\n            filtered_phrases = [p for p in phrases if not any(word in stopwords for word in p.split())]\n            \n            all_words.extend(filtered_words)\n            all_phrases.extend(filtered_phrases)\n            words_per_doc.append(filtered_words)\n        \n        # Calculate scores based on extraction method\n        if extraction_method == 'TF-IDF' and len(documents) > 1:\n            word_scores = calculate_tf_idf(documents, words_per_doc, all_words)\n        else:\n            word_scores = calculate_frequency_scores(all_words)\n        \n        # Calculate phrase scores (simple frequency for now)\n        phrase_scores = calculate_frequency_scores(all_phrases)\n        \n        # Combine words and phrases\n        all_keywords = []\n        \n        # Add words\n        for word, score in word_scores.items():\n            all_keywords.append({\n                'keyword': word,\n                'score': round(score, 4),\n                'type': 'word',\n                'frequency': all_words.count(word)\n            })\n        \n        # Add phrases if enabled\n        if include_phrases == 'Yes':\n            for phrase, score in phrase_scores.items():\n                all_keywords.append({\n                    'keyword': phrase,\n                    'score': round(score, 4),\n                    'type': 'phrase',\n                    'frequency': all_phrases.count(phrase)\n                })\n        \n        # Sort by score and take top keywords\n        all_keywords.sort(key=lambda x: x['score'], reverse=True)\n        top_keywords = all_keywords[:max_keywords]\n        \n        # Filter by topic focus if provided\n        if topic_focus.strip():\n            top_keywords = filter_by_topic_focus(top_keywords, topic_focus)\n            top_keywords.sort(key=lambda x: x['score'], reverse=True)\n        \n        # Group keywords by topic\n        topic_groups = group_keywords_by_topic(top_keywords)\n        \n        # Generate context suggestions\n        context_suggestions = generate_context_suggestions(top_keywords, text_documents)\n        \n        # Calculate statistics\n        total_words = len(all_words)\n        total_phrases = len(all_phrases)\n        unique_words = len(set(all_words))\n        unique_phrases = len(set(all_phrases))\n        \n        # Create comprehensive output\n        output = {\n            'keyword_extraction_results': {\n                'extraction_summary': {\n                    'method_used': extraction_method,\n                    'documents_processed': len(documents),\n                    'total_words_analyzed': total_words,\n                    'unique_words_found': unique_words,\n                    'total_phrases_analyzed': total_phrases if include_phrases == 'Yes' else 0,\n                    'unique_phrases_found': unique_phrases if include_phrases == 'Yes' else 0,\n                    'keywords_extracted': len(top_keywords),\n                    'topic_focus': topic_focus if topic_focus.strip() else 'None specified'\n                },\n                'extraction_parameters': {\n                    'minimum_word_length': min_word_length,\n                    'maximum_keywords': max_keywords,\n                    'phrases_included': include_phrases == 'Yes',\n                    'stopwords_filtered': True\n                }\n            },\n            'top_keywords': [\n                {\n                    'rank': i + 1,\n                    'keyword': kw['keyword'],\n                    'score': kw['score'],\n                    'type': kw['type'],\n                    'frequency': kw['frequency'],\n                    'importance': 'High' if kw['score'] > 0.01 else 'Medium' if kw['score'] > 0.005 else 'Low'\n                }\n                for i, kw in enumerate(top_keywords[:15])  # Top 15 for detailed view\n            ],\n            'topic_groupings': {\n                group_name: {\n                    'keywords': [kw['keyword'] for kw in keywords[:5]],  # Top 5 per group\n                    'count': len(keywords),\n                    'avg_score': round(sum(kw['score'] for kw in keywords) / len(keywords), 4) if keywords else 0\n                }\n                for group_name, keywords in topic_groups.items()\n                if keywords  # Only include non-empty groups\n            },\n            'context_analysis': context_suggestions[:5],  # Top 5 context suggestions\n            'usage_recommendations': {\n                'content_tagging': [\n                    f'Tag content with: {\", \".join([kw[\"keyword\"] for kw in top_keywords[:5]])}',\n                    'Use keywords for content categorization',\n                    'Apply tags consistently across similar content'\n                ],\n                'search_optimization': [\n                    'Include top keywords in page titles and headers',\n                    'Use keywords naturally in content',\n                    'Create keyword-rich meta descriptions',\n                    'Build internal links using keyword phrases'\n                ],\n                'content_strategy': [\n                    'Create content around high-scoring keywords',\n                    'Develop topic clusters based on keyword groups',\n                    'Monitor keyword performance over time',\n                    'Expand vocabulary with related terms'\n                ]\n            },\n            'quality_metrics': {\n                'keyword_density': round((len(top_keywords) / total_words) * 100, 2) if total_words > 0 else 0,\n                'vocabulary_richness': round((unique_words / total_words) * 100, 2) if total_words > 0 else 0,\n                'average_word_frequency': round(total_words / unique_words, 2) if unique_words > 0 else 0,\n                'content_focus_score': round(sum(kw['score'] for kw in top_keywords[:5]), 4)\n            },\n            'export_formats': {\n                'csv_ready': 'Keywords can be exported as CSV for spreadsheet analysis',\n                'json_format': 'Complete data available in JSON format',\n                'tag_list': ', '.join([kw['keyword'] for kw in top_keywords[:10]]),\n                'keyword_cloud': 'Data ready for word cloud visualization'\n            }\n        }\n        \n        return json.dumps(output, indent=2)\n        \n    except Exception as e:\n        return json.dumps({\n            'error': f'Error extracting keywords: {str(e)}',\n            'basic_guidance': {\n                'input_format': 'Provide text content for analysis',\n                'method_options': ['TF-IDF', 'Frequency', 'Topic-focused'],\n                'typical_results': '10-20 keywords with importance scores'\n            }\n        }, indent=2)\n\n# Execute the function\nresult = extract_keywords_from_text()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "text_documents",
+                "id": "text_documents_input",
+                "label": "Text Documents",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Paste your text content here for keyword extraction...\n\nFor multiple documents, separate with double line breaks.\n\nOr leave blank to use sample data.",
+                  "minRows": 8
+                }
+              },
+              {
+                "fieldName": "extraction_method",
+                "id": "extraction_method_input",
+                "label": "Extraction Method",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["TF-IDF", "Frequency", "Topic-focused"],
+                  "defaultValue": "TF-IDF"
+                }
+              },
+              {
+                "fieldName": "topic_focus",
+                "id": "topic_focus_input",
+                "label": "Topic Focus (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Enter topics to emphasize (comma-separated): technology, business, research"
+                }
+              },
+              {
+                "fieldName": "min_word_length",
+                "id": "min_word_length_input",
+                "label": "Minimum Word Length",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 2,
+                  "max": 10,
+                  "defaultValue": 3
+                }
+              },
+              {
+                "fieldName": "max_keywords",
+                "id": "max_keywords_input",
+                "label": "Maximum Keywords to Extract",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 5,
+                  "max": 100,
+                  "defaultValue": 20
+                }
+              },
+              {
+                "fieldName": "include_phrases",
+                "id": "include_phrases_input",
+                "label": "Include Phrases?",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Yes", "No"],
+                  "defaultValue": "Yes"
+                }
+              },
+              {
+                "fieldName": "output_format",
+                "id": "output_format_input",
+                "label": "Output Format Priority",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Detailed analysis", "Quick list", "Topic groupings", "Context examples"],
+                  "defaultValue": "Detailed analysis"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_keyword_results_output",
+                "label": "Complete Keyword Extraction Results",
+                "type": "Text"
+              },
+              {
+                "fieldName": "topKeywords",
+                "id": "top_keywords_output",
+                "label": "Top Keywords with Scores",
+                "type": "Text"
+              },
+              {
+                "fieldName": "topicGroupings",
+                "id": "topic_groupings_output",
+                "label": "Topic Groupings",
+                "type": "Text"
+              },
+              {
+                "fieldName": "usageRecommendations",
+                "id": "usage_recommendations_output",
+                "label": "Usage Recommendations",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847254",
+          "language": "en",
+          "name": "Keyword Extractor for Text",
+          "description": "Identifies the most important keywords or phrases in text datasets. Uses TF-IDF algorithms with importance scores, topic groupings, and context suggestions.",
+          "instructions": "1. Paste your text content (or use sample)\n2. Choose extraction method\n3. Add topic focus terms (optional)\n4. Set minimum word length\n5. Choose maximum keywords to extract\n6. Include phrases or words only\n7. Select output format priority\n\nThe extractor will:\n- Analyze text using TF-IDF or frequency methods\n- Filter out common stopwords\n- Extract both individual words and phrases\n- Calculate importance scores\n- Group keywords by topic\n- Provide context examples\n- Suggest usage strategies\n- Generate export-ready formats\n\nPerfect for:\n- Content analysis and SEO\n- Document categorization\n- Search index optimization\n- Tag generation\n- Topic modeling\n- Content strategy planning"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "id": "7829564732190848561",
+  "publicId": "schedule-optimizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847051",
+      "tag": "time-management",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Time management and scheduling"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848562",
+      "publicId": "schedule-optimizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates optimized time blocks for tasks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedTasks",
+                "id": "prioritized_tasks_input",
+                "label": "Prioritized Tasks",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Tasks in priority order"
+              },
+              {
+                "fieldName": "calendarEvents",
+                "id": "calendar_events_input",
+                "label": "Calendar Events",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Fixed appointments"
+              },
+              {
+                "fieldName": "energyLevel",
+                "id": "energy_level_input",
+                "label": "Energy Level",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "min": 1,
+                "max": 10
+              },
+              {
+                "fieldName": "preferences",
+                "id": "preferences_input",
+                "label": "Scheduling Preferences",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Preferred work patterns"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeBlocks",
+                "id": "time_blocks_output",
+                "label": "Daily Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bufferTime",
+                "id": "buffer_time_output",
+                "label": "Break Schedule",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848563",
+          "language": "en",
+          "name": "Schedule Optimizer",
+          "description": "Creates optimal time blocks for tasks based on energy levels, priorities, and scheduling preferences with built-in breaks.",
+          "instructions": "Provide prioritized tasks and calendar constraints. The routine will create an optimized schedule."
+        }
+      ]
+    }
+  ]
+}

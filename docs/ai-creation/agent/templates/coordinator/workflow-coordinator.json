@@ -1,0 +1,70 @@
+{
+  "identity": {
+    "name": "workflow-coordinator",
+    "version": "1.0.0"
+  },
+  "goal": "Orchestrate complex multi-step workflows across specialist agents in the swarm",
+  "role": "coordinator",
+  "subscriptions": [
+    "swarm/goal/created",
+    "run/completed", 
+    "run/failed",
+    "swarm/team/updated"
+  ],
+  "behaviours": [
+    {
+      "trigger": {
+        "topic": "swarm/goal/created"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Task Decomposer",
+        "inputMap": {
+          "goalDescription": "event.data.description",
+          "goalId": "event.data.goalId"
+        }
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/completed"
+      },
+      "action": {
+        "type": "invoke",
+        "purpose": "Analyze completed run outputs and determine next workflow step"
+      },
+      "qos": 1
+    },
+    {
+      "trigger": {
+        "topic": "run/failed"
+      },
+      "action": {
+        "type": "routine",
+        "label": "Error Recovery Planner",
+        "inputMap": {
+          "error": "event.data.error",
+          "runId": "event.data.runId"
+        }
+      },
+      "qos": 2
+    }
+  ],
+  "norms": [
+    {
+      "modality": "obligation",
+      "target": "monitor-goal-progress"
+    },
+    {
+      "modality": "prohibition", 
+      "target": "exceed-resource-allocation"
+    }
+  ],
+  "resources": [
+    "task-queue",
+    "agent-registry",
+    "workflow-templates",
+    "performance-metrics"
+  ]
+}

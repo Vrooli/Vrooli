@@ -1,0 +1,122 @@
+{
+  "id": "7829564732190848600",
+  "publicId": "document-formatter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847059",
+      "tag": "career",
+      "translations": [
+        {
+          "id": "7829564732190847159",
+          "language": "en",
+          "description": "Career development and job search"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847063",
+      "tag": "formatting",
+      "translations": [
+        {
+          "id": "7829564732190847163",
+          "language": "en",
+          "description": "Document formatting and presentation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847057",
+      "tag": "documentation",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Documentation and record keeping"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848601",
+      "publicId": "document-formatter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Formats resume and cover letter documents",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizedBullets",
+                "id": "optimized_bullets_input",
+                "label": "Optimized Resume Content",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "ATS-optimized bullets"
+              },
+              {
+                "fieldName": "coverLetterContent",
+                "id": "cover_letter_content_input",
+                "label": "Cover Letter Content",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Cover letter paragraphs"
+              },
+              {
+                "fieldName": "openingSection",
+                "id": "opening_section_input",
+                "label": "Opening Content",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Personalized opening"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "formattedResume",
+                "id": "formatted_resume_output",
+                "label": "Final Resume",
+                "type": "Text"
+              },
+              {
+                "fieldName": "formattedCoverLetter",
+                "id": "formatted_cover_letter_output",
+                "label": "Final Cover Letter",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848602",
+          "language": "en",
+          "name": "Document Formatter",
+          "description": "Combines and formats resume and cover letter content into polished, professional documents.",
+          "instructions": "Provide optimized content for formatting. The routine will create final documents."
+        }
+      ]
+    }
+  ]
+}

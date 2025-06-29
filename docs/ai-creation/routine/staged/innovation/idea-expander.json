@@ -1,0 +1,142 @@
+{
+  "id": "7829564732190848321",
+  "publicId": "idea-expander-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847034",
+      "publicId": "innovation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "innovation"
+    },
+    {
+      "id": "7829564732190847027",
+      "publicId": "content-creation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "content-creation"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848322",
+      "publicId": "idea-expander-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops promising concepts and creates variations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Expand and develop promising ideas with variations and details:\n\nSelected Ideas: {{input.selectedIdeas}}\nExpansion Focus: {{input.expansionFocus}}\nDetail Level: {{input.detailLevel}}\nVariation Count: {{input.variationCount}}\nDevelopment Criteria: {{input.developmentCriteria}}\n\nExpand ideas comprehensively:\n\n1. **Core Concept Development**:\n   - Detailed description\n   - Key features elaboration\n   - Unique value proposition\n   - Implementation overview\n   - Success visualization\n\n2. **Variation Generation**:\n   - Scale variations (mini/standard/premium)\n   - Feature permutations\n   - Target audience adaptations\n   - Technology alternatives\n   - Budget variations\n\n3. **Implementation Pathways**:\n   - Quick win version\n   - Phased approach\n   - Full implementation\n   - Pilot program design\n   - MVP definition\n\n4. **Feature Expansion**:\n   - Core features\n   - Nice-to-have additions\n   - Future enhancements\n   - Integration possibilities\n   - Customization options\n\n5. **Use Case Scenarios**:\n   - Primary applications\n   - Secondary uses\n   - Edge case handling\n   - User journey mapping\n   - Success stories\n\n6. **Combination Possibilities**:\n   - Idea merging options\n   - Synergy identification\n   - Hybrid approaches\n   - Modular components\n   - Ecosystem building\n\n7. **Risk & Mitigation**:\n   - Potential challenges\n   - Failure points\n   - Mitigation strategies\n   - Contingency plans\n   - Success factors\n\n8. **Next Step Planning**:\n   - Immediate actions\n   - Validation methods\n   - Prototype ideas\n   - Testing approaches\n   - Resource needs\n\nReturn as structured JSON with keys: expandedConcepts (array), variations (array), implementationPaths (object), featureMatrix (object), useCases (array), combinations (array), riskAnalysis (object), actionPlan (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "selectedIdeas",
+                "id": "ideas_input",
+                "label": "Selected Ideas",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "The most promising ideas to expand...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "expansionFocus",
+                "id": "focus_input",
+                "label": "Expansion Focus",
+                "type": "Selector",
+                "props": {
+                  "options": ["Feasibility", "Innovation", "Impact", "Scalability", "User Experience", "Balanced"]
+                }
+              },
+              {
+                "fieldName": "detailLevel",
+                "id": "detail_input",
+                "label": "Detail Level",
+                "type": "Selector",
+                "props": {
+                  "options": ["High-Level Overview", "Moderate Detail", "Comprehensive Analysis", "Deep Dive"]
+                }
+              },
+              {
+                "fieldName": "variationCount",
+                "id": "variations_input",
+                "label": "Variations Per Idea",
+                "type": "IntegerInput",
+                "props": {
+                  "min": 2,
+                  "max": 10,
+                  "placeholder": "3-5"
+                }
+              },
+              {
+                "fieldName": "developmentCriteria",
+                "id": "criteria_input",
+                "label": "Development Criteria",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What aspects are most important to develop?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "expandedIdeas",
+                "id": "expanded_output",
+                "label": "Expanded Ideas",
+                "type": "Text"
+              },
+              {
+                "fieldName": "developmentPlan",
+                "id": "plan_output",
+                "label": "Development Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848323",
+          "language": "en-US",
+          "description": "Expands promising ideas with variations, implementation paths, and detailed development",
+          "instructions": "Select ideas to expand and specify focus. The system will develop concepts with variations and plans.",
+          "name": "Idea Expander"
+        }
+      ]
+    }
+  ]
+}

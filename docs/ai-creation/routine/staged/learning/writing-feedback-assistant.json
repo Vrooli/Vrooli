@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Analyze Assignment Requirements",
                 "description": "Reviews assignment criteria and rubric to establish evaluation framework",
-                "subroutineId": "requirement-analyzer-v1",
+                "subroutineId": "7829564732190848453",
                 "inputMap": {
                   "originalDraftText": "draftText",
                   "originalAssignmentReqs": "assignmentRequirements",
@@ -44,7 +44,7 @@
                 "id": "step-2",
                 "name": "Evaluate Structure and Organization",
                 "description": "Analyzes the writing's structure, flow, and logical organization",
-                "subroutineId": "structure-evaluator-v1",
+                "subroutineId": "7829564732190848456",
                 "inputMap": {
                   "draftText": "writingContent",
                   "assessmentFramework": "evaluationGuidelines",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Review Content and Clarity",
                 "description": "Evaluates content quality, clarity, and effectiveness of communication",
-                "subroutineId": "content-reviewer-v1",
+                "subroutineId": "7829564732190848687",
                 "inputMap": {
                   "writingContent": "textContent",
                   "organizationFeedback": "structuralInput",
@@ -80,7 +80,7 @@
                 "id": "step-4",
                 "name": "Provide Grammar and Language Feedback",
                 "description": "Reviews grammar, syntax, word choice, and mechanical elements",
-                "subroutineId": "grammar-checker-v1",
+                "subroutineId": "7829564732190848690",
                 "inputMap": {
                   "textContent": "originalText",
                   "contentFeedback": "contentContext",
@@ -97,7 +97,7 @@
                 "id": "step-5",
                 "name": "Generate Comprehensive Feedback Report",
                 "description": "Compiles all feedback into structured, actionable improvement guidance",
-                "subroutineId": "feedback-compiler-v1",
+                "subroutineId": "7829564732190848693",
                 "inputMap": {
                   "organizationFeedback": "structuralComments",
                   "contentFeedback": "contentComments",

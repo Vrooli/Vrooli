@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Parse Contract Structure",
                 "description": "Analyzes document structure and identifies key sections",
-                "subroutineId": "TODO: Need contract parsing subroutine",
+                "subroutineId": "7829564732190848501",
                 "inputMap": {
                   "contractDocument": "legalText",
                   "documentType": "contractCategory",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Key Terms",
                 "description": "Extracts critical terms, obligations, and conditions",
-                "subroutineId": "TODO: Need term extraction subroutine",
+                "subroutineId": "7829564732190848504",
                 "inputMap": {
                   "structuredDocument": "parsedContract",
                   "termPriorities": "criticalElements",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Assess Risks & Liabilities",
                 "description": "Evaluates potential risks and liability exposure",
-                "subroutineId": "TODO: Need risk assessment subroutine",
+                "subroutineId": "7829564732190848507",
                 "inputMap": {
                   "criticalProvisions": "keyTerms",
                   "riskFramework": "assessmentCriteria",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Check Compliance & Standards",
                 "description": "Verifies legal compliance and industry standards",
-                "subroutineId": "TODO: Need compliance checking subroutine",
+                "subroutineId": "7829564732190848510",
                 "inputMap": {
                   "contractualRequirements": "conditions",
                   "regulatoryFramework": "legalRequirements",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Recommendations",
                 "description": "Creates actionable advice and negotiation points",
-                "subroutineId": "TODO: Need recommendation generation subroutine",
+                "subroutineId": "7829564732190848513",
                 "inputMap": {
                   "identifiedRisks": "riskAnalysis",
                   "omittedProtections": "missingClauses",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Review Summary",
                 "description": "Compiles comprehensive review report with highlights",
-                "subroutineId": "TODO: Need summary compilation subroutine",
+                "subroutineId": "7829564732190848516",
                 "inputMap": {
                   "actionableAdvice": "recommendations",
                   "severityRatings": "riskScoring",

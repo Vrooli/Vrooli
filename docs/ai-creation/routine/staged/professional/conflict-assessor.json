@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848765",
+  "publicId": "conflict-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847072",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847172",
+          "language": "en",
+          "description": "Team management and development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848766",
+      "publicId": "conflict-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assesses conflict situations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "conflictDescription",
+                "id": "conflict_description_input",
+                "label": "Conflict Description",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Detailed description of the conflict"
+              },
+              {
+                "fieldName": "partiesInvolved",
+                "id": "parties_involved_input",
+                "label": "Parties Involved",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "People or groups involved"
+              },
+              {
+                "fieldName": "conflictHistory",
+                "id": "conflict_history_input",
+                "label": "Conflict History",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Background and escalation history"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "conflictAnalysis",
+                "id": "conflict_analysis_output",
+                "label": "Conflict Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "rootCauses",
+                "id": "root_causes_output",
+                "label": "Root Causes",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "stakeholderPositions",
+                "id": "stakeholder_positions_output",
+                "label": "Stakeholder Positions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848767",
+          "language": "en",
+          "name": "Conflict Assessor",
+          "description": "Analyzes conflict situations to identify root causes and stakeholder positions.",
+          "instructions": "Provide conflict details and parties involved. The routine will analyze causes and positions."
+        }
+      ]
+    }
+  ]
+}

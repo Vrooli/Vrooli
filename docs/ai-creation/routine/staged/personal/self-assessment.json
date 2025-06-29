@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190848537",
+  "publicId": "self-assessment-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "personal-development",
+      "translations": [
+        {
+          "id": "7829564732190847141",
+          "language": "en",
+          "description": "Personal growth and development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847042",
+      "tag": "self-improvement",
+      "translations": [
+        {
+          "id": "7829564732190847142",
+          "language": "en",
+          "description": "Self-improvement and personal growth"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848538",
+      "publicId": "self-assessment-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Conducts comprehensive self-assessment",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "assessmentAreas",
+                "id": "assessment_areas_input",
+                "label": "Assessment Areas",
+                "type": "Selector",
+                "isRequired": true,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "comprehensive",
+                  "skills-focused",
+                  "values-focused",
+                  "career-focused",
+                  "personality-focused"
+                ]
+              },
+              {
+                "fieldName": "additionalContext",
+                "id": "additional_context_input",
+                "label": "Additional Context",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Any specific areas you want to focus on"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "selfAssessmentReport",
+                "id": "self_assessment_report_output",
+                "label": "Self Assessment Report",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848539",
+          "language": "en",
+          "name": "Self Assessment",
+          "description": "Conducts comprehensive self-assessment covering strengths, weaknesses, values, and current situation analysis.",
+          "instructions": "Select assessment areas to begin your self-evaluation. The routine will guide you through a thorough assessment process."
+        }
+      ]
+    }
+  ]
+}

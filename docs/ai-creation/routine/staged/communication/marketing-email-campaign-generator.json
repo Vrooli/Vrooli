@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190848714",
+  "publicId": "email-campaign-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847086",
+      "tag": "marketing",
+      "translations": [
+        {
+          "id": "7829564732190847186",
+          "language": "en",
+          "description": "Marketing and advertising"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847071",
+      "tag": "email",
+      "translations": [
+        {
+          "id": "7829564732190847171",
+          "language": "en",
+          "description": "Email communication"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848715",
+      "publicId": "email-campaign-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates email campaigns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "campaignGoal",
+                "id": "campaign_goal_input",
+                "label": "Campaign Goal",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "What do you want to achieve?"
+              },
+              {
+                "fieldName": "emailList",
+                "id": "email_list_input",
+                "label": "Email List Description",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Describe your email audience"
+              },
+              {
+                "fieldName": "campaignType",
+                "id": "campaign_type_input",
+                "label": "Campaign Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "promotional",
+                "options": [
+                  "promotional",
+                  "newsletter",
+                  "welcome_series",
+                  "re_engagement",
+                  "educational"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailSequence",
+                "id": "email_sequence_output",
+                "label": "Email Sequence",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "subjectLines",
+                "id": "subject_lines_output",
+                "label": "Subject Line Options",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "campaignSchedule",
+                "id": "campaign_schedule_output",
+                "label": "Campaign Schedule",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848716",
+          "language": "en",
+          "name": "Marketing Email Campaign Generator",
+          "description": "Creates complete email marketing campaigns with sequences and schedules.",
+          "instructions": "Provide campaign goals and audience details. The routine will generate email sequences."
+        }
+      ]
+    }
+  ]
+}

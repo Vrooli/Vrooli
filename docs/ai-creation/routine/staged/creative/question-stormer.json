@@ -1,0 +1,161 @@
+{
+  "id": "7829564732190847150",
+  "publicId": "question-storm-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847151",
+      "publicId": "questions-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "Generate insightful and probing questions on the following topic:\n\n**Topic:** {{input.topic}}\n**Research Goals:** {{input.researchGoals}}\n**Audience Level:** {{input.audienceLevel}}\n{{#if input.context}}**Context/Background:** {{input.context}}{{/if}}\n{{#if input.questionTypes}}**Question Types Focus:** {{input.questionTypes}}{{/if}}\n\nCreate a comprehensive set of thought-provoking questions:\n\n1. **Foundational Questions**\n   - Core concept understanding\n   - Basic definitions and terminology\n   - Fundamental principles\n   - Historical context and origins\n   - Key assumptions and premises\n\n2. **Exploratory Questions**\n   - What if scenarios\n   - Alternative perspectives\n   - Unexplored angles\n   - Hidden connections\n   - Emerging trends and patterns\n\n3. **Analytical Questions**\n   - Cause and effect relationships\n   - Comparison and contrast\n   - Strengths and weaknesses\n   - Patterns and anomalies\n   - Data interpretation needs\n\n4. **Critical Thinking Questions**\n   - Challenging assumptions\n   - Evaluating evidence\n   - Identifying biases\n   - Testing validity\n   - Examining implications\n\n5. **Strategic Questions**\n   - Future implications\n   - Decision-making factors\n   - Risk assessment needs\n   - Opportunity identification\n   - Resource allocation considerations\n\n6. **Creative Questions**\n   - Innovation opportunities\n   - Unconventional approaches\n   - Cross-industry applications\n   - Breakthrough possibilities\n   - Paradigm-shifting ideas\n\n7. **Practical Application Questions**\n   - Real-world implementation\n   - Use case scenarios\n   - Success measurement\n   - Obstacle identification\n   - Resource requirements\n\n8. **Stakeholder Perspective Questions**\n   - Different viewpoints\n   - Impact on various groups\n   - Competing interests\n   - Collaboration opportunities\n   - Communication needs\n\n9. **Research and Investigation Questions**\n   - Data gathering needs\n   - Evidence requirements\n   - Verification methods\n   - Source evaluation\n   - Knowledge gaps\n\n10. **Ethical and Social Questions**\n    - Moral implications\n    - Social responsibility\n    - Unintended consequences\n    - Fairness and equity\n    - Long-term societal impact\n\n11. **Process and Methodology Questions**\n    - Best practices\n    - Workflow optimization\n    - Quality assurance\n    - Continuous improvement\n    - Standard procedures\n\n12. **Future-Oriented Questions**\n    - Trend predictions\n    - Scenario planning\n    - Adaptability requirements\n    - Evolution possibilities\n    - Legacy considerations\n\n13. **Discussion Prompts**\n    - Debate-worthy topics\n    - Controversial aspects\n    - Multiple valid answers\n    - Opinion-generating questions\n    - Experience-sharing prompts\n\n14. **Learning and Development Questions**\n    - Skill requirements\n    - Knowledge building\n    - Competency development\n    - Training needs\n    - Assessment criteria\n\n15. **Problem-Solving Questions**\n    - Challenge identification\n    - Solution brainstorming\n    - Implementation strategies\n    - Troubleshooting approaches\n    - Prevention measures\n\nOrganize questions by purpose and complexity level. Include questions that stimulate deeper thinking and encourage exploration of multiple perspectives. Focus on questions that lead to actionable insights and meaningful discussions.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "topic",
+                "id": "topic_input",
+                "label": "Topic",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What topic do you want to generate questions about?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "researchGoals",
+                "id": "research_goals_input",
+                "label": "Research Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What are you trying to learn or achieve? What's the purpose of these questions?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "audienceLevel",
+                "id": "audience_level_input",
+                "label": "Audience Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Beginner", "Intermediate", "Advanced", "Expert", "Mixed audience"],
+                  "defaultValue": "Intermediate"
+                }
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Context/Background (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific context, industry, or background information relevant to the topic?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "questionTypes",
+                "id": "question_types_input",
+                "label": "Question Types Focus (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific types of questions to emphasize? (analytical, creative, practical, etc.)"
+                }
+              },
+              {
+                "fieldName": "purpose",
+                "id": "purpose_input",
+                "label": "Intended Use",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Interview preparation", "FAQ development", "Research planning", "Discussion facilitation", "Critical thinking exercise", "Learning assessment", "Brainstorming session"],
+                  "defaultValue": "Discussion facilitation"
+                }
+              },
+              {
+                "fieldName": "questionCount",
+                "id": "question_count_input",
+                "label": "Number of Questions",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["10-15 questions", "20-25 questions", "30-40 questions", "50+ comprehensive set"],
+                  "defaultValue": "20-25 questions"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_questions_output",
+                "label": "Complete Question Set",
+                "type": "Text"
+              },
+              {
+                "fieldName": "coreQuestions",
+                "id": "core_questions_output",
+                "label": "Core/Foundational Questions",
+                "type": "Text"
+              },
+              {
+                "fieldName": "analyticalQuestions",
+                "id": "analytical_questions_output",
+                "label": "Analytical & Critical Questions",
+                "type": "Text"
+              },
+              {
+                "fieldName": "discussionPrompts",
+                "id": "discussion_prompts_output",
+                "label": "Discussion & Debate Prompts",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847152",
+          "language": "en",
+          "name": "Question Stormer",
+          "description": "Generates insightful or probing questions on a given topic. Helps with FAQ creation, interview prep, deeper thinking, and discussion facilitation with questions organized by complexity and purpose.",
+          "instructions": "1. Specify the topic you want questions about\n2. Define your research goals and objectives\n3. Choose the audience level (beginner to expert)\n4. Add context or background information (optional)\n5. Focus on specific question types (optional)\n6. Select intended use case\n7. Choose number of questions to generate\n\nThe stormer will create:\n- Foundational and exploratory questions\n- Analytical and critical thinking prompts\n- Strategic and creative questions\n- Practical application scenarios\n- Discussion and debate topics\n- Research and investigation angles\n- Questions organized by complexity level\n\nPerfect for educators, researchers, interviewers, and facilitators who need thoughtful questions to drive deeper understanding and meaningful conversations."
+        }
+      ]
+    }
+  ]
+}

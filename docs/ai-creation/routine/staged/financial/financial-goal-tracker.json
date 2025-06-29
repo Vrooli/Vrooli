@@ -1,0 +1,160 @@
+{
+  "id": "7829564732190847240",
+  "publicId": "fin-goal-track-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847241",
+      "publicId": "goal-tracker-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import json\nfrom datetime import datetime, timedelta\nimport math\n\ndef track_financial_goals():\n    # Get inputs\n    goal_details = globals().get('goal_details', '')\n    target_amount = globals().get('target_amount', 10000)\n    current_amount = globals().get('current_amount', 0)\n    target_date = globals().get('target_date', '')\n    contribution_schedule = globals().get('contribution_schedule', 'Monthly')\n    contribution_amount = globals().get('contribution_amount', 500)\n    goal_type = globals().get('goal_type', 'Savings')\n    \n    def parse_target_date(date_str):\n        \"\"\"Parse target date string\"\"\"\n        if not date_str:\n            # Default to 1 year from now\n            return datetime.now() + timedelta(days=365)\n        \n        try:\n            # Try common date formats\n            for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:\n                try:\n                    return datetime.strptime(date_str, fmt)\n                except:\n                    continue\n            # If no format works, default to 1 year\n            return datetime.now() + timedelta(days=365)\n        except:\n            return datetime.now() + timedelta(days=365)\n    \n    def calculate_time_remaining(target_date):\n        \"\"\"Calculate time remaining to target date\"\"\"\n        today = datetime.now()\n        remaining = target_date - today\n        \n        if remaining.days < 0:\n            return {\n                'days': 0,\n                'months': 0,\n                'years': 0,\n                'total_days': 0,\n                'is_past': True\n            }\n        \n        years = remaining.days // 365\n        months = (remaining.days % 365) // 30\n        days = remaining.days % 30\n        \n        return {\n            'days': days,\n            'months': months,\n            'years': years,\n            'total_days': remaining.days,\n            'is_past': False\n        }\n    \n    def calculate_progress(current, target):\n        \"\"\"Calculate progress percentage and remaining amount\"\"\"\n        if target <= 0:\n            return {\n                'percentage': 0,\n                'remaining': 0,\n                'achieved': False\n            }\n        \n        percentage = (current / target) * 100\n        remaining = max(0, target - current)\n        \n        return {\n            'percentage': min(100, round(percentage, 1)),\n            'remaining': round(remaining, 2),\n            'achieved': current >= target\n        }\n    \n    def calculate_required_contribution(remaining_amount, time_remaining, schedule):\n        \"\"\"Calculate required contribution to meet goal\"\"\"\n        if time_remaining['is_past'] or time_remaining['total_days'] <= 0:\n            return {\n                'required': 'Goal date has passed',\n                'frequency': schedule,\n                'total_contributions': 0\n            }\n        \n        # Calculate contribution frequency\n        frequencies = {\n            'Daily': 365,\n            'Weekly': 52,\n            'Bi-weekly': 26,\n            'Monthly': 12,\n            'Quarterly': 4,\n            'Annually': 1\n        }\n        \n        freq_per_year = frequencies.get(schedule, 12)\n        years_remaining = time_remaining['total_days'] / 365\n        total_contributions = freq_per_year * years_remaining\n        \n        if total_contributions <= 0:\n            return {\n                'required': 'Immediate payment needed',\n                'frequency': schedule,\n                'total_contributions': 0\n            }\n        \n        required_per_contribution = remaining_amount / total_contributions\n        \n        return {\n            'required': round(required_per_contribution, 2),\n            'frequency': schedule,\n            'total_contributions': round(total_contributions)\n        }\n    \n    def project_future_value(current, contribution, schedule, months):\n        \"\"\"Project future value with regular contributions\"\"\"\n        # Convert contribution schedule to monthly\n        schedule_multipliers = {\n            'Daily': 30,\n            'Weekly': 4.33,\n            'Bi-weekly': 2.17,\n            'Monthly': 1,\n            'Quarterly': 0.33,\n            'Annually': 0.083\n        }\n        \n        monthly_contribution = contribution * schedule_multipliers.get(schedule, 1)\n        \n        projections = []\n        balance = current\n        \n        for month in range(1, months + 1):\n            balance += monthly_contribution\n            \n            if month in [1, 3, 6, 12, 24, 36]:\n                projections.append({\n                    'month': month,\n                    'balance': round(balance, 2),\n                    'label': f\"{month} month{'s' if month > 1 else ''}\"\n                })\n        \n        return projections\n    \n    def analyze_contribution_scenarios(remaining, time_remaining, current_contribution):\n        \"\"\"Analyze different contribution scenarios\"\"\"\n        if time_remaining['is_past'] or remaining <= 0:\n            return []\n        \n        scenarios = []\n        base_monthly = remaining / max(1, time_remaining['total_days'] / 30)\n        \n        # Different contribution levels\n        multipliers = [\n            (0.5, 'Half pace'),\n            (0.75, 'Reduced pace'),\n            (1.0, 'Required pace'),\n            (1.25, 'Accelerated pace'),\n            (1.5, 'Aggressive pace'),\n            (2.0, 'Double pace')\n        ]\n        \n        for multiplier, label in multipliers:\n            monthly = base_monthly * multiplier\n            months_to_goal = remaining / monthly if monthly > 0 else float('inf')\n            \n            scenarios.append({\n                'label': label,\n                'monthly_amount': round(monthly, 2),\n                'months_to_goal': round(months_to_goal, 1),\n                'completion_date': (datetime.now() + timedelta(days=months_to_goal * 30)).strftime('%Y-%m-%d') if months_to_goal < 1000 else 'Never',\n                'total_contributed': round(monthly * months_to_goal, 2)\n            })\n        \n        return scenarios\n    \n    def generate_milestones(current, target):\n        \"\"\"Generate milestone checkpoints\"\"\"\n        milestones = []\n        checkpoints = [0.1, 0.25, 0.5, 0.75, 0.9, 1.0]  # 10%, 25%, 50%, 75%, 90%, 100%\n        \n        for checkpoint in checkpoints:\n            amount = target * checkpoint\n            achieved = current >= amount\n            \n            milestones.append({\n                'percentage': int(checkpoint * 100),\n                'amount': round(amount, 2),\n                'achieved': achieved,\n                'remaining': round(max(0, amount - current), 2) if not achieved else 0,\n                'label': f\"{int(checkpoint * 100)}% - ${amount:,.2f}\"\n            })\n        \n        return milestones\n    \n    def calculate_acceleration_options(remaining, current_contribution):\n        \"\"\"Calculate ways to accelerate goal achievement\"\"\"\n        options = []\n        \n        # One-time boost options\n        boost_amounts = [500, 1000, 2500, 5000]\n        for boost in boost_amounts:\n            if boost < remaining:\n                new_remaining = remaining - boost\n                impact_months = boost / current_contribution if current_contribution > 0 else 0\n                \n                options.append({\n                    'type': 'one_time_boost',\n                    'amount': boost,\n                    'description': f'One-time ${boost} contribution',\n                    'impact': f'Saves {impact_months:.1f} months of contributions',\n                    'new_remaining': round(new_remaining, 2)\n                })\n        \n        # Increase regular contribution options\n        increase_percentages = [10, 25, 50, 100]\n        for increase in increase_percentages:\n            new_contribution = current_contribution * (1 + increase / 100)\n            monthly_increase = new_contribution - current_contribution\n            \n            if current_contribution > 0:\n                months_saved = remaining / current_contribution - remaining / new_contribution\n                \n                options.append({\n                    'type': 'increase_regular',\n                    'amount': round(monthly_increase, 2),\n                    'description': f'Increase regular contribution by {increase}%',\n                    'impact': f'Reach goal {months_saved:.1f} months sooner',\n                    'new_contribution': round(new_contribution, 2)\n                })\n        \n        return options\n    \n    def generate_tips_and_motivation(progress, goal_type):\n        \"\"\"Generate personalized tips and motivation\"\"\"\n        tips = []\n        motivation = []\n        \n        # Progress-based tips\n        if progress['percentage'] < 25:\n            tips.extend([\n                'Automate your contributions to ensure consistency',\n                'Start with small amounts and increase gradually',\n                'Track every contribution to see your progress'\n            ])\n            motivation.append('Every journey begins with a single step. You\\'ve started!')\n        elif progress['percentage'] < 50:\n            tips.extend([\n                'Consider increasing contributions with raises or bonuses',\n                'Review and cut unnecessary expenses',\n                'Look for additional income opportunities'\n            ])\n            motivation.append('You\\'re building momentum. Keep going!')\n        elif progress['percentage'] < 75:\n            tips.extend([\n                'You\\'re past halfway! Stay focused on the goal',\n                'Consider a contribution challenge month',\n                'Visualize what achieving this goal means to you'\n            ])\n            motivation.append('More than halfway there! Your dedication is paying off.')\n        else:\n            tips.extend([\n                'The finish line is in sight!',\n                'Plan how you\\'ll celebrate reaching your goal',\n                'Start thinking about your next financial goal'\n            ])\n            motivation.append('You\\'re in the home stretch! Finish strong!')\n        \n        # Goal-type specific tips\n        goal_tips = {\n            'Emergency fund': [\n                'Aim for 3-6 months of expenses',\n                'Keep funds in high-yield savings account',\n                'Don\\'t invest emergency funds in volatile assets'\n            ],\n            'Vacation': [\n                'Research costs early to set accurate targets',\n                'Consider travel rewards credit cards',\n                'Book flights and hotels in advance for savings'\n            ],\n            'Home purchase': [\n                'Factor in closing costs and moving expenses',\n                'Improve credit score while saving',\n                'Research first-time buyer programs'\n            ],\n            'Retirement': [\n                'Take advantage of employer matching',\n                'Consider tax-advantaged accounts',\n                'Increase contributions with each raise'\n            ],\n            'Debt payoff': [\n                'Pay highest interest debts first',\n                'Consider debt consolidation options',\n                'Celebrate each debt milestone'\n            ],\n            'Savings': [\n                'Set up automatic transfers',\n                'Use high-yield savings accounts',\n                'Separate savings from checking'\n            ]\n        }\n        \n        if goal_type in goal_tips:\n            tips.extend(goal_tips[goal_type])\n        \n        return tips, motivation\n    \n    # Main execution\n    try:\n        # Parse inputs\n        target_amount = float(target_amount)\n        current_amount = float(current_amount)\n        contribution_amount = float(contribution_amount)\n        target_date_obj = parse_target_date(target_date)\n        \n        # Calculate key metrics\n        time_remaining = calculate_time_remaining(target_date_obj)\n        progress = calculate_progress(current_amount, target_amount)\n        required_contribution = calculate_required_contribution(\n            progress['remaining'], time_remaining, contribution_schedule\n        )\n        \n        # Generate projections and analysis\n        future_projections = project_future_value(\n            current_amount, contribution_amount, contribution_schedule, 36\n        )\n        contribution_scenarios = analyze_contribution_scenarios(\n            progress['remaining'], time_remaining, contribution_amount\n        )\n        milestones = generate_milestones(current_amount, target_amount)\n        acceleration_options = calculate_acceleration_options(\n            progress['remaining'], contribution_amount\n        )\n        tips, motivation = generate_tips_and_motivation(progress, goal_type)\n        \n        # Create visual progress bar\n        progress_bar_length = 20\n        filled_length = int(progress_bar_length * progress['percentage'] / 100)\n        progress_bar = '█' * filled_length + '░' * (progress_bar_length - filled_length)\n        \n        # Create comprehensive output\n        output = {\n            'financial_goal_tracking': {\n                'goal_summary': {\n                    'description': goal_details if goal_details else f'{goal_type} Goal',\n                    'target_amount': f'${target_amount:,.2f}',\n                    'current_amount': f'${current_amount:,.2f}',\n                    'remaining_amount': f'${progress[\"remaining\"]:,.2f}',\n                    'target_date': target_date_obj.strftime('%Y-%m-%d'),\n                    'goal_type': goal_type\n                },\n                'progress_status': {\n                    'percentage_complete': f'{progress[\"percentage\"]}%',\n                    'visual_progress': f'[{progress_bar}] {progress[\"percentage\"]}%',\n                    'goal_achieved': progress['achieved'],\n                    'on_track': contribution_amount >= required_contribution.get('required', 0) if isinstance(required_contribution.get('required'), (int, float)) else False\n                },\n                'time_analysis': {\n                    'time_remaining': f'{time_remaining[\"years\"]}y {time_remaining[\"months\"]}m {time_remaining[\"days\"]}d',\n                    'total_days_remaining': time_remaining['total_days'],\n                    'deadline_status': 'Passed' if time_remaining['is_past'] else 'Active'\n                }\n            },\n            'contribution_analysis': {\n                'current_plan': {\n                    'contribution_amount': f'${contribution_amount:,.2f}',\n                    'frequency': contribution_schedule,\n                    'projected_completion': contribution_scenarios[2]['completion_date'] if len(contribution_scenarios) > 2 else 'N/A'\n                },\n                'required_contribution': {\n                    'amount_needed': f'${required_contribution.get(\"required\", \"N/A\")}' if isinstance(required_contribution.get('required'), (int, float)) else required_contribution.get('required', 'N/A'),\n                    'frequency': required_contribution['frequency'],\n                    'total_contributions_remaining': required_contribution.get('total_contributions', 0)\n                },\n                'contribution_gap': f'${max(0, required_contribution.get(\"required\", 0) - contribution_amount):,.2f}' if isinstance(required_contribution.get('required'), (int, float)) else 'N/A'\n            },\n            'future_projections': future_projections,\n            'milestone_tracking': milestones,\n            'scenario_analysis': contribution_scenarios,\n            'acceleration_strategies': acceleration_options[:5],  # Top 5 options\n            'personalized_guidance': {\n                'tips': tips[:5],  # Top 5 tips\n                'motivation': motivation,\n                'next_steps': [\n                    'Review and adjust contribution amount if needed',\n                    'Set up automatic transfers if not already done',\n                    'Track progress monthly',\n                    'Celebrate milestones along the way',\n                    'Consider ways to boost contributions'\n                ]\n            },\n            'summary_recommendations': {\n                'primary_action': 'Increase contributions' if contribution_amount < required_contribution.get('required', 0) and isinstance(required_contribution.get('required'), (int, float)) else 'Stay the course',\n                'timeline_assessment': 'On schedule' if not time_remaining['is_past'] and contribution_amount >= required_contribution.get('required', 0) and isinstance(required_contribution.get('required'), (int, float)) else 'Needs adjustment',\n                'confidence_level': 'High' if progress['percentage'] > 50 else 'Medium' if progress['percentage'] > 25 else 'Building',\n                'risk_factors': [\n                    'Unexpected expenses' if goal_type == 'Emergency fund' else None,\n                    'Market volatility' if goal_type == 'Retirement' else None,\n                    'Interest rate changes' if goal_type == 'Home purchase' else None\n                ]\n            }\n        }\n        \n        # Remove None values from risk factors\n        output['summary_recommendations']['risk_factors'] = [r for r in output['summary_recommendations']['risk_factors'] if r]\n        \n        return json.dumps(output, indent=2)\n        \n    except Exception as e:\n        return json.dumps({\n            'error': f'Error tracking financial goal: {str(e)}',\n            'troubleshooting': {\n                'check_inputs': [\n                    'Ensure amounts are numeric',\n                    'Check date format (YYYY-MM-DD)',\n                    'Verify positive target amount'\n                ]\n            }\n        }, indent=2)\n\n# Execute the function\nresult = track_financial_goals()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "goal_details",
+                "id": "goal_details_input",
+                "label": "Goal Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What are you saving for? (e.g., Emergency fund, Dream vacation, New car)"
+                }
+              },
+              {
+                "fieldName": "target_amount",
+                "id": "target_amount_input",
+                "label": "Target Amount ($)",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 1,
+                  "max": 10000000,
+                  "defaultValue": 10000
+                }
+              },
+              {
+                "fieldName": "current_amount",
+                "id": "current_amount_input",
+                "label": "Current Amount Saved ($)",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 0,
+                  "max": 10000000,
+                  "defaultValue": 0
+                }
+              },
+              {
+                "fieldName": "target_date",
+                "id": "target_date_input",
+                "label": "Target Date",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "When do you want to reach this goal? (YYYY-MM-DD)"
+                }
+              },
+              {
+                "fieldName": "contribution_schedule",
+                "id": "contribution_schedule_input",
+                "label": "How Often Will You Contribute?",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Daily", "Weekly", "Bi-weekly", "Monthly", "Quarterly", "Annually"],
+                  "defaultValue": "Monthly"
+                }
+              },
+              {
+                "fieldName": "contribution_amount",
+                "id": "contribution_amount_input",
+                "label": "Planned Contribution Amount ($)",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 0,
+                  "max": 100000,
+                  "defaultValue": 500
+                }
+              },
+              {
+                "fieldName": "goal_type",
+                "id": "goal_type_input",
+                "label": "Goal Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Savings", "Emergency fund", "Vacation", "Home purchase", "Retirement", "Education", "Debt payoff", "Other"],
+                  "defaultValue": "Savings"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_tracking_results_output",
+                "label": "Complete Goal Tracking Results",
+                "type": "Text"
+              },
+              {
+                "fieldName": "progressStatus",
+                "id": "progress_status_output",
+                "label": "Progress Status",
+                "type": "Text"
+              },
+              {
+                "fieldName": "projections",
+                "id": "projections_output",
+                "label": "Future Projections",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Recommendations & Tips",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847242",
+          "language": "en",
+          "name": "Financial Goal Tracker",
+          "description": "Guides users in setting and monitoring financial goals. Provides progress tracking, timeline projections, and tips for acceleration with motivational support.",
+          "instructions": "1. Describe your financial goal\n2. Enter target amount\n3. Enter current amount saved\n4. Set target date\n5. Choose contribution frequency\n6. Enter planned contribution amount\n7. Select goal type\n\nThe tracker will:\n- Calculate your progress percentage\n- Show time remaining to goal\n- Determine required contributions\n- Project future balance\n- Track milestone achievements\n- Analyze different scenarios\n- Suggest acceleration strategies\n- Provide personalized tips\n- Offer motivational support\n\nFeatures:\n- Visual progress tracking\n- Multiple contribution scenarios\n- Milestone checkpoints\n- Acceleration options\n- Goal-specific advice\n- Timeline projections\n\nPerfect for tracking any financial goal: emergency funds, vacations, home purchases, debt payoff, or general savings."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190848336",
+  "publicId": "project-scope-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847033",
+      "publicId": "business-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "business"
+    },
+    {
+      "id": "7829564732190847035",
+      "publicId": "project-management-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "project-management"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848337",
+      "publicId": "project-scope-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes project goals and creates phase breakdown",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Analyze project goal and break it into major phases:\n\nProject Goal: {{input.projectGoal}}\nConstraints: {{input.constraints}}\nResources: {{input.resources}}\nTimeline: {{input.timeline}}\n\nPerform comprehensive scope analysis:\n\n1. **Goal Clarification**:\n   - Primary objectives\n   - Secondary objectives\n   - Success criteria\n   - Deliverable definition\n   - Outcome expectations\n\n2. **Scope Definition**:\n   - In-scope elements\n   - Out-of-scope items\n   - Boundary conditions\n   - Interface points\n   - Dependencies\n\n3. **Phase Breakdown**:\n   - Initiation phase\n   - Planning phase\n   - Execution phases\n   - Monitoring phase\n   - Closure phase\n\n4. **Phase Details**:\n   - Phase objectives\n   - Key deliverables\n   - Success metrics\n   - Duration estimates\n   - Resource needs\n\n5. **Risk Identification**:\n   - Technical risks\n   - Resource risks\n   - Schedule risks\n   - Quality risks\n   - External risks\n\n6. **Assumption Documentation**:\n   - Resource assumptions\n   - Timeline assumptions\n   - Technical assumptions\n   - Stakeholder assumptions\n   - Environmental assumptions\n\n7. **Constraint Analysis**:\n   - Budget limitations\n   - Time constraints\n   - Resource availability\n   - Technical limitations\n   - Regulatory requirements\n\n8. **Success Factors**:\n   - Critical success factors\n   - Key performance indicators\n   - Quality standards\n   - Acceptance criteria\n   - Stakeholder satisfaction\n\nReturn as structured JSON with keys: projectPhases (array), scopeAnalysis (object), riskFactors (array), assumptions (array), constraints (object), successFactors (object), phaseTimeline (object), resourceRequirements (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectGoal",
+                "id": "goal_input",
+                "label": "Project Goal",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the project objective and desired outcome...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Budget, time, resource, or other limitations...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "resources",
+                "id": "resources_input",
+                "label": "Available Resources",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Team size, skills, tools, budget available...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Project Timeline",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Expected duration or deadline..."
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "phaseBreakdown",
+                "id": "phases_output",
+                "label": "Major Project Phases",
+                "type": "Text"
+              },
+              {
+                "fieldName": "scopeDetails",
+                "id": "scope_output",
+                "label": "Detailed Scope Analysis",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848338",
+          "language": "en-US",
+          "description": "Analyzes project goals, defines scope, and creates phase breakdown with risk assessment",
+          "instructions": "Provide project goal and constraints. The system will analyze scope and create phase structure.",
+          "name": "Project Scope Analyzer"
+        }
+      ]
+    }
+  ]
+}

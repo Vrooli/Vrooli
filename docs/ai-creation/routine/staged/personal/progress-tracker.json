@@ -1,0 +1,108 @@
+{
+  "id": "7829564732190848486",
+  "publicId": "progress-tracker-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847006",
+      "tag": "personal-development",
+      "translations": [
+        {
+          "id": "7829564732190847106",
+          "language": "en",
+          "description": "Personal growth and self-improvement"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847007",
+      "tag": "habit-formation",
+      "translations": [
+        {
+          "id": "7829564732190847107",
+          "language": "en",
+          "description": "Building and tracking positive habits"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847032",
+      "tag": "tracking",
+      "translations": [
+        {
+          "id": "7829564732190847132",
+          "language": "en",
+          "description": "Progress tracking and monitoring"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848487",
+      "publicId": "progress-tracker-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Tracks daily habit progress and patterns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "habitFramework",
+                "id": "habit_framework_input",
+                "label": "Habit Framework",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Habit tracking structure from framework setup"
+              },
+              {
+                "fieldName": "dailyCheckIn",
+                "id": "daily_checkin_input",
+                "label": "Daily Check-in",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Today's habit completion status"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "progressLog",
+                "id": "progress_log_output",
+                "label": "Progress Log",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848488",
+          "language": "en",
+          "name": "Progress Tracker",
+          "description": "Records daily habit completion and tracks patterns, streaks, and behavioral trends for habit formation coaching.",
+          "instructions": "Provide habit framework and daily check-in data. The routine will track progress and identify patterns."
+        }
+      ]
+    }
+  ]
+}

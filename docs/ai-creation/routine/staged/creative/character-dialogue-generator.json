@@ -1,0 +1,173 @@
+{
+  "id": "7829564732190847156",
+  "publicId": "character-dial-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847157",
+      "publicId": "characters-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 1300,
+            "model": null,
+            "prompt": "Create fictional characters and dialogue for the following creative project:\n\n**Character Requirements:** {{input.characterRequirements}}\n**Story Context:** {{input.storyContext}}\n**Personality Traits:** {{input.personalityTraits}}\n{{#if input.settingGenre}}**Setting/Genre:** {{input.settingGenre}}{{/if}}\n{{#if input.relationshipDynamics}}**Relationship Dynamics:** {{input.relationshipDynamics}}{{/if}}\n{{#if input.purposeUse}}**Purpose/Use:** {{input.purposeUse}}{{/if}}\n\nDevelop compelling characters and authentic dialogue:\n\n1. **Character Profiles**\n   - Detailed character descriptions\n   - Physical appearance and mannerisms\n   - Background and history\n   - Core personality traits\n   - Motivations and goals\n   - Fears and vulnerabilities\n   - Unique quirks and habits\n   - Speech patterns and vocabulary\n\n2. **Character Development**\n   - Personality depth and complexity\n   - Internal conflicts and contradictions\n   - Growth potential and character arcs\n   - Strengths and weaknesses\n   - Moral compass and values\n   - Decision-making patterns\n   - Emotional triggers and responses\n\n3. **Dialogue Characteristics**\n   - Unique voice for each character\n   - Speaking style and rhythm\n   - Vocabulary level and word choice\n   - Regional dialects or accents\n   - Professional or cultural jargon\n   - Emotional expression patterns\n   - Humor and wit style\n\n4. **Sample Dialogue Scenes**\n   - Character introduction scenes\n   - Conflict and tension moments\n   - Emotional revelation exchanges\n   - Casual conversation samples\n   - Problem-solving discussions\n   - Relationship-building interactions\n   - High-stakes dramatic moments\n\n5. **Interaction Dynamics**\n   - How characters relate to each other\n   - Power dynamics and hierarchies\n   - Communication styles between pairs\n   - Conflict resolution approaches\n   - Supportive interaction patterns\n   - Competitive or collaborative tendencies\n   - Influence and persuasion tactics\n\n6. **Contextual Adaptations**\n   - Dialogue for different situations\n   - Formal vs. informal settings\n   - Stressed vs. relaxed moments\n   - Public vs. private conversations\n   - Professional vs. personal contexts\n   - Emergency or crisis situations\n   - Celebratory or joyful moments\n\n7. **Character Voice Guidelines**\n   - Sentence structure preferences\n   - Common phrases and expressions\n   - Emotional vocabulary range\n   - Interruption and listening patterns\n   - Question-asking tendencies\n   - Storytelling and explanation styles\n   - Disagreement and argument patterns\n\n8. **Dialogue Techniques**\n   - Subtext and underlying meanings\n   - Exposition through conversation\n   - Character revelation through speech\n   - Tension building through dialogue\n   - Humor and personality display\n   - Information sharing methods\n   - Emotional progression in scenes\n\n9. **Scenario-Based Interactions**\n   - First meeting dialogues\n   - Conflict resolution conversations\n   - Secret sharing moments\n   - Decision-making discussions\n   - Goodbye or farewell exchanges\n   - Reconciliation dialogues\n   - Teaching or mentoring interactions\n\n10. **Character Consistency**\n    - Maintaining voice throughout\n    - Personality trait reliability\n    - Growth and change patterns\n    - Reaction predictability\n    - Value system consistency\n    - Speech pattern maintenance\n    - Behavioral trait continuity\n\n11. **Emotional Range**\n    - Happy and excited expressions\n    - Angry and frustrated responses\n    - Sad and melancholic moments\n    - Fearful and anxious dialogue\n    - Surprised and shocked reactions\n    - Confused and uncertain speech\n    - Determined and resolute statements\n\n12. **Cultural and Background Elements**\n    - Cultural speech patterns\n    - Educational background influence\n    - Professional terminology usage\n    - Regional or local expressions\n    - Generational language differences\n    - Social class indicators\n    - Religious or philosophical influences\n\n13. **Interactive Scenarios**\n    - Role-play conversation starters\n    - Training simulation dialogues\n    - Creative writing prompts\n    - Character development exercises\n    - Improvisation scene setups\n    - Interview and questioning formats\n    - Storytelling collaboration prompts\n\n14. **Adaptation Guidelines**\n    - Modifying for different audiences\n    - Adjusting complexity levels\n    - Genre-specific adaptations\n    - Medium-specific considerations\n    - Cultural sensitivity adjustments\n    - Age-appropriate modifications\n    - Context-specific variations\n\nProvide rich, multi-dimensional characters with authentic dialogue that serves the creative project's needs. Focus on making each character distinctive and memorable through their unique voice and personality.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "characterRequirements",
+                "id": "character_requirements_input",
+                "label": "Character Requirements",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "How many characters do you need? What roles do they play? Any specific requirements?",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "storyContext",
+                "id": "story_context_input",
+                "label": "Story Context",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What's the story or project context? Setting, plot, situation, etc...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "personalityTraits",
+                "id": "personality_traits_input",
+                "label": "Personality Traits",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What personality traits do you want these characters to have? (brave, witty, mysterious...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "settingGenre",
+                "id": "setting_genre_input",
+                "label": "Setting/Genre (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Modern day", "Historical", "Fantasy", "Science fiction", "Mystery/Crime", "Romance", "Adventure", "Comedy", "Drama", "Horror/Thriller"],
+                  "defaultValue": "Modern day"
+                }
+              },
+              {
+                "fieldName": "relationshipDynamics",
+                "id": "relationship_dynamics_input",
+                "label": "Relationship Dynamics (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How do the characters relate to each other? (friends, rivals, family, colleagues...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "purposeUse",
+                "id": "purpose_use_input",
+                "label": "Purpose/Use",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Creative writing", "Role-play training", "Game/simulation", "Educational scenarios", "Theatre/performance", "Character development exercise", "Interactive storytelling"],
+                  "defaultValue": "Creative writing"
+                }
+              },
+              {
+                "fieldName": "dialogueComplexity",
+                "id": "dialogue_complexity_input",
+                "label": "Dialogue Complexity",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Simple and clear", "Moderate complexity", "Rich and nuanced", "Highly sophisticated"],
+                  "defaultValue": "Moderate complexity"
+                }
+              },
+              {
+                "fieldName": "toneStyle",
+                "id": "tone_style_input",
+                "label": "Overall Tone/Style",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Serious and dramatic", "Light and humorous", "Mysterious and intriguing", "Inspirational and uplifting", "Realistic and grounded", "Fantastical and imaginative"],
+                  "defaultValue": "Realistic and grounded"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_characters_output",
+                "label": "Complete Character & Dialogue Set",
+                "type": "Text"
+              },
+              {
+                "fieldName": "characterProfiles",
+                "id": "character_profiles_output",
+                "label": "Character Profiles & Backgrounds",
+                "type": "Text"
+              },
+              {
+                "fieldName": "sampleDialogue",
+                "id": "sample_dialogue_output",
+                "label": "Sample Dialogue Scenes",
+                "type": "Text"
+              },
+              {
+                "fieldName": "interactionGuidelines",
+                "id": "interaction_guidelines_output",
+                "label": "Character Interaction Guidelines",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847158",
+          "language": "en",
+          "name": "Character & Dialogue Generator",
+          "description": "Creates fictional characters and dialogue for creative projects. Useful for writing, role-play training, simulations, and character development with authentic voices and interaction scenarios.",
+          "instructions": "1. Specify character requirements and roles\n2. Describe the story context and setting\n3. Define desired personality traits\n4. Choose setting/genre (optional)\n5. Describe relationship dynamics (optional)\n6. Select purpose/use case\n7. Set dialogue complexity level\n8. Choose overall tone and style\n\nThe generator will create:\n- Detailed character profiles and backgrounds\n- Unique dialogue voices for each character\n- Sample dialogue scenes and interactions\n- Character development guidelines\n- Relationship dynamics and interactions\n- Scenario-based conversation examples\n- Voice consistency guidelines\n\nPerfect for writers, educators, trainers, and game developers who need well-developed characters with authentic dialogue for their creative projects."
+        }
+      ]
+    }
+  ]
+}

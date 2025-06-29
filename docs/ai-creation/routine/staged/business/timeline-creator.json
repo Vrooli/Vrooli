@@ -1,0 +1,143 @@
+{
+  "id": "7829564732190848156",
+  "publicId": "timeline-creator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "publicId": "business-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "business"
+    },
+    {
+      "id": "7829564732190847089",
+      "publicId": "project-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "project-management"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848157",
+      "publicId": "timeline-creator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates project timelines from task breakdown with dependencies",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Methodical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Create detailed project timeline from task breakdown and dependencies:\n\nTask Breakdown: {{input.taskBreakdown}}\nDependency Map: {{input.dependencyMap}}\nResource Constraints: {{input.resourceConstraints}}\nDeadlines: {{input.deadlines}}\nWorking Calendar: {{input.workingCalendar}}\n\nGenerate comprehensive project timeline:\n\n1. Critical Path Analysis:\n   - Longest task sequence\n   - Critical milestones\n   - Schedule compression opportunities\n   - Float/slack calculations\n   - Bottleneck identification\n\n2. Resource Scheduling:\n   - Resource allocation timeline\n   - Capacity planning\n   - Skill availability windows\n   - Resource conflicts resolution\n   - Load balancing\n\n3. Phase Planning:\n   - Project phases definition\n   - Phase gates and reviews\n   - Deliverable milestones\n   - Go/no-go decision points\n   - Risk review checkpoints\n\n4. Timeline Structure:\n   - Start and end dates\n   - Duration estimates\n   - Buffer allocations\n   - Milestone markers\n   - Review periods\n\n5. Dependency Scheduling:\n   - Finish-to-start links\n   - Start-to-start relationships\n   - Lag time incorporation\n   - External dependency windows\n   - Constraint accommodation\n\n6. Risk Buffering:\n   - Schedule contingencies\n   - Risk-based buffers\n   - Uncertainty allowances\n   - Alternative scenarios\n   - Recovery plans\n\n7. Communication Timeline:\n   - Progress reporting schedule\n   - Stakeholder updates\n   - Review meetings\n   - Approval cycles\n   - Decision deadlines\n\n8. Monitoring Framework:\n   - Progress tracking points\n   - Variance indicators\n   - Early warning systems\n   - Corrective action triggers\n   - Performance metrics\n\nReturn as structured JSON with keys: criticalPath (array), resourceSchedule (object), phaseStructure (array), timelineDetails (object), dependencySchedule (object), riskBuffers (object), communicationPlan (array), monitoringFramework (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskBreakdown",
+                "id": "tasks_input",
+                "label": "Task Breakdown",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Output from task decomposer with detailed task structure...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "dependencyMap",
+                "id": "dependencies_input",
+                "label": "Dependency Map",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Task dependencies and relationships",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "resourceConstraints",
+                "id": "resources_input",
+                "label": "Resource Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Team availability, skills, capacity limitations"
+                }
+              },
+              {
+                "fieldName": "deadlines",
+                "id": "deadlines_input",
+                "label": "Key Deadlines",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Fixed dates, milestones, delivery deadlines"
+                }
+              },
+              {
+                "fieldName": "workingCalendar",
+                "id": "calendar_input",
+                "label": "Working Calendar",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Working days, holidays, vacation periods"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectTimeline",
+                "id": "timeline_output",
+                "label": "Project Timeline",
+                "type": "Text"
+              },
+              {
+                "fieldName": "scheduleInsights",
+                "id": "insights_output",
+                "label": "Schedule Insights",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848158",
+          "language": "en-US",
+          "description": "Creates detailed project timelines with critical path analysis and resource scheduling",
+          "instructions": "Enter task breakdown and dependency information. The system will create a comprehensive timeline with critical path analysis, resource scheduling, and risk buffering.",
+          "name": "Timeline Creator"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190848540",
+  "publicId": "vision-setting-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847041",
+      "tag": "personal-development",
+      "translations": [
+        {
+          "id": "7829564732190847141",
+          "language": "en",
+          "description": "Personal growth and development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847043",
+      "tag": "goal-setting",
+      "translations": [
+        {
+          "id": "7829564732190847143",
+          "language": "en",
+          "description": "Goal setting and achievement"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848541",
+      "publicId": "vision-setting-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates personal vision and goals",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "selfAssessmentReport",
+                "id": "self_assessment_report_input",
+                "label": "Self Assessment Report",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Self assessment data from previous step"
+              },
+              {
+                "fieldName": "timeHorizon",
+                "id": "time_horizon_input",
+                "label": "Time Horizon",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "5-years",
+                "options": [
+                  "1-year",
+                  "3-years",
+                  "5-years",
+                  "10-years",
+                  "lifetime"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "personalVision",
+                "id": "personal_vision_output",
+                "label": "Personal Vision and Goals",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848542",
+          "language": "en",
+          "name": "Vision Setting",
+          "description": "Creates compelling personal vision and establishes SMART goals aligned with values and aspirations.",
+          "instructions": "Provide self assessment report to create your vision. The routine will help establish your future direction."
+        }
+      ]
+    }
+  ]
+}

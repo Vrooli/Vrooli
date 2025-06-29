@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Parse Email Content",
                 "description": "Extracts and structures email information for analysis",
-                "subroutineId": "email-parser-v1",
+                "subroutineId": "7829564732190848036",
                 "inputMap": {
                   "originalEmailText": "emailContent",
                   "originalTriagePrefs": "triagePreferences"
@@ -43,7 +43,7 @@
                 "id": "step-2",
                 "name": "Classify Email Types",
                 "description": "Categorizes emails by type, urgency, and required action",
-                "subroutineId": "email-classifier-v1",
+                "subroutineId": "7829564732190848039",
                 "inputMap": {
                   "parsedEmails": "emailData",
                   "messageDetails": "emailMetadata",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Extract Tasks and Actions",
                 "description": "Identifies actionable tasks and follow-up items from emails",
-                "subroutineId": "task-extractor-v1",
+                "subroutineId": "7829564732190848042",
                 "inputMap": {
                   "actionableItems": "actionEmails",
                   "highPriorityMessages": "urgentMessages",
@@ -79,7 +79,7 @@
                 "id": "step-4",
                 "name": "Generate Triage Report",
                 "description": "Creates comprehensive email processing recommendations",
-                "subroutineId": "triage-reporter-v1",
+                "subroutineId": "7829564732190848057",
                 "inputMap": {
                   "highPriorityMessages": "urgentQueue",
                   "fyi_messages": "infoQueue",

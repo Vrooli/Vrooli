@@ -1,0 +1,163 @@
+{
+  "id": "7829564732190847213",
+  "publicId": "content-cluster-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847214",
+      "publicId": "doc-clusterer-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1400,
+            "model": null,
+            "prompt": "Analyze and organize the following documents into thematic clusters:\n\n**Document Collection:** {{input.documentCollection}}\n**Number of Clusters:** {{input.clusterCount}}\n**Clustering Method:** {{input.clusteringMethod}}\n{{#if input.focusKeywords}}**Focus Keywords:** {{input.focusKeywords}}{{/if}}\n{{#if input.minClusterSize}}**Minimum Cluster Size:** {{input.minClusterSize}}{{/if}}\n{{#if input.similarityThreshold}}**Similarity Threshold:** {{input.similarityThreshold}}{{/if}}\n\nPerform document clustering analysis:\n\n1. **Document Analysis**\n   - Extract key themes and topics from each document\n   - Identify main concepts, entities, and keywords\n   - Analyze document structure and content type\n   - Calculate document lengths and complexity\n   - Note unique characteristics of each document\n\n2. **Feature Extraction**\n   - Extract significant keywords and phrases\n   - Identify named entities (people, places, organizations)\n   - Determine document categories or domains\n   - Analyze sentiment and tone where relevant\n   - Create feature vectors for similarity comparison\n\n3. **Similarity Calculation**\n   - Compare documents using semantic similarity\n   - Consider keyword overlap and co-occurrence\n   - Analyze conceptual relationships\n   - Calculate similarity scores between document pairs\n   - Create similarity matrix for all documents\n\n4. **Cluster Formation**\n   Based on {{input.clusteringMethod}}:\n   - Group documents with high similarity\n   - Ensure minimum cluster size requirements\n   - Balance cluster sizes when possible\n   - Handle outlier documents appropriately\n   - Optimize for cluster cohesion and separation\n\n5. **Cluster Characterization**\n   For each cluster provide:\n   - Descriptive cluster name/theme\n   - Key distinguishing features\n   - Common keywords and concepts\n   - Cluster size and composition\n   - Representative documents\n   - Cluster quality metrics\n\n6. **Inter-Cluster Analysis**\n   - Relationships between clusters\n   - Overlapping themes or concepts\n   - Cluster hierarchy if applicable\n   - Transition documents between clusters\n   - Overall clustering quality assessment\n\n7. **Document Assignment**\n   For each document specify:\n   - Primary cluster assignment\n   - Confidence score for assignment\n   - Secondary cluster affinities if any\n   - Distance from cluster centroid\n   - Unique contributions to cluster\n\n8. **Theme Extraction**\n   - Major themes across all clusters\n   - Emerging patterns and trends\n   - Unique insights from clustering\n   - Unexpected groupings or relationships\n   - Knowledge gaps or missing topics\n\n9. **Visualization Recommendations**\n   - Best ways to visualize clusters\n   - Suggested layouts (dendogram, network, etc.)\n   - Color coding recommendations\n   - Interactive exploration options\n   - Presentation strategies\n\n10. **Quality Metrics**\n    - Silhouette coefficient for clusters\n    - Intra-cluster cohesion scores\n    - Inter-cluster separation scores\n    - Coverage and completeness metrics\n    - Stability and robustness indicators\n\n11. **Outlier Analysis**\n    - Documents that don't fit well in any cluster\n    - Reasons for outlier status\n    - Potential new cluster candidates\n    - Handling recommendations\n    - Value of outlier documents\n\n12. **Use Case Applications**\n    - Information retrieval optimization\n    - Content organization strategies\n    - Knowledge discovery opportunities\n    - Navigation and browsing improvements\n    - Search and recommendation enhancements\n\n13. **Refinement Suggestions**\n    - Optimal number of clusters analysis\n    - Parameter tuning recommendations\n    - Data preprocessing suggestions\n    - Feature selection improvements\n    - Iterative refinement strategies\n\n14. **Export Formats**\n    - Cluster assignments (JSON/CSV)\n    - Similarity matrix export\n    - Cluster summaries document\n    - Visualization data formats\n    - Integration with other tools\n\n15. **Next Steps**\n    - Further analysis recommendations\n    - Cluster-based workflows\n    - Monitoring cluster evolution\n    - Updating with new documents\n    - Scaling considerations\n\nProvide comprehensive clustering results with clear cluster definitions, document assignments, and actionable insights for content organization.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "documentCollection",
+                "id": "document_collection_input",
+                "label": "Document Collection",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste your documents here (separate with === or provide document titles/summaries):\n\n=== Document 1: Customer Feedback ===\nProduct quality is excellent but shipping times need improvement...\n\n=== Document 2: Technical Issue ===\nServer performance degradation observed during peak hours...\n\n=== Document 3: Feature Request ===\nUsers requesting dark mode and offline capability...",
+                  "minRows": 10
+                }
+              },
+              {
+                "fieldName": "clusterCount",
+                "id": "cluster_count_input",
+                "label": "Number of Clusters",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Auto-detect", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+                  "defaultValue": "Auto-detect"
+                }
+              },
+              {
+                "fieldName": "clusteringMethod",
+                "id": "clustering_method_input",
+                "label": "Clustering Method",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Topic-based", "Semantic similarity", "Keyword clustering", "Hierarchical", "Hybrid approach"],
+                  "defaultValue": "Topic-based"
+                }
+              },
+              {
+                "fieldName": "focusKeywords",
+                "id": "focus_keywords_input",
+                "label": "Focus Keywords (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Enter keywords to emphasize in clustering (comma-separated)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "minClusterSize",
+                "id": "min_cluster_size_input",
+                "label": "Minimum Cluster Size",
+                "type": "IntegerInput",
+                "isRequired": false,
+                "props": {
+                  "min": 1,
+                  "max": 100,
+                  "defaultValue": 2
+                }
+              },
+              {
+                "fieldName": "similarityThreshold",
+                "id": "similarity_threshold_input",
+                "label": "Similarity Threshold",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Low (loose clustering)", "Medium (balanced)", "High (tight clustering)", "Very high (strict)"],
+                  "defaultValue": "Medium (balanced)"
+                }
+              },
+              {
+                "fieldName": "outputFormat",
+                "id": "output_format_input",
+                "label": "Output Format Priority",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Detailed analysis", "Quick summary", "Visual-ready data", "Integration format"],
+                  "defaultValue": "Detailed analysis"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_clustering_results_output",
+                "label": "Complete Clustering Results",
+                "type": "Text"
+              },
+              {
+                "fieldName": "clusterAssignments",
+                "id": "cluster_assignments_output",
+                "label": "Cluster Assignments",
+                "type": "Text"
+              },
+              {
+                "fieldName": "clusterSummaries",
+                "id": "cluster_summaries_output",
+                "label": "Cluster Summaries & Themes",
+                "type": "Text"
+              },
+              {
+                "fieldName": "visualizationData",
+                "id": "visualization_data_output",
+                "label": "Visualization Data & Insights",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847215",
+          "language": "en",
+          "name": "Content Clusterer",
+          "description": "Organizes documents into thematic clusters. Uses embeddings and clustering algorithms to group similar content with theme labels and similarity scores.",
+          "instructions": "1. Paste your document collection\n2. Choose number of clusters (or auto-detect)\n3. Select clustering method\n4. Add focus keywords (optional)\n5. Set minimum cluster size\n6. Choose similarity threshold\n7. Select output format priority\n\nThe clusterer will:\n- Analyze document content and extract features\n- Calculate semantic similarity between documents\n- Form optimal clusters based on your method\n- Provide descriptive names for each cluster\n- Show document assignments with confidence scores\n- Generate cluster quality metrics\n- Identify outliers and edge cases\n- Suggest visualization approaches\n- Provide export-ready data formats\n\nPerfect for:\n- Organizing large document collections\n- Knowledge discovery and pattern finding\n- Content categorization and tagging\n- Information architecture planning\n- Search and navigation optimization"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848615",
+  "publicId": "implementation-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847064",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847164",
+          "language": "en",
+          "description": "Team and resource management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847066",
+      "tag": "implementation",
+      "translations": [
+        {
+          "id": "7829564732190847166",
+          "language": "en",
+          "description": "Implementation and execution"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848616",
+      "publicId": "implementation-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates implementation roadmap for team changes",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "changeImpactAnalysis",
+                "id": "change_impact_analysis_input",
+                "label": "Impact Assessment",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Impact evaluation results"
+              },
+              {
+                "fieldName": "teamRestructuringPlan",
+                "id": "team_restructuring_plan_input",
+                "label": "Restructuring Plan",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Proposed team changes"
+              },
+              {
+                "fieldName": "timelineConstraints",
+                "id": "timeline_constraints_input",
+                "label": "Timeline Requirements",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Implementation timeline"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "implementationRoadmap",
+                "id": "implementation_roadmap_output",
+                "label": "Execution Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "changeManagement",
+                "id": "change_management_output",
+                "label": "Transition Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "monitoringPlan",
+                "id": "monitoring_plan_output",
+                "label": "Progress Tracking",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848617",
+          "language": "en",
+          "name": "Implementation Planner",
+          "description": "Creates detailed implementation roadmap for team structure changes with change management strategy.",
+          "instructions": "Provide impact assessment and restructuring plan. The routine will create an implementation roadmap."
+        }
+      ]
+    }
+  ]
+}

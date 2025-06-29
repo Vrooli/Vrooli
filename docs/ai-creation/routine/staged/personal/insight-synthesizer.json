@@ -1,0 +1,108 @@
+{
+  "id": "7829564732190848465",
+  "publicId": "insight-synthesizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847006",
+      "tag": "personal-development",
+      "translations": [
+        {
+          "id": "7829564732190847106",
+          "language": "en",
+          "description": "Personal growth and self-improvement"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847021",
+      "tag": "content-generation",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Content creation and generation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848466",
+      "publicId": "insight-synthesizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Synthesizes insights from various analysis sources",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "patternAnalysis",
+                "id": "pattern_analysis_input",
+                "label": "Pattern Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Pattern analysis data from pattern analyzer"
+              },
+              {
+                "fieldName": "historicalComparisons",
+                "id": "historical_comparisons_input",
+                "label": "Historical Comparisons",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Historical comparison data from comparison searcher"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "synthesizedInsights",
+                "id": "synthesized_insights_output",
+                "label": "Synthesized Insights",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848467",
+          "language": "en",
+          "name": "Insight Synthesizer",
+          "description": "Synthesizes actionable insights from pattern analysis and historical comparisons to generate comprehensive self-assessment recommendations.",
+          "instructions": "Provide pattern analysis and historical comparison data. The routine will synthesize comprehensive insights and recommendations."
+        }
+      ]
+    }
+  ]
+}

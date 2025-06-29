@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Structure Trade-off Analysis",
                 "description": "Identifies and organizes the key factors and trade-offs involved",
-                "subroutineId": "tradeoff-structurer-v1",
+                "subroutineId": "7829564732190848429",
                 "inputMap": {
                   "originalOptionsList": "optionsList",
                   "originalKeyFactors": "keyFactors",
@@ -44,7 +44,7 @@
                 "id": "step-2",
                 "name": "Analyze Gains and Losses",
                 "description": "Evaluates what is gained and lost with each option",
-                "subroutineId": "gain-loss-analyzer-v1",
+                "subroutineId": "7829564732190848432",
                 "inputMap": {
                   "analyzedOptions": "optionsToAnalyze",
                   "factorMatrix": "tradeoffData",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Create Trade-off Matrix",
                 "description": "Builds comprehensive trade-off comparison matrix",
-                "subroutineId": "matrix-builder-v1",
+                "subroutineId": "7829564732190848435",
                 "inputMap": {
                   "identifiedGains": "gainsData",
                   "identifiedLosses": "lossesData",
@@ -80,7 +80,7 @@
                 "id": "step-4",
                 "name": "Generate Recommendations",
                 "description": "Provides decision recommendations based on trade-off analysis",
-                "subroutineId": "tradeoff-advisor-v1",
+                "subroutineId": "7829564732190848438",
                 "inputMap": {
                   "completedMatrix": "finalMatrix",
                   "matrixVisualization": "visualData",

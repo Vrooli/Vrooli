@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848306",
+  "publicId": "habit-coaching-advisor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847105",
+      "publicId": "habits-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "habits"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848307",
+      "publicId": "habit-coaching-advisor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Provides personalized coaching advice based on performance",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Motivational",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Generate personalized habit coaching advice based on performance:\n\nPerformance Data: {{input.performanceData}}\nPattern Analysis: {{input.patternAnalysis}}\nCurrent Challenges: {{input.currentChallenges}}\nPersonal Goals: {{input.personalGoals}}\nMotivation Style: {{input.motivationStyle}}\n\nProvide comprehensive coaching guidance:\n\n1. **Performance Review**:\n   - Celebration of wins\n   - Progress acknowledgment\n   - Strength identification\n   - Growth recognition\n   - Milestone achievements\n\n2. **Motivational Messaging**:\n   - Personalized encouragement\n   - Progress visualization\n   - Success reminders\n   - Identity reinforcement\n   - Future vision casting\n\n3. **Challenge Navigation**:\n   - Specific obstacle solutions\n   - Resistance strategies\n   - Environmental modifications\n   - Support system activation\n   - Mindset reframing\n\n4. **Strategic Adjustments**:\n   - Habit modification suggestions\n   - Timing optimizations\n   - Difficulty calibration\n   - Stack recommendations\n   - Recovery protocols\n\n5. **Focus Priorities**:\n   - This week's focus\n   - Key habit emphasis\n   - Secondary priorities\n   - Maintenance habits\n   - Experimental additions\n\n6. **Accountability Framework**:\n   - Check-in reminders\n   - Progress milestones\n   - Commitment strategies\n   - Partner suggestions\n   - Review schedules\n\n7. **Psychological Support**:\n   - Self-compassion reminders\n   - Perfectionism management\n   - Failure reframing\n   - Confidence building\n   - Resilience cultivation\n\n8. **Action Steps**:\n   - Immediate actions\n   - Weekly adjustments\n   - System improvements\n   - Environment changes\n   - Skill development\n\nReturn as structured JSON with keys: performanceReview (object), motivationalMessage (object), challengeStrategies (array), adjustmentPlan (object), focusPriorities (object), accountabilityPlan (object), psychologicalSupport (object), actionSteps (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "performanceData",
+                "id": "performance_input",
+                "label": "Recent Performance",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Recent habit completion rates and trends...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "patternAnalysis",
+                "id": "patterns_input",
+                "label": "Pattern Analysis",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key patterns and insights from tracking...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "currentChallenges",
+                "id": "challenges_input",
+                "label": "Current Challenges",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Obstacles and difficulties you're facing...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "personalGoals",
+                "id": "goals_input",
+                "label": "Personal Goals",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What you're trying to achieve with these habits...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "motivationStyle",
+                "id": "motivation_input",
+                "label": "Motivation Style",
+                "type": "Selector",
+                "props": {
+                  "options": ["Gentle Encouragement", "Tough Love", "Data-Driven", "Inspirational", "Practical", "Balanced"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "coachingAdvice",
+                "id": "advice_output",
+                "label": "Personalized Coaching",
+                "type": "Text"
+              },
+              {
+                "fieldName": "weeklyPlan",
+                "id": "plan_output",
+                "label": "Weekly Action Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848308",
+          "language": "en-US",
+          "description": "Provides personalized coaching advice with motivation, strategies, and action plans",
+          "instructions": "Share your performance data and challenges. The system will provide personalized coaching and a weekly plan.",
+          "name": "Habit Coaching Advisor"
+        }
+      ]
+    }
+  ]
+}

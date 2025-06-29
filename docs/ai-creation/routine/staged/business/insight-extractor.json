@@ -1,0 +1,137 @@
+{
+  "id": "7829564732190848354",
+  "publicId": "insight-extractor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847033",
+      "publicId": "business-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "business"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848355",
+      "publicId": "insight-extractor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Extracts actionable insights from feedback analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Extract actionable insights and priority areas from feedback analysis:\n\nSentiment Data: {{input.sentimentData}}\nTheme Data: {{input.themeData}}\nEmotional Analysis: {{input.emotionalAnalysis}}\nFrequent Problems: {{input.frequentProblems}}\n\nIdentify key insights comprehensively:\n\n1. **Positive Highlights**:\n   - Top satisfaction drivers\n   - Most praised features\n   - Delighter elements\n   - Competitive advantages\n   - Brand loyalty factors\n\n2. **Critical Issues**:\n   - Major pain points\n   - Deal breakers\n   - Urgent problems\n   - Systemic issues\n   - Customer frustrations\n\n3. **Improvement Opportunities**:\n   - Quick wins\n   - Feature enhancements\n   - Service improvements\n   - Process optimizations\n   - Experience upgrades\n\n4. **Unmet Customer Needs**:\n   - Feature gaps\n   - Service limitations\n   - Market opportunities\n   - Innovation areas\n   - Expansion possibilities\n\n5. **Customer Journey Insights**:\n   - Friction points\n   - Confusion areas\n   - Drop-off causes\n   - Engagement peaks\n   - Satisfaction moments\n\n6. **Competitive Intelligence**:\n   - Competitor mentions\n   - Comparison points\n   - Switching reasons\n   - Market positioning\n   - Differentiation opportunities\n\n7. **Business Impact Analysis**:\n   - Revenue implications\n   - Retention risks\n   - Growth opportunities\n   - Cost reduction areas\n   - Efficiency gains\n\n8. **Strategic Priorities**:\n   - Must-fix issues\n   - High-impact improvements\n   - Customer retention focus\n   - Growth enablers\n   - Innovation priorities\n\nReturn as structured JSON with keys: praisePoints (array), painPoints (array), improvementOpportunities (array), customerNeeds (array), journeyInsights (object), competitiveIntel (object), businessImpact (object), strategicPriorities (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "sentimentData",
+                "id": "sentiment_input",
+                "label": "Overall Sentiment",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Sentiment analysis results...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "themeData",
+                "id": "themes_input",
+                "label": "Recurring Themes",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key themes identified...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "emotionalAnalysis",
+                "id": "emotional_input",
+                "label": "Emotional Patterns",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Emotional analysis findings...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "frequentProblems",
+                "id": "problems_input",
+                "label": "Common Issues",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Frequently mentioned problems...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "keyInsights",
+                "id": "insights_output",
+                "label": "Actionable Insights",
+                "type": "Text"
+              },
+              {
+                "fieldName": "priorityAreas",
+                "id": "priorities_output",
+                "label": "Priority Areas",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848356",
+          "language": "en-US",
+          "description": "Extracts actionable business insights from sentiment and theme analysis",
+          "instructions": "Provide sentiment and theme analysis. The system will extract key insights and priorities.",
+          "name": "Insight Extractor"
+        }
+      ]
+    }
+  ]
+}

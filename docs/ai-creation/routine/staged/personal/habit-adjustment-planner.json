@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848309",
+  "publicId": "habit-adjustment-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847105",
+      "publicId": "habits-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "habits"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848310",
+      "publicId": "habit-adjustment-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Suggests modifications to habits for better success",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Strategic",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Plan strategic adjustments to habits and routines for better success:\n\nCurrent Habits: {{input.currentHabits}}\nSuccess Rates: {{input.successRates}}\nIdentified Issues: {{input.identifiedIssues}}\nLife Context: {{input.lifeContext}}\nAdjustment Preferences: {{input.adjustmentPreferences}}\n\nDevelop comprehensive adjustment plan:\n\n1. **Habit Difficulty Calibration**:\n   - Overambitious habit scaling\n   - Micro-habit creation\n   - Progressive difficulty\n   - Minimum viable habits\n   - Stretch goal balance\n\n2. **Timing Optimization**:\n   - Schedule realignment\n   - Energy matching\n   - Context switching\n   - Buffer time addition\n   - Flexibility increase\n\n3. **Environmental Design**:\n   - Friction reduction\n   - Cue optimization\n   - Distraction elimination\n   - Support structure\n   - Visual reminders\n\n4. **Habit Stacking Refinement**:\n   - Chain reorganization\n   - Anchor habit selection\n   - Flow optimization\n   - Natural sequences\n   - Transition smoothing\n\n5. **System Simplification**:\n   - Habit consolidation\n   - Complexity reduction\n   - Focus narrowing\n   - Essential prioritization\n   - Maintenance mode\n\n6. **Recovery & Flexibility**:\n   - Backup plans\n   - Skip day protocols\n   - Comeback strategies\n   - Grace periods\n   - Adaptive scheduling\n\n7. **Motivation Enhancement**:\n   - Reward system updates\n   - Progress visibility\n   - Social elements\n   - Gamification options\n   - Identity alignment\n\n8. **Implementation Timeline**:\n   - Phased adjustments\n   - Testing periods\n   - Review checkpoints\n   - Success metrics\n   - Iteration planning\n\nReturn as structured JSON with keys: difficultyAdjustments (object), timingOptimization (object), environmentalChanges (array), habitStacking (object), systemSimplification (object), flexibilityPlan (object), motivationEnhancements (array), implementationSchedule (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentHabits",
+                "id": "habits_input",
+                "label": "Current Habits",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List of current habits and their details...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "successRates",
+                "id": "success_input",
+                "label": "Success Rates",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Completion rates for each habit...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "identifiedIssues",
+                "id": "issues_input",
+                "label": "Identified Issues",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Problems and obstacles with current system...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "lifeContext",
+                "id": "context_input",
+                "label": "Life Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Current life situation, schedule, responsibilities...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "adjustmentPreferences",
+                "id": "preferences_input",
+                "label": "Adjustment Preferences",
+                "type": "Selector",
+                "props": {
+                  "options": ["Minor Tweaks", "Moderate Changes", "Major Overhaul", "Gradual Evolution", "Experimental"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "adjustmentPlan",
+                "id": "plan_output",
+                "label": "Habit Adjustment Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "guide_output",
+                "label": "Implementation Guide",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848311",
+          "language": "en-US",
+          "description": "Creates strategic adjustments to habits with timing, difficulty, and environmental optimizations",
+          "instructions": "Provide current habits and success rates. The system will create an adjustment plan for better success.",
+          "name": "Habit Adjustment Planner"
+        }
+      ]
+    }
+  ]
+}

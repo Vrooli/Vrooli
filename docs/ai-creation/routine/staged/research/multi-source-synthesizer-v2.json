@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848741",
+  "publicId": "synthesis-engine-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847096",
+      "tag": "synthesis",
+      "translations": [
+        {
+          "id": "7829564732190847196",
+          "language": "en",
+          "description": "Information synthesis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848742",
+      "publicId": "synthesis-engine-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Advanced synthesis engine",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "sharedInsights",
+                "id": "shared_insights_input",
+                "label": "Common Themes",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Shared insights across sources"
+              },
+              {
+                "fieldName": "discrepancies",
+                "id": "discrepancies_input",
+                "label": "Conflicting Information",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Conflicting information"
+              },
+              {
+                "fieldName": "uniqueFindings",
+                "id": "unique_findings_input",
+                "label": "Exclusive Insights",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Unique findings from individual sources"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "unifiedSynthesis",
+                "id": "unified_synthesis_output",
+                "label": "Integrated Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "confidenceLevel",
+                "id": "confidence_level_output",
+                "label": "Synthesis Confidence",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "knowledgeGaps",
+                "id": "knowledge_gaps_output",
+                "label": "Identified Gaps",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848743",
+          "language": "en",
+          "name": "Advanced Synthesis Engine",
+          "description": "Combines all findings into unified analysis with confidence levels and gap identification.",
+          "instructions": "Provide insights and discrepancies. The routine will create an integrated analysis."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+{
+  "id": "7829564732190847123",
+  "publicId": "meal-plan-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847124",
+      "publicId": "meal-plnr-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Helpful",
+            "maxTokens": 1500,
+            "model": null,
+            "prompt": "Create a personalized meal plan based on the following preferences:\n\n**Dietary Preferences:** {{input.dietaryPreferences}}\n**Ingredients Available:** {{input.ingredientsOnHand}}\n**Calorie Target:** {{input.calorieTarget}}\n**Schedule/Lifestyle:** {{input.scheduleConstraints}}\n{{#if input.cookingSkillLevel}}**Cooking Skill Level:** {{input.cookingSkillLevel}}{{/if}}\n{{#if input.budgetConstraints}}**Budget Considerations:** {{input.budgetConstraints}}{{/if}}\n{{#if input.healthGoals}}**Health Goals:** {{input.healthGoals}}{{/if}}\n\nGenerate a comprehensive weekly meal plan:\n\n1. **Weekly Meal Schedule**\n   - 7-day meal plan with breakfast, lunch, dinner\n   - Healthy snack suggestions\n   - Portion size recommendations\n   - Meal timing suggestions\n   - Weekend vs. weekday considerations\n\n2. **Recipe Recommendations**\n   - Detailed recipes for each planned meal\n   - Preparation time and difficulty level\n   - Cooking instructions and techniques\n   - Ingredient substitution options\n   - Make-ahead and batch cooking tips\n\n3. **Comprehensive Grocery List**\n   - Organized by food category (produce, dairy, etc.)\n   - Quantity specifications\n   - Priority items vs. optional ingredients\n   - Budget-friendly alternatives\n   - Seasonal availability considerations\n\n4. **Nutritional Analysis**\n   - Daily calorie breakdown per meal\n   - Macronutrient distribution (protein, carbs, fats)\n   - Key vitamins and minerals coverage\n   - Fiber and micronutrient content\n   - Hydration recommendations\n\n5. **Meal Prep Strategy**\n   - Batch cooking opportunities\n   - Make-ahead components\n   - Storage and reheating instructions\n   - Time-saving preparation tips\n   - Weekly prep schedule\n\n6. **Dietary Compliance**\n   - How meals meet dietary restrictions\n   - Allergen awareness and alternatives\n   - Special nutritional needs addressed\n   - Supplement recommendations if needed\n   - Portion control guidance\n\n7. **Variety & Balance**\n   - Cuisine diversity throughout the week\n   - Color and texture variety\n   - Seasonal ingredient incorporation\n   - Comfort food vs. adventurous options\n   - Cultural and regional preferences\n\n8. **Budget Optimization**\n   - Cost-effective ingredient choices\n   - Bulk buying opportunities\n   - Leftover utilization strategies\n   - Generic vs. brand considerations\n   - Cost per serving estimates\n\n9. **Time Management**\n   - Quick meal options for busy days\n   - Slow cooker and one-pot meals\n   - 15-minute meal solutions\n   - Advanced prep recommendations\n   - Emergency backup meal ideas\n\n10. **Health & Wellness Integration**\n    - How meals support health goals\n    - Energy level optimization\n    - Digestive health considerations\n    - Anti-inflammatory ingredients\n    - Mood and cognitive function support\n\n11. **Flexibility & Adaptations**\n    - Easy ingredient swaps\n    - Scaling recipes for different household sizes\n    - Restaurant/takeout alternatives\n    - Travel and eating out guidance\n    - Seasonal menu adaptations\n\n12. **Success Tips & Motivation**\n    - Meal planning sustainability strategies\n    - Common pitfalls and solutions\n    - Progress tracking suggestions\n    - Reward and motivation systems\n    - Community and support resources\n\nEnsure all recommendations are practical, achievable, and aligned with the specified preferences and constraints.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dietaryPreferences",
+                "id": "dietary_preferences_input",
+                "label": "Dietary Preferences",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Any dietary restrictions, preferences, or styles? (e.g., vegetarian, keto, Mediterranean, gluten-free, allergies...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "ingredientsOnHand",
+                "id": "ingredients_on_hand_input",
+                "label": "Ingredients Currently Available",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What ingredients do you already have? This helps minimize grocery shopping...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "calorieTarget",
+                "id": "calorie_target_input",
+                "label": "Daily Calorie Target",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["1200-1400 calories", "1400-1600 calories", "1600-1800 calories", "1800-2000 calories", "2000-2200 calories", "2200-2500 calories", "2500+ calories", "Not tracking calories"],
+                  "defaultValue": "1800-2000 calories"
+                }
+              },
+              {
+                "fieldName": "scheduleConstraints",
+                "id": "schedule_constraints_input",
+                "label": "Schedule & Lifestyle",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe your schedule, cooking time availability, and lifestyle factors (work hours, family size, activity level...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "cookingSkillLevel",
+                "id": "cooking_skill_level_input",
+                "label": "Cooking Skill Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Beginner (simple recipes)", "Intermediate (moderate complexity)", "Advanced (complex techniques)", "Expert (any difficulty)", "Prefer minimal cooking"],
+                  "defaultValue": "Intermediate (moderate complexity)"
+                }
+              },
+              {
+                "fieldName": "budgetConstraints",
+                "id": "budget_constraints_input",
+                "label": "Budget Considerations (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any budget constraints or cost preferences per week/month?",
+                  "minRows": 1
+                }
+              },
+              {
+                "fieldName": "healthGoals",
+                "id": "health_goals_input",
+                "label": "Health Goals (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific health goals? (weight loss, muscle gain, better energy, disease management...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "planDuration",
+                "id": "plan_duration_input",
+                "label": "Plan Duration",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["1 week", "2 weeks", "1 month"],
+                  "defaultValue": "1 week"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_meal_plan_output",
+                "label": "Complete Meal Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "weeklySchedule",
+                "id": "weekly_schedule_output",
+                "label": "Weekly Meal Schedule",
+                "type": "Text"
+              },
+              {
+                "fieldName": "groceryList",
+                "id": "grocery_list_output",
+                "label": "Grocery Shopping List",
+                "type": "Text"
+              },
+              {
+                "fieldName": "mealPrepGuide",
+                "id": "meal_prep_guide_output",
+                "label": "Meal Prep Strategy",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847125",
+          "language": "en",
+          "name": "Meal Planner",
+          "description": "Suggests meal plans based on dietary preferences and goals. Creates weekly meal schedule, recipes, grocery list, and nutrition estimates with meal prep strategies and budget optimization.",
+          "instructions": "1. Describe dietary preferences and restrictions\n2. List ingredients you already have (optional)\n3. Set daily calorie target\n4. Describe schedule and lifestyle constraints\n5. Choose cooking skill level\n6. Add budget considerations (optional)\n7. Specify health goals (optional)\n8. Select plan duration\n\nThe planner will create:\n- 7-day meal schedule with recipes\n- Organized grocery shopping list\n- Nutritional analysis and calorie breakdown\n- Meal prep and time-saving strategies\n- Budget optimization tips\n- Flexibility and adaptation options\n\nPerfect for busy individuals, families, and anyone looking to eat healthier with structured meal planning."
+        }
+      ]
+    }
+  ]
+}

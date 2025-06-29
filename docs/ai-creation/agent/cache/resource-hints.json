@@ -1,0 +1,80 @@
+{
+  "resourceCategories": {
+    "data-sources": [
+      "database-connections",
+      "api-endpoints",
+      "file-systems",
+      "streaming-data",
+      "external-apis"
+    ],
+    "processing-tools": [
+      "statistical-engines",
+      "ml-models",
+      "transformation-pipelines",
+      "validation-rules",
+      "analysis-frameworks"
+    ],
+    "communication": [
+      "notification-channels",
+      "messaging-queues",
+      "email-services",
+      "webhook-endpoints",
+      "alert-systems"
+    ],
+    "monitoring": [
+      "metrics-collectors",
+      "log-aggregators", 
+      "health-checks",
+      "performance-monitors",
+      "error-trackers"
+    ],
+    "storage": [
+      "cache-systems",
+      "document-stores",
+      "backup-systems",
+      "temporary-storage",
+      "archive-systems"
+    ],
+    "security": [
+      "authentication-systems",
+      "authorization-policies",
+      "encryption-services",
+      "audit-logs",
+      "access-controls"
+    ]
+  },
+  "commonPatterns": {
+    "coordinator": [
+      "task-queue",
+      "agent-registry", 
+      "workflow-templates",
+      "resource-pool"
+    ],
+    "specialist": [
+      "domain-knowledge-base",
+      "specialized-tools",
+      "validation-rules",
+      "output-templates"
+    ],
+    "monitor": [
+      "monitoring-dashboards",
+      "alert-channels",
+      "threshold-configurations",
+      "escalation-policies"
+    ],
+    "bridge": [
+      "api-connectors",
+      "data-transformation-rules",
+      "rate-limiting-policies",
+      "connection-pools"
+    ]
+  },
+  "dynamicResources": [
+    "user-data",
+    "session-context",
+    "real-time-metrics", 
+    "external-api-data",
+    "cached-results"
+  ],
+  "notes": "Resources represent external dependencies and tools that agents may need to access during execution. Use specific, descriptive names that clearly indicate the resource purpose."
+}

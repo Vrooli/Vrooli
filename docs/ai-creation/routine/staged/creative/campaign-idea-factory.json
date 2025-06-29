@@ -1,0 +1,172 @@
+{
+  "id": "7829564732190847153",
+  "publicId": "campaign-fact-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847154",
+      "publicId": "campaigns-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 1400,
+            "model": null,
+            "prompt": "Generate creative marketing campaign concepts for the following:\n\n**Product/Service:** {{input.productService}}\n**Campaign Goals:** {{input.campaignGoals}}\n**Target Audience:** {{input.targetAudience}}\n**Budget Level:** {{input.budgetLevel}}\n{{#if input.brandPersonality}}**Brand Personality:** {{input.brandPersonality}}{{/if}}\n{{#if input.timeframe}}**Campaign Timeframe:** {{input.timeframe}}{{/if}}\n{{#if input.channels}}**Preferred Channels:** {{input.channels}}{{/if}}\n\nDevelop comprehensive campaign concepts:\n\n1. **Campaign Themes & Concepts**\n   - 3-5 distinct campaign themes\n   - Core message for each theme\n   - Emotional hooks and appeals\n   - Unique value propositions\n   - Brand story integration\n   - Memorable campaign names\n\n2. **Creative Concepts**\n   - Visual identity directions\n   - Key visual elements and motifs\n   - Color palette suggestions\n   - Typography and design style\n   - Logo/symbol integration\n   - Photography/illustration style\n\n3. **Messaging Strategy**\n   - Primary taglines and slogans\n   - Key messages by audience segment\n   - Call-to-action variations\n   - Tone of voice guidelines\n   - Elevator pitch versions\n   - Value proposition statements\n\n4. **Channel Strategy**\n   - Optimal channel mix\n   - Channel-specific adaptations\n   - Cross-channel integration\n   - Content format recommendations\n   - Budget allocation suggestions\n   - Timeline and sequencing\n\n5. **Content Ideas**\n   - Social media content themes\n   - Video concept outlines\n   - Blog post topic suggestions\n   - Email campaign sequences\n   - Print advertisement concepts\n   - Interactive content ideas\n\n6. **Audience Engagement Tactics**\n   - Interactive elements\n   - User-generated content strategies\n   - Community building approaches\n   - Influencer collaboration ideas\n   - Event and activation concepts\n   - Gamification opportunities\n\n7. **Digital Marketing Elements**\n   - Social media campaign ideas\n   - PPC advertising concepts\n   - SEO content strategies\n   - Email marketing sequences\n   - Website landing page concepts\n   - Mobile app integration\n\n8. **Traditional Marketing Components**\n   - Print advertisement concepts\n   - Radio/TV commercial ideas\n   - Outdoor advertising concepts\n   - Direct mail campaigns\n   - PR and media relations\n   - Event marketing opportunities\n\n9. **Innovative Tactics**\n   - Guerrilla marketing ideas\n   - Experiential marketing concepts\n   - Technology integration (AR/VR)\n   - Partnership opportunities\n   - Cause marketing alignments\n   - Viral marketing potential\n\n10. **Campaign Activation Ideas**\n    - Launch event concepts\n    - Teaser campaign strategies\n    - Progressive reveal tactics\n    - Milestone celebrations\n    - Seasonal tie-ins\n    - Trending topic integration\n\n11. **Measurement & Analytics**\n    - Key performance indicators\n    - Success metrics by channel\n    - A/B testing opportunities\n    - Customer journey tracking\n    - ROI measurement approaches\n    - Brand awareness metrics\n\n12. **Implementation Roadmap**\n    - Phase-by-phase rollout\n    - Resource requirements\n    - Timeline milestones\n    - Risk mitigation strategies\n    - Contingency plans\n    - Optimization opportunities\n\n13. **Budget Optimization**\n    - Cost-effective tactics\n    - High-impact, low-cost ideas\n    - Scalable campaign elements\n    - Resource allocation priorities\n    - Partnership cost-sharing\n    - Organic reach maximization\n\n14. **Competitive Differentiation**\n    - Unique positioning angles\n    - Market gap exploitation\n    - Competitive advantage leverage\n    - Blue ocean opportunities\n    - Disruption potential\n    - First-mover advantages\n\n15. **Long-term Strategy**\n    - Campaign evolution potential\n    - Brand building alignment\n    - Customer lifecycle integration\n    - Seasonal adaptation\n    - Market expansion support\n    - Legacy and follow-up campaigns\n\nProvide multiple creative concepts for further development, focusing on campaigns that align with goals while standing out in the marketplace. Include rationale for each major recommendation.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "productService",
+                "id": "product_service_input",
+                "label": "Product/Service",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the product or service you're creating a campaign for...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "campaignGoals",
+                "id": "campaign_goals_input",
+                "label": "Campaign Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What do you want to achieve? (brand awareness, sales, leads, engagement...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Who is your target audience? Include demographics, psychographics, behaviors...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "budgetLevel",
+                "id": "budget_level_input",
+                "label": "Budget Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Minimal (under $5K)", "Small ($5K-$25K)", "Medium ($25K-$100K)", "Large ($100K-$500K)", "Enterprise ($500K+)", "Flexible/To be determined"],
+                  "defaultValue": "Medium ($25K-$100K)"
+                }
+              },
+              {
+                "fieldName": "brandPersonality",
+                "id": "brand_personality_input",
+                "label": "Brand Personality (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How would you describe your brand? (professional, playful, innovative, trustworthy...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Campaign Timeframe",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["1-2 weeks", "1 month", "3 months", "6 months", "1 year", "Ongoing"],
+                  "defaultValue": "3 months"
+                }
+              },
+              {
+                "fieldName": "channels",
+                "id": "channels_input",
+                "label": "Preferred Channels (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific marketing channels you want to focus on or avoid?"
+                }
+              },
+              {
+                "fieldName": "competitiveLandscape",
+                "id": "competitive_landscape_input",
+                "label": "Competitive Context (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any information about competitors or market positioning?",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_campaign_concepts_output",
+                "label": "Complete Campaign Concepts",
+                "type": "Text"
+              },
+              {
+                "fieldName": "campaignThemes",
+                "id": "campaign_themes_output",
+                "label": "Campaign Themes & Core Concepts",
+                "type": "Text"
+              },
+              {
+                "fieldName": "channelStrategy",
+                "id": "channel_strategy_output",
+                "label": "Channel Strategy & Tactics",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationRoadmap",
+                "id": "implementation_roadmap_output",
+                "label": "Implementation Roadmap",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847155",
+          "language": "en",
+          "name": "Campaign Idea Factory",
+          "description": "Generates creative marketing campaign concepts. Provides multiple campaign themes, channel strategies, creative concepts, and implementation roadmaps tailored to goals, audience, and budget.",
+          "instructions": "1. Describe your product or service\n2. Define campaign goals and objectives\n3. Detail your target audience\n4. Select budget level\n5. Add brand personality (optional)\n6. Choose campaign timeframe\n7. Specify preferred channels (optional)\n8. Add competitive context (optional)\n\nThe factory will generate:\n- Multiple creative campaign themes\n- Channel strategy and tactics\n- Messaging and creative concepts\n- Implementation roadmap and timeline\n- Budget optimization suggestions\n- Measurement and analytics framework\n- Competitive differentiation strategies\n\nPerfect for marketing teams, agencies, and entrepreneurs who need comprehensive campaign concepts for further development and execution."
+        }
+      ]
+    }
+  ]
+}

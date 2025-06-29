@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190848117",
+  "publicId": "time-block-scheduler-core-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847101",
+      "publicId": "scheduling-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "scheduling"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848118",
+      "publicId": "time-block-scheduler-core-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Core time blocking subroutine for workflow integration",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Create optimized time blocks from prioritized tasks and schedule constraints:\n\nPrioritized Tasks: {{input.prioritizedTasks}}\nAvailable Time Slots: {{input.availableTimeSlots}}\nEnergy Profile: {{input.energyProfile}}\nCalendar Constraints: {{input.calendarConstraints}}\n\nGenerate optimized time blocking schedule:\n\n1. Time Block Allocation:\n   - Match high-priority tasks to optimal time slots\n   - Align task complexity with energy levels\n   - Consider context switching costs\n   - Account for buffer time\n   - Batch similar task types\n\n2. Energy-Task Optimization:\n   - Peak energy hours for important/complex work\n   - Medium energy for routine tasks\n   - Low energy for administrative work\n   - Natural energy rhythm alignment\n   - Break and recovery periods\n\n3. Calendar Integration:\n   - Work around existing commitments\n   - Travel time considerations\n   - Meeting preparation blocks\n   - Follow-up time allocation\n   - Conflict resolution\n\n4. Focus Block Design:\n   - Deep work blocks (90-120 minutes)\n   - Medium focus blocks (45-60 minutes)\n   - Quick task blocks (15-30 minutes)\n   - Communication blocks\n   - Administrative blocks\n\n5. Scheduling Strategies:\n   - Most important tasks first\n   - Deadline-driven scheduling\n   - Theme-based day organization\n   - Time boxing with buffers\n   - Flexibility for interruptions\n\n6. Block Transitions:\n   - Context switching minimization\n   - Setup and cleanup time\n   - Mental transition periods\n   - Location change considerations\n   - Tool and resource preparation\n\n7. Schedule Optimization:\n   - Minimize fragmentation\n   - Maximize flow states\n   - Protect high-value blocks\n   - Build in flexibility\n   - Account for realistic timing\n\nReturn as structured JSON with keys: timeBlockSchedule (array with times and tasks), energyAlignment (object), bufferTimeAllocation (object), focusBlocks (array), flexibilityBuffer (percentage), scheduleMetrics (object), optimizationNotes (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedTasks",
+                "id": "tasks_input",
+                "label": "Prioritized Tasks",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Priority-ordered task list with time estimates...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "availableTimeSlots",
+                "id": "time_input",
+                "label": "Available Time Slots",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Free time blocks in your calendar...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "energyProfile",
+                "id": "energy_input",
+                "label": "Energy Profile",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "When are you most/least productive? (morning person, afternoon peak, etc.)"
+                }
+              },
+              {
+                "fieldName": "calendarConstraints",
+                "id": "constraints_input",
+                "label": "Calendar Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Existing meetings, commitments, travel time, etc.",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeBlockedSchedule",
+                "id": "schedule_output",
+                "label": "Time Blocked Schedule",
+                "type": "Text"
+              },
+              {
+                "fieldName": "schedulingInsights",
+                "id": "insights_output",
+                "label": "Scheduling Insights",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848119",
+          "language": "en-US",
+          "description": "Core time blocking subroutine that creates optimized schedules from prioritized tasks",
+          "instructions": "Enter your prioritized tasks and available time slots. The system will create an optimized time-blocked schedule aligned with your energy levels and constraints.",
+          "name": "Time Block Scheduler Core"
+        }
+      ]
+    }
+  ]
+}

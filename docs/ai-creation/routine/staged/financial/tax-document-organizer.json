@@ -1,0 +1,159 @@
+{
+  "id": "7829564732190847246",
+  "publicId": "tax-organizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847247",
+      "publicId": "tax-docs-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import json\nfrom datetime import datetime\nimport re\n\ndef organize_tax_documents():\n    # Get inputs\n    income_data = globals().get('income_data', '')\n    expense_data = globals().get('expense_data', '')\n    deduction_items = globals().get('deduction_items', '')\n    filing_status = globals().get('filing_status', 'Single')\n    tax_year = globals().get('tax_year', str(datetime.now().year - 1))\n    self_employed = globals().get('self_employed', 'No')\n    \n    def parse_income_data(income_text):\n        \"\"\"Parse income sources from input\"\"\"\n        income_sources = []\n        \n        if not income_text.strip():\n            # Sample data\n            income_sources = [\n                {'source': 'Primary Employment (W-2)', 'amount': 65000, 'tax_withheld': 8500},\n                {'source': 'Side Business (1099)', 'amount': 15000, 'tax_withheld': 0},\n                {'source': 'Investment Dividends', 'amount': 2500, 'tax_withheld': 0}\n            ]\n        else:\n            lines = income_text.strip().split('\\n')\n            for line in lines:\n                parts = line.split(',')\n                if len(parts) >= 2:\n                    income_sources.append({\n                        'source': parts[0].strip(),\n                        'amount': float(parts[1].strip()) if parts[1].strip().replace('.', '').isdigit() else 0,\n                        'tax_withheld': float(parts[2].strip()) if len(parts) > 2 and parts[2].strip().replace('.', '').isdigit() else 0\n                    })\n        \n        return income_sources\n    \n    def parse_expense_data(expense_text):\n        \"\"\"Parse deductible expenses from input\"\"\"\n        expenses = {}\n        expense_categories = {\n            'business': ['Office supplies', 'Travel', 'Equipment', 'Software', 'Internet', 'Phone'],\n            'medical': ['Health insurance', 'Doctor visits', 'Prescriptions', 'Medical equipment'],\n            'education': ['Tuition', 'Books', 'Student loan interest', 'Courses'],\n            'home': ['Mortgage interest', 'Property tax', 'Home office', 'Utilities'],\n            'charity': ['Cash donations', 'Goods donated', 'Volunteer mileage'],\n            'investment': ['Investment fees', 'Tax prep fees', 'Safe deposit box']\n        }\n        \n        if not expense_text.strip():\n            # Sample data\n            expenses = {\n                'business': [{'item': 'Home office', 'amount': 3600}],\n                'medical': [{'item': 'Health insurance premiums', 'amount': 4800}],\n                'home': [{'item': 'Mortgage interest', 'amount': 12000}],\n                'charity': [{'item': 'Charitable donations', 'amount': 2000}]\n            }\n        else:\n            lines = expense_text.strip().split('\\n')\n            for line in lines:\n                parts = line.split(',')\n                if len(parts) >= 2:\n                    item = parts[0].strip()\n                    amount = float(parts[1].strip()) if parts[1].strip().replace('.', '').isdigit() else 0\n                    \n                    # Categorize expense\n                    categorized = False\n                    for category, keywords in expense_categories.items():\n                        if any(keyword.lower() in item.lower() for keyword in keywords):\n                            if category not in expenses:\n                                expenses[category] = []\n                            expenses[category].append({'item': item, 'amount': amount})\n                            categorized = True\n                            break\n                    \n                    if not categorized:\n                        if 'other' not in expenses:\n                            expenses['other'] = []\n                        expenses['other'].append({'item': item, 'amount': amount})\n        \n        return expenses\n    \n    def create_document_checklist(filing_status, self_employed, income_sources, expenses):\n        \"\"\"Create comprehensive document checklist\"\"\"\n        checklist = {\n            'personal_info': [\n                {'document': 'Social Security card', 'required': True, 'status': 'needed'},\n                {'document': 'Driver\\'s license or ID', 'required': True, 'status': 'needed'},\n                {'document': 'Previous year tax return', 'required': True, 'status': 'needed'},\n                {'document': 'Bank account info (for refund)', 'required': True, 'status': 'needed'}\n            ],\n            'income_documents': [],\n            'deduction_documents': [],\n            'special_situations': []\n        }\n        \n        # Income documents based on sources\n        doc_map = {\n            'W-2': 'Form W-2 from employer',\n            '1099': 'Form 1099 (NEC/MISC)',\n            'Investment': '1099-DIV or 1099-INT',\n            'Rental': 'Rental income records',\n            'Self-employment': 'Business income records'\n        }\n        \n        for source in income_sources:\n            for key, doc in doc_map.items():\n                if key.lower() in source['source'].lower():\n                    checklist['income_documents'].append({\n                        'document': doc,\n                        'source': source['source'],\n                        'required': True,\n                        'status': 'needed'\n                    })\n                    break\n        \n        # Deduction documents\n        if expenses:\n            if 'business' in expenses:\n                checklist['deduction_documents'].extend([\n                    {'document': 'Business expense receipts', 'required': True, 'status': 'needed'},\n                    {'document': 'Mileage log', 'required': True, 'status': 'needed'}\n                ])\n            if 'medical' in expenses:\n                checklist['deduction_documents'].append(\n                    {'document': 'Medical expense receipts', 'required': True, 'status': 'needed'}\n                )\n            if 'home' in expenses:\n                checklist['deduction_documents'].extend([\n                    {'document': 'Form 1098 (Mortgage interest)', 'required': True, 'status': 'needed'},\n                    {'document': 'Property tax statement', 'required': True, 'status': 'needed'}\n                ])\n            if 'charity' in expenses:\n                checklist['deduction_documents'].append(\n                    {'document': 'Charity donation receipts', 'required': True, 'status': 'needed'}\n                )\n        \n        # Special situations\n        if self_employed == 'Yes':\n            checklist['special_situations'].extend([\n                {'document': 'Quarterly tax payment records', 'required': True, 'status': 'needed'},\n                {'document': 'Business bank statements', 'required': True, 'status': 'needed'},\n                {'document': 'Business credit card statements', 'required': True, 'status': 'needed'}\n            ])\n        \n        if filing_status in ['Married filing jointly', 'Married filing separately']:\n            checklist['special_situations'].append(\n                {'document': 'Spouse\\'s income documents', 'required': True, 'status': 'needed'}\n            )\n        \n        return checklist\n    \n    def calculate_tax_estimates(income_sources, expenses, filing_status):\n        \"\"\"Rough tax estimate for planning purposes\"\"\"\n        # 2023 tax brackets (simplified)\n        tax_brackets = {\n            'Single': [\n                (11000, 0.10),\n                (44725, 0.12),\n                (95375, 0.22),\n                (182050, 0.24),\n                (231250, 0.32),\n                (578125, 0.35),\n                (float('inf'), 0.37)\n            ],\n            'Married filing jointly': [\n                (22000, 0.10),\n                (89075, 0.12),\n                (190750, 0.22),\n                (364200, 0.24),\n                (462500, 0.32),\n                (693750, 0.35),\n                (float('inf'), 0.37)\n            ]\n        }\n        \n        # Standard deductions\n        standard_deductions = {\n            'Single': 13850,\n            'Married filing jointly': 27700,\n            'Married filing separately': 13850,\n            'Head of household': 20800\n        }\n        \n        # Calculate total income\n        total_income = sum(source['amount'] for source in income_sources)\n        total_withheld = sum(source['tax_withheld'] for source in income_sources)\n        \n        # Calculate total deductions\n        total_expenses = sum(sum(item['amount'] for item in category) for category in expenses.values())\n        standard_deduction = standard_deductions.get(filing_status, 13850)\n        \n        # Use larger of standard or itemized\n        total_deductions = max(standard_deduction, total_expenses)\n        deduction_type = 'Standard' if standard_deduction > total_expenses else 'Itemized'\n        \n        # Taxable income\n        taxable_income = max(0, total_income - total_deductions)\n        \n        # Calculate tax (simplified)\n        tax_owed = 0\n        brackets = tax_brackets.get(filing_status, tax_brackets['Single'])\n        previous_bracket = 0\n        \n        for bracket_limit, rate in brackets:\n            if taxable_income > bracket_limit:\n                tax_owed += (bracket_limit - previous_bracket) * rate\n                previous_bracket = bracket_limit\n            else:\n                tax_owed += (taxable_income - previous_bracket) * rate\n                break\n        \n        # Self-employment tax if applicable\n        self_employment_income = sum(s['amount'] for s in income_sources if '1099' in s['source'] or 'self' in s['source'].lower())\n        self_employment_tax = self_employment_income * 0.1413  # Simplified SE tax\n        \n        total_tax = tax_owed + self_employment_tax\n        refund_or_owed = total_withheld - total_tax\n        \n        return {\n            'total_income': total_income,\n            'total_deductions': total_deductions,\n            'deduction_type': deduction_type,\n            'taxable_income': taxable_income,\n            'estimated_tax': round(tax_owed, 2),\n            'self_employment_tax': round(self_employment_tax, 2),\n            'total_tax': round(total_tax, 2),\n            'tax_withheld': total_withheld,\n            'estimated_refund_or_owed': round(refund_or_owed, 2),\n            'effective_tax_rate': round((total_tax / total_income * 100), 1) if total_income > 0 else 0\n        }\n    \n    def generate_organization_tips(filing_status, self_employed):\n        \"\"\"Generate personalized organization tips\"\"\"\n        tips = [\n            'Create separate folders for each document category',\n            'Scan and backup all documents digitally',\n            'Keep original receipts in date order',\n            'Use a spreadsheet to track income and expenses',\n            'Set up a dedicated email for tax documents'\n        ]\n        \n        if self_employed == 'Yes':\n            tips.extend([\n                'Separate business and personal expenses',\n                'Track mileage with a mileage app',\n                'Keep quarterly payment confirmations',\n                'Save all business-related receipts',\n                'Document home office measurements'\n            ])\n        \n        if filing_status.startswith('Married'):\n            tips.extend([\n                'Coordinate document collection with spouse',\n                'Combine charitable donations for both',\n                'Review filing jointly vs separately benefits'\n            ])\n        \n        return tips\n    \n    def create_tax_calendar():\n        \"\"\"Create important tax dates calendar\"\"\"\n        current_year = datetime.now().year\n        \n        calendar = [\n            {'date': f'{current_year}-01-15', 'event': 'Q4 estimated tax payment due (prior year)'},\n            {'date': f'{current_year}-01-31', 'event': 'W-2s and 1099s should be received'},\n            {'date': f'{current_year}-03-15', 'event': 'Business tax returns due (or extension)'},\n            {'date': f'{current_year}-04-15', 'event': 'Individual tax returns due', 'important': True},\n            {'date': f'{current_year}-04-15', 'event': 'Q1 estimated tax payment due'},\n            {'date': f'{current_year}-06-15', 'event': 'Q2 estimated tax payment due'},\n            {'date': f'{current_year}-09-15', 'event': 'Q3 estimated tax payment due'},\n            {'date': f'{current_year}-10-15', 'event': 'Extended returns final due date'},\n            {'date': f'{current_year + 1}-01-15', 'event': 'Q4 estimated tax payment due'}\n        ]\n        \n        return calendar\n    \n    # Main execution\n    try:\n        # Parse input data\n        income_sources = parse_income_data(income_data)\n        expenses = parse_expense_data(expense_data)\n        \n        # Create document checklist\n        checklist = create_document_checklist(filing_status, self_employed, income_sources, expenses)\n        \n        # Calculate tax estimates\n        tax_estimate = calculate_tax_estimates(income_sources, expenses, filing_status)\n        \n        # Generate tips\n        organization_tips = generate_organization_tips(filing_status, self_employed)\n        \n        # Create tax calendar\n        tax_calendar = create_tax_calendar()\n        \n        # Count documents needed\n        total_docs_needed = (\n            len(checklist['personal_info']) +\n            len(checklist['income_documents']) +\n            len(checklist['deduction_documents']) +\n            len(checklist['special_situations'])\n        )\n        \n        # Create comprehensive output\n        output = {\n            'tax_organization_summary': {\n                'tax_year': tax_year,\n                'filing_status': filing_status,\n                'self_employed': self_employed == 'Yes',\n                'total_documents_needed': total_docs_needed,\n                'organization_status': 'Ready to start',\n                'estimated_time': f'{total_docs_needed * 5} minutes to gather'\n            },\n            'document_checklist': checklist,\n            'income_summary': {\n                'sources': [\n                    {\n                        'source': source['source'],\n                        'amount': f\"${source['amount']:,.2f}\",\n                        'tax_withheld': f\"${source['tax_withheld']:,.2f}\"\n                    }\n                    for source in income_sources\n                ],\n                'total_income': f\"${sum(s['amount'] for s in income_sources):,.2f}\",\n                'total_withheld': f\"${sum(s['tax_withheld'] for s in income_sources):,.2f}\"\n            },\n            'expense_categories': {\n                category: {\n                    'items': [{'item': item['item'], 'amount': f\"${item['amount']:,.2f}\"} for item in items],\n                    'total': f\"${sum(item['amount'] for item in items):,.2f}\"\n                }\n                for category, items in expenses.items()\n            },\n            'tax_estimate': {\n                'gross_income': f\"${tax_estimate['total_income']:,.2f}\",\n                'deductions': f\"${tax_estimate['total_deductions']:,.2f} ({tax_estimate['deduction_type']})\",\n                'taxable_income': f\"${tax_estimate['taxable_income']:,.2f}\",\n                'estimated_federal_tax': f\"${tax_estimate['estimated_tax']:,.2f}\",\n                'self_employment_tax': f\"${tax_estimate['self_employment_tax']:,.2f}\",\n                'total_tax_liability': f\"${tax_estimate['total_tax']:,.2f}\",\n                'tax_withheld': f\"${tax_estimate['tax_withheld']:,.2f}\",\n                'estimated_result': f\"${abs(tax_estimate['estimated_refund_or_owed']):,.2f} {'Refund' if tax_estimate['estimated_refund_or_owed'] > 0 else 'Owed'}\",\n                'effective_tax_rate': f\"{tax_estimate['effective_tax_rate']}%\",\n                'disclaimer': 'This is a rough estimate only. Consult a tax professional for accurate calculations.'\n            },\n            'organization_tips': organization_tips,\n            'important_dates': [date for date in tax_calendar if date.get('important') or datetime.strptime(date['date'], '%Y-%m-%d') > datetime.now()],\n            'action_items': [\n                'Gather all documents from checklist',\n                'Create digital copies of all documents',\n                'Organize receipts by category',\n                'Review last year\\'s return for missed deductions',\n                'Schedule appointment with tax preparer',\n                'Set reminders for quarterly payments (if applicable)'\n            ],\n            'tax_saving_opportunities': [\n                'Contribute to retirement accounts before deadline',\n                'Review all possible deductions',\n                'Consider bunching charitable donations',\n                'Track all business expenses if self-employed',\n                'Review filing status options if married',\n                'Consider tax-loss harvesting for investments'\n            ]\n        }\n        \n        return json.dumps(output, indent=2)\n        \n    except Exception as e:\n        return json.dumps({\n            'error': f'Error organizing tax documents: {str(e)}',\n            'basic_checklist': {\n                'essential_documents': [\n                    'All W-2 forms',\n                    'All 1099 forms',\n                    'Last year\\'s tax return',\n                    'Bank account information',\n                    'Receipts for deductions'\n                ]\n            }\n        }, indent=2)\n\n# Execute the function\nresult = organize_tax_documents()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "income_data",
+                "id": "income_data_input",
+                "label": "Income Sources",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "List income sources (one per line):\nSource name, Amount, Tax withheld\n\nExample:\nPrimary job W-2, 65000, 8500\nFreelance 1099, 15000, 0\n\nLeave blank for sample data.",
+                  "minRows": 5
+                }
+              },
+              {
+                "fieldName": "expense_data",
+                "id": "expense_data_input",
+                "label": "Deductible Expenses",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "List deductible expenses (one per line):\nExpense description, Amount\n\nExample:\nHome office, 3600\nMortgage interest, 12000\nCharitable donations, 2000\n\nLeave blank for sample data.",
+                  "minRows": 5
+                }
+              },
+              {
+                "fieldName": "deduction_items",
+                "id": "deduction_items_input",
+                "label": "Other Deductions/Credits",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "List other deductions or tax credits you might qualify for",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "filing_status",
+                "id": "filing_status_input",
+                "label": "Filing Status",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Single", "Married filing jointly", "Married filing separately", "Head of household", "Qualifying widow(er)"],
+                  "defaultValue": "Single"
+                }
+              },
+              {
+                "fieldName": "tax_year",
+                "id": "tax_year_input",
+                "label": "Tax Year",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter tax year (e.g., 2023)",
+                  "defaultValue": "2023"
+                }
+              },
+              {
+                "fieldName": "self_employed",
+                "id": "self_employed_input",
+                "label": "Are You Self-Employed?",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["No", "Yes", "Partially (W-2 and 1099)"],
+                  "defaultValue": "No"
+                }
+              },
+              {
+                "fieldName": "special_situations",
+                "id": "special_situations_input",
+                "label": "Special Situations (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any special tax situations? (rental property, stock sales, inheritance, etc.)",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_tax_organization_output",
+                "label": "Complete Tax Organization Guide",
+                "type": "Text"
+              },
+              {
+                "fieldName": "documentChecklist",
+                "id": "document_checklist_output",
+                "label": "Document Checklist",
+                "type": "Text"
+              },
+              {
+                "fieldName": "taxEstimate",
+                "id": "tax_estimate_output",
+                "label": "Tax Estimate & Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionItems",
+                "id": "action_items_output",
+                "label": "Action Items & Tips",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847248",
+          "language": "en",
+          "name": "Tax Document Organizer",
+          "description": "Assists in organizing information for tax filing. Creates tax-ready categorization, document checklist, and preparation tips for efficient filing.",
+          "instructions": "1. List income sources (or use sample)\n2. List deductible expenses (or use sample)\n3. Add other deductions/credits (optional)\n4. Select filing status\n5. Enter tax year\n6. Indicate if self-employed\n7. Note special situations (optional)\n\nThe organizer will:\n- Create personalized document checklist\n- Categorize income and expenses\n- Estimate tax liability (rough estimate)\n- Provide organization tips\n- Show important tax dates\n- Suggest tax-saving opportunities\n- Generate action items\n- Calculate deduction totals\n\n**Note: This provides organization help only, not tax advice. Consult a tax professional for filing.**\n\nPerfect for:\n- Gathering tax documents\n- Organizing receipts\n- Preparing for tax appointments\n- Understanding what's needed\n- Tracking deductions"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190848114",
+  "publicId": "task-prioritizer-core-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847100",
+      "publicId": "planning-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "planning"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848115",
+      "publicId": "task-prioritizer-core-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Core task prioritization subroutine for workflow integration",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Analyze and prioritize the following tasks using multiple prioritization frameworks:\n\nTask List: {{input.taskList}}\nDeadlines: {{input.deadlines}}\nEnergy Levels: {{input.energyLevels}}\nContext Information: {{input.contextInfo}}\n\nApply comprehensive prioritization analysis:\n\n1. Eisenhower Matrix Classification:\n   - Urgent + Important (Do First)\n   - Important + Not Urgent (Schedule)\n   - Urgent + Not Important (Delegate)\n   - Neither Urgent nor Important (Eliminate)\n\n2. Priority Scoring (1-10 scale):\n   - Impact on goals (1-10)\n   - Urgency level (1-10)\n   - Effort required (1-10 inverse)\n   - Dependencies blocking others\n   - Consequences of delay\n\n3. Energy-Task Matching:\n   - High energy tasks (creative, complex)\n   - Medium energy tasks (administrative)\n   - Low energy tasks (routine, simple)\n   - Energy level throughout day\n   - Optimal timing suggestions\n\n4. Deadline Analysis:\n   - Hard deadlines vs soft deadlines\n   - Buffer time requirements\n   - Critical path identification\n   - Risk of missing deadlines\n   - Cascading effects\n\n5. Context Considerations:\n   - Available resources\n   - Location requirements\n   - People dependencies\n   - Tool/system availability\n   - Batching opportunities\n\n6. Strategic Alignment:\n   - Goal contribution\n   - Long-term impact\n   - Skill development value\n   - Career advancement\n   - Learning opportunities\n\n7. Prioritized Output:\n   - Ranked task list\n   - Today's top 3 priorities\n   - This week's focus areas\n   - Optimal scheduling suggestions\n   - Delegation recommendations\n\nReturn as structured JSON with keys: prioritizedTasks (array with rankings), eisenhowerMatrix (object), energyMatching (object), deadlineAnalysis (object), todaysPriorities (array), weeklyFocus (array), schedulingSuggestions (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskList",
+                "id": "tasks_input",
+                "label": "Task List",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List of tasks to prioritize with descriptions...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "deadlines",
+                "id": "deadlines_input",
+                "label": "Deadlines",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Task deadlines and time constraints...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "energyLevels",
+                "id": "energy_input",
+                "label": "Energy Levels",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Your typical energy patterns throughout the day"
+                }
+              },
+              {
+                "fieldName": "contextInfo",
+                "id": "context_input",
+                "label": "Context Information",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Current workload, available time, resources, etc.",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedTaskList",
+                "id": "prioritized_output",
+                "label": "Prioritized Task List",
+                "type": "Text"
+              },
+              {
+                "fieldName": "prioritizationAnalysis",
+                "id": "analysis_output",
+                "label": "Prioritization Analysis",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848116",
+          "language": "en-US",
+          "description": "Core task prioritization subroutine using multiple frameworks for optimal task ordering",
+          "instructions": "Enter your task list and context information. The system will analyze and prioritize using multiple frameworks including Eisenhower Matrix and energy matching.",
+          "name": "Task Prioritizer Core"
+        }
+      ]
+    }
+  ]
+}

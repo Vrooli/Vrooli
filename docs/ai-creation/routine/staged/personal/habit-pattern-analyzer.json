@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848303",
+  "publicId": "habit-pattern-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848304",
+      "publicId": "habit-pattern-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies trends and patterns in habit completion",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Analyze habit tracking data to identify patterns and trends:\n\nTracking History: {{input.trackingHistory}}\nTime Period: {{input.timePeriod}}\nHabit Categories: {{input.habitCategories}}\nGoal Metrics: {{input.goalMetrics}}\nContext Data: {{input.contextData}}\n\nPerform comprehensive pattern analysis:\n\n1. **Completion Pattern Analysis**:\n   - Daily completion rates\n   - Weekly patterns\n   - Monthly trends\n   - Best/worst days\n   - Time-of-day patterns\n\n2. **Streak & Consistency Metrics**:\n   - Current streaks by habit\n   - Longest streaks achieved\n   - Average streak length\n   - Recovery time from breaks\n   - Consistency scores\n\n3. **Correlation Discovery**:\n   - Habit interdependencies\n   - Context correlations\n   - Energy level impacts\n   - Weather/mood effects\n   - Social influence patterns\n\n4. **Performance Trends**:\n   - Improvement trajectories\n   - Plateau identification\n   - Regression patterns\n   - Seasonal variations\n   - Growth rate analysis\n\n5. **Challenge Identification**:\n   - Most difficult habits\n   - Common failure points\n   - Resistance patterns\n   - Environmental obstacles\n   - Time constraint issues\n\n6. **Success Factor Analysis**:\n   - Enabling conditions\n   - Optimal timing\n   - Support mechanisms\n   - Motivation patterns\n   - Environmental aids\n\n7. **Predictive Insights**:\n   - Likely success days\n   - Risk periods\n   - Momentum indicators\n   - Intervention opportunities\n   - Growth potential\n\n8. **Comparative Analysis**:\n   - Habit vs habit performance\n   - Category comparisons\n   - Personal bests\n   - Relative difficulty\n   - Progress rankings\n\nReturn as structured JSON with keys: completionPatterns (object), streakMetrics (object), correlations (array), performanceTrends (object), challenges (array), successFactors (object), predictions (object), comparativeAnalysis (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trackingHistory",
+                "id": "history_input",
+                "label": "Tracking History",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Historical habit tracking data...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "period_input",
+                "label": "Analysis Period",
+                "type": "Selector",
+                "props": {
+                  "options": ["Last Week", "Last Month", "Last Quarter", "Last 6 Months", "Last Year", "All Time"]
+                }
+              },
+              {
+                "fieldName": "habitCategories",
+                "id": "categories_input",
+                "label": "Habit Categories",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Categories of habits (health, productivity, learning...)",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "goalMetrics",
+                "id": "goals_input",
+                "label": "Goal Metrics",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Target completion rates or other goals...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "contextData",
+                "id": "context_input",
+                "label": "Context Data",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Additional context like mood, weather, life events...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "patternAnalysis",
+                "id": "patterns_output",
+                "label": "Pattern Analysis Report",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionableInsights",
+                "id": "insights_output",
+                "label": "Actionable Insights",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848305",
+          "language": "en-US",
+          "description": "Analyzes habit tracking data to identify patterns, correlations, and predictive insights",
+          "instructions": "Provide your habit tracking history and time period. The system will analyze patterns and provide actionable insights.",
+          "name": "Habit Pattern Analyzer"
+        }
+      ]
+    }
+  ]
+}

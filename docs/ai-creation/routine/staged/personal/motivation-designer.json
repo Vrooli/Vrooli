@@ -1,0 +1,158 @@
+{
+  "id": "7829564732190848201",
+  "publicId": "motivation-designer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847092",
+      "publicId": "goal-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "goals"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848202",
+      "publicId": "motivation-designer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates personalized motivation systems to maintain goal pursuit momentum",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Inspirational",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Design a personalized motivation system for the following goal pursuit:\n\nSMART Goal: {{input.smartGoal}}\nPersonal Why/Purpose: {{input.personalWhy}}\nMotivation Style: {{input.motivationStyle}}\nPast Motivation Challenges: {{input.pastChallenges}}\nReward Preferences: {{input.rewardPreferences}}\nSupport System: {{input.supportSystem}}\n\nCreate motivation framework:\n\n1. **Motivation Strategy**:\n   - Core motivation drivers\n   - Personal trigger identification\n   - Energy management approach\n   - Momentum building techniques\n   - Resilience building methods\n\n2. **Daily Motivation Rituals**:\n   - Morning motivation routine\n   - Midday energy boosters\n   - Evening reflection practices\n   - Visualization exercises\n   - Affirmation systems\n\n3. **Milestone Celebration System**:\n   - Small win recognition methods\n   - Milestone reward structures\n   - Progress celebration rituals\n   - Achievement documentation\n   - Success story creation\n\n4. **Motivation Maintenance**:\n   - Weekly motivation reviews\n   - Purpose reconnection exercises\n   - Progress visualization tools\n   - Inspiration source curation\n   - Momentum recovery protocols\n\n5. **Obstacle Motivation**:\n   - Challenge reframing techniques\n   - Setback recovery strategies\n   - Difficulty motivation boosters\n   - Persistence building exercises\n   - Growth mindset reinforcement\n\n6. **Social Motivation Elements**:\n   - Accountability partner engagement\n   - Progress sharing strategies\n   - Support system activation\n   - Community connection methods\n   - Inspiration from others\n\n7. **Personalized Motivation Tools**:\n   - Custom motivational quotes\n   - Personal success reminders\n   - Vision board elements\n   - Motivation playlist suggestions\n   - Environmental design tips\n\nReturn as structured JSON with keys: motivationStrategy (object), dailyRituals (array), celebrationSystem (object), maintenancePlan (object), obstacleMotivation (object), socialElements (array), personalizedTools (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "smartGoal",
+                "id": "goal_input",
+                "label": "SMART Goal",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Your SMART goal statement...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "personalWhy",
+                "id": "why_input",
+                "label": "Personal Why/Purpose",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Why is this goal important to you? What's driving you?",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "motivationStyle",
+                "id": "style_input",
+                "label": "Motivation Style",
+                "type": "Selector",
+                "props": {
+                  "options": ["Achievement-focused", "Progress-driven", "Social/competitive", "Purpose-driven", "Reward-motivated", "Challenge-seeking", "Mixed approach"]
+                }
+              },
+              {
+                "fieldName": "pastChallenges",
+                "id": "challenges_input",
+                "label": "Past Motivation Challenges",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What has made it difficult to stay motivated in the past?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "rewardPreferences",
+                "id": "rewards_input",
+                "label": "Reward Preferences",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What types of rewards or recognition motivate you most?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "supportSystem",
+                "id": "support_input",
+                "label": "Support System",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Who can support you? What resources do you have?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "motivationSystem",
+                "id": "system_output",
+                "label": "Personalized Motivation System",
+                "type": "Text"
+              },
+              {
+                "fieldName": "dailyPractices",
+                "id": "practices_output",
+                "label": "Daily Motivation Practices",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848203",
+          "language": "en-US",
+          "description": "Creates personalized motivation systems to maintain goal pursuit momentum with daily rituals and obstacle strategies",
+          "instructions": "Provide your SMART goal, personal why, motivation style, past challenges, and support system. The system will design a comprehensive motivation framework with daily practices, celebration systems, and persistence strategies.",
+          "name": "Motivation Designer"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "id": "7829564732190847186",
+  "publicId": "stress-coach-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847187",
+      "publicId": "break-coach-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Supportive",
+            "maxTokens": 1100,
+            "model": null,
+            "prompt": "Suggest stress-relief activities for a work break:\n\n**Current Stress Level:** {{input.stressLevel}}\n**Time Available:** {{input.timeAvailable}}\n**Location/Setting:** {{input.location}}\n**Preferences:** {{input.preferences}}\n{{#if input.stressSource}}**Main Stress Source:** {{input.stressSource}}{{/if}}\n{{#if input.energyLevel}}**Current Energy Level:** {{input.energyLevel}}{{/if}}\n\nProvide personalized stress-relief recommendations:\n\n1. **Immediate Relief Activities (Ready to start now)**\n   - Quick stress-busters for your time frame\n   - Location-appropriate activities\n   - No special equipment needed\n   - Instant mood boosters\n   - Energy-level matched suggestions\n\n2. **Breathing and Mindfulness Exercises**\n   - Guided breathing techniques\n   - Progressive muscle relaxation\n   - Mini-meditation practices\n   - Mindful awareness exercises\n   - Grounding techniques (5-4-3-2-1 method)\n   - Body scan relaxation\n\n3. **Physical Movement Options**\n   - Gentle stretching routines\n   - Desk exercises and posture resets\n   - Walking meditation\n   - Quick cardio bursts\n   - Yoga poses for stress relief\n   - Tension release exercises\n\n4. **Mental Reset Techniques**\n   - Cognitive reframing exercises\n   - Positive visualization\n   - Journaling prompts\n   - Gratitude practices\n   - Mental decluttering\n   - Focus restoration activities\n\n5. **Sensory Relaxation**\n   - Calming music or sounds\n   - Aromatherapy suggestions\n   - Visual relaxation techniques\n   - Tactile stress relief (stress balls, fidgets)\n   - Temperature therapy (cold water, warm compress)\n   - Lighting adjustments\n\n6. **Social and Communication Breaks**\n   - Supportive conversation starters\n   - Team check-in suggestions\n   - Boundary-setting phrases\n   - Help-seeking strategies\n   - Connection activities\n   - Humor and laughter therapy\n\n7. **Creative and Expressive Activities**\n   - Quick creative exercises\n   - Doodling and art therapy\n   - Creative writing prompts\n   - Music and rhythm activities\n   - Expressive movement\n   - Playful activities\n\n8. **Environment Optimization**\n   - Workspace organization tips\n   - Lighting and air quality improvements\n   - Noise management\n   - Personal space creation\n   - Comfort enhancements\n   - Digital environment cleanup\n\n9. **Nutrition and Hydration**\n   - Stress-reducing snack suggestions\n   - Hydration reminders and benefits\n   - Mindful eating practices\n   - Energy-boosting foods\n   - Calming herbal teas\n   - Blood sugar stabilization\n\n10. **Technology and Digital Wellness**\n    - Screen break activities\n    - Digital detox mini-sessions\n    - Helpful relaxation apps\n    - Notification management\n    - Eye strain relief\n    - Ergonomic adjustments\n\n11. **Time-Specific Recommendations**\n    - 2-minute stress busters\n    - 5-minute reset routines\n    - 10-minute recharge sessions\n    - 15-30 minute recovery breaks\n    - Micro-breaks throughout the day\n    - Transition rituals\n\n12. **Stress Prevention Strategies**\n    - Proactive stress management\n    - Warning sign recognition\n    - Stress trigger identification\n    - Coping strategy planning\n    - Resilience building activities\n    - Long-term wellness habits\n\n13. **Guided Instructions**\n    - Step-by-step activity guides\n    - Timing and pacing suggestions\n    - Modification options\n    - Progress indicators\n    - Effectiveness tips\n    - Follow-up recommendations\n\n14. **Emergency Stress Relief**\n    - Crisis management techniques\n    - Rapid anxiety reduction\n    - Panic attack coping strategies\n    - Overwhelming stress protocols\n    - Professional resource suggestions\n    - When to seek additional help\n\n15. **Return-to-Work Transition**\n    - Re-entry strategies\n    - Energy maintenance tips\n    - Stress prevention for next tasks\n    - Mindset preparation\n    - Productivity protection\n    - Sustainable pace setting\n\nTailor recommendations to the individual's current stress level, available time, and preferences. Focus on practical, immediately actionable suggestions that can provide genuine relief and restoration.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "stressLevel",
+                "id": "stress_level_input",
+                "label": "Current Stress Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["1-2 (Minimal stress)", "3-4 (Mild stress)", "5-6 (Moderate stress)", "7-8 (High stress)", "9-10 (Overwhelming stress)"],
+                  "defaultValue": "5-6 (Moderate stress)"
+                }
+              },
+              {
+                "fieldName": "timeAvailable",
+                "id": "time_available_input",
+                "label": "Time Available",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["2-3 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "45+ minutes"],
+                  "defaultValue": "10 minutes"
+                }
+              },
+              {
+                "fieldName": "location",
+                "id": "location_input",
+                "label": "Location/Setting",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Office desk", "Private office", "Home workspace", "Shared workspace", "Outdoors", "Break room", "Other quiet space"],
+                  "defaultValue": "Office desk"
+                }
+              },
+              {
+                "fieldName": "preferences",
+                "id": "preferences_input",
+                "label": "Activity Preferences",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What helps you relax? (breathing exercises, movement, music, quiet time, creative activities...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "stressSource",
+                "id": "stress_source_input",
+                "label": "Main Stress Source (Optional)",
+                "type": "Selector",
+                "isRequired": false,
+                "props": {
+                  "options": ["Work deadlines", "Difficult conversations", "Technical problems", "Workload pressure", "Meeting stress", "Decision fatigue", "Interpersonal conflict", "General overwhelm"],
+                  "defaultValue": "Work deadlines"
+                }
+              },
+              {
+                "fieldName": "energyLevel",
+                "id": "energy_level_input",
+                "label": "Current Energy Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Very low (exhausted)", "Low (tired)", "Medium (neutral)", "High (energetic)", "Very high (restless)"],
+                  "defaultValue": "Medium (neutral)"
+                }
+              },
+              {
+                "fieldName": "physicalLimitations",
+                "id": "physical_limitations_input",
+                "label": "Physical Considerations (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any physical limitations or preferences? (injuries, mobility, comfort needs...)"
+                }
+              },
+              {
+                "fieldName": "breakFrequency",
+                "id": "break_frequency_input",
+                "label": "How Often Do You Take Breaks?",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Every hour", "Every 2-3 hours", "When I remember", "Only when very stressed", "Rarely", "This is my first today"],
+                  "defaultValue": "Every 2-3 hours"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_stress_relief_guide_output",
+                "label": "Complete Stress Relief Guide",
+                "type": "Text"
+              },
+              {
+                "fieldName": "immediateActivities",
+                "id": "immediate_activities_output",
+                "label": "Immediate Relief Activities",
+                "type": "Text"
+              },
+              {
+                "fieldName": "guidedExercises",
+                "id": "guided_exercises_output",
+                "label": "Guided Exercises & Instructions",
+                "type": "Text"
+              },
+              {
+                "fieldName": "preventionTips",
+                "id": "prevention_tips_output",
+                "label": "Stress Prevention & Future Breaks",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "name": "Stress Relief Break Coach",
+          "description": "Suggests stress-relief activities during work breaks. Includes breathing exercises, stretches, mindfulness prompts, and personalized recommendations based on stress level and available time.",
+          "instructions": "1. Rate your current stress level\n2. Choose how much time you have\n3. Select your location/setting\n4. Describe what helps you relax\n5. Identify main stress source (optional)\n6. Rate your current energy level\n7. Note any physical considerations (optional)\n8. Indicate how often you take breaks\n\nThe coach will provide:\n- Immediate stress relief activities\n- Guided breathing and mindfulness exercises\n- Physical movement options\n- Mental reset techniques\n- Time-specific recommendations\n- Stress prevention strategies\n- Return-to-work transition tips\n\nPerfect for anyone who needs quick, effective stress relief during busy workdays or wants to build better break habits for long-term wellbeing."
+        }
+      ]
+    }
+  ]
+}

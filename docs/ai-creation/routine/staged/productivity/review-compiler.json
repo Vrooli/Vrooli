@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848645",
+  "publicId": "review-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847071",
+      "tag": "reporting",
+      "translations": [
+        {
+          "id": "7829564732190847171",
+          "language": "en",
+          "description": "Report generation and metrics"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848646",
+      "publicId": "review-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles comprehensive weekly reviews",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "extractedLessons",
+                "id": "extracted_lessons_input",
+                "label": "Key Lessons",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Lessons learned"
+              },
+              {
+                "fieldName": "weeklyPriorities",
+                "id": "weekly_priorities_input",
+                "label": "Next Week Priorities",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Prioritized tasks"
+              },
+              {
+                "fieldName": "weeklyMetrics",
+                "id": "weekly_metrics_input",
+                "label": "Weekly Metrics",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Performance data"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "weeklyReviewDocument",
+                "id": "weekly_review_document_output",
+                "label": "Complete Review",
+                "type": "Text"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Next Week Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848647",
+          "language": "en",
+          "name": "Review Compiler",
+          "description": "Compiles all weekly review elements into a comprehensive document with action plans.",
+          "instructions": "Provide lessons and priorities. The routine will compile your weekly review."
+        }
+      ]
+    }
+  ]
+}

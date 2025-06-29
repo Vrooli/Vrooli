@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Parse Goals and OKRs",
                 "description": "Analyzes and structures the high-level goals, OKRs, and strategic objectives",
-                "subroutineId": "goal-parser-v1",
+                "subroutineId": "7829564732190848138",
                 "inputMap": {
                   "originalGoalsInput": "goalsDescription",
                   "originalOkrInput": "okrsList",
@@ -44,7 +44,7 @@
                 "id": "step-2",
                 "name": "Analyze Current Activities",
                 "description": "Reviews and categorizes current tasks and initiatives",
-                "subroutineId": "activity-analyzer-v1",
+                "subroutineId": "7829564732190848141",
                 "inputMap": {
                   "originalActivitiesList": "activitiesList",
                   "parsedGoals": "goalReference",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Assess Alignment Levels",
                 "description": "Evaluates how well each activity aligns with strategic goals",
-                "subroutineId": "alignment-assessor-v1",
+                "subroutineId": "7829564732190848144",
                 "inputMap": {
                   "activityGroups": "taskCategories",
                   "taskObjectives": "activityPurposes",
@@ -80,7 +80,7 @@
                 "id": "step-4",
                 "name": "Generate Recommendations",
                 "description": "Provides actionable recommendations for improving goal alignment",
-                "subroutineId": "alignment-advisor-v1",
+                "subroutineId": "7829564732190848147",
                 "inputMap": {
                   "alignmentRatings": "currentAlignment",
                   "strongMatches": "wellAlignedWork",

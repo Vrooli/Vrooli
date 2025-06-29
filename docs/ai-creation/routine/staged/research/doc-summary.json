@@ -1,0 +1,122 @@
+{
+  "id": "7829564732190848699",
+  "publicId": "doc-summary-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847077",
+      "tag": "summarization",
+      "translations": [
+        {
+          "id": "7829564732190847177",
+          "language": "en",
+          "description": "Content summarization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848700",
+      "publicId": "doc-summary-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Summarizes documents",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "documentContent",
+                "id": "document_content_input",
+                "label": "Document Content",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Document text to summarize"
+              },
+              {
+                "fieldName": "summaryLength",
+                "id": "summary_length_input",
+                "label": "Summary Length",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "medium",
+                "options": [
+                  "brief",
+                  "medium",
+                  "detailed"
+                ]
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Focus Areas",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Specific aspects to focus on"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "documentSummary",
+                "id": "document_summary_output",
+                "label": "Document Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "keyPoints",
+                "id": "key_points_output",
+                "label": "Key Points",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "extractedConcepts",
+                "id": "extracted_concepts_output",
+                "label": "Main Concepts",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848701",
+          "language": "en",
+          "name": "Document Summarizer",
+          "description": "Creates concise summaries of documents while preserving key information.",
+          "instructions": "Provide document content to summarize. The routine will extract key points and create a summary."
+        }
+      ]
+    }
+  ]
+}

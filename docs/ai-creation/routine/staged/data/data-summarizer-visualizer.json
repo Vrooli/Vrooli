@@ -1,0 +1,116 @@
+{
+  "id": "7829564732190847054",
+  "publicId": "data-viz-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847055",
+      "publicId": "dt-viz-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import pandas as pd\nimport json\nimport numpy as np\nfrom datetime import datetime\n\n# Parse input data\ndata_string = '''{{input.dataset}}'''\nanalysis_goals = '''{{input.analysisGoals}}'''\nchart_preference = '''{{input.chartPreference}}'''\n\ntry:\n    # Try to parse as CSV first\n    if ',' in data_string and '\\n' in data_string:\n        from io import StringIO\n        df = pd.read_csv(StringIO(data_string))\n    else:\n        # Try JSON\n        data = json.loads(data_string)\n        df = pd.DataFrame(data)\nexcept:\n    # Fallback: create simple dataset from text\n    lines = data_string.strip().split('\\n')\n    data_list = []\n    for line in lines:\n        if ',' in line:\n            data_list.append(line.split(','))\n    if data_list:\n        df = pd.DataFrame(data_list[1:], columns=data_list[0] if data_list else [])\n    else:\n        raise ValueError(\"Could not parse data. Please provide CSV or JSON format.\")\n\n# Clean numeric columns\nfor col in df.columns:\n    try:\n        df[col] = pd.to_numeric(df[col], errors='ignore')\n    except:\n        pass\n\n# Generate statistical summary\nsummary_stats = {}\nnumeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()\n\nfor col in numeric_cols:\n    summary_stats[col] = {\n        'mean': float(df[col].mean()),\n        'median': float(df[col].median()),\n        'std': float(df[col].std()),\n        'min': float(df[col].min()),\n        'max': float(df[col].max()),\n        'count': int(df[col].count())\n    }\n\n# Generate insights\ninsights = []\ninsights.append(f\"Dataset contains {len(df)} rows and {len(df.columns)} columns\")\ninsights.append(f\"Numeric columns: {', '.join(numeric_cols)}\")\n\n# Find correlations if multiple numeric columns\nif len(numeric_cols) > 1:\n    corr_matrix = df[numeric_cols].corr()\n    high_corr = []\n    for i in range(len(numeric_cols)):\n        for j in range(i+1, len(numeric_cols)):\n            corr_val = corr_matrix.iloc[i, j]\n            if abs(corr_val) > 0.7:\n                high_corr.append(f\"{numeric_cols[i]} and {numeric_cols[j]}: {corr_val:.2f}\")\n    if high_corr:\n        insights.append(\"High correlations found: \" + \", \".join(high_corr))\n\n# Identify outliers\nfor col in numeric_cols:\n    q1 = df[col].quantile(0.25)\n    q3 = df[col].quantile(0.75)\n    iqr = q3 - q1\n    outliers = df[(df[col] < q1 - 1.5 * iqr) | (df[col] > q3 + 1.5 * iqr)]\n    if len(outliers) > 0:\n        insights.append(f\"{col} has {len(outliers)} outliers ({len(outliers)/len(df)*100:.1f}% of data)\")\n\n# Create visualization recommendations\nvisualization_recs = []\nif chart_preference == \"Automatic\":\n    if len(numeric_cols) == 1:\n        visualization_recs.append(\"Histogram or Box Plot for single numeric variable\")\n    elif len(numeric_cols) == 2:\n        visualization_recs.append(\"Scatter plot for two numeric variables\")\n    elif len(numeric_cols) > 2:\n        visualization_recs.append(\"Correlation heatmap for multiple variables\")\n        visualization_recs.append(\"Pair plot for relationships\")\n    \n    if df.shape[0] < 50:\n        visualization_recs.append(\"Bar chart suitable for small dataset\")\n    \n    # Check for time series\n    for col in df.columns:\n        try:\n            pd.to_datetime(df[col])\n            visualization_recs.append(f\"Line chart for time series data in {col}\")\n            break\n        except:\n            pass\n\n# Generate chart data (simplified for different chart types)\nchart_data = {}\nif numeric_cols:\n    # Prepare data for common chart types\n    chart_data['histogram'] = {\n        'data': df[numeric_cols[0]].value_counts().to_dict() if numeric_cols else {},\n        'column': numeric_cols[0] if numeric_cols else ''\n    }\n    \n    if len(numeric_cols) >= 2:\n        chart_data['scatter'] = {\n            'x': df[numeric_cols[0]].tolist()[:100],  # Limit to 100 points\n            'y': df[numeric_cols[1]].tolist()[:100],\n            'x_label': numeric_cols[0],\n            'y_label': numeric_cols[1]\n        }\n\n# Format output\noutput = {\n    'summary': summary_stats,\n    'insights': insights,\n    'visualization_recommendations': visualization_recs,\n    'chart_data': chart_data,\n    'data_shape': {'rows': len(df), 'columns': len(df.columns)},\n    'column_types': df.dtypes.astype(str).to_dict()\n}\n\nprint(json.dumps(output, indent=2))",
+            "timeout": 30000,
+            "maxMemory": "128MB"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dataset",
+                "id": "dataset_input",
+                "label": "Dataset (CSV or JSON)",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste your data in CSV format:\nColumn1,Column2,Column3\n10,20,30\n15,25,35\n\nOr JSON format:\n[{\"col1\": 10, \"col2\": 20}, ...]",
+                  "minRows": 8
+                }
+              },
+              {
+                "fieldName": "analysisGoals",
+                "id": "analysis_goals_input",
+                "label": "Analysis Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What insights are you looking for? (e.g., trends, outliers, correlations, distributions...)"
+                }
+              },
+              {
+                "fieldName": "chartPreference",
+                "id": "chart_preference_input",
+                "label": "Visualization Preference",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Automatic", "Bar Chart", "Line Chart", "Scatter Plot", "Histogram", "Box Plot", "Heatmap"],
+                  "defaultValue": "Automatic"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "result",
+                "id": "analysis_result_output",
+                "label": "Analysis Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "summary",
+                "id": "summary_output",
+                "label": "Statistical Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "insights",
+                "id": "insights_output",
+                "label": "Key Insights",
+                "type": "Text"
+              },
+              {
+                "fieldName": "visualizations",
+                "id": "visualizations_output",
+                "label": "Visualization Recommendations",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847056",
+          "language": "en",
+          "name": "Data Summarizer & Visualizer",
+          "description": "Provides quick analysis and visualization of datasets. Calculates statistical summaries, identifies patterns and outliers, and recommends appropriate visualizations. Handles CSV and JSON data formats with automatic insight generation.",
+          "instructions": "1. Paste your dataset in CSV or JSON format\n2. Describe what insights you're looking for\n3. Choose visualization preference (or leave as Automatic)\n\nThe analyzer will provide:\n- Statistical summary (mean, median, std, min, max)\n- Data insights (correlations, outliers, patterns)\n- Visualization recommendations\n- Chart-ready data\n\nSupports numeric data analysis with automatic type detection."
+        }
+      ]
+    }
+  ]
+}

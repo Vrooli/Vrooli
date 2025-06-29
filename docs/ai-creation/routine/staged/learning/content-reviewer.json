@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190848687",
+  "publicId": "content-reviewer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847080",
+      "tag": "writing",
+      "translations": [
+        {
+          "id": "7829564732190847180",
+          "language": "en",
+          "description": "Writing and editing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847082",
+      "tag": "feedback",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Feedback and review"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848688",
+      "publicId": "content-reviewer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Reviews content quality",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "writingContent",
+                "id": "writing_content_input",
+                "label": "Writing Content",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Content to review"
+              },
+              {
+                "fieldName": "writingType",
+                "id": "writing_type_input",
+                "label": "Writing Type",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Essay, article, report, etc."
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentAnalysis",
+                "id": "content_analysis_output",
+                "label": "Content Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "structureFeedback",
+                "id": "structure_feedback_output",
+                "label": "Structure Feedback",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "styleEvaluation",
+                "id": "style_evaluation_output",
+                "label": "Style Evaluation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848689",
+          "language": "en",
+          "name": "Content Reviewer",
+          "description": "Reviews writing content for structure, clarity, and style improvements.",
+          "instructions": "Provide your writing content for comprehensive review and feedback."
+        }
+      ]
+    }
+  ]
+}

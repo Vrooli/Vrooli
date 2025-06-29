@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190848522",
+  "publicId": "audience-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "branding",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Personal and business branding"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847037",
+      "tag": "marketing",
+      "translations": [
+        {
+          "id": "7829564732190847137",
+          "language": "en",
+          "description": "Marketing and promotion strategies"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848523",
+      "publicId": "audience-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes and defines target audience",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "brandIdentity",
+                "id": "brand_identity_input",
+                "label": "Brand Identity",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Brand identity framework from brand identity creator"
+              },
+              {
+                "fieldName": "targetMarket",
+                "id": "target_market_input",
+                "label": "Target Market",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "professionals",
+                "options": [
+                  "professionals",
+                  "entrepreneurs",
+                  "creatives",
+                  "students",
+                  "general"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "audienceAnalysis",
+                "id": "audience_analysis_output",
+                "label": "Target Audience Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848524",
+          "language": "en",
+          "name": "Audience Analyzer",
+          "description": "Analyzes and defines target audience demographics, psychographics, and engagement preferences for personal branding.",
+          "instructions": "Provide brand identity data for audience analysis. The routine will identify and profile your ideal audience."
+        }
+      ]
+    }
+  ]
+}

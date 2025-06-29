@@ -1,0 +1,147 @@
+{
+  "id": "7829564732190847997",
+  "publicId": "enhance-sug-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847031",
+      "publicId": "innovation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "innovation"
+    },
+    {
+      "id": "7829564732190847106",
+      "publicId": "creativity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "creativity"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847998",
+      "publicId": "enhance-sug-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Suggests enhancements for ideas and concepts",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Generate creative enhancement suggestions for the following idea:\n\nIdea Description: {{input.ideaDescription}}\nIdentified Strengths: {{input.identifiedStrengths}}\nIdentified Weaknesses: {{input.identifiedWeaknesses}}\nTarget Audience: {{input.targetAudience}}\nConstraints: {{input.constraints}}\n\nProvide comprehensive enhancement suggestions:\n\n1. Feature Enhancements:\n   - Additional capabilities\n   - Extended functionality\n   - User experience improvements\n   - Integration opportunities\n   - Automation possibilities\n\n2. Innovation Amplifiers:\n   - Cutting-edge technology integration\n   - Novel approaches\n   - Disruptive elements\n   - Future-proofing ideas\n   - Paradigm shifts\n\n3. User Value Boosters:\n   - Convenience features\n   - Time-saving elements\n   - Cost reduction strategies\n   - Accessibility improvements\n   - Personalization options\n\n4. Market Differentiation:\n   - Unique selling propositions\n   - Competitive advantages\n   - Brand positioning ideas\n   - Niche targeting options\n   - Premium features\n\n5. Technical Enhancements:\n   - Performance optimization\n   - Scalability improvements\n   - Security hardening\n   - Architecture evolution\n   - Platform expansion\n\n6. Business Model Innovation:\n   - Revenue stream ideas\n   - Partnership opportunities\n   - Distribution channels\n   - Pricing strategies\n   - Growth mechanisms\n\n7. Implementation Strategies:\n   - Quick wins (low effort, high impact)\n   - Medium-term improvements\n   - Long-term vision elements\n   - Resource optimization\n   - Risk mitigation\n\n8. Creative Combinations:\n   - Cross-industry inspiration\n   - Unexpected feature mashups\n   - Lateral thinking applications\n   - Synergy opportunities\n\nPrioritize suggestions by:\n- Impact potential\n- Implementation feasibility\n- Resource requirements\n- Time to market\n\nReturn as structured JSON with keys: featureEnhancements (array), innovationAmplifiers (array), valueBoosts (array), differentiators (array), technicalImprovements (array), businessInnovations (array), quickWins (array), creativeIdeas (array), prioritizedRoadmap (array with phases).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "ideaDescription",
+                "id": "idea_input",
+                "label": "Idea Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the idea or concept to enhance...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "identifiedStrengths",
+                "id": "strengths_input",
+                "label": "Identified Strengths",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Current strengths to build upon...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "identifiedWeaknesses",
+                "id": "weaknesses_input",
+                "label": "Identified Weaknesses",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Weaknesses to address or improve...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Who is this idea for?"
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Budget, time, technical, or other limitations",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "enhancementSuggestions",
+                "id": "suggestions_output",
+                "label": "Enhancement Suggestions",
+                "type": "Text"
+              },
+              {
+                "fieldName": "prioritizedRoadmap",
+                "id": "roadmap_output",
+                "label": "Implementation Roadmap",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847999",
+          "language": "en-US",
+          "description": "Generates creative enhancement suggestions to improve ideas and concepts",
+          "instructions": "Describe your idea and its current state. The system will suggest creative enhancements organized by impact and feasibility.",
+          "name": "Enhancement Suggester"
+        }
+      ]
+    }
+  ]
+}

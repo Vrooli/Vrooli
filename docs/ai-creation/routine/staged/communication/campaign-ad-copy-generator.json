@@ -1,0 +1,125 @@
+{
+  "id": "7829564732190848705",
+  "publicId": "ad-copy-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847086",
+      "tag": "marketing",
+      "translations": [
+        {
+          "id": "7829564732190847186",
+          "language": "en",
+          "description": "Marketing and advertising"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847070",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847170",
+          "language": "en",
+          "description": "Content creation and management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848706",
+      "publicId": "ad-copy-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates ad copy",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "productInfo",
+                "id": "product_info_input",
+                "label": "Product/Service Information",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Describe the product or service"
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Who is this ad for?"
+              },
+              {
+                "fieldName": "adPlatform",
+                "id": "ad_platform_input",
+                "label": "Ad Platform",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "general",
+                "options": [
+                  "general",
+                  "google_ads",
+                  "facebook_instagram",
+                  "linkedin",
+                  "twitter",
+                  "print"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "headlines",
+                "id": "headlines_output",
+                "label": "Ad Headlines",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bodyText",
+                "id": "body_text_output",
+                "label": "Ad Body Copy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "callToAction",
+                "id": "call_to_action_output",
+                "label": "Call-to-Action Options",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848707",
+          "language": "en",
+          "name": "Campaign Ad Copy Generator",
+          "description": "Creates compelling advertising copy for various platforms and audiences.",
+          "instructions": "Provide product information and target audience. The routine will generate ad copy variations."
+        }
+      ]
+    }
+  ]
+}

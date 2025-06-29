@@ -1,0 +1,149 @@
+{
+  "id": "7829564732190848297",
+  "publicId": "fact-check-report-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847032",
+      "publicId": "research-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "research"
+    },
+    {
+      "id": "7829564732190847027",
+      "publicId": "content-creation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "content-creation"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848298",
+      "publicId": "fact-check-report-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates comprehensive fact-check reports with citations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Generate comprehensive fact-check report with citations:\n\nFact Check Verdict: {{input.factCheckVerdict}}\nConfidence Score: {{input.confidenceScore}}\nSupporting Evidence: {{input.supportingEvidence}}\nContradicting Evidence: {{input.contradictingEvidence}}\nSource Citations: {{input.citations}}\n\nCreate professional fact-check report:\n\n1. **Executive Summary**:\n   - Overall verdict statement\n   - Confidence level\n   - Key findings\n   - Critical context\n   - Quick takeaways\n\n2. **Claim Analysis Section**:\n   - Original claim statement\n   - Claim decomposition\n   - Individual fact verdicts\n   - Truth percentage\n   - Misleading elements\n\n3. **Evidence Presentation**:\n   - Supporting evidence summary\n   - Contradicting evidence summary\n   - Evidence quality ratings\n   - Source credibility analysis\n   - Expert opinions\n\n4. **Detailed Findings**:\n   - Point-by-point analysis\n   - Context considerations\n   - Nuance explanations\n   - Alternative interpretations\n   - Scope limitations\n\n5. **Source Documentation**:\n   - Primary source links\n   - Secondary sources\n   - Expert credentials\n   - Publication dates\n   - Access timestamps\n\n6. **Visual Summary Elements**:\n   - Truth meter representation\n   - Evidence balance chart\n   - Confidence distribution\n   - Timeline relevance\n   - Geographic applicability\n\n7. **Methodology Transparency**:\n   - Research approach\n   - Verification methods\n   - Limitations acknowledged\n   - Bias considerations\n   - Update policy\n\n8. **Reader Guidance**:\n   - Key takeaways\n   - Action recommendations\n   - Further reading\n   - Sharing guidelines\n   - Correction process\n\n9. **Citation Format**:\n   - APA style references\n   - Direct quote attributions\n   - Link accessibility\n   - Archive references\n   - Version tracking\n\nReturn as structured JSON with keys: executiveSummary (object), claimAnalysis (object), evidenceSection (object), detailedFindings (array), sourceDocumentation (array), visualElements (object), methodology (object), readerGuidance (object), formattedCitations (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "factCheckVerdict",
+                "id": "verdict_input",
+                "label": "Fact Check Verdict",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Truth value determination and analysis...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "confidenceScore",
+                "id": "confidence_input",
+                "label": "Confidence Score",
+                "type": "IntegerInput",
+                "isRequired": true,
+                "props": {
+                  "min": 0,
+                  "max": 100,
+                  "placeholder": "0-100"
+                }
+              },
+              {
+                "fieldName": "supportingEvidence",
+                "id": "supporting_input",
+                "label": "Supporting Evidence",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Evidence supporting the claims...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "contradictingEvidence",
+                "id": "contradicting_input",
+                "label": "Contradicting Evidence",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Evidence contradicting the claims...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "citations",
+                "id": "citations_input",
+                "label": "Source Citations",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "All source links and references...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "factCheckReport",
+                "id": "report_output",
+                "label": "Complete Fact Check Report",
+                "type": "Text"
+              },
+              {
+                "fieldName": "executiveBrief",
+                "id": "brief_output",
+                "label": "Executive Brief",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848299",
+          "language": "en-US",
+          "description": "Generates professional fact-check reports with executive summaries, evidence analysis, and formatted citations",
+          "instructions": "Provide verdict, confidence score, and evidence. The system will generate a comprehensive fact-check report.",
+          "name": "Fact Check Report Generator"
+        }
+      ]
+    }
+  ]
+}

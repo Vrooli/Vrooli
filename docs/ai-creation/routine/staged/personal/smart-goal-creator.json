@@ -1,0 +1,145 @@
+{
+  "id": "7829564732190848189",
+  "publicId": "smart-goal-creator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847092",
+      "publicId": "goal-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "goals"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848190",
+      "publicId": "smart-goal-creator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Converts goal descriptions into SMART format with clear parameters",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Transform the following goal into SMART format with clear parameters:\n\nGoal Description: {{input.goalDescription}}\nDesired Outcome: {{input.desiredOutcome}}\nTimeline: {{input.timeline}}\nResources Available: {{input.resources}}\nContext: {{input.context}}\n\nCreate SMART goal framework:\n\n1. Specific Analysis:\n   - Clarify exactly what will be accomplished\n   - Define clear boundaries and scope\n   - Identify key activities and deliverables\n   - Specify target audience or beneficiaries\n   - Eliminate vague language\n\n2. Measurable Components:\n   - Quantifiable metrics and indicators\n   - Progress tracking methods\n   - Milestone markers\n   - Success criteria definition\n   - Data collection approaches\n\n3. Achievable Assessment:\n   - Realistic expectation setting\n   - Resource requirement analysis\n   - Skill gap identification\n   - Constraint acknowledgment\n   - Feasibility validation\n\n4. Relevant Alignment:\n   - Personal/organizational goal alignment\n   - Priority level assessment\n   - Value proposition clarity\n   - Impact significance\n   - Strategic importance\n\n5. Time-bound Structure:\n   - Clear deadline establishment\n   - Phase timeline breakdown\n   - Checkpoint scheduling\n   - Urgency factors\n   - Time allocation planning\n\n6. SMART Goal Formulation:\n   - Complete SMART goal statement\n   - Component integration\n   - Clarity verification\n   - Actionability confirmation\n   - Motivation enhancement\n\n7. Implementation Readiness:\n   - First step identification\n   - Resource mobilization plan\n   - Support system activation\n   - Barrier preparation\n   - Success factor emphasis\n\nReturn as structured JSON with keys: specificElements (object), measurableMetrics (array), achievabilityFactors (object), relevanceAlignment (object), timeBoundParameters (object), smartGoalStatement (string), implementationPrep (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "goalDescription",
+                "id": "goal_input",
+                "label": "Goal Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe your goal in your own words...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "desiredOutcome",
+                "id": "outcome_input",
+                "label": "Desired Outcome",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What exactly do you want to achieve?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Timeline",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "When do you want to achieve this?"
+                }
+              },
+              {
+                "fieldName": "resources",
+                "id": "resources_input",
+                "label": "Available Resources",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Time, money, skills, support available"
+                }
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Why is this goal important to you?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "smartGoal",
+                "id": "smart_output",
+                "label": "SMART Goal",
+                "type": "Text"
+              },
+              {
+                "fieldName": "goalBreakdown",
+                "id": "breakdown_output",
+                "label": "Goal Component Breakdown",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848191",
+          "language": "en-US",
+          "description": "Transforms vague goals into specific, measurable, achievable, relevant, and time-bound SMART goals",
+          "instructions": "Enter your goal description and desired outcome. The system will analyze and restructure it into a clear SMART goal format with implementation guidance.",
+          "name": "SMART Goal Creator"
+        }
+      ]
+    }
+  ]
+}

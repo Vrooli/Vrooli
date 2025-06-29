@@ -1,0 +1,147 @@
+{
+  "id": "7829564732190848006",
+  "publicId": "campaign-theme-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847107",
+      "publicId": "marketing-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "marketing"
+    },
+    {
+      "id": "7829564732190847106",
+      "publicId": "creativity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "creativity"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848007",
+      "publicId": "campaign-theme-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates overarching campaign themes",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Creative",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Create a compelling marketing campaign theme based on:\n\nProduct Info: {{input.productInfo}}\nTarget Audience: {{input.targetAudience}}\nCampaign Goals: {{input.campaignGoals}}\nBrand Voice: {{input.brandVoice}}\nMarket Context: {{input.marketContext}}\n\nDevelop a comprehensive campaign theme:\n\n1. Central Theme Concept:\n   - Big idea statement\n   - Emotional core\n   - Visual metaphor\n   - Story angle\n   - Cultural relevance\n\n2. Core Messages (3-5):\n   - Primary message\n   - Supporting messages\n   - Proof points\n   - Emotional appeals\n   - Rational benefits\n\n3. Creative Direction:\n   - Visual concept\n   - Color psychology\n   - Imagery style\n   - Typography mood\n   - Design elements\n\n4. Campaign Narrative:\n   - Hero's journey\n   - Problem-solution story\n   - Transformation promise\n   - Success vision\n   - Brand role\n\n5. Emotional Journey:\n   - Current state (pain)\n   - Desire state (aspiration)\n   - Bridge (your solution)\n   - Outcome (satisfaction)\n   - Feeling (empowerment)\n\n6. Campaign Hooks:\n   - Attention grabbers\n   - Curiosity triggers\n   - Shareability factors\n   - Memorable elements\n   - Viral potential\n\n7. Multi-Channel Themes:\n   - Digital adaptation\n   - Social media angle\n   - Traditional media\n   - Experiential ideas\n   - Content series\n\n8. Campaign Taglines:\n   - Master tagline\n   - Channel variations\n   - Call-to-action variants\n   - Hashtag suggestions\n   - Campaign name\n\n9. Competitive Differentiation:\n   - Unique angle\n   - Fresh perspective\n   - Unexpected elements\n   - Category disruption\n   - Memorable distinction\n\nReturn as structured JSON with keys: campaignTheme (object with bigIdea, narrative, emotional journey), coreMessages (array), creativeDirection (object), campaignHooks (array), taglines (object), multiChannelThemes (object), competitiveDifferentiation (object), implementationNotes (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "productInfo",
+                "id": "product_input",
+                "label": "Product Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Product/service details and key features...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Who are you trying to reach?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "campaignGoals",
+                "id": "goals_input",
+                "label": "Campaign Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What do you want to achieve? (awareness, sales, engagement)",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "brandVoice",
+                "id": "voice_input",
+                "label": "Brand Voice",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Brand personality and tone guidelines",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "marketContext",
+                "id": "market_input",
+                "label": "Market Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Current market trends, competitor campaigns, cultural moments"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "campaignTheme",
+                "id": "theme_output",
+                "label": "Campaign Theme",
+                "type": "Text"
+              },
+              {
+                "fieldName": "coreMessages",
+                "id": "messages_output",
+                "label": "Core Messages",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848008",
+          "language": "en-US",
+          "description": "Creates compelling marketing campaign themes with core messages and creative direction",
+          "instructions": "Enter your product info, audience, and campaign goals. The system will create a comprehensive campaign theme with messaging and creative direction.",
+          "name": "Campaign Theme Creator"
+        }
+      ]
+    }
+  ]
+}

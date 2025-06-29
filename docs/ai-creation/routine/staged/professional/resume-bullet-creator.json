@@ -1,0 +1,122 @@
+{
+  "id": "7829564732190848591",
+  "publicId": "resume-bullet-creator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847059",
+      "tag": "career",
+      "translations": [
+        {
+          "id": "7829564732190847159",
+          "language": "en",
+          "description": "Career development and job search"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847060",
+      "tag": "resume",
+      "translations": [
+        {
+          "id": "7829564732190847160",
+          "language": "en",
+          "description": "Resume and CV optimization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847021",
+      "tag": "content-generation",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Content creation and generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848592",
+      "publicId": "resume-bullet-creator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates compelling resume bullet points",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "experienceData",
+                "id": "experience_data_input",
+                "label": "Structured Experience",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Parsed experience data"
+              },
+              {
+                "fieldName": "achievementHighlights",
+                "id": "achievement_highlights_input",
+                "label": "Key Achievements",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Notable accomplishments"
+              },
+              {
+                "fieldName": "targetRole",
+                "id": "target_role_input",
+                "label": "Target Job Description",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Job you're applying for"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "resumeBullets",
+                "id": "resume_bullets_output",
+                "label": "Resume Bullet Points",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "quantifiedResults",
+                "id": "quantified_results_output",
+                "label": "Metrics and Results",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848593",
+          "language": "en",
+          "name": "Resume Bullet Creator",
+          "description": "Transforms experience into compelling, action-oriented resume bullet points with quantified results.",
+          "instructions": "Provide structured experience and achievements. The routine will create impactful resume bullets."
+        }
+      ]
+    }
+  ]
+}

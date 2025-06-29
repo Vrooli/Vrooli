@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Project Scope",
                 "description": "Clarifies objectives, deliverables, and boundaries",
-                "subroutineId": "TODO: Need scope definition subroutine",
+                "subroutineId": "7829564732190848264",
                 "inputMap": {
                   "projectGoal": "primaryObjective",
                   "constraints": "limitingFactors",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Break Down into Phases",
                 "description": "Organizes project into logical phases and milestones",
-                "subroutineId": "TODO: Need phase breakdown subroutine",
+                "subroutineId": "7829564732190848270",
                 "inputMap": {
                   "definedBoundaries": "projectScope",
                   "expectedOutputs": "deliverables",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Decompose into Tasks",
                 "description": "Creates detailed work breakdown structure",
-                "subroutineId": "TODO: Need task decomposition subroutine",
+                "subroutineId": "7829564732190848267",
                 "inputMap": {
                   "phaseStructure": "projectPhases",
                   "interimOutputs": "phaseDeliverables",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Estimate Effort & Duration",
                 "description": "Calculates time and resource requirements",
-                "subroutineId": "TODO: Need estimation subroutine",
+                "subroutineId": "7829564732190848273",
                 "inputMap": {
                   "workPackages": "taskBreakdown",
                   "resourceCapacity": "teamCapabilities",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Project Timeline",
                 "description": "Builds comprehensive schedule with dependencies",
-                "subroutineId": "TODO: Need timeline creation subroutine",
+                "subroutineId": "7829564732190848276",
                 "inputMap": {
                   "taskDurations": "effortEstimates",
                   "relationshipMapping": "taskDependencies",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Project Plan",
                 "description": "Compiles comprehensive project documentation",
-                "subroutineId": "TODO: Need plan generation subroutine",
+                "subroutineId": "7829564732190848279",
                 "inputMap": {
                   "masterSchedule": "projectTimeline",
                   "completionMetrics": "successCriteria",

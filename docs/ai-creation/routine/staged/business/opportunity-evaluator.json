@@ -1,0 +1,148 @@
+{
+  "id": "7829564732190847132",
+  "publicId": "opp-eval-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847133",
+      "publicId": "opp-roi-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import json\nimport math\n\ndef evaluate_opportunity():\n    # Get inputs\n    opportunity_details = globals().get('opportunity_details', '')\n    costs_benefits = globals().get('costs_benefits', '')\n    strategic_goals = globals().get('strategic_goals', '')\n    timeframe = globals().get('timeframe', '1 year')\n    risk_tolerance = globals().get('risk_tolerance', 'medium')\n    decision_criteria = globals().get('decision_criteria', '')\n    \n    def parse_financial_data(costs_benefits_text):\n        \"\"\"Extract financial data from text\"\"\"\n        import re\n        \n        # Try to extract numerical values\n        numbers = re.findall(r'\\$?([0-9,]+(?:\\.[0-9]{2})?)', costs_benefits_text.replace(',', ''))\n        \n        financial_data = {\n            'initial_investment': 0,\n            'annual_costs': 0,\n            'annual_revenue': 0,\n            'one_time_costs': 0,\n            'estimated_values': []\n        }\n        \n        text_lower = costs_benefits_text.lower()\n        \n        # Extract costs\n        if 'initial' in text_lower or 'upfront' in text_lower:\n            for num in numbers:\n                try:\n                    value = float(num.replace(',', ''))\n                    if value > financial_data['initial_investment']:\n                        financial_data['initial_investment'] = value\n                except:\n                    pass\n        \n        # Extract revenue/benefits\n        revenue_keywords = ['revenue', 'income', 'profit', 'benefit', 'savings', 'return']\n        cost_keywords = ['cost', 'expense', 'fee', 'investment', 'spend']\n        \n        for num in numbers:\n            try:\n                value = float(num.replace(',', ''))\n                financial_data['estimated_values'].append(value)\n            except:\n                pass\n        \n        # Set defaults if no specific values found\n        if financial_data['estimated_values']:\n            values = sorted(financial_data['estimated_values'])\n            if not financial_data['initial_investment']:\n                financial_data['initial_investment'] = values[0] if values else 10000\n            financial_data['annual_revenue'] = values[-1] if len(values) > 1 else values[0] * 0.8\n            financial_data['annual_costs'] = financial_data['initial_investment'] * 0.2\n        else:\n            # Default values for demo\n            financial_data['initial_investment'] = 10000\n            financial_data['annual_revenue'] = 15000\n            financial_data['annual_costs'] = 3000\n        \n        return financial_data\n    \n    def calculate_roi_metrics(financial_data, years=3):\n        \"\"\"Calculate various ROI metrics\"\"\"\n        initial = financial_data['initial_investment']\n        annual_net = financial_data['annual_revenue'] - financial_data['annual_costs']\n        \n        metrics = {}\n        \n        # Simple ROI\n        if initial > 0:\n            metrics['simple_roi'] = (annual_net / initial) * 100\n        else:\n            metrics['simple_roi'] = 0\n        \n        # Payback Period\n        if annual_net > 0:\n            metrics['payback_period'] = initial / annual_net\n        else:\n            metrics['payback_period'] = float('inf')\n        \n        # NPV (simplified, assuming 10% discount rate)\n        discount_rate = 0.10\n        npv = -initial\n        for year in range(1, years + 1):\n            npv += annual_net / ((1 + discount_rate) ** year)\n        metrics['npv'] = npv\n        \n        # IRR (simplified approximation)\n        if annual_net > 0 and initial > 0:\n            irr_approx = (annual_net / initial) * 100\n            metrics['irr_estimate'] = irr_approx\n        else:\n            metrics['irr_estimate'] = 0\n        \n        # Total return over period\n        metrics['total_return'] = annual_net * years\n        metrics['total_roi_percent'] = ((annual_net * years) / initial) * 100 if initial > 0 else 0\n        \n        return metrics\n    \n    def assess_strategic_fit(strategic_goals, opportunity_details):\n        \"\"\"Assess how well opportunity aligns with strategic goals\"\"\"\n        goals_lower = strategic_goals.lower()\n        opp_lower = opportunity_details.lower()\n        \n        alignment_factors = {\n            'market_expansion': 0,\n            'revenue_growth': 0,\n            'cost_reduction': 0,\n            'innovation': 0,\n            'customer_acquisition': 0,\n            'competitive_advantage': 0,\n            'operational_efficiency': 0,\n            'brand_building': 0\n        }\n        \n        # Market expansion\n        market_keywords = ['market', 'expansion', 'new territory', 'geographic', 'reach']\n        if any(keyword in goals_lower or keyword in opp_lower for keyword in market_keywords):\n            alignment_factors['market_expansion'] = 8\n        \n        # Revenue growth\n        revenue_keywords = ['revenue', 'sales', 'income', 'profit', 'monetize']\n        if any(keyword in goals_lower or keyword in opp_lower for keyword in revenue_keywords):\n            alignment_factors['revenue_growth'] = 9\n        \n        # Cost reduction\n        cost_keywords = ['cost', 'efficiency', 'automation', 'optimize', 'streamline']\n        if any(keyword in goals_lower or keyword in opp_lower for keyword in cost_keywords):\n            alignment_factors['cost_reduction'] = 7\n        \n        # Innovation\n        innovation_keywords = ['innovation', 'technology', 'digital', 'new product', 'r&d']\n        if any(keyword in goals_lower or keyword in opp_lower for keyword in innovation_keywords):\n            alignment_factors['innovation'] = 8\n        \n        # Customer acquisition\n        customer_keywords = ['customer', 'client', 'user', 'acquisition', 'retention']\n        if any(keyword in goals_lower or keyword in opp_lower for keyword in customer_keywords):\n            alignment_factors['customer_acquisition'] = 7\n        \n        # Calculate overall alignment score\n        active_factors = [score for score in alignment_factors.values() if score > 0]\n        overall_alignment = sum(active_factors) / len(active_factors) if active_factors else 5\n        \n        return alignment_factors, overall_alignment\n    \n    def assess_risks(opportunity_details, risk_tolerance):\n        \"\"\"Assess opportunity risks\"\"\"\n        opp_lower = opportunity_details.lower()\n        \n        risk_factors = {\n            'market_risk': 5,\n            'financial_risk': 5,\n            'operational_risk': 5,\n            'competitive_risk': 5,\n            'regulatory_risk': 5,\n            'technology_risk': 5\n        }\n        \n        # Market risk indicators\n        if any(word in opp_lower for word in ['new market', 'untested', 'uncertain demand']):\n            risk_factors['market_risk'] = 8\n        elif any(word in opp_lower for word in ['established market', 'proven demand']):\n            risk_factors['market_risk'] = 3\n        \n        # Financial risk indicators\n        if any(word in opp_lower for word in ['high investment', 'significant cost', 'capital intensive']):\n            risk_factors['financial_risk'] = 8\n        elif any(word in opp_lower for word in ['low cost', 'minimal investment']):\n            risk_factors['financial_risk'] = 3\n        \n        # Technology risk indicators\n        if any(word in opp_lower for word in ['new technology', 'cutting edge', 'experimental']):\n            risk_factors['technology_risk'] = 7\n        elif any(word in opp_lower for word in ['proven technology', 'established platform']):\n            risk_factors['technology_risk'] = 3\n        \n        # Competitive risk indicators\n        if any(word in opp_lower for word in ['competitive market', 'many competitors']):\n            risk_factors['competitive_risk'] = 7\n        elif any(word in opp_lower for word in ['unique', 'first mover', 'patent']):\n            risk_factors['competitive_risk'] = 3\n        \n        overall_risk = sum(risk_factors.values()) / len(risk_factors)\n        \n        # Adjust based on risk tolerance\n        risk_multiplier = {'low': 1.3, 'medium': 1.0, 'high': 0.7}.get(risk_tolerance, 1.0)\n        adjusted_risk = overall_risk * risk_multiplier\n        \n        return risk_factors, overall_risk, adjusted_risk\n    \n    def generate_recommendation(roi_metrics, strategic_alignment, risk_assessment, decision_criteria):\n        \"\"\"Generate final recommendation\"\"\"\n        # Scoring factors\n        roi_score = min(roi_metrics['simple_roi'] / 10, 10)  # Normalize to 0-10\n        alignment_score = strategic_alignment\n        risk_score = 10 - risk_assessment  # Invert risk (lower risk = higher score)\n        \n        # Weighted overall score\n        overall_score = (roi_score * 0.4) + (alignment_score * 0.35) + (risk_score * 0.25)\n        \n        # Generate recommendation\n        if overall_score >= 8:\n            recommendation = \"STRONG RECOMMEND\"\n            reasoning = \"High financial returns, strong strategic alignment, and manageable risk profile\"\n        elif overall_score >= 6:\n            recommendation = \"RECOMMEND\"\n            reasoning = \"Positive financial outlook with good strategic fit\"\n        elif overall_score >= 4:\n            recommendation = \"CONDITIONAL RECOMMEND\"\n            reasoning = \"Moderate potential but requires risk mitigation or additional analysis\"\n        else:\n            recommendation = \"DO NOT RECOMMEND\"\n            reasoning = \"Insufficient returns, poor strategic fit, or excessive risk\"\n        \n        return {\n            'recommendation': recommendation,\n            'overall_score': round(overall_score, 1),\n            'reasoning': reasoning,\n            'component_scores': {\n                'roi_score': round(roi_score, 1),\n                'alignment_score': round(alignment_score, 1),\n                'risk_score': round(risk_score, 1)\n            }\n        }\n    \n    def generate_action_items(recommendation, roi_metrics, risk_factors):\n        \"\"\"Generate specific action items\"\"\"\n        actions = []\n        \n        if recommendation['recommendation'] in ['STRONG RECOMMEND', 'RECOMMEND']:\n            actions.extend([\n                \"Proceed with detailed implementation planning\",\n                \"Secure necessary budget and resources\",\n                \"Establish success metrics and monitoring systems\",\n                \"Begin stakeholder communication and buy-in process\"\n            ])\n        \n        if recommendation['recommendation'] == 'CONDITIONAL RECOMMEND':\n            actions.extend([\n                \"Conduct additional market research to reduce uncertainty\",\n                \"Develop risk mitigation strategies\",\n                \"Consider pilot program or phased approach\",\n                \"Reassess after addressing key concerns\"\n            ])\n        \n        # Risk-specific actions\n        high_risk_areas = [k for k, v in risk_factors.items() if v >= 7]\n        for risk_area in high_risk_areas:\n            if risk_area == 'market_risk':\n                actions.append(\"Conduct thorough market validation and demand analysis\")\n            elif risk_area == 'financial_risk':\n                actions.append(\"Develop detailed financial projections and contingency funding\")\n            elif risk_area == 'technology_risk':\n                actions.append(\"Evaluate technology readiness and develop backup solutions\")\n        \n        # ROI improvement actions\n        if roi_metrics['simple_roi'] < 20:\n            actions.append(\"Explore ways to improve ROI through cost optimization or revenue enhancement\")\n        \n        return actions\n    \n    # Main analysis\n    financial_data = parse_financial_data(costs_benefits)\n    roi_metrics = calculate_roi_metrics(financial_data)\n    alignment_factors, strategic_alignment = assess_strategic_fit(strategic_goals, opportunity_details)\n    risk_factors, overall_risk, adjusted_risk = assess_risks(opportunity_details, risk_tolerance)\n    recommendation = generate_recommendation(roi_metrics, strategic_alignment, adjusted_risk, decision_criteria)\n    action_items = generate_action_items(recommendation, roi_metrics, risk_factors)\n    \n    # Create comprehensive output\n    output = {\n        'opportunity_summary': {\n            'description': opportunity_details[:200] + \"...\" if len(opportunity_details) > 200 else opportunity_details,\n            'evaluation_timeframe': timeframe,\n            'risk_tolerance': risk_tolerance\n        },\n        'financial_analysis': {\n            'extracted_data': financial_data,\n            'roi_metrics': {\n                'simple_roi_percent': round(roi_metrics['simple_roi'], 1),\n                'payback_period_years': round(roi_metrics['payback_period'], 1) if roi_metrics['payback_period'] != float('inf') else 'No payback',\n                'net_present_value': round(roi_metrics['npv'], 0),\n                'estimated_irr_percent': round(roi_metrics['irr_estimate'], 1),\n                'total_3_year_return': round(roi_metrics['total_return'], 0),\n                'total_roi_percent': round(roi_metrics['total_roi_percent'], 1)\n            }\n        },\n        'strategic_analysis': {\n            'alignment_factors': alignment_factors,\n            'overall_alignment_score': round(strategic_alignment, 1),\n            'strategic_benefits': [\n                factor.replace('_', ' ').title() for factor, score in alignment_factors.items() if score >= 7\n            ]\n        },\n        'risk_analysis': {\n            'risk_factors': risk_factors,\n            'overall_risk_score': round(overall_risk, 1),\n            'adjusted_risk_score': round(adjusted_risk, 1),\n            'high_risk_areas': [factor.replace('_', ' ').title() for factor, score in risk_factors.items() if score >= 7],\n            'risk_mitigation_needed': adjusted_risk >= 6\n        },\n        'recommendation': recommendation,\n        'action_items': action_items,\n        'key_assumptions': [\n            f\"Initial investment: ${financial_data['initial_investment']:,.0f}\",\n            f\"Annual net benefit: ${financial_data['annual_revenue'] - financial_data['annual_costs']:,.0f}\",\n            \"Discount rate: 10% for NPV calculation\",\n            \"3-year evaluation period for long-term metrics\",\n            f\"Risk tolerance: {risk_tolerance}\"\n        ],\n        'sensitivity_analysis': {\n            'best_case_roi': round(roi_metrics['simple_roi'] * 1.5, 1),\n            'worst_case_roi': round(roi_metrics['simple_roi'] * 0.5, 1),\n            'break_even_threshold': round(financial_data['initial_investment'] / financial_data['annual_revenue'] * 100, 1) if financial_data['annual_revenue'] > 0 else 'N/A'\n        }\n    }\n    \n    return json.dumps(output, indent=2)\n\n# Execute the function\nresult = evaluate_opportunity()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "opportunity_details",
+                "id": "opportunity_details_input",
+                "label": "Opportunity Details",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the opportunity in detail - what it is, the market, the approach, etc...",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "costs_benefits",
+                "id": "costs_benefits_input",
+                "label": "Costs & Benefits",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Detail the financial aspects - initial investment, ongoing costs, expected revenue/savings, timeframes...",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "strategic_goals",
+                "id": "strategic_goals_input",
+                "label": "Strategic Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What are your organization's strategic objectives? How should this opportunity align with them?",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "timeframe",
+                "id": "timeframe_input",
+                "label": "Evaluation Timeframe",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["6 months", "1 year", "2 years", "3 years", "5 years"],
+                  "defaultValue": "3 years"
+                }
+              },
+              {
+                "fieldName": "risk_tolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Tolerance",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["low", "medium", "high"],
+                  "defaultValue": "medium"
+                }
+              },
+              {
+                "fieldName": "decision_criteria",
+                "id": "decision_criteria_input",
+                "label": "Decision Criteria (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific criteria or constraints for this decision? (e.g., minimum ROI, strategic priorities, resource limitations...)",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_evaluation_output",
+                "label": "Complete Opportunity Evaluation",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recommendation",
+                "id": "recommendation_output",
+                "label": "Recommendation & Rationale",
+                "type": "Text"
+              },
+              {
+                "fieldName": "financialAnalysis",
+                "id": "financial_analysis_output",
+                "label": "Financial Analysis & ROI",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionItems",
+                "id": "action_items_output",
+                "label": "Next Steps & Action Items",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847134",
+          "language": "en",
+          "name": "Opportunity Evaluator (ROI & Fit Analysis)",
+          "description": "Evaluates opportunities with both financial and strategic analysis. Calculates ROI, assesses strategic fit, analyzes risks, and provides recommendations with actionable next steps and sensitivity analysis.",
+          "instructions": "1. Describe the opportunity in detail\n2. Provide costs and benefits information\n3. Outline strategic goals for alignment\n4. Set evaluation timeframe\n5. Choose risk tolerance level\n6. Add specific decision criteria (optional)\n\nThe evaluator will:\n- Calculate comprehensive ROI metrics (NPV, IRR, payback period)\n- Assess strategic alignment with organizational goals\n- Analyze risk factors and mitigation needs\n- Generate weighted recommendation with rationale\n- Provide actionable next steps\n- Include sensitivity analysis for different scenarios\n\nPerfect for business development, investment decisions, and strategic planning."
+        }
+      ]
+    }
+  ]
+}

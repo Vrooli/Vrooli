@@ -1,0 +1,142 @@
+{
+  "id": "7829564732190848624",
+  "publicId": "budget-scenario-modeler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847067",
+      "tag": "finance",
+      "translations": [
+        {
+          "id": "7829564732190847167",
+          "language": "en",
+          "description": "Financial planning and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847068",
+      "tag": "budgeting",
+      "translations": [
+        {
+          "id": "7829564732190847168",
+          "language": "en",
+          "description": "Budget planning and tracking"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847069",
+      "tag": "scenario-planning",
+      "translations": [
+        {
+          "id": "7829564732190847169",
+          "language": "en",
+          "description": "Scenario analysis and planning"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848625",
+      "publicId": "budget-scenario-modeler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates budget scenarios",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "selectedFramework",
+                "id": "selected_framework_input",
+                "label": "Budget Model",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Chosen budgeting framework"
+              },
+              {
+                "fieldName": "budgetCategories",
+                "id": "budget_categories_input",
+                "label": "Categories",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Budget category structure"
+              },
+              {
+                "fieldName": "allocationAmounts",
+                "id": "allocation_amounts_input",
+                "label": "Allocations",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Category allocations"
+              },
+              {
+                "fieldName": "budgetBuffer",
+                "id": "budget_buffer_input",
+                "label": "Flexibility",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Buffer amounts"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "conservativeScenario",
+                "id": "conservative_scenario_output",
+                "label": "Conservative Budget",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "balancedScenario",
+                "id": "balanced_scenario_output",
+                "label": "Balanced Budget",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "aggressiveScenario",
+                "id": "aggressive_scenario_output",
+                "label": "Aggressive Budget",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "emergencyPlan",
+                "id": "emergency_plan_output",
+                "label": "Contingency Budget",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848626",
+          "language": "en",
+          "name": "Budget Scenario Modeler",
+          "description": "Generates different budget scenarios and what-if analyses for various financial situations.",
+          "instructions": "Provide budget framework and allocations. The routine will create multiple scenarios."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "id": "7829564732190848747",
+  "publicId": "team-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847072",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847172",
+          "language": "en",
+          "description": "Team management and development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848748",
+      "publicId": "team-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes team composition and dynamics",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "teamComposition",
+                "id": "team_composition_input",
+                "label": "Team Composition",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Team member details and roles"
+              },
+              {
+                "fieldName": "currentChallenges",
+                "id": "current_challenges_input",
+                "label": "Current Challenges",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Existing team challenges"
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "basic",
+                  "standard",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "teamStrengths",
+                "id": "team_strengths_output",
+                "label": "Team Strengths",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "skillGaps",
+                "id": "skill_gaps_output",
+                "label": "Skill Gaps",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "dynamicsAssessment",
+                "id": "dynamics_assessment_output",
+                "label": "Team Dynamics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848749",
+          "language": "en",
+          "name": "Team Analysis Engine",
+          "description": "Analyzes team composition, strengths, skill gaps, and dynamics for optimization.",
+          "instructions": "Provide team composition and challenges. The routine will analyze strengths and gaps."
+        }
+      ]
+    }
+  ]
+}

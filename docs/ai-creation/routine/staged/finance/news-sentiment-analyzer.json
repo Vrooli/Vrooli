@@ -1,0 +1,142 @@
+{
+  "id": "7829564732190848261",
+  "publicId": "news-sentiment-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "finance-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "finance"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848262",
+      "publicId": "news-sentiment-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes news sentiment and market impact for investment decisions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Analyze news sentiment and market impact for investment decision-making:\n\nNews Articles: {{input.newsArticles}}\nCompany/Sector Focus: {{input.companyFocus}}\nTime Period: {{input.timePeriod}}\nMarket Context: {{input.marketContext}}\nAnalysis Type: {{input.analysisType}}\n\nConduct comprehensive sentiment and impact analysis:\n\n1. **Sentiment Classification**:\n   - Overall sentiment scoring (-5 to +5)\n   - Article-by-article sentiment\n   - Emotional tone analysis\n   - Confidence level assessment\n   - Trend direction identification\n\n2. **Content Analysis**:\n   - Key themes and topics\n   - Fact vs opinion separation\n   - Source credibility assessment\n   - Bias detection\n   - Information quality scoring\n\n3. **Market Impact Assessment**:\n   - Price movement correlation\n   - Volume impact prediction\n   - Volatility implications\n   - Sector spillover effects\n   - Timeline of impact\n\n4. **Signal Strength Evaluation**:\n   - News importance ranking\n   - Market relevance scoring\n   - Urgency assessment\n   - Actionability rating\n   - False signal filtering\n\n5. **Historical Context**:\n   - Similar event comparisons\n   - Historical reaction patterns\n   - Market cycle positioning\n   - Precedent analysis\n   - Outcome tracking\n\n6. **Stakeholder Perspective**:\n   - Management commentary\n   - Analyst reactions\n   - Investor sentiment\n   - Regulatory response\n   - Competitor impacts\n\n7. **Risk Indicators**:\n   - Negative sentiment clusters\n   - Controversy markers\n   - Regulatory concern signals\n   - Operational risk flags\n   - Reputational threats\n\n8. **Investment Implications**:\n   - Trading recommendations\n   - Position sizing guidance\n   - Risk management alerts\n   - Monitoring priorities\n   - Timeline considerations\n\nReturn as structured JSON with keys: sentimentScores (object), contentAnalysis (object), marketImpact (object), signalStrength (object), historicalContext (object), stakeholderViews (array), riskIndicators (object), investmentGuidance (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "newsArticles",
+                "id": "news_input",
+                "label": "News Articles",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste news articles, headlines, or summaries to analyze...",
+                  "multiline": true,
+                  "rows": 5
+                }
+              },
+              {
+                "fieldName": "companyFocus",
+                "id": "focus_input",
+                "label": "Company/Sector Focus",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific company, sector, or investment focus..."
+                }
+              },
+              {
+                "fieldName": "timePeriod",
+                "id": "time_input",
+                "label": "Time Period",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Date range or time period for the news..."
+                }
+              },
+              {
+                "fieldName": "marketContext",
+                "id": "context_input",
+                "label": "Market Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Current market conditions, recent events, or relevant context...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "analysisType",
+                "id": "type_input",
+                "label": "Analysis Type",
+                "type": "Selector",
+                "props": {
+                  "options": ["Quick Sentiment", "Detailed Analysis", "Trading Signal", "Risk Assessment", "Comprehensive Report"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "sentimentAnalysis",
+                "id": "sentiment_output",
+                "label": "Sentiment Analysis Report",
+                "type": "Text"
+              },
+              {
+                "fieldName": "marketGuidance",
+                "id": "guidance_output",
+                "label": "Market Impact Guidance",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848263",
+          "language": "en-US",
+          "description": "Analyzes news sentiment and market impact with signal strength evaluation and investment guidance",
+          "instructions": "Provide news articles and specify your focus area. The system will analyze sentiment, assess market impact, and provide investment guidance.",
+          "name": "News Sentiment Analyzer"
+        }
+      ]
+    }
+  ]
+}

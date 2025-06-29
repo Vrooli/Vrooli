@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848294",
+  "publicId": "verdict-synthesizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847032",
+      "publicId": "research-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "research"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848295",
+      "publicId": "verdict-synthesizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Synthesizes evidence to determine truth value of claims",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Synthesize evidence to determine truth value of claims:\n\nSupporting Evidence: {{input.supportingEvidence}}\nContradicting Evidence: {{input.contradictingEvidence}}\nEvidence Quality Scores: {{input.evidenceQuality}}\nDecomposed Claims: {{input.decomposedClaims}}\nCredibility Standards: {{input.credibilityStandards}}\n\nPerform comprehensive verdict synthesis:\n\n1. **Evidence Weight Analysis**:\n   - Supporting evidence strength\n   - Contradicting evidence power\n   - Source credibility weighting\n   - Consensus level assessment\n   - Expert opinion value\n\n2. **Truth Value Determination**:\n   - True/False/Partially True/Misleading/Unverifiable\n   - Confidence percentage (0-100%)\n   - Certainty distribution\n   - Margin of error\n   - Alternative interpretations\n\n3. **Nuance Identification**:\n   - Context dependencies\n   - Temporal relevance\n   - Geographic variations\n   - Conditional truths\n   - Scope limitations\n\n4. **Claim-by-Claim Analysis**:\n   - Individual fact verdicts\n   - Interconnection effects\n   - Cumulative truth value\n   - Critical claim identification\n   - Dependency mapping\n\n5. **Uncertainty Handling**:\n   - Information gaps\n   - Conflicting expert views\n   - Evolving situations\n   - Future verification needs\n   - Research limitations\n\n6. **Bias & Limitation Recognition**:\n   - Source bias patterns\n   - Confirmation bias risks\n   - Selection bias awareness\n   - Cultural perspective limits\n   - Methodological constraints\n\n7. **Contextual Explanation**:\n   - Why claims are true/false\n   - Key determining factors\n   - Important caveats\n   - Relevant background\n   - Historical precedents\n\n8. **Recommendation Framework**:\n   - Further verification needs\n   - Action implications\n   - Communication guidance\n   - Update triggers\n   - Monitoring suggestions\n\nReturn as structured JSON with keys: evidenceAnalysis (object), truthValue (object), nuanceMapping (object), claimVerdicts (array), uncertaintyFactors (object), biasAssessment (object), contextualExplanation (object), recommendations (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "supportingEvidence",
+                "id": "supporting_input",
+                "label": "Supporting Evidence",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Evidence that supports the claims...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "contradictingEvidence",
+                "id": "contradicting_input",
+                "label": "Contradicting Evidence",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Evidence that contradicts the claims...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "evidenceQuality",
+                "id": "quality_input",
+                "label": "Evidence Quality Scores",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Quality ratings for each piece of evidence...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "decomposedClaims",
+                "id": "claims_input",
+                "label": "Individual Claims",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "The decomposed individual facts to verify...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "credibilityStandards",
+                "id": "standards_input",
+                "label": "Credibility Standards",
+                "type": "Selector",
+                "props": {
+                  "options": ["Basic", "Moderate", "High", "Academic", "Legal", "Scientific"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "factCheckVerdict",
+                "id": "verdict_output",
+                "label": "Fact Check Verdict",
+                "type": "Text"
+              },
+              {
+                "fieldName": "confidenceAnalysis",
+                "id": "confidence_output",
+                "label": "Confidence Analysis",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848296",
+          "language": "en-US",
+          "description": "Synthesizes evidence to determine truth values with nuanced analysis and confidence levels",
+          "instructions": "Provide supporting and contradicting evidence with quality scores. The system will synthesize a verdict with confidence analysis.",
+          "name": "Verdict Synthesizer"
+        }
+      ]
+    }
+  ]
+}

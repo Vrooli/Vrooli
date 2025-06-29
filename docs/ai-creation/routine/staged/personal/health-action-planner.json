@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848585",
+  "publicId": "health-action-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847047",
+      "tag": "wellness",
+      "translations": [
+        {
+          "id": "7829564732190847147",
+          "language": "en",
+          "description": "Health and wellness"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847055",
+      "tag": "prevention",
+      "translations": [
+        {
+          "id": "7829564732190847155",
+          "language": "en",
+          "description": "Prevention and risk management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848586",
+      "publicId": "health-action-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops actionable health improvement strategies",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "wellnessRecommendations",
+                "id": "wellness_recommendations_input",
+                "label": "Improvement Suggestions",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Health improvement recommendations"
+              },
+              {
+                "fieldName": "avoidanceStrategies",
+                "id": "avoidance_strategies_input",
+                "label": "Prevention Insights",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Trigger avoidance strategies"
+              },
+              {
+                "fieldName": "personalPreferences",
+                "id": "personal_preferences_input",
+                "label": "Lifestyle Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Time, budget, preferences"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "healthActionPlan",
+                "id": "health_action_plan_output",
+                "label": "Actionable Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationSteps",
+                "id": "implementation_steps_output",
+                "label": "Execution Roadmap",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "monitoringProtocol",
+                "id": "monitoring_protocol_output",
+                "label": "Progress Tracking",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848587",
+          "language": "en",
+          "name": "Health Action Planner",
+          "description": "Develops practical health improvement strategies with implementation steps and monitoring protocols.",
+          "instructions": "Provide wellness recommendations and constraints. The routine will create an actionable health plan."
+        }
+      ]
+    }
+  ]
+}

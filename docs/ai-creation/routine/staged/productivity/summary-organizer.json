@@ -1,0 +1,134 @@
+{
+  "id": "7829564732190848654",
+  "publicId": "summary-organizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847075",
+      "tag": "note-taking",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Note organization and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847077",
+      "tag": "summarization",
+      "translations": [
+        {
+          "id": "7829564732190847177",
+          "language": "en",
+          "description": "Content summarization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848655",
+      "publicId": "summary-organizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Organizes note summaries",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "keyThemes",
+                "id": "key_themes_input",
+                "label": "Main Themes",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Identified themes"
+              },
+              {
+                "fieldName": "relatedTopics",
+                "id": "related_topics_input",
+                "label": "Sub Topics",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Related topics"
+              },
+              {
+                "fieldName": "summaryLength",
+                "id": "summary_length_input",
+                "label": "Summary Length",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "medium",
+                "options": [
+                  "brief",
+                  "medium",
+                  "detailed",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "detailedSummary",
+                "id": "detailed_summary_output",
+                "label": "Detailed Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyTakeaways",
+                "id": "key_takeaways_output",
+                "label": "Key Takeaways",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848656",
+          "language": "en",
+          "name": "Summary Organizer",
+          "description": "Creates organized, hierarchical summaries from identified themes and topics.",
+          "instructions": "Provide themes and topics. The routine will create organized summaries."
+        }
+      ]
+    }
+  ]
+}

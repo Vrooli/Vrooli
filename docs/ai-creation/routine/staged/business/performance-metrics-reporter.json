@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Parse Performance Data",
                 "description": "Extracts and structures raw performance metrics",
-                "subroutineId": "data-parser-v1",
+                "subroutineId": "7829564732190848630",
                 "inputMap": {
                   "originalPerformanceData": "performanceData",
                   "originalTargets": "performanceTargets",
@@ -45,7 +45,7 @@
                 "id": "step-2",
                 "name": "Analyze Trends and Patterns",
                 "description": "Identifies performance trends, patterns, and anomalies",
-                "subroutineId": "trend-analyzer-v1",
+                "subroutineId": "7829564732190848633",
                 "inputMap": {
                   "parsedMetrics": "metricsData",
                   "mainKPIs": "kpiValues",
@@ -63,7 +63,7 @@
                 "id": "step-3",
                 "name": "Generate Narrative Insights",
                 "description": "Creates story-driven explanations of the performance data",
-                "subroutineId": "narrative-builder-v1",
+                "subroutineId": "7829564732190848636",
                 "inputMap": {
                   "identifiedTrends": "trendInsights",
                   "varianceAnalysis": "performanceGaps",
@@ -81,7 +81,7 @@
                 "id": "step-4",
                 "name": "Compile Final Report",
                 "description": "Assembles comprehensive performance report with recommendations",
-                "subroutineId": "report-compiler-v1",
+                "subroutineId": "7829564732190848639",
                 "inputMap": {
                   "storyOverview": "executiveSummary",
                   "analyticalNarrative": "detailedAnalysis",

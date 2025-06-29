@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Speaking Skills & Goals",
                 "description": "Evaluates current abilities, identifies strengths and weaknesses",
-                "subroutineId": "TODO: Need speaking assessment subroutine",
+                "subroutineId": "7829564732190848771",
                 "inputMap": {
                   "speakingExperience": "currentSkillLevel",
                   "specificGoals": "improvementObjectives",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Develop Speech Content",
                 "description": "Creates compelling message structure and supporting content",
-                "subroutineId": "TODO: Need content development subroutine",
+                "subroutineId": "7829564732190848774",
                 "inputMap": {
                   "speechPurpose": "presentationObjective",
                   "audienceProfile": "targetAudience",

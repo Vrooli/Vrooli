@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Current Habits & Goals",
                 "description": "Assesses existing behaviors and desired habit changes",
-                "subroutineId": "TODO: Need habit analysis subroutine",
+                "subroutineId": "7829564732190848219",
                 "inputMap": {
                   "currentBehaviors": "existingHabits",
                   "desiredChanges": "habitGoals",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Design Habit Formation Strategy",
                 "description": "Creates personalized approach based on behavior science",
-                "subroutineId": "TODO: Need strategy design subroutine",
+                "subroutineId": "7829564732190848222",
                 "inputMap": {
                   "targetBehaviors": "priorityHabits",
                   "personalityProfile": "individualTraits",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Establish Triggers & Cues",
                 "description": "Sets up environmental and psychological prompts",
-                "subroutineId": "TODO: Need trigger setup subroutine",
+                "subroutineId": "7829564732190848225",
                 "inputMap": {
                   "habitPlan": "formationStrategy",
                   "dailyRoutine": "schedulePattern",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Build Reward & Tracking Systems",
                 "description": "Creates motivation and progress monitoring mechanisms",
-                "subroutineId": "TODO: Need reward system subroutine",
+                "subroutineId": "7829564732190848228",
                 "inputMap": {
                   "behaviorDesign": "implementationMethod",
                   "motivationalPreferences": "rewardTypes",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Handle Obstacles & Setbacks",
                 "description": "Prepares strategies for common challenges and failures",
-                "subroutineId": "TODO: Need obstacle management subroutine",
+                "subroutineId": "7829564732190848246",
                 "inputMap": {
                   "potentialBarriers": "anticipatedChallenges",
                   "historicalStruggles": "pastDifficulties",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Optimize & Scale Success",
                 "description": "Refines habits and expands to additional behaviors",
-                "subroutineId": "TODO: Need optimization subroutine",
+                "subroutineId": "7829564732190848249",
                 "inputMap": {
                   "progressData": "habitPerformance",
                   "successPatterns": "workingStrategies",

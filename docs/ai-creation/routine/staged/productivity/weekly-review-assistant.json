@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Aggregate Week's Data",
                 "description": "Collects all completed tasks and activities from the past week",
-                "subroutineId": "TODO: Need data collection subroutine for weekly aggregation",
+                "subroutineId": "7829564732190848237",
                 "inputMap": {
                   "weekData": "pastWeekTasks",
                   "completedItems": "finishedTasks",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Accomplishments",
                 "description": "Identifies key achievements and successes",
-                "subroutineId": "TODO: Need reasoning subroutine for accomplishment analysis",
+                "subroutineId": "7829564732190848369",
                 "inputMap": {
                   "completedItems": "finishedTasks",
                   "weeklyStats": "aggregatedStats",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Challenges",
                 "description": "Analyzes what didn't work and why",
-                "subroutineId": "TODO: Need reasoning subroutine for challenge identification",
+                "subroutineId": "7829564732190848372",
                 "inputMap": {
                   "pendingItems": "unfinishedTasks",
                   "timeAnalysis": "timeSpentBreakdown",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Extract Lessons Learned",
                 "description": "Synthesizes insights from the week's experiences",
-                "subroutineId": "TODO: Need reasoning subroutine for lesson extraction",
+                "subroutineId": "7829564732190848642",
                 "inputMap": {
                   "successPatterns": "whatWorked",
                   "challenges": "identifiedChallenges",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Plan Next Week",
                 "description": "Uses insights to plan the upcoming week",
-                "subroutineId": "task-prior-v1",
+                "subroutineId": "7829564732190847574",
                 "inputMap": {
                   "taskList": "upcomingTasks",
                   "importance": "taskPriorities",
@@ -140,7 +140,7 @@
                 "id": "step-6",
                 "name": "Generate Review Summary",
                 "description": "Creates comprehensive weekly review document",
-                "subroutineId": "TODO: Need generation subroutine for review compilation",
+                "subroutineId": "7829564732190848645",
                 "inputMap": {
                   "keyAchievements": "majorWins",
                   "lessonsLearned": "weeklyInsights",

@@ -1,0 +1,162 @@
+{
+  "id": "7829564732190847165",
+  "publicId": "slide-cond-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847166",
+      "publicId": "slides-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "Convert the following lengthy text into concise presentation slides:\n\n**Source Text:** {{input.sourceText}}\n**Slide Count Limit:** {{input.slideCountLimit}}\n**Presentation Style:** {{input.presentationStyle}}\n{{#if input.audience}}**Target Audience:** {{input.audience}}{{/if}}\n{{#if input.keyMessages}}**Key Messages to Emphasize:** {{input.keyMessages}}{{/if}}\n{{#if input.timeLimit}}**Presentation Time Limit:** {{input.timeLimit}}{{/if}}\n\nCreate well-structured presentation slides:\n\n1. **Slide Structure & Organization**\n   - Title slide with compelling headline\n   - Logical flow and sequence\n   - Clear section divisions\n   - Smooth transitions between concepts\n   - Conclusion and next steps slide\n   - Consistent formatting throughout\n\n2. **Content Condensation**\n   - Key points extraction from source\n   - Essential information prioritization\n   - Redundancy elimination\n   - Complex concepts simplification\n   - Supporting details organization\n   - Call-to-action identification\n\n3. **Bullet Point Creation**\n   - Concise, action-oriented language\n   - Parallel structure maintenance\n   - Appropriate detail level\n   - Scannable format optimization\n   - Visual hierarchy creation\n   - Impact-focused phrasing\n\n4. **Slide Titles & Headers**\n   - Descriptive and engaging titles\n   - Clear section headings\n   - Benefit-focused headlines\n   - Question-based titles where appropriate\n   - Action-oriented headings\n   - Curiosity-generating titles\n\n5. **Speaker Notes**\n   - Detailed talking points\n   - Transition guidance\n   - Emphasis and timing cues\n   - Additional context and examples\n   - Q&A preparation points\n   - Personal anecdotes suggestions\n\n6. **Visual Content Suggestions**\n   - Chart and graph recommendations\n   - Image placement opportunities\n   - Icon and symbol usage\n   - Color scheme suggestions\n   - Layout and design tips\n   - White space optimization\n\n7. **Audience Engagement Elements**\n   - Interactive discussion points\n   - Question prompts for audience\n   - Poll or survey opportunities\n   - Demonstration moments\n   - Story and example integration\n   - Participation activities\n\n8. **Information Hierarchy**\n   - Primary messages prominence\n   - Secondary information placement\n   - Supporting details organization\n   - Evidence and data positioning\n   - Call-to-action emphasis\n   - Contact information inclusion\n\n9. **Slide-by-Slide Breakdown**\n   - Individual slide content\n   - Recommended time allocation\n   - Transition statements\n   - Key delivery points\n   - Visual element suggestions\n   - Interaction opportunities\n\n10. **Presentation Flow**\n    - Opening hook and attention grabber\n    - Problem or need establishment\n    - Solution or content delivery\n    - Benefits and value proposition\n    - Evidence and proof points\n    - Closing and call-to-action\n\n11. **Technical Considerations**\n    - Slide count optimization\n    - Reading time estimation\n    - Font size and readability\n    - Color contrast recommendations\n    - Mobile and projection compatibility\n    - Backup slide preparations\n\n12. **Customization Options**\n    - Audience-specific adaptations\n    - Time-constraint variations\n    - Formality level adjustments\n    - Industry-specific terminology\n    - Cultural sensitivity considerations\n    - Accessibility accommodations\n\n13. **Quality Assurance**\n    - Message clarity verification\n    - Logical flow confirmation\n    - Consistency checking\n    - Grammar and spelling review\n    - Professional tone maintenance\n    - Completeness assessment\n\n14. **Delivery Enhancement**\n    - Storytelling opportunities\n    - Emotional connection points\n    - Memorable phrase creation\n    - Analogy and metaphor usage\n    - Real-world application examples\n    - Success story integration\n\n15. **Follow-up Materials**\n    - Handout suggestions\n    - Additional reading recommendations\n    - Contact and resource information\n    - Next steps documentation\n    - Implementation guidance\n    - Feedback collection methods\n\nFocus on creating slides that are visually appealing, easy to follow, and effectively communicate the core message within the specified constraints.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "sourceText",
+                "id": "source_text_input",
+                "label": "Source Text",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the lengthy text you want to convert into presentation slides...",
+                  "minRows": 8
+                }
+              },
+              {
+                "fieldName": "slideCountLimit",
+                "id": "slide_count_limit_input",
+                "label": "Slide Count Limit",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["5-7 slides", "8-10 slides", "12-15 slides", "15-20 slides", "20+ slides", "No specific limit"],
+                  "defaultValue": "8-10 slides"
+                }
+              },
+              {
+                "fieldName": "presentationStyle",
+                "id": "presentation_style_input",
+                "label": "Presentation Style",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Executive summary", "Technical deep-dive", "Educational/training", "Sales pitch", "Project update", "Conference presentation", "Workshop format"],
+                  "defaultValue": "Executive summary"
+                }
+              },
+              {
+                "fieldName": "audience",
+                "id": "audience_input",
+                "label": "Target Audience (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Who will be viewing this presentation? (executives, team members, clients, students...)",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "keyMessages",
+                "id": "key_messages_input",
+                "label": "Key Messages to Emphasize (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific messages or points you want to emphasize?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "timeLimit",
+                "id": "time_limit_input",
+                "label": "Presentation Time Limit",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["5 minutes", "10 minutes", "15 minutes", "30 minutes", "45 minutes", "1 hour", "90+ minutes"],
+                  "defaultValue": "15 minutes"
+                }
+              },
+              {
+                "fieldName": "interactivityLevel",
+                "id": "interactivity_level_input",
+                "label": "Interactivity Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Minimal (mostly presentation)", "Moderate (some Q&A)", "High (frequent interaction)", "Workshop style"],
+                  "defaultValue": "Moderate (some Q&A)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_presentation_output",
+                "label": "Complete Presentation Structure",
+                "type": "Text"
+              },
+              {
+                "fieldName": "slideOutlines",
+                "id": "slide_outlines_output",
+                "label": "Slide-by-Slide Outlines",
+                "type": "Text"
+              },
+              {
+                "fieldName": "speakerNotes",
+                "id": "speaker_notes_output",
+                "label": "Speaker Notes & Talking Points",
+                "type": "Text"
+              },
+              {
+                "fieldName": "visualSuggestions",
+                "id": "visual_suggestions_output",
+                "label": "Visual & Design Suggestions",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847167",
+          "language": "en",
+          "name": "Presentation Slide Condenser",
+          "description": "Converts lengthy text into concise presentation bullets. Helps quickly create presentations from written material with proper structure, speaker notes, and visual suggestions.",
+          "instructions": "1. Paste the source text to convert\n2. Set slide count limit\n3. Choose presentation style\n4. Define target audience (optional)\n5. Add key messages to emphasize (optional)\n6. Set presentation time limit\n7. Choose interactivity level\n\nThe condenser will create:\n- Well-structured slide outlines\n- Concise bullet points per slide\n- Compelling slide titles and headers\n- Detailed speaker notes and talking points\n- Visual content suggestions\n- Audience engagement elements\n- Presentation flow optimization\n- Time allocation recommendations\n\nPerfect for executives, presenters, and anyone who needs to quickly convert written content into engaging presentation format."
+        }
+      ]
+    }
+  ]
+}

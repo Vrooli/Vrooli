@@ -1,0 +1,122 @@
+{
+  "id": "7829564732190848693",
+  "publicId": "feedback-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847080",
+      "tag": "writing",
+      "translations": [
+        {
+          "id": "7829564732190847180",
+          "language": "en",
+          "description": "Writing and editing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847082",
+      "tag": "feedback",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Feedback and review"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848694",
+      "publicId": "feedback-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles comprehensive feedback",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentReview",
+                "id": "content_review_input",
+                "label": "Content Review Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Content analysis results"
+              },
+              {
+                "fieldName": "grammarCheck",
+                "id": "grammar_check_input",
+                "label": "Grammar Check Results",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Grammar check data"
+              },
+              {
+                "fieldName": "priorityLevel",
+                "id": "priority_level_input",
+                "label": "Feedback Priority",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "critical_only",
+                  "balanced",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "comprehensiveFeedback",
+                "id": "comprehensive_feedback_output",
+                "label": "Complete Feedback Report",
+                "type": "Text"
+              },
+              {
+                "fieldName": "prioritizedIssues",
+                "id": "prioritized_issues_output",
+                "label": "Priority Issues",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Improvement Action Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848695",
+          "language": "en",
+          "name": "Feedback Compiler",
+          "description": "Compiles comprehensive writing feedback from multiple analysis sources.",
+          "instructions": "Provide analysis results to compile into actionable feedback."
+        }
+      ]
+    }
+  ]
+}

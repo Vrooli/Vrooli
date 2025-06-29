@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190848510",
+  "publicId": "compliance-checker-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847033",
+      "tag": "legal",
+      "translations": [
+        {
+          "id": "7829564732190847133",
+          "language": "en",
+          "description": "Legal analysis and compliance"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847035",
+      "tag": "compliance",
+      "translations": [
+        {
+          "id": "7829564732190847135",
+          "language": "en",
+          "description": "Regulatory compliance and standards"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848511",
+      "publicId": "compliance-checker-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Checks contract compliance with standards and regulations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "riskAssessment",
+                "id": "risk_assessment_input",
+                "label": "Risk Assessment",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Risk assessment data from risk assessor"
+              },
+              {
+                "fieldName": "jurisdiction",
+                "id": "jurisdiction_input",
+                "label": "Jurisdiction",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "general",
+                "options": [
+                  "general",
+                  "us-federal",
+                  "eu-gdpr",
+                  "industry-specific",
+                  "international"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "complianceReport",
+                "id": "compliance_report_output",
+                "label": "Compliance Report",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848512",
+          "language": "en",
+          "name": "Compliance Checker",
+          "description": "Checks contract compliance with legal standards, regulations, and industry requirements to identify potential violations.",
+          "instructions": "Provide risk assessment data for compliance checking. The routine will evaluate adherence to legal standards."
+        }
+      ]
+    }
+  ]
+}

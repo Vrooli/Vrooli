@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190848675",
+  "publicId": "content-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847070",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847170",
+          "language": "en",
+          "description": "Content creation and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848676",
+      "publicId": "content-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes content for repurposing",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "originalContent",
+                "id": "original_content_input",
+                "label": "Original Content",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Content to analyze"
+              },
+              {
+                "fieldName": "contentType",
+                "id": "content_type_input",
+                "label": "Content Type",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Blog post, video script, etc."
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentAnalysis",
+                "id": "content_analysis_output",
+                "label": "Content Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyThemes",
+                "id": "key_themes_output",
+                "label": "Main Themes",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "repurposeOpportunities",
+                "id": "repurpose_opportunities_output",
+                "label": "Repurposing Ideas",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848677",
+          "language": "en",
+          "name": "Content Analyzer for Repurposing",
+          "description": "Analyzes content to identify themes, structure, and repurposing opportunities.",
+          "instructions": "Provide your content for analysis. The routine will extract key themes and suggest repurposing options."
+        }
+      ]
+    }
+  ]
+}

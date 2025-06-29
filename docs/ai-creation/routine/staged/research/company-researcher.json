@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190847907",
+  "publicId": "company-res-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847027",
+      "publicId": "professional-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "professional"
+    },
+    {
+      "id": "7829564732190847030",
+      "publicId": "research-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "research"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847908",
+      "publicId": "company-res-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Researches company information for interviews",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineWeb",
+      "config": {
+        "__version": "1.0",
+        "callDataWeb": {
+          "__version": "1.0",
+          "schema": {
+            "searchQuery": "{{input.companyName}} {{input.searchFocus}}",
+            "processingInstructions": "Extract key information about the company focusing on: recent news, company culture, products/services, leadership team, recent achievements, challenges, and any information relevant to {{input.interviewRole}}. Summarize findings in a structured format.",
+            "maxResults": 10,
+            "resultFormat": "structured"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "companyName",
+                "id": "company_name_input",
+                "label": "Company Name",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter the company name..."
+                }
+              },
+              {
+                "fieldName": "searchFocus",
+                "id": "search_focus_input",
+                "label": "Research Focus",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "e.g., 'recent news', 'company culture', 'product launches'"
+                }
+              },
+              {
+                "fieldName": "interviewRole",
+                "id": "role_input",
+                "label": "Interview Role",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Position you're interviewing for (optional)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "companyOverview",
+                "id": "overview_output",
+                "label": "Company Overview",
+                "type": "Text"
+              },
+              {
+                "fieldName": "keyFindings",
+                "id": "findings_output",
+                "label": "Key Research Findings",
+                "type": "Text"
+              },
+              {
+                "fieldName": "interviewTalkingPoints",
+                "id": "talking_points_output",
+                "label": "Interview Talking Points",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847909",
+          "language": "en-US",
+          "description": "Researches company information from web sources to prepare for interviews",
+          "instructions": "Enter the company name and optionally specify a research focus or your interview role. The system will gather relevant information to help you prepare.",
+          "name": "Company Researcher"
+        }
+      ]
+    }
+  ]
+}

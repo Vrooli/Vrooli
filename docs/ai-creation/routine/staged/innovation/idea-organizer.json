@@ -1,0 +1,146 @@
+{
+  "id": "7829564732190848327",
+  "publicId": "idea-organizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847034",
+      "publicId": "innovation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "innovation"
+    },
+    {
+      "id": "7829564732190847031",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848328",
+      "publicId": "idea-organizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Structures ideas and identifies most promising concepts",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Organize and prioritize brainstormed ideas systematically:\n\nAll Generated Ideas: {{input.allIdeas}}\nEvaluation Criteria: {{input.evaluationCriteria}}\nOrganization Method: {{input.organizationMethod}}\nPriority Factors: {{input.priorityFactors}}\nSelection Goals: {{input.selectionGoals}}\n\nStructure and prioritize ideas:\n\n1. **Thematic Clustering**:\n   - Similar concept groups\n   - Theme identification\n   - Category creation\n   - Pattern recognition\n   - Relationship mapping\n\n2. **Feasibility Matrix**:\n   - Implementation ease\n   - Resource requirements\n   - Time to market\n   - Technical complexity\n   - Risk assessment\n\n3. **Impact Assessment**:\n   - Value creation potential\n   - Problem-solving power\n   - User benefit level\n   - Market disruption\n   - Long-term effects\n\n4. **Innovation Scoring**:\n   - Novelty rating\n   - Uniqueness factor\n   - Competitive advantage\n   - Patent potential\n   - Market differentiation\n\n5. **Quick Win Identification**:\n   - Low-hanging fruit\n   - Immediate impact\n   - Minimal investment\n   - Fast validation\n   - Early momentum\n\n6. **Strategic Alignment**:\n   - Goal compatibility\n   - Vision alignment\n   - Resource fit\n   - Capability match\n   - Culture compatibility\n\n7. **Risk-Reward Analysis**:\n   - Potential upside\n   - Downside risks\n   - Mitigation difficulty\n   - Failure impact\n   - Success probability\n\n8. **Final Prioritization**:\n   - Top tier ideas\n   - Second tier options\n   - Future considerations\n   - Combination candidates\n   - Archive selections\n\n9. **Implementation Roadmap**:\n   - Immediate starts\n   - Short-term projects\n   - Long-term initiatives\n   - Research needs\n   - Partnership opportunities\n\nReturn as structured JSON with keys: thematicClusters (object), feasibilityMatrix (object), impactScores (object), innovationRatings (object), quickWins (array), strategicFit (object), riskRewardAnalysis (object), prioritizedList (array), roadmap (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "allIdeas",
+                "id": "ideas_input",
+                "label": "All Generated Ideas",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Complete list of brainstormed ideas...",
+                  "multiline": true,
+                  "rows": 5
+                }
+              },
+              {
+                "fieldName": "evaluationCriteria",
+                "id": "criteria_input",
+                "label": "Evaluation Criteria",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What criteria should be used to evaluate ideas?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "organizationMethod",
+                "id": "method_input",
+                "label": "Organization Method",
+                "type": "Selector",
+                "props": {
+                  "options": ["By Theme", "By Feasibility", "By Impact", "By Timeline", "By Resource Needs", "Hybrid"]
+                }
+              },
+              {
+                "fieldName": "priorityFactors",
+                "id": "priority_input",
+                "label": "Priority Factors",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What factors are most important for prioritization?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "selectionGoals",
+                "id": "goals_input",
+                "label": "Selection Goals",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "How many ideas to select? For what purpose?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "organizedIdeas",
+                "id": "organized_output",
+                "label": "Organized Idea Structure",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionPlan",
+                "id": "action_output",
+                "label": "Implementation Action Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848329",
+          "language": "en-US",
+          "description": "Organizes ideas into themes, evaluates feasibility and impact, and creates prioritized action plans",
+          "instructions": "Provide all brainstormed ideas and evaluation criteria. The system will organize and prioritize them.",
+          "name": "Idea Organizer"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "id": "7829564732190848240",
+  "publicId": "claim-decomposer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847032",
+      "publicId": "research-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "research"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848241",
+      "publicId": "claim-decomposer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Decomposes complex claims into verifiable facts",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Decompose the following claims into individual, verifiable facts:\n\nClaims to Analyze: {{input.claimsToAnalyze}}\nAnalysis Focus: {{input.analysisFocus}}\nCredibility Standards: {{input.credibilityStandards}}\n\nPerform systematic claim decomposition:\n\n1. **Claim Parsing**:\n   - Identify distinct factual assertions\n   - Separate opinions from facts\n   - Extract quantifiable claims\n   - Isolate cause-and-effect statements\n   - Identify temporal claims\n\n2. **Fact Categorization**:\n   - Statistical/numerical facts\n   - Historical events\n   - Scientific assertions\n   - Policy/legal claims\n   - Behavioral observations\n\n3. **Verifiability Assessment**:\n   - Directly verifiable facts\n   - Facts requiring expert analysis\n   - Subjective or opinion-based statements\n   - Unverifiable or speculative claims\n   - Context-dependent assertions\n\n4. **Source Requirements**:\n   - Primary source needs\n   - Secondary source acceptability\n   - Expert testimony requirements\n   - Data source specifications\n   - Documentary evidence needs\n\n5. **Complexity Analysis**:\n   - Simple factual claims\n   - Multi-part assertions\n   - Conditional statements\n   - Comparative claims\n   - Causal relationships\n\n6. **Priority Ranking**:\n   - Core vs supporting facts\n   - High-impact claims\n   - Controversial assertions\n   - Widely disputed facts\n   - Foundation claims\n\nReturn as structured JSON with keys: individualFacts (array), factCategories (object), verifiabilityScores (array), sourceRequirements (object), complexityLevels (object), priorityRanking (array).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "claimsToAnalyze",
+                "id": "claims_input",
+                "label": "Claims to Analyze",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Enter the claims, statements, or assertions to fact-check...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "analysisFocus",
+                "id": "focus_input",
+                "label": "Analysis Focus",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specific aspects to focus on (accuracy, context, completeness, etc.)"
+                }
+              },
+              {
+                "fieldName": "credibilityStandards",
+                "id": "standards_input",
+                "label": "Credibility Standards",
+                "type": "Selector",
+                "props": {
+                  "options": ["Academic", "Journalistic", "Legal", "Scientific", "General", "High Scrutiny"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "decomposedFacts",
+                "id": "facts_output",
+                "label": "Decomposed Facts",
+                "type": "Text"
+              },
+              {
+                "fieldName": "verificationPlan",
+                "id": "plan_output",
+                "label": "Verification Plan",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848242",
+          "language": "en-US",
+          "description": "Decomposes complex claims into individual, verifiable facts for systematic fact-checking",
+          "instructions": "Provide the claims or statements to analyze. The system will break them down into individual facts and create a verification plan.",
+          "name": "Claim Decomposer"
+        }
+      ]
+    }
+  ]
+}

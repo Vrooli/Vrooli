@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Analyze Source Content",
                 "description": "Extracts key themes, insights, and repurposable elements from the original content",
-                "subroutineId": "content-analyzer-v1",
+                "subroutineId": "7829564732190848675",
                 "inputMap": {
                   "originalSourceContent": "sourceContent",
                   "originalTargetFormats": "targetFormats",
@@ -44,7 +44,7 @@
                 "id": "step-2",
                 "name": "Adapt for Target Platforms",
                 "description": "Customizes content for specific platform requirements and formats",
-                "subroutineId": "platform-adapter-v1",
+                "subroutineId": "7829564732190848678",
                 "inputMap": {
                   "extractedThemes": "coreContent",
                   "valuableInsights": "keyPoints",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Generate Multiple Formats",
                 "description": "Creates diverse content formats from the source material",
-                "subroutineId": "format-generator-v1",
+                "subroutineId": "7829564732190848681",
                 "inputMap": {
                   "coreContent": "thematicContent",
                   "socialContent": "socialPosts",
@@ -81,7 +81,7 @@
                 "id": "step-4",
                 "name": "Create Content Calendar",
                 "description": "Organizes repurposed content into a strategic publishing schedule",
-                "subroutineId": "calendar-organizer-v1",
+                "subroutineId": "7829564732190848684",
                 "inputMap": {
                   "tweets_and_posts": "shortContent",
                   "articles_and_emails": "mediumContent",

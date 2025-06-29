@@ -1,0 +1,122 @@
+{
+  "id": "7829564732190848756",
+  "publicId": "company-researcher-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847081",
+      "tag": "career",
+      "translations": [
+        {
+          "id": "7829564732190847181",
+          "language": "en",
+          "description": "Career development"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848757",
+      "publicId": "company-researcher-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Researches companies for interview prep",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "companyName",
+                "id": "company_name_input",
+                "label": "Company Name",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Name of the company"
+              },
+              {
+                "fieldName": "positionTitle",
+                "id": "position_title_input",
+                "label": "Position Title",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Job title you're applying for"
+              },
+              {
+                "fieldName": "researchDepth",
+                "id": "research_depth_input",
+                "label": "Research Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "basic",
+                  "standard",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "companyProfile",
+                "id": "company_profile_output",
+                "label": "Company Profile",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "cultureInsights",
+                "id": "culture_insights_output",
+                "label": "Company Culture",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "interviewIntel",
+                "id": "interview_intel_output",
+                "label": "Interview Intelligence",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848758",
+          "language": "en",
+          "name": "Company Researcher",
+          "description": "Researches companies for interview preparation, gathering insights on culture, values, and interview processes.",
+          "instructions": "Provide company name and position. The routine will research company background and interview insights."
+        }
+      ]
+    }
+  ]
+}

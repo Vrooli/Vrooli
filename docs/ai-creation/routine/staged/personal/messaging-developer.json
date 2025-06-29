@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190848525",
+  "publicId": "messaging-developer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "branding",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Personal and business branding"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847021",
+      "tag": "content-generation",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Content creation and generation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847037",
+      "tag": "marketing",
+      "translations": [
+        {
+          "id": "7829564732190847137",
+          "language": "en",
+          "description": "Marketing and promotion strategies"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848526",
+      "publicId": "messaging-developer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops brand messaging and communication strategy",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "audienceAnalysis",
+                "id": "audience_analysis_input",
+                "label": "Audience Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Target audience data from audience analyzer"
+              },
+              {
+                "fieldName": "messagingTone",
+                "id": "messaging_tone_input",
+                "label": "Messaging Tone",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "professional",
+                "options": [
+                  "professional",
+                  "conversational",
+                  "authoritative",
+                  "inspirational",
+                  "friendly"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "messagingStrategy",
+                "id": "messaging_strategy_output",
+                "label": "Brand Messaging Strategy",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848527",
+          "language": "en",
+          "name": "Messaging Developer",
+          "description": "Develops compelling brand messaging including taglines, elevator pitch, and key communication frameworks.",
+          "instructions": "Provide audience analysis for messaging development. The routine will create your brand communication strategy."
+        }
+      ]
+    }
+  ]
+}

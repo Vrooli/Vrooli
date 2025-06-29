@@ -1,0 +1,145 @@
+{
+  "id": "7829564732190847108",
+  "publicId": "recur-sched-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847109",
+      "publicId": "recur-task-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineCode",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "python",
+            "code": "import json\nfrom datetime import datetime, timedelta\nfrom dateutil.relativedelta import relativedelta\nimport calendar\n\ndef generate_recurring_schedule():\n    # Get inputs\n    task_definition = globals().get('task_definition', '')\n    recurrence_pattern = globals().get('recurrence_pattern', 'weekly')\n    start_date = globals().get('start_date', '')\n    end_condition = globals().get('end_condition', '')\n    time_of_day = globals().get('time_of_day', '09:00')\n    context_level = globals().get('context_level', 'basic')\n    \n    # Parse start date\n    try:\n        if start_date:\n            start_dt = datetime.strptime(start_date, '%Y-%m-%d')\n        else:\n            start_dt = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)\n    except ValueError:\n        start_dt = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)\n    \n    # Parse time of day\n    try:\n        hour, minute = map(int, time_of_day.split(':'))\n        start_dt = start_dt.replace(hour=hour, minute=minute)\n    except:\n        start_dt = start_dt.replace(hour=9, minute=0)\n    \n    # Determine end date\n    if 'after' in end_condition.lower() and 'occurrence' in end_condition.lower():\n        try:\n            max_occurrences = int(''.join(filter(str.isdigit, end_condition)))\n        except:\n            max_occurrences = 52  # Default to 1 year worth\n    elif 'until' in end_condition.lower():\n        try:\n            end_date_str = end_condition.split('until')[-1].strip()\n            end_dt = datetime.strptime(end_date_str, '%Y-%m-%d')\n            # Calculate approximate max occurrences\n            if recurrence_pattern == 'daily':\n                max_occurrences = (end_dt - start_dt).days\n            elif recurrence_pattern == 'weekly':\n                max_occurrences = (end_dt - start_dt).days // 7\n            elif recurrence_pattern == 'monthly':\n                max_occurrences = (end_dt.year - start_dt.year) * 12 + end_dt.month - start_dt.month\n            else:\n                max_occurrences = 12\n        except:\n            max_occurrences = 52\n    else:\n        max_occurrences = 52  # Default to 1 year\n    \n    # Limit maximum occurrences for performance\n    max_occurrences = min(max_occurrences, 100)\n    \n    def get_next_occurrence(current_date, pattern):\n        \"\"\"Calculate next occurrence based on pattern\"\"\"\n        if pattern == 'daily':\n            return current_date + timedelta(days=1)\n        elif pattern == 'weekly':\n            return current_date + timedelta(weeks=1)\n        elif pattern == 'bi-weekly':\n            return current_date + timedelta(weeks=2)\n        elif pattern == 'monthly':\n            return current_date + relativedelta(months=1)\n        elif pattern == 'quarterly':\n            return current_date + relativedelta(months=3)\n        elif pattern == 'yearly':\n            return current_date + relativedelta(years=1)\n        elif pattern == 'weekdays':\n            next_date = current_date + timedelta(days=1)\n            while next_date.weekday() >= 5:  # Skip weekends\n                next_date += timedelta(days=1)\n            return next_date\n        else:\n            return current_date + timedelta(weeks=1)  # Default to weekly\n    \n    def generate_contextual_tip(task, occurrence_date, occurrence_num):\n        \"\"\"Generate contextual tips based on task and timing\"\"\"\n        if context_level == 'minimal':\n            return None\n        \n        tips = []\n        \n        # Seasonal context\n        month = occurrence_date.month\n        if month in [12, 1, 2]:  # Winter\n            tips.append(\"Winter tip: Consider indoor alternatives if weather affects this task\")\n        elif month in [6, 7, 8]:  # Summer\n            tips.append(\"Summer tip: Schedule earlier in the day to avoid heat\")\n        \n        # Frequency-based tips\n        if recurrence_pattern == 'daily':\n            if occurrence_date.weekday() == 0:  # Monday\n                tips.append(\"Monday motivation: Start the week strong with this routine\")\n            elif occurrence_date.weekday() == 4:  # Friday\n                tips.append(\"Friday focus: Complete this to end the week on a high note\")\n        elif recurrence_pattern == 'weekly':\n            if occurrence_num % 4 == 0:\n                tips.append(\"Monthly checkpoint: Review progress and adjust if needed\")\n        elif recurrence_pattern == 'monthly':\n            tips.append(f\"Month {occurrence_num}: Track patterns and improvements over time\")\n        \n        # Task-specific context\n        task_lower = task.lower()\n        if 'exercise' in task_lower or 'workout' in task_lower:\n            tips.append(\"Fitness tip: Listen to your body and adjust intensity as needed\")\n        elif 'review' in task_lower or 'planning' in task_lower:\n            tips.append(\"Review tip: Focus on lessons learned and forward planning\")\n        elif 'backup' in task_lower or 'maintenance' in task_lower:\n            tips.append(\"Maintenance tip: Consistency prevents major issues later\")\n        elif 'learning' in task_lower or 'study' in task_lower:\n            tips.append(\"Learning tip: Regular practice is more effective than cramming\")\n        \n        return tips[0] if tips else \"Stay consistent - small regular actions create big results\"\n    \n    # Generate schedule\n    schedule = []\n    current_date = start_dt\n    occurrence_count = 0\n    \n    while occurrence_count < max_occurrences:\n        occurrence_count += 1\n        \n        # Generate contextual tip if needed\n        tip = generate_contextual_tip(task_definition, current_date, occurrence_count)\n        \n        # Create occurrence entry\n        occurrence = {\n            'occurrence_number': occurrence_count,\n            'date': current_date.strftime('%Y-%m-%d'),\n            'day_of_week': current_date.strftime('%A'),\n            'time': current_date.strftime('%H:%M'),\n            'iso_datetime': current_date.isoformat(),\n            'task': task_definition,\n            'contextual_tip': tip\n        }\n        \n        # Add month/season context for monthly+ recurrences\n        if recurrence_pattern in ['monthly', 'quarterly', 'yearly']:\n            occurrence['month'] = current_date.strftime('%B')\n            occurrence['season'] = ['Winter', 'Winter', 'Spring', 'Spring', 'Spring', 'Summer', 'Summer', 'Summer', 'Fall', 'Fall', 'Fall', 'Winter'][current_date.month - 1]\n        \n        schedule.append(occurrence)\n        \n        # Calculate next occurrence\n        current_date = get_next_occurrence(current_date, recurrence_pattern)\n    \n    # Generate summary statistics\n    def calculate_stats(schedule):\n        total_occurrences = len(schedule)\n        date_range = f\"{schedule[0]['date']} to {schedule[-1]['date']}\"\n        \n        # Weekly distribution\n        weekday_counts = {}\n        for item in schedule:\n            day = item['day_of_week']\n            weekday_counts[day] = weekday_counts.get(day, 0) + 1\n        \n        # Monthly distribution (for longer schedules)\n        monthly_counts = {}\n        if len(schedule) > 12:\n            for item in schedule:\n                month = datetime.fromisoformat(item['iso_datetime']).strftime('%Y-%m')\n                monthly_counts[month] = monthly_counts.get(month, 0) + 1\n        \n        return {\n            'total_occurrences': total_occurrences,\n            'date_range': date_range,\n            'weekday_distribution': weekday_counts,\n            'monthly_distribution': monthly_counts if monthly_counts else None,\n            'average_per_week': round(total_occurrences / max(1, len(schedule) / 7), 1),\n            'frequency': recurrence_pattern\n        }\n    \n    # Generate tips for maintaining the schedule\n    def generate_maintenance_tips():\n        tips = [\n            \"Set up calendar reminders for each occurrence\",\n            \"Track completion to identify patterns and obstacles\",\n            \"Prepare everything needed in advance when possible\",\n            \"Build the habit by connecting it to existing routines\",\n            \"Be flexible - adjust timing if needed but maintain consistency\",\n            \"Celebrate milestones to maintain motivation\",\n            \"Review and adjust the schedule quarterly if needed\"\n        ]\n        \n        # Add pattern-specific tips\n        if recurrence_pattern == 'daily':\n            tips.extend([\n                \"Start with a simple version to build the habit\",\n                \"Consider batching similar daily tasks together\"\n            ])\n        elif recurrence_pattern in ['weekly', 'bi-weekly']:\n            tips.extend([\n                \"Choose the same day/time each week for consistency\",\n                \"Use the weekly rhythm to your advantage\"\n            ])\n        elif recurrence_pattern == 'monthly':\n            tips.extend([\n                \"Set a specific date (e.g., 1st, 15th) or relative day (e.g., first Monday)\",\n                \"Use monthly planning sessions to prepare\"\n            ])\n        \n        return tips[:7]  # Return top 7 tips\n    \n    # Create output\n    output = {\n        'task_definition': task_definition,\n        'recurrence_pattern': recurrence_pattern,\n        'schedule_summary': calculate_stats(schedule),\n        'upcoming_occurrences': schedule[:10],  # Next 10 occurrences\n        'full_schedule': schedule,\n        'maintenance_tips': generate_maintenance_tips(),\n        'calendar_integration': {\n            'ical_instructions': \"Copy the dates and import into your calendar app\",\n            'google_calendar': \"Use Google Calendar's recurring event feature\",\n            'outlook': \"Set up recurring appointments in Outlook\",\n            'reminder_setup': \"Set notifications 15-30 minutes before each occurrence\"\n        },\n        'tracking_suggestions': {\n            'completion_tracking': \"Mark each occurrence as complete/incomplete\",\n            'progress_metrics': \"Track quality, duration, or other relevant metrics\",\n            'obstacle_notes': \"Note any challenges or obstacles encountered\",\n            'pattern_analysis': \"Review monthly to identify improvement opportunities\"\n        }\n    }\n    \n    return json.dumps(output, indent=2)\n\n# Execute the function\nresult = generate_recurring_schedule()\nprint(result)"
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "task_definition",
+                "id": "task_definition_input",
+                "label": "Task Definition",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the recurring task (e.g., 'Weekly team meeting', 'Monthly budget review', 'Daily exercise')..."
+                }
+              },
+              {
+                "fieldName": "recurrence_pattern",
+                "id": "recurrence_pattern_input",
+                "label": "Recurrence Pattern",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["daily", "weekly", "bi-weekly", "monthly", "quarterly", "yearly", "weekdays"],
+                  "defaultValue": "weekly"
+                }
+              },
+              {
+                "fieldName": "start_date",
+                "id": "start_date_input",
+                "label": "Start Date",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "YYYY-MM-DD (e.g., 2024-01-15)"
+                }
+              },
+              {
+                "fieldName": "end_condition",
+                "id": "end_condition_input",
+                "label": "End Condition",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "e.g., 'after 52 occurrences', 'until 2024-12-31', 'ongoing'"
+                }
+              },
+              {
+                "fieldName": "time_of_day",
+                "id": "time_of_day_input",
+                "label": "Time of Day",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "HH:MM format (e.g., 09:00, 14:30)",
+                  "defaultValue": "09:00"
+                }
+              },
+              {
+                "fieldName": "context_level",
+                "id": "context_level_input",
+                "label": "Context Level",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["minimal", "basic", "detailed"],
+                  "defaultValue": "basic"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_schedule_output",
+                "label": "Complete Recurring Schedule",
+                "type": "Text"
+              },
+              {
+                "fieldName": "upcomingOccurrences",
+                "id": "upcoming_occurrences_output",
+                "label": "Upcoming Occurrences",
+                "type": "Text"
+              },
+              {
+                "fieldName": "maintenanceTips",
+                "id": "maintenance_tips_output",
+                "label": "Schedule Maintenance Tips",
+                "type": "Text"
+              },
+              {
+                "fieldName": "trackingSuggestions",
+                "id": "tracking_suggestions_output",
+                "label": "Progress Tracking Suggestions",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847110",
+          "language": "en",
+          "name": "Recurring Task Scheduler",
+          "description": "Manages repetitive tasks by generating future occurrences and reminders. Handles daily/weekly/monthly patterns, provides contextual tips per occurrence, and offers calendar integration guidance.",
+          "instructions": "1. Define the recurring task\n2. Choose recurrence pattern (daily, weekly, monthly, etc.)\n3. Set start date\n4. Specify end condition\n5. Choose time of day\n6. Select context level for tips\n\nThe scheduler will:\n- Generate complete occurrence schedule\n- Provide contextual tips for each occurrence\n- Calculate schedule statistics\n- Offer calendar integration guidance\n- Suggest progress tracking methods\n- Provide maintenance tips\n\nPerfect for habit building, routine management, and recurring project tasks."
+        }
+      ]
+    }
+  ]
+}

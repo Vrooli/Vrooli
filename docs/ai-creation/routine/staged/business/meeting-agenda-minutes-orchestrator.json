@@ -1,0 +1,235 @@
+{
+  "id": "7829564732190847099",
+  "publicId": "meeting-orch-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847100",
+      "publicId": "mtg-orch-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineMultiStep",
+      "config": {
+        "__version": "1.0",
+        "callDataMultiStep": {
+          "__version": "1.0",
+          "schema": {
+            "routineVersion": null,
+            "startingStepId": "agenda_generation",
+            "steps": [
+              {
+                "id": "agenda_generation",
+                "name": "Generate Meeting Agenda",
+                "description": "Create structured agenda with time allocations",
+                "callDataCode": null,
+                "callDataAction": null,
+                "callDataRoutine": {
+                  "__version": "1.0",
+                  "schema": {
+                    "routineId": "TODO_AGENDA_GENERATOR_ROUTINE_ID",
+                    "inputValues": {
+                      "meetingPurpose": "{{input.meetingPurpose}}",
+                      "participants": "{{input.participants}}",
+                      "duration": "{{input.duration}}",
+                      "topics": "{{input.topics}}",
+                      "meetingType": "{{input.meetingType}}"
+                    }
+                  }
+                },
+                "outputs": [],
+                "nextStepIds": ["minutes_processing"]
+              },
+              {
+                "id": "minutes_processing",
+                "name": "Process Meeting Minutes",
+                "description": "Convert meeting notes/transcript into structured minutes",
+                "callDataCode": null,
+                "callDataAction": null,
+                "callDataRoutine": {
+                  "__version": "1.0",
+                  "schema": {
+                    "routineId": "TODO_MINUTES_PROCESSOR_ROUTINE_ID",
+                    "inputValues": {
+                      "meetingNotes": "{{input.meetingNotes}}",
+                      "agenda": "{{agenda_generation.response}}",
+                      "participants": "{{input.participants}}",
+                      "actionItemFormat": "{{input.actionItemFormat}}"
+                    }
+                  }
+                },
+                "outputs": [],
+                "nextStepIds": ["follow_up_generation"]
+              },
+              {
+                "id": "follow_up_generation",
+                "name": "Generate Follow-up Actions",
+                "description": "Create action items and follow-up communications",
+                "callDataCode": null,
+                "callDataAction": null,
+                "callDataRoutine": {
+                  "__version": "1.0",
+                  "schema": {
+                    "routineId": "TODO_FOLLOW_UP_GENERATOR_ROUTINE_ID",
+                    "inputValues": {
+                      "meetingMinutes": "{{minutes_processing.response}}",
+                      "actionItems": "{{minutes_processing.actionItems}}",
+                      "participants": "{{input.participants}}",
+                      "followUpType": "{{input.followUpType}}"
+                    }
+                  }
+                },
+                "outputs": [],
+                "nextStepIds": []
+              }
+            ]
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "meetingPurpose",
+                "id": "meeting_purpose_input",
+                "label": "Meeting Purpose",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What is the main purpose or goal of this meeting?"
+                }
+              },
+              {
+                "fieldName": "meetingType",
+                "id": "meeting_type_input",
+                "label": "Meeting Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Team Standup", "Project Review", "Strategic Planning", "Decision Making", "Status Update", "Training/Workshop", "Client Meeting", "All-Hands"],
+                  "defaultValue": "Team Standup"
+                }
+              },
+              {
+                "fieldName": "participants",
+                "id": "participants_input",
+                "label": "Participants",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List meeting participants (names and roles)...",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "duration",
+                "id": "duration_input",
+                "label": "Meeting Duration",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["15 minutes", "30 minutes", "45 minutes", "1 hour", "1.5 hours", "2 hours", "Half day", "Full day"],
+                  "defaultValue": "1 hour"
+                }
+              },
+              {
+                "fieldName": "topics",
+                "id": "topics_input",
+                "label": "Topics/Discussion Points",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "List the topics or discussion points to cover...",
+                  "minRows": 4
+                }
+              },
+              {
+                "fieldName": "meetingNotes",
+                "id": "meeting_notes_input",
+                "label": "Meeting Notes/Transcript (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Paste meeting notes, transcript, or key discussion points here to generate minutes...",
+                  "minRows": 6
+                }
+              },
+              {
+                "fieldName": "actionItemFormat",
+                "id": "action_item_format_input",
+                "label": "Action Item Format",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Simple list", "Assigned with deadlines", "Priority categorized", "RACI matrix format"],
+                  "defaultValue": "Assigned with deadlines"
+                }
+              },
+              {
+                "fieldName": "followUpType",
+                "id": "follow_up_type_input",
+                "label": "Follow-up Type",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Email summary", "Action item tracking", "Next meeting agenda", "Project updates"],
+                  "defaultValue": "Email summary"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_meeting_package_output",
+                "label": "Complete Meeting Package",
+                "type": "Text"
+              },
+              {
+                "fieldName": "structuredAgenda",
+                "id": "structured_agenda_output",
+                "label": "Meeting Agenda",
+                "type": "Text"
+              },
+              {
+                "fieldName": "meetingMinutes",
+                "id": "meeting_minutes_output",
+                "label": "Meeting Minutes",
+                "type": "Text"
+              },
+              {
+                "fieldName": "actionItems",
+                "id": "action_items_output",
+                "label": "Action Items & Follow-ups",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847101",
+          "language": "en",
+          "name": "Meeting Agenda & Minutes Orchestrator",
+          "description": "Streamlines meeting prep and follow-up. Generates agendas before, minutes after. Creates structured agendas with time slots, processes notes into minutes with action items, and generates follow-up communications.",
+          "instructions": "1. Define meeting purpose and type\n2. List participants and set duration\n3. Enter topics to cover\n4. Optionally add meeting notes for minutes generation\n5. Choose action item format\n6. Select follow-up type\n\nThe orchestrator will:\n- Generate structured agenda with time allocations\n- Process notes into formal minutes\n- Extract and format action items\n- Create follow-up communications\n- Assign responsibilities and deadlines\n- Prepare next meeting prep\n\nPerfect for meeting facilitators, project managers, and team leads."
+        }
+      ]
+    }
+  ]
+}

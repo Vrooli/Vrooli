@@ -1,0 +1,149 @@
+{
+  "id": "7829564732190848315",
+  "publicId": "problem-clarifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847034",
+      "publicId": "innovation-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "innovation"
+    },
+    {
+      "id": "7829564732190847099",
+      "publicId": "analysis-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "analysis"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848316",
+      "publicId": "problem-clarifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Clarifies problems and establishes brainstorming constraints",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Clarify the problem or opportunity and establish brainstorming constraints:\n\nInitial Problem Statement: {{input.problemStatement}}\nContext Information: {{input.contextInfo}}\nStakeholders: {{input.stakeholders}}\nConstraints: {{input.constraints}}\nDesired Outcomes: {{input.desiredOutcomes}}\n\nPerform comprehensive problem clarification:\n\n1. **Problem Definition Refinement**:\n   - Core issue identification\n   - Root cause exploration\n   - Problem vs symptom distinction\n   - Scope boundaries\n   - Impact assessment\n\n2. **Context Mapping**:\n   - Environmental factors\n   - Historical background\n   - Current state analysis\n   - Future implications\n   - System interactions\n\n3. **Stakeholder Analysis**:\n   - Primary beneficiaries\n   - Decision makers\n   - Affected parties\n   - Resource providers\n   - Influence dynamics\n\n4. **Constraint Framework**:\n   - Resource limitations\n   - Time boundaries\n   - Technical constraints\n   - Policy restrictions\n   - Cultural considerations\n\n5. **Success Criteria Definition**:\n   - Measurable objectives\n   - Quality indicators\n   - Timeline expectations\n   - Acceptability thresholds\n   - Value definitions\n\n6. **Opportunity Reframing**:\n   - Positive problem statements\n   - Hidden opportunities\n   - Alternative perspectives\n   - Growth potential\n   - Innovation spaces\n\n7. **Key Questions Generation**:\n   - Clarifying questions\n   - Assumption challenges\n   - Exploration prompts\n   - What-if scenarios\n   - Why-not possibilities\n\n8. **Brainstorming Parameters**:\n   - Solution space boundaries\n   - Creative freedom areas\n   - Focus priorities\n   - Evaluation criteria\n   - Process guidelines\n\nReturn as structured JSON with keys: refinedProblem (object), contextMap (object), stakeholderMatrix (object), constraintFramework (object), successCriteria (array), opportunityFrames (array), keyQuestions (array), brainstormingParams (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "problemStatement",
+                "id": "problem_input",
+                "label": "Problem Statement",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the problem or opportunity to explore...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "contextInfo",
+                "id": "context_input",
+                "label": "Context Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Background, environment, and relevant details...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "stakeholders",
+                "id": "stakeholders_input",
+                "label": "Stakeholders",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Who is involved or affected?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Known Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Budget, time, resources, or other limitations...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "desiredOutcomes",
+                "id": "outcomes_input",
+                "label": "Desired Outcomes",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What does success look like?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedProblem",
+                "id": "clarified_output",
+                "label": "Clarified Problem Definition",
+                "type": "Text"
+              },
+              {
+                "fieldName": "brainstormingBrief",
+                "id": "brief_output",
+                "label": "Brainstorming Brief",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848317",
+          "language": "en-US",
+          "description": "Clarifies problems, maps context, and establishes parameters for effective brainstorming",
+          "instructions": "Describe your problem or opportunity. The system will clarify and create a brainstorming framework.",
+          "name": "Problem Clarifier"
+        }
+      ]
+    }
+  ]
+}

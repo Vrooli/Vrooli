@@ -1,0 +1,138 @@
+{
+  "id": "7829564732190847060",
+  "publicId": "survey-anl-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847061",
+      "publicId": "srv-anl-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1500,
+            "model": null,
+            "prompt": "Analyze the following survey response data to extract comprehensive insights:\n\n**Survey Data:**\n{{input.surveyData}}\n\n**Question Types:**\n{{input.questionTypes}}\n\n{{#if input.surveyContext}}**Survey Context:** {{input.surveyContext}}{{/if}}\n{{#if input.analysisFocus}}**Analysis Focus:** {{input.analysisFocus}}{{/if}}\n\nProvide a comprehensive survey analysis including:\n\n1. **Response Overview**\n   - Total number of responses\n   - Response rate (if provided)\n   - Completion patterns\n   - Demographics breakdown (if available)\n\n2. **Quantitative Analysis**\n   - Statistical summary for numeric questions\n   - Distribution of responses for each question\n   - Mean/median scores for rating questions\n   - Standard deviations and ranges\n   - Cross-tabulation insights\n\n3. **Qualitative Theme Analysis**\n   - Major themes from open-ended responses\n   - Frequency of theme mentions\n   - Representative quotes for each theme\n   - Sentiment analysis (positive/negative/neutral)\n   - Emerging patterns or concerns\n\n4. **Key Insights & Findings**\n   - Top 5-7 most important findings\n   - Surprising or unexpected results\n   - Strong consensus areas\n   - Areas of high disagreement/variance\n   - Correlation between different responses\n\n5. **Segment Analysis** (if demographics available)\n   - Differences by demographic groups\n   - Segment-specific insights\n   - Notable variations in responses\n\n6. **Satisfaction/Rating Analysis** (if applicable)\n   - Overall satisfaction scores\n   - Highest and lowest rated items\n   - Net Promoter Score (if applicable)\n   - Areas for improvement\n\n7. **Open-Ended Response Summary**\n   - Common suggestions\n   - Frequent complaints\n   - Positive feedback themes\n   - Actionable recommendations from respondents\n\n8. **Visual Data Preparation**\n   - Recommended charts/graphs for key findings\n   - Data points for visualization\n   - Comparison suggestions\n\n9. **Actionable Recommendations**\n   - Priority action items based on findings\n   - Quick wins vs long-term improvements\n   - Areas requiring immediate attention\n   - Suggestions for follow-up\n\n10. **Executive Summary**\n    - 3-5 bullet point overview\n    - Most critical findings\n    - Recommended next steps\n\nUse clear headings, percentages, and specific numbers. Highlight the most important findings and maintain objectivity while providing interpretive insights.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "surveyData",
+                "id": "survey_data_input",
+                "label": "Survey Response Data",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste your survey data (CSV, JSON, or structured text format). Include questions and all responses...",
+                  "minRows": 10
+                }
+              },
+              {
+                "fieldName": "questionTypes",
+                "id": "question_types_input",
+                "label": "Question Types Description",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Describe the types of questions (e.g., Q1-Q5: 5-point scale, Q6-Q8: multiple choice, Q9-Q10: open-ended...)",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "surveyContext",
+                "id": "survey_context_input",
+                "label": "Survey Context (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What was this survey about? (e.g., customer satisfaction, employee engagement, product feedback...)"
+                }
+              },
+              {
+                "fieldName": "analysisFocus",
+                "id": "analysis_focus_input",
+                "label": "Analysis Focus (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any specific areas to focus on? Key questions of interest?"
+                }
+              },
+              {
+                "fieldName": "outputFormat",
+                "id": "output_format_input",
+                "label": "Output Format Preference",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Comprehensive Report", "Executive Summary", "Statistical Focus", "Actionable Insights"],
+                  "defaultValue": "Comprehensive Report"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "full_analysis_output",
+                "label": "Complete Survey Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "keyInsights",
+                "id": "key_insights_output",
+                "label": "Key Insights & Findings",
+                "type": "Text"
+              },
+              {
+                "fieldName": "themeAnalysis",
+                "id": "theme_analysis_output",
+                "label": "Qualitative Theme Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Actionable Recommendations",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847062",
+          "language": "en",
+          "name": "Survey Results Analyzer",
+          "description": "Extracts insights from survey data including quantitative and text responses. Performs statistical analysis, identifies themes in open-ended responses, segments findings by demographics, and provides actionable recommendations based on survey results.",
+          "instructions": "1. Paste your survey response data (any structured format)\n2. Describe the types of questions in your survey\n3. Add context about the survey purpose (optional)\n4. Specify any focus areas for analysis\n5. Choose your preferred output format\n\nThe analyzer will provide:\n- Statistical summaries of quantitative data\n- Theme analysis from open-ended responses\n- Key insights and findings\n- Segment analysis (if demographics available)\n- Actionable recommendations\n- Executive summary\n\nHandles mixed data types and provides comprehensive insights."
+        }
+      ]
+    }
+  ]
+}

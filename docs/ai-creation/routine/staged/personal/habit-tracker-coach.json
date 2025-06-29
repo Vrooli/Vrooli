@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Log Daily Habits",
                 "description": "Records completion status for each tracked habit",
-                "subroutineId": "TODO: Need data entry subroutine for habit logging",
+                "subroutineId": "7829564732190848300",
                 "inputMap": {
                   "habitList": "trackedHabits",
                   "completionStatus": "dailyProgress",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Progress Patterns",
                 "description": "Identifies trends, streaks, and patterns in habit completion",
-                "subroutineId": "TODO: Need analysis subroutine for pattern recognition",
+                "subroutineId": "7829564732190848303",
                 "inputMap": {
                   "loggedHabits": "completedHabits",
                   "historicalData": "pastPerformance",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Coaching Insights",
                 "description": "Provides personalized advice and motivation based on performance",
-                "subroutineId": "TODO: Need generation subroutine for coaching advice",
+                "subroutineId": "7829564732190848306",
                 "inputMap": {
                   "progressTrends": "habitTrends",
                   "strugglingAreas": "challengePatterns",
@@ -110,7 +110,7 @@
                 "id": "step-4",
                 "name": "Plan Habit Adjustments",
                 "description": "Suggests modifications to habits or routines for better success",
-                "subroutineId": "TODO: Need planning subroutine for habit optimization",
+                "subroutineId": "7829564732190848309",
                 "inputMap": {
                   "strugglingAreas": "challengePatterns",
                   "currentHabits": "trackedHabits",
@@ -126,7 +126,7 @@
                 "id": "step-5",
                 "name": "Set Weekly Goals",
                 "description": "Establishes realistic targets for the upcoming week",
-                "subroutineId": "TODO: Need goal-setting subroutine for weekly planning",
+                "subroutineId": "7829564732190848312",
                 "inputMap": {
                   "progressTrends": "habitTrends",
                   "habitAdjustments": "optimizationPlan",

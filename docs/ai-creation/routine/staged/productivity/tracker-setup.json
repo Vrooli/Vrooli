@@ -1,0 +1,135 @@
+{
+  "id": "7829564732190847961",
+  "publicId": "tracker-set-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847104",
+      "publicId": "tracking-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "tracking"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847962",
+      "publicId": "tracker-set-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Sets up tracking mechanisms for goals",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 600,
+            "model": null,
+            "prompt": "Design a comprehensive tracking system for the following goal and milestones:\n\nGoal Definition: {{input.goalDefinition}}\nMilestone Data: {{input.milestoneData}}\nAction Plan Data: {{input.actionPlanData}}\nPreferred Tracking Style: {{input.trackingStyle}}\n\nCreate a tracking system including:\n\n1. Key Performance Indicators (KPIs):\n   - Quantitative metrics (numbers, percentages)\n   - Qualitative metrics (ratings, descriptions)\n   - Leading indicators (predict success)\n   - Lagging indicators (confirm results)\n   - Baseline measurements\n\n2. Progress Tracking Methods:\n   - Daily tracking items (habits, actions)\n   - Weekly progress reviews\n   - Monthly milestone checks\n   - Visual tracking options (charts, graphs)\n   - Simple scoring systems\n\n3. Data Collection Design:\n   - What to track (minimum viable data)\n   - How to track (tools, methods)\n   - When to track (frequency, triggers)\n   - Where to track (apps, journals, spreadsheets)\n\n4. Progress Indicators:\n   - Green flags (on track)\n   - Yellow flags (attention needed)\n   - Red flags (intervention required)\n   - Momentum indicators\n   - Trend analysis\n\n5. Review and Adjustment Protocol:\n   - Review frequency and format\n   - Adjustment triggers\n   - Course correction methods\n   - Celebration milestones\n\n6. Motivation Maintenance:\n   - Progress visualization\n   - Streak tracking\n   - Achievement badges/rewards\n   - Social accountability options\n\nReturn as structured JSON with keys: trackingMetrics (array with type, frequency, method), progressIndicators (object with green/yellow/red flags), dataCollection (object), reviewProtocol (object), visualizationOptions (array), motivationSystem (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "goalDefinition",
+                "id": "goal_input",
+                "label": "Goal Definition",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "The goal you're tracking...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "milestoneData",
+                "id": "milestones_input",
+                "label": "Milestones",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key milestones to track progress against...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "actionPlanData",
+                "id": "actions_input",
+                "label": "Action Plans",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Specific actions and tasks to track...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "trackingStyle",
+                "id": "style_input",
+                "label": "Tracking Style Preference",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Simple, detailed, visual, gamified, etc."
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trackingMetrics",
+                "id": "metrics_output",
+                "label": "Tracking Metrics",
+                "type": "Text"
+              },
+              {
+                "fieldName": "progressIndicators",
+                "id": "indicators_output",
+                "label": "Progress Indicators",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847963",
+          "language": "en-US",
+          "description": "Creates comprehensive tracking systems for goals with metrics and progress indicators",
+          "instructions": "Enter your goal and milestones. The system will design a complete tracking system with metrics, indicators, and review protocols.",
+          "name": "Tracker Setup"
+        }
+      ]
+    }
+  ]
+}

@@ -34,7 +34,7 @@ scripts/
 │   ├── maintenance-supervisor.sh  # Supervisor for AI maintenance workflows
 │   ├── routine-generate.sh        # Generate routines using AI
 │   ├── routine-import.sh          # Import and validate staged routines
-│   ├── routine-reference-generator.sh # Generate routine-reference.json from staged files
+│   ├── generate-routine-reference.sh  # Generate routine-reference.json from staged files
 │   ├── validate-routine.sh        # Validate routine JSON structure and configuration
 │   └── validate-subroutines.sh    # Validate subroutine references in routine files
 └── main/
@@ -180,10 +180,7 @@ When new routine files are added to the `staged/` directory, update the referenc
 
 ```bash
 # Regenerate the routine reference with latest files
-./scripts/ai-creation/routine-reference-generator.sh
-
-# Or specify custom output location
-./scripts/ai-creation/routine-reference-generator.sh docs/ai-creation/routine/my-reference.md
+./docs/ai-creation/routine/generate-routine-reference.sh
 ```
 
 This creates/updates `docs/ai-creation/routine/routine-reference.json` with:

@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190848762",
+  "publicId": "response-prep-coach-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847081",
+      "tag": "career",
+      "translations": [
+        {
+          "id": "7829564732190847181",
+          "language": "en",
+          "description": "Career development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848763",
+      "publicId": "response-prep-coach-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Prepares interview responses",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "candidateStrengths",
+                "id": "candidate_strengths_input",
+                "label": "Candidate Strengths",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Analyzed candidate strengths"
+              },
+              {
+                "fieldName": "gapAreas",
+                "id": "gap_areas_input",
+                "label": "Gap Areas",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Identified skill gaps"
+              },
+              {
+                "fieldName": "interviewType",
+                "id": "interview_type_input",
+                "label": "Interview Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "behavioral",
+                "options": [
+                  "behavioral",
+                  "technical",
+                  "case_study",
+                  "panel",
+                  "phone_screen"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "responseFrameworks",
+                "id": "response_frameworks_output",
+                "label": "Response Frameworks",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "exampleAnswers",
+                "id": "example_answers_output",
+                "label": "Example Answers",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "preparationTips",
+                "id": "preparation_tips_output",
+                "label": "Preparation Tips",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848764",
+          "language": "en",
+          "name": "Response Preparation Coach",
+          "description": "Prepares tailored interview responses and frameworks based on candidate strengths and gaps.",
+          "instructions": "Provide candidate assessment data. The routine will create response frameworks and examples."
+        }
+      ]
+    }
+  ]
+}

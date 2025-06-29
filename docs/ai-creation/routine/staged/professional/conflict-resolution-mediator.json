@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Conflict Situation",
                 "description": "Analyzes conflict dynamics, stakeholders, and root causes",
-                "subroutineId": "TODO: Need conflict assessment subroutine",
+                "subroutineId": "7829564732190848765",
                 "inputMap": {
                   "conflictDescription": "situationOverview",
                   "involvedParties": "stakeholderProfiles",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Design Mediation Strategy",
                 "description": "Creates tailored approach based on conflict type and parties",
-                "subroutineId": "TODO: Need mediation strategy subroutine",
+                "subroutineId": "7829564732190848768",
                 "inputMap": {
                   "situationAssessment": "conflictAnalysis",
                   "partyDynamics": "stakeholderMapping",

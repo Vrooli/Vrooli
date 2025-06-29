@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190848684",
+  "publicId": "calendar-organizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848685",
+      "publicId": "calendar-organizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Organizes content calendar",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentPlan",
+                "id": "content_plan_input",
+                "label": "Content Plan",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Generated content plan"
+              },
+              {
+                "fieldName": "scheduleConstraints",
+                "id": "schedule_constraints_input",
+                "label": "Schedule Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Time constraints and preferences"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentCalendar",
+                "id": "content_calendar_output",
+                "label": "Content Calendar",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "publishingSchedule",
+                "id": "publishing_schedule_output",
+                "label": "Publishing Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "reminderList",
+                "id": "reminder_list_output",
+                "label": "Content Reminders",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848686",
+          "language": "en",
+          "name": "Content Calendar Organizer",
+          "description": "Organizes repurposed content into a structured publishing calendar.",
+          "instructions": "Provide content plan and schedule constraints. The routine will create an organized calendar."
+        }
+      ]
+    }
+  ]
+}

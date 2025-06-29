@@ -1,0 +1,156 @@
+{
+  "id": "7829564732190848228",
+  "publicId": "habit-reward-system-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847105",
+      "publicId": "habits-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "habits"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848229",
+      "publicId": "habit-reward-system-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates personalized reward systems for habit reinforcement",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Motivational",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Design a personalized reward system for habit reinforcement:\n\nTarget Habit: {{input.targetHabit}}\nPersonal Motivators: {{input.personalMotivators}}\nReward Preferences: {{input.rewardPreferences}}\nBudget Constraints: {{input.budgetConstraints}}\nLifestyle Context: {{input.lifestyleContext}}\nHabit Frequency: {{input.habitFrequency}}\n\nCreate comprehensive reward framework:\n\n1. **Reward System Design**:\n   - Reward tier structure\n   - Frequency matching strategy\n   - Motivation psychology application\n   - Sustainability considerations\n   - Escalation planning\n\n2. **Immediate Rewards** (Daily/Per occurrence):\n   - Instant gratification options\n   - Simple pleasure rewards\n   - Recognition methods\n   - Celebration rituals\n   - Positive reinforcement cues\n\n3. **Short-term Rewards** (Weekly):\n   - Weekly achievement celebrations\n   - Small treat permissions\n   - Activity-based rewards\n   - Social recognition opportunities\n   - Progress milestone marking\n\n4. **Medium-term Rewards** (Monthly):\n   - Significant achievement rewards\n   - Experience-based treats\n   - Personal indulgence allowances\n   - Skill development opportunities\n   - Goal progression celebrations\n\n5. **Long-term Rewards** (Quarterly/Annually):\n   - Major milestone celebrations\n   - Transformational experiences\n   - Investment in personal growth\n   - Achievement documentation\n   - Legacy building activities\n\n6. **Intrinsic Reward Development**:\n   - Self-recognition practices\n   - Pride cultivation techniques\n   - Identity reinforcement methods\n   - Purpose connection strengthening\n   - Internal satisfaction enhancement\n\n7. **Social Reward Integration**:\n   - Sharing achievement strategies\n   - Community recognition seeking\n   - Accountability partner involvement\n   - Group celebration participation\n   - Social support leveraging\n\n8. **Reward System Sustainability**:\n   - Long-term viability planning\n   - Reward refresh strategies\n   - Motivation maintenance methods\n   - System evolution protocols\n   - Intrinsic transition planning\n\nReturn as structured JSON with keys: rewardFramework (object), immediateRewards (array), shortTermRewards (array), mediumTermRewards (array), longTermRewards (array), intrinsicDevelopment (object), socialIntegration (array), sustainabilityPlan (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "targetHabit",
+                "id": "habit_input",
+                "label": "Target Habit",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "The habit you want to reinforce with rewards...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "personalMotivators",
+                "id": "motivators_input",
+                "label": "Personal Motivators",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What motivates you most? (recognition, experiences, treats, achievement, etc.)",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "rewardPreferences",
+                "id": "preferences_input",
+                "label": "Reward Preferences",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Types of rewards you enjoy (activities, purchases, experiences, recognition, etc.)",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "budgetConstraints",
+                "id": "budget_input",
+                "label": "Budget Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Financial limitations for reward system (free, low-cost, moderate, etc.)"
+                }
+              },
+              {
+                "fieldName": "lifestyleContext",
+                "id": "lifestyle_input",
+                "label": "Lifestyle Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Family situation, work demands, time constraints that affect reward options...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "habitFrequency",
+                "id": "frequency_input",
+                "label": "Habit Frequency",
+                "type": "Selector",
+                "props": {
+                  "options": ["Daily", "Multiple times daily", "Every other day", "Weekly", "3-4 times weekly", "As needed", "Variable"]
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rewardSystem",
+                "id": "system_output",
+                "label": "Complete Reward System",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "implementation_output",
+                "label": "Implementation Guide",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848230",
+          "language": "en-US",
+          "description": "Creates personalized reward systems for habit reinforcement with tiered rewards and sustainability planning",
+          "instructions": "Provide your target habit, personal motivators, reward preferences, budget constraints, and lifestyle context. The system will design a comprehensive reward framework with implementation guidance.",
+          "name": "Habit Reward System Creator"
+        }
+      ]
+    }
+  ]
+}

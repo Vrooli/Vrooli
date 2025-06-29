@@ -1,0 +1,172 @@
+{
+  "id": "7829564732190847177",
+  "publicId": "gift-rec-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847178",
+      "publicId": "gift-ideas-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Helpful",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "Suggest thoughtful gift ideas based on the recipient profile:\n\n**Recipient Information:** {{input.recipientInfo}}\n**Occasion:** {{input.occasion}}\n**Budget Range:** {{input.budgetRange}}\n{{#if input.interests}}**Known Interests:** {{input.interests}}{{/if}}\n{{#if input.relationship}}**Your Relationship:** {{input.relationship}}{{/if}}\n{{#if input.restrictions}}**Gift Restrictions:** {{input.restrictions}}{{/if}}\n\nProvide personalized gift recommendations:\n\n1. **Top Gift Recommendations (5-7 ideas)**\n   - Highly personalized suggestions\n   - Budget-appropriate options\n   - Occasion-specific relevance\n   - Interest-based selections\n   - Unique and thoughtful choices\n   - Practical and meaningful options\n\n2. **Gift Categories & Themes**\n   - Experience gifts and activities\n   - Hobby-related items\n   - Personal care and wellness\n   - Technology and gadgets\n   - Books and learning materials\n   - Home and lifestyle items\n   - Handmade and custom items\n   - Subscription services\n\n3. **Detailed Gift Descriptions**\n   For each recommendation provide:\n   - Specific product or experience\n   - Why it's perfect for this person\n   - How it relates to their interests\n   - Estimated price range\n   - Where to purchase or book\n   - Timing considerations\n\n4. **Personalization Ideas**\n   - Custom engraving options\n   - Monogramming opportunities\n   - Photo personalization\n   - Custom color choices\n   - Size and fit considerations\n   - Special packaging ideas\n\n5. **Experience-Based Gifts**\n   - Classes and workshops\n   - Adventure activities\n   - Cultural experiences\n   - Spa and wellness treatments\n   - Travel and getaway options\n   - Food and dining experiences\n   - Concert or event tickets\n\n6. **Budget Optimization**\n   - High-impact, budget-friendly options\n   - Premium choices within range\n   - DIY and handmade alternatives\n   - Group gift possibilities\n   - Payment plan options\n   - Value-for-money considerations\n\n7. **Shopping Strategy**\n   - Best places to purchase\n   - Online vs. in-store options\n   - Timing for sales and discounts\n   - Shipping and delivery considerations\n   - Return and exchange policies\n   - Gift wrapping services\n\n8. **Alternative Options**\n   - Similar items at different price points\n   - Complementary gift accessories\n   - Related interest expansions\n   - Future gift ideas to remember\n   - Backup options if first choice unavailable\n   - Gift card alternatives\n\n9. **Presentation and Delivery**\n   - Creative wrapping ideas\n   - Presentation enhancements\n   - Delivery timing suggestions\n   - Surprise element maximization\n   - Card message suggestions\n   - Special reveal methods\n\n10. **Cultural and Personal Considerations**\n    - Cultural gift-giving traditions\n    - Personal values alignment\n    - Lifestyle compatibility\n    - Space and storage considerations\n    - Maintenance requirements\n    - Long-term utility\n\n11. **Special Circumstances**\n    - Long-distance gifting\n    - Last-minute options\n    - Group collaboration gifts\n    - Surprise party contributions\n    - Corporate gifting adaptations\n    - Thank you gift variations\n\n12. **Follow-up and Future Ideas**\n    - Gifts that complement this choice\n    - Next occasion planning\n    - Gift registry additions\n    - Seasonal gift considerations\n    - Anniversary gift evolution\n    - Interest development tracking\n\nFocus on gifts that show thoughtfulness and consideration of the recipient's personality, interests, and current life situation. Emphasize meaningful connections over generic options.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "recipientInfo",
+                "id": "recipient_info_input",
+                "label": "Recipient Information",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Tell me about the person you're buying for (age, gender, personality, lifestyle, current situation...)",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "occasion",
+                "id": "occasion_input",
+                "label": "Occasion",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Birthday", "Anniversary", "Wedding", "Graduation", "Holiday/Christmas", "Valentine's Day", "Mother's/Father's Day", "Thank you gift", "Housewarming", "New job", "Just because", "Apology gift"],
+                  "defaultValue": "Birthday"
+                }
+              },
+              {
+                "fieldName": "budgetRange",
+                "id": "budget_range_input",
+                "label": "Budget Range",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Under $25", "$25-$50", "$50-$100", "$100-$250", "$250-$500", "$500-$1000", "$1000+", "No specific budget"],
+                  "defaultValue": "$50-$100"
+                }
+              },
+              {
+                "fieldName": "interests",
+                "id": "interests_input",
+                "label": "Known Interests (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What are their hobbies, interests, passions? What do they love to do?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "relationship",
+                "id": "relationship_input",
+                "label": "Your Relationship",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Family member", "Close friend", "Romantic partner", "Colleague", "Acquaintance", "Boss/supervisor", "Client/customer", "Teacher/mentor"],
+                  "defaultValue": "Close friend"
+                }
+              },
+              {
+                "fieldName": "restrictions",
+                "id": "restrictions_input",
+                "label": "Gift Restrictions (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any restrictions? (allergies, space limitations, dietary restrictions, preferences to avoid...)"
+                }
+              },
+              {
+                "fieldName": "giftStyle",
+                "id": "gift_style_input",
+                "label": "Gift Style Preference",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Practical and useful", "Fun and entertaining", "Luxurious and indulgent", "Experiences over things", "Handmade and personal", "Tech and gadgets", "Mixed variety"],
+                  "defaultValue": "Mixed variety"
+                }
+              },
+              {
+                "fieldName": "urgency",
+                "id": "urgency_input",
+                "label": "Shopping Timeline",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["I have plenty of time", "A few weeks", "Next week", "This week", "Last minute (1-2 days)", "Emergency same-day"],
+                  "defaultValue": "A few weeks"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_gift_recommendations_output",
+                "label": "Complete Gift Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "topPicks",
+                "id": "top_picks_output",
+                "label": "Top Gift Recommendations",
+                "type": "Text"
+              },
+              {
+                "fieldName": "shoppingSuggestions",
+                "id": "shopping_suggestions_output",
+                "label": "Shopping Strategy & Where to Buy",
+                "type": "Text"
+              },
+              {
+                "fieldName": "alternativeOptions",
+                "id": "alternative_options_output",
+                "label": "Alternative Options & Backup Ideas",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847179",
+          "language": "en",
+          "name": "Gift Recommendation Assistant",
+          "description": "Suggests thoughtful gift ideas based on recipient profile. Uses AI and web search for current gift guides with personalized recommendations, shopping strategy, and budget optimization.",
+          "instructions": "1. Describe the recipient (age, personality, lifestyle)\n2. Choose the occasion for the gift\n3. Set your budget range\n4. Add known interests and hobbies (optional)\n5. Specify your relationship to them\n6. Note any gift restrictions (optional)\n7. Choose gift style preference\n8. Set shopping timeline\n\nThe assistant will provide:\n- Personalized gift recommendations\n- Detailed rationale for each suggestion\n- Shopping strategy and where to buy\n- Budget optimization tips\n- Alternative options and backup ideas\n- Presentation and delivery suggestions\n- Cultural and personal considerations\n\nPerfect for anyone who wants to give thoughtful, well-chosen gifts that show consideration and understanding of the recipient."
+        }
+      ]
+    }
+  ]
+}

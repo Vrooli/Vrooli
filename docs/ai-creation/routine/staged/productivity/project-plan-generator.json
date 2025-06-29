@@ -1,0 +1,149 @@
+{
+  "id": "7829564732190848279",
+  "publicId": "project-plan-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847031",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847035",
+      "publicId": "project-management-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "project-management"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848280",
+      "publicId": "project-plan-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles comprehensive project documentation and plans",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 850,
+            "model": null,
+            "prompt": "Generate comprehensive project plan documentation:\n\nProject Timeline: {{input.projectTimeline}}\nResource Allocation: {{input.resourceAllocation}}\nRisk Analysis: {{input.riskAnalysis}}\nCommunication Plan: {{input.communicationPlan}}\nProject Metadata: {{input.projectMetadata}}\n\nCreate complete project plan:\n\n1. **Executive Summary**:\n   - Project overview\n   - Business justification\n   - Key objectives\n   - Success criteria\n   - Major milestones\n\n2. **Project Charter Elements**:\n   - Project vision\n   - Scope statement\n   - Stakeholder list\n   - Authority matrix\n   - Governance structure\n\n3. **Work Breakdown Structure**:\n   - Hierarchical task list\n   - Work package details\n   - Deliverable mapping\n   - Responsibility assignments\n   - Effort estimates\n\n4. **Schedule Documentation**:\n   - Gantt chart representation\n   - Milestone schedule\n   - Critical path visualization\n   - Dependency network\n   - Timeline narratives\n\n5. **Resource Management Plan**:\n   - Team organization chart\n   - Role descriptions\n   - Resource calendars\n   - Skill matrix\n   - Capacity planning\n\n6. **Risk Management Framework**:\n   - Risk register\n   - Mitigation strategies\n   - Contingency plans\n   - Risk ownership\n   - Monitoring approach\n\n7. **Quality Assurance Plan**:\n   - Quality standards\n   - Review processes\n   - Testing strategies\n   - Acceptance criteria\n   - Continuous improvement\n\n8. **Project Controls**:\n   - Progress tracking methods\n   - Change management process\n   - Issue escalation paths\n   - Budget monitoring\n   - Performance metrics\n\n9. **Communication Strategy**:\n   - Stakeholder matrix\n   - Meeting cadence\n   - Reporting templates\n   - Distribution lists\n   - Feedback channels\n\n10. **Implementation Roadmap**:\n    - Quick start guide\n    - First 30 days plan\n    - Key action items\n    - Early wins strategy\n    - Launch checklist\n\nReturn as structured JSON with keys: executiveSummary (object), projectCharter (object), workBreakdown (object), scheduleDocumentation (object), resourcePlan (object), riskFramework (object), qualityPlan (object), projectControls (object), communicationStrategy (object), implementationRoadmap (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectTimeline",
+                "id": "timeline_input",
+                "label": "Project Timeline",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Complete project schedule and timeline...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "resourceAllocation",
+                "id": "resources_input",
+                "label": "Resource Allocation",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Team assignments and resource distribution...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "riskAnalysis",
+                "id": "risks_input",
+                "label": "Risk Analysis",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Identified risks and mitigation strategies...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "communicationPlan",
+                "id": "communication_input",
+                "label": "Communication Plan",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Stakeholder communication approach...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "projectMetadata",
+                "id": "metadata_input",
+                "label": "Project Metadata",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Project name, sponsor, budget, other key information...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectPlan",
+                "id": "plan_output",
+                "label": "Complete Project Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "executivePackage",
+                "id": "executive_output",
+                "label": "Executive Package",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848281",
+          "language": "en-US",
+          "description": "Generates comprehensive project plans with all documentation, controls, and implementation guidance",
+          "instructions": "Provide project timeline, resources, and risk analysis. The system will generate a complete project plan with executive summary.",
+          "name": "Project Plan Generator"
+        }
+      ]
+    }
+  ]
+}

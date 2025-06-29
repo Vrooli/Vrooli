@@ -1,0 +1,156 @@
+{
+  "id": "7829564732190848198",
+  "publicId": "tracker-setup-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847021",
+      "publicId": "planning-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "planning"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848199",
+      "publicId": "tracker-setup-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates comprehensive tracking systems for goal progress monitoring",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Systematic",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Design a comprehensive tracking system for the following goal components:\n\nSMART Goal: {{input.smartGoal}}\nMilestones: {{input.milestones}}\nAction Plan: {{input.actionPlan}}\nMeasurable Metrics: {{input.metrics}}\nTracking Preferences: {{input.trackingPreferences}}\nAvailable Tools: {{input.availableTools}}\n\nCreate tracking framework:\n\n1. **Tracking Strategy**:\n   - Measurement frequency\n   - Data collection methods\n   - Progress visualization approach\n   - Review cycle timing\n   - Adjustment trigger points\n\n2. **Key Performance Indicators (KPIs)**:\n   - Primary success metrics\n   - Leading indicators\n   - Lagging indicators\n   - Warning signals\n   - Milestone markers\n\n3. **Daily Tracking Elements**:\n   - Quick daily check-ins\n   - Habit completion markers\n   - Mood/energy indicators\n   - Obstacle encounters\n   - Small win recognition\n\n4. **Weekly Review Components**:\n   - Progress against milestones\n   - Action completion rates\n   - Trend analysis\n   - Adjustment needs\n   - Next week planning\n\n5. **Monthly Assessment Framework**:\n   - Goal alignment review\n   - Strategy effectiveness\n   - Resource utilization\n   - Timeline adjustments\n   - Celebration planning\n\n6. **Tracking Tools & Methods**:\n   - Recommended tracking apps/tools\n   - Manual tracking templates\n   - Visual progress charts\n   - Data organization systems\n   - Backup tracking methods\n\n7. **Motivation & Accountability**:\n   - Progress sharing strategies\n   - Accountability partner setup\n   - Reward system integration\n   - Momentum maintenance\n   - Course correction protocols\n\nReturn as structured JSON with keys: trackingStrategy (object), kpiFramework (object), dailyTracking (array), weeklyReview (object), monthlyAssessment (object), toolsAndMethods (array), accountabilitySystem (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "smartGoal",
+                "id": "goal_input",
+                "label": "SMART Goal",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Your SMART goal statement...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "milestones",
+                "id": "milestones_input",
+                "label": "Milestones",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key milestones and checkpoints...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "actionPlan",
+                "id": "actions_input",
+                "label": "Action Plan",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Key actions and activities to track...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "metrics",
+                "id": "metrics_input",
+                "label": "Measurable Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Specific metrics and measurements for success...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "trackingPreferences",
+                "id": "preferences_input",
+                "label": "Tracking Preferences",
+                "type": "Selector",
+                "props": {
+                  "options": ["Digital Apps", "Paper/Journal", "Spreadsheets", "Mixed Approach", "Visual Charts", "Minimal Tracking"]
+                }
+              },
+              {
+                "fieldName": "availableTools",
+                "id": "tools_input",
+                "label": "Available Tools",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Apps, software, or tools you already use or prefer..."
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trackingSystem",
+                "id": "system_output",
+                "label": "Complete Tracking System",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "implementation_output",
+                "label": "Implementation Guide",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848200",
+          "language": "en-US",
+          "description": "Creates comprehensive tracking systems for goal progress monitoring with KPIs, review cycles, and accountability measures",
+          "instructions": "Provide your SMART goal, milestones, action plan, metrics, and tracking preferences. The system will design a complete tracking framework with daily, weekly, and monthly components.",
+          "name": "Tracker Setup"
+        }
+      ]
+    }
+  ]
+}

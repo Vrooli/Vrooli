@@ -1,0 +1,161 @@
+{
+  "id": "7829564732190848015",
+  "publicId": "landing-pg-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847107",
+      "publicId": "marketing-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "marketing"
+    },
+    {
+      "id": "7829564732190847026",
+      "publicId": "communication-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "communication"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848016",
+      "publicId": "landing-pg-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates landing page content",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Professional",
+            "maxTokens": 800,
+            "model": null,
+            "prompt": "Create comprehensive landing page content based on:\n\nCampaign Theme: {{input.campaignTheme}}\nKey Features: {{input.keyFeatures}}\nBenefits: {{input.benefits}}\nSlogans: {{input.slogans}}\nCall-to-Actions: {{input.callToActions}}\nTarget Conversion: {{input.targetConversion}}\n\nGenerate complete landing page content:\n\n1. Hero Section:\n   - Primary headline (power statement)\n   - Secondary headline (benefit clarification)\n   - Hero description (2-3 sentences)\n   - Primary CTA button text\n   - Supporting visual description\n\n2. Value Proposition Section:\n   - Clear value statement\n   - 3-5 key benefits\n   - Differentiation points\n   - Risk reduction elements\n   - Credibility indicators\n\n3. Features & Benefits:\n   - Feature headlines\n   - Benefit explanations\n   - Icon/visual suggestions\n   - Proof points\n   - Use case examples\n\n4. Social Proof Section:\n   - Testimonial framework\n   - Customer success stories\n   - Statistics/numbers\n   - Trust badges\n   - Company logos\n\n5. How It Works:\n   - Step-by-step process\n   - Timeline expectations\n   - Simplicity emphasis\n   - Getting started guide\n\n6. Objection Handling:\n   - FAQ section\n   - Common concerns\n   - Risk reversal\n   - Guarantee language\n   - Support promises\n\n7. Urgency & Scarcity:\n   - Limited time offers\n   - Exclusive access\n   - Countdown elements\n   - Stock limitations\n   - Bonus incentives\n\n8. Multiple CTAs:\n   - Primary action buttons\n   - Secondary CTAs\n   - Exit-intent CTAs\n   - Mobile-optimized CTAs\n   - Contextual placements\n\n9. Footer Content:\n   - Company information\n   - Contact details\n   - Privacy/terms links\n   - Additional resources\n   - Alternative actions\n\n10. Conversion Optimization:\n    - A/B test suggestions\n    - Friction reduction\n    - Form optimization\n    - Page flow logic\n    - Mobile considerations\n\nReturn as structured JSON with keys: headlines (object with primary/secondary), bodyContent (object by section), testimonialFramework (object), ctaVariations (array), socialProofElements (array), objectionHandling (array), urgencyElements (object), conversionOptimization (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "campaignTheme",
+                "id": "theme_input",
+                "label": "Campaign Theme",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Overall campaign message and positioning",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "keyFeatures",
+                "id": "features_input",
+                "label": "Key Features",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Main features to highlight on the page",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "benefits",
+                "id": "benefits_input",
+                "label": "Key Benefits",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Customer benefits and value propositions",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "slogans",
+                "id": "slogans_input",
+                "label": "Campaign Slogans",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Taglines and slogans to incorporate"
+                }
+              },
+              {
+                "fieldName": "callToActions",
+                "id": "cta_input",
+                "label": "Call-to-Actions",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Desired user actions (sign up, buy, download)"
+                }
+              },
+              {
+                "fieldName": "targetConversion",
+                "id": "conversion_input",
+                "label": "Target Conversion",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Primary goal for visitors (purchase, lead, signup)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "headlines",
+                "id": "headlines_output",
+                "label": "Page Headlines",
+                "type": "Text"
+              },
+              {
+                "fieldName": "bodyContent",
+                "id": "body_output",
+                "label": "Body Content",
+                "type": "Text"
+              },
+              {
+                "fieldName": "testimonialFramework",
+                "id": "testimonials_output",
+                "label": "Testimonial Framework",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848017",
+          "language": "en-US",
+          "description": "Generates comprehensive landing page content optimized for conversions",
+          "instructions": "Enter your campaign theme and key elements. The system will create complete landing page content including headlines, sections, and conversion optimization elements.",
+          "name": "Landing Page Content Generator"
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Setup Habit Framework",
                 "description": "Establishes tracking structure and goals",
-                "subroutineId": "TODO: Need habit setup subroutine",
+                "subroutineId": "7829564732190848381",
                 "inputMap": {
                   "habitList": "targetHabits",
                   "personalGoals": "objectiveAlignment",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Track Daily Progress",
                 "description": "Records habit completion and patterns",
-                "subroutineId": "TODO: Need progress tracking subroutine",
+                "subroutineId": "7829564732190848486",
                 "inputMap": {
                   "trackingStructure": "habitFramework",
                   "dailyCheckIn": "completionStatus",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Analyze Patterns",
                 "description": "Identifies trends and success factors",
-                "subroutineId": "TODO: Need pattern analysis subroutine",
+                "subroutineId": "7829564732190848303",
                 "inputMap": {
                   "completionHistory": "progressLog",
                   "behaviorTrends": "patternIdentification",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Provide Personalized Feedback",
                 "description": "Generates coaching insights and encouragement",
-                "subroutineId": "TODO: Need feedback generation subroutine",
+                "subroutineId": "7829564732190848492",
                 "inputMap": {
                   "habitPatterns": "trendAnalysis",
                   "positiveFactors": "successTriggers",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Adapt Strategies",
                 "description": "Adjusts approach based on performance",
-                "subroutineId": "TODO: Need strategy adaptation subroutine",
+                "subroutineId": "7829564732190848495",
                 "inputMap": {
                   "challengeZones": "strugglingAreas",
                   "optimizationTips": "improvementSuggestions",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Progress Report",
                 "description": "Creates comprehensive habit summary and goals",
-                "subroutineId": "TODO: Need report generation subroutine",
+                "subroutineId": "7829564732190848498",
                 "inputMap": {
                   "coachingInsights": "personalizedFeedback",
                   "adaptedStrategy": "modifiedApproach",

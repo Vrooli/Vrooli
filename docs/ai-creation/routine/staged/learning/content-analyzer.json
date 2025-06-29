@@ -1,0 +1,114 @@
+{
+  "id": "7829564732190848441",
+  "publicId": "content-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847013",
+      "tag": "learning",
+      "translations": [
+        {
+          "id": "7829564732190847113",
+          "language": "en",
+          "description": "Learning and education tools"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847020",
+      "tag": "content-processing",
+      "translations": [
+        {
+          "id": "7829564732190847120",
+          "language": "en",
+          "description": "Content analysis and processing"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848442",
+      "publicId": "content-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes learning content for key concepts",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "learningContent",
+                "id": "learning_content_input",
+                "label": "Learning Content",
+                "type": "TextInput",
+                "isRequired": true,
+                "placeholder": "Content to analyze for flashcard generation"
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "basic",
+                  "standard",
+                  "comprehensive",
+                  "detailed"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentAnalysis",
+                "id": "content_analysis_output",
+                "label": "Content Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848443",
+          "language": "en",
+          "name": "Content Analyzer",
+          "description": "Analyzes learning content to identify key concepts, topics, and relationships for educational material generation.",
+          "instructions": "Provide learning content for analysis. The routine will identify key concepts, themes, and structure for educational tool generation."
+        }
+      ]
+    }
+  ]
+}

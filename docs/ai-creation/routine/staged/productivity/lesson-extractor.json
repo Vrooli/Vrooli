@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848642",
+  "publicId": "lesson-extractor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847095",
+      "tag": "productivity",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Productivity and efficiency"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847074",
+      "tag": "learning",
+      "translations": [
+        {
+          "id": "7829564732190847174",
+          "language": "en",
+          "description": "Learning and improvement"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848643",
+      "publicId": "lesson-extractor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Extracts lessons from weekly experiences",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "weeklyMilestones",
+                "id": "weekly_milestones_input",
+                "label": "Success Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Achievements and milestones"
+              },
+              {
+                "fieldName": "challengesEncountered",
+                "id": "challenges_encountered_input",
+                "label": "Challenge Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Obstacles and difficulties"
+              },
+              {
+                "fieldName": "weeklyContext",
+                "id": "weekly_context_input",
+                "label": "Context",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Additional context"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "keyLessons",
+                "id": "key_lessons_output",
+                "label": "Extracted Lessons",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementInsights",
+                "id": "improvement_insights_output",
+                "label": "Improvement Areas",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bestPractices",
+                "id": "best_practices_output",
+                "label": "Best Practices",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848644",
+          "language": "en",
+          "name": "Lesson Extractor",
+          "description": "Analyzes weekly experiences to extract valuable lessons, insights, and best practices.",
+          "instructions": "Provide your weekly achievements and challenges. The routine will extract key lessons."
+        }
+      ]
+    }
+  ]
+}

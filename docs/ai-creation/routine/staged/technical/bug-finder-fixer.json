@@ -1,0 +1,139 @@
+{
+  "id": "7829564732190847069",
+  "publicId": "bug-fix-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847070",
+      "publicId": "bug-fx-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Technical",
+            "maxTokens": 1500,
+            "model": null,
+            "prompt": "Analyze the following code to locate and fix bugs:\n\n**Programming Language:** {{input.language}}\n**Code with Bug:**\n```{{input.language}}\n{{input.buggyCode}}\n```\n\n**Error Messages/Symptoms:**\n{{input.errorMessages}}\n\n**Expected Behavior:**\n{{input.expectedBehavior}}\n\n{{#if input.context}}**Additional Context:**\n{{input.context}}{{/if}}\n\nPerform comprehensive bug analysis and provide fixes:\n\n1. **Bug Diagnosis**\n   - Identify the specific bug(s) in the code\n   - Explain what's causing the error\n   - Trace the execution flow to the problem\n   - Identify any related issues\n\n2. **Root Cause Analysis**\n   - Why did this bug occur?\n   - Common patterns that lead to this type of bug\n   - Impact on program execution\n   - Potential side effects\n\n3. **Fixed Code**\n   - Provide the corrected version of the code\n   - Highlight the specific changes made\n   - Explain why each change fixes the issue\n   - Ensure the fix doesn't introduce new bugs\n\n4. **Alternative Solutions**\n   - If applicable, provide alternative ways to fix the bug\n   - Pros and cons of each approach\n   - Performance implications\n   - Best practice recommendations\n\n5. **Testing the Fix**\n   - Test cases to verify the fix works\n   - Edge cases to consider\n   - How to prevent regression\n   - Integration testing considerations\n\n6. **Prevention Strategies**\n   - How to avoid this bug in the future\n   - Code patterns to follow\n   - Tools or linters that could catch this\n   - Best practices for this language/framework\n\n7. **Code Quality Improvements**\n   - Other issues noticed in the code\n   - Refactoring suggestions\n   - Performance optimizations\n   - Readability improvements\n\n8. **Learning Points**\n   - Key takeaways from this bug\n   - Common misconceptions addressed\n   - Related concepts to understand better\n\nProvide clear, actionable fixes with explanations suitable for learning.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "buggyCode",
+                "id": "buggy_code_input",
+                "label": "Code with Bug",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste the code that contains the bug...",
+                  "minRows": 8
+                }
+              },
+              {
+                "fieldName": "language",
+                "id": "language_input",
+                "label": "Programming Language",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Python", "JavaScript", "TypeScript", "Java", "C++", "C#", "Go", "Ruby", "PHP", "Swift", "Rust"],
+                  "defaultValue": "JavaScript"
+                }
+              },
+              {
+                "fieldName": "errorMessages",
+                "id": "error_messages_input",
+                "label": "Error Messages/Symptoms",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What error messages do you see? What goes wrong when you run the code?",
+                  "minRows": 3
+                }
+              },
+              {
+                "fieldName": "expectedBehavior",
+                "id": "expected_behavior_input",
+                "label": "Expected Behavior",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What should the code do? What's the correct output or behavior?"
+                }
+              },
+              {
+                "fieldName": "context",
+                "id": "context_input",
+                "label": "Additional Context (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any additional information? Framework version, environment, related code...",
+                  "minRows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "bug_analysis_output",
+                "label": "Complete Bug Analysis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "fixedCode",
+                "id": "fixed_code_output",
+                "label": "Fixed Code",
+                "type": "Text"
+              },
+              {
+                "fieldName": "diagnosis",
+                "id": "diagnosis_output",
+                "label": "Bug Diagnosis",
+                "type": "Text"
+              },
+              {
+                "fieldName": "preventionTips",
+                "id": "prevention_tips_output",
+                "label": "Prevention Strategies",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847071",
+          "language": "en",
+          "name": "Bug Finder & Fixer",
+          "description": "Helps locate and fix bugs in source code. Provides detailed diagnosis, root cause analysis, corrected code, and prevention strategies. Includes alternative solutions and testing recommendations for comprehensive debugging support.",
+          "instructions": "1. Paste the code that contains the bug\n2. Select the programming language\n3. Describe the error messages or symptoms\n4. Explain what the code should do correctly\n5. Add any additional context (optional)\n\nThe bug finder will:\n- Diagnose the specific bug(s)\n- Explain the root cause\n- Provide fixed code with explanations\n- Suggest alternative solutions\n- Recommend testing strategies\n- Share prevention tips\n- Identify other code improvements\n\nGreat for learning from bugs and improving code quality."
+        }
+      ]
+    }
+  ]
+}

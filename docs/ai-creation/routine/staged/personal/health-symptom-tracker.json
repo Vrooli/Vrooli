@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Log Symptoms & Vitals",
                 "description": "Records current symptoms, measurements, and health data",
-                "subroutineId": "TODO: Need symptom logging subroutine",
+                "subroutineId": "7829564732190848570",
                 "inputMap": {
                   "symptomReport": "currentSymptoms",
                   "vitalMeasurements": "healthMetrics",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Historical Patterns",
                 "description": "Examines past entries for trends and correlations",
-                "subroutineId": "TODO: Need pattern analysis subroutine",
+                "subroutineId": "7829564732190848573",
                 "inputMap": {
                   "healthEntry": "symptomRecord",
                   "historicalData": "pastRecords",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Triggers & Factors",
                 "description": "Discovers potential causes and contributing factors",
-                "subroutineId": "TODO: Need trigger identification subroutine",
+                "subroutineId": "7829564732190848576",
                 "inputMap": {
                   "symptomRelationships": "correlationMapping",
                   "lifestyleData": "behaviorPatterns",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Health Insights",
                 "description": "Creates personalized health observations and advice",
-                "subroutineId": "TODO: Need insight generation subroutine",
+                "subroutineId": "7829564732190848579",
                 "inputMap": {
                   "patternIdentification": "trendAnalysis",
                   "causativeFactors": "triggerIdentification",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Medical Summary",
                 "description": "Prepares documentation for healthcare providers",
-                "subroutineId": "TODO: Need medical summary subroutine",
+                "subroutineId": "7829564732190848582",
                 "inputMap": {
                   "chronologicalRecord": "timestampedData",
                   "personalizedFindings": "healthInsights",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Plan Health Actions",
                 "description": "Develops actionable health improvement strategies",
-                "subroutineId": "TODO: Need action planning subroutine",
+                "subroutineId": "7829564732190848585",
                 "inputMap": {
                   "wellnessRecommendations": "improvementSuggestions",
                   "avoidanceStrategies": "preventionInsights",

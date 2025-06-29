@@ -1,0 +1,143 @@
+{
+  "id": "7829564732190847928",
+  "publicId": "time-block-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847029",
+      "publicId": "productivity-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "productivity"
+    },
+    {
+      "id": "7829564732190847101",
+      "publicId": "scheduling-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "scheduling"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190847929",
+      "publicId": "time-block-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Schedules tasks into time blocks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 700,
+            "model": null,
+            "prompt": "Create an optimized time-blocked schedule for the following tasks:\n\nPrioritized Tasks: {{input.prioritizedTasks}}\nAvailable Time Windows: {{input.timeWindows}}\nExisting Commitments: {{input.existingCommitments}}\nEnergy Patterns: {{input.energyPatterns}}\nPreferences: {{input.preferences}}\n\nGenerate a time-blocked schedule that:\n1. Assigns specific time blocks to each task\n2. Respects existing commitments and meetings\n3. Matches high-focus tasks to peak energy times\n4. Includes buffer time between blocks (15-30 min)\n5. Schedules breaks using Pomodoro or Ultradian rhythms\n6. Groups similar tasks for efficiency\n7. Protects deep work blocks from interruptions\n8. Includes time for email/admin tasks\n9. Builds in flexibility for unexpected items\n10. Ends with a brief review/planning block\n\nConsider:\n- Cognitive load and task switching costs\n- Natural energy rhythms throughout the day\n- Realistic time estimates with padding\n\nReturn as structured JSON with keys: timeBlocks (array with start/end times and tasks), breakSchedule (array), deepWorkBlocks (array), adminBlocks (array), bufferTime (total minutes), reviewBlock (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedTasks",
+                "id": "tasks_input",
+                "label": "Prioritized Task List",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Tasks in priority order with time estimates...",
+                  "multiline": true,
+                  "rows": 4
+                }
+              },
+              {
+                "fieldName": "timeWindows",
+                "id": "windows_input",
+                "label": "Available Time Windows",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "When are you available? (e.g., 9am-12pm, 2pm-5pm)"
+                }
+              },
+              {
+                "fieldName": "existingCommitments",
+                "id": "commitments_input",
+                "label": "Existing Commitments",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Meetings or fixed commitments (with times)",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "energyPatterns",
+                "id": "energy_input",
+                "label": "Energy Patterns",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "When do you have high/low energy? (e.g., high energy mornings)"
+                }
+              },
+              {
+                "fieldName": "preferences",
+                "id": "prefs_input",
+                "label": "Scheduling Preferences",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any preferences? (e.g., no meetings before 10am, lunch at 12:30)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "timeBlockSchedule",
+                "id": "schedule_output",
+                "label": "Time Block Schedule",
+                "type": "Text"
+              },
+              {
+                "fieldName": "scheduleNotes",
+                "id": "notes_output",
+                "label": "Schedule Notes",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190847930",
+          "language": "en-US",
+          "description": "Creates optimized time-blocked schedules matching tasks to energy levels",
+          "instructions": "Enter your prioritized tasks and available time. The system will create an optimized schedule with time blocks, breaks, and buffer time.",
+          "name": "Time Block Scheduler"
+        }
+      ]
+    }
+  ]
+}

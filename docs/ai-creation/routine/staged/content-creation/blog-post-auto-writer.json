@@ -27,7 +27,7 @@
                 "id": "outline_creation",
                 "name": "Create Content Outline",
                 "description": "Generate a structured outline for the blog post",
-                "subroutineId": "content-outline-v1",
+                "subroutineId": "7829564732190848072",
                 "inputMap": {
                   "blogTopic": "originalTopic",
                   "targetAudience": "originalAudience",
@@ -42,7 +42,7 @@
                 "id": "introduction_writing",
                 "name": "Write Introduction",
                 "description": "Create an engaging introduction for the blog post",
-                "subroutineId": "intro-writer-v1",
+                "subroutineId": "7829564732190848096",
                 "inputMap": {
                   "topicInfo": "originalTopic",
                   "outlineStructure": "step1Outline",
@@ -57,7 +57,7 @@
                 "id": "body_content_generation",
                 "name": "Generate Body Content",
                 "description": "Develop detailed content for each main section",
-                "subroutineId": "body-content-v1",
+                "subroutineId": "7829564732190848075",
                 "inputMap": {
                   "sectionsToExpand": "step1Sections",
                   "outlineGuide": "step1Outline",
@@ -72,7 +72,7 @@
                 "id": "conclusion_writing",
                 "name": "Write Conclusion",
                 "description": "Create a compelling conclusion that ties everything together",
-                "subroutineId": "conclusion-writer-v1",
+                "subroutineId": "7829564732190848216",
                 "inputMap": {
                   "mainContent": "step3BodyText",
                   "originalTopic": "originalTopic",
@@ -87,7 +87,7 @@
                 "id": "seo_optimization",
                 "name": "SEO Optimization",
                 "description": "Add SEO-friendly elements and suggestions",
-                "subroutineId": "seo-optimizer-v1",
+                "subroutineId": "7829564732190848078",
                 "inputMap": {
                   "fullContent": "step3BodyText",
                   "targetKeywords": "originalTopic",
@@ -102,7 +102,7 @@
                 "id": "final_assembly",
                 "name": "Assemble Final Post",
                 "description": "Combine all sections into a complete blog post",
-                "subroutineId": "content-assembler-v1",
+                "subroutineId": "7829564732190848081",
                 "inputMap": {
                   "introSection": "step2Introduction",
                   "bodySection": "step3BodyText",

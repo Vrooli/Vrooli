@@ -1,0 +1,159 @@
+{
+  "id": "7829564732190847042",
+  "publicId": "lecture-sum-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [],
+  "versions": [
+    {
+      "id": "7829564732190847043",
+      "publicId": "lect-sum-v1",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Analytical",
+            "maxTokens": 1200,
+            "model": null,
+            "prompt": "Create a comprehensive academic summary of the following lecture notes or textbook chapter:\n\nCourse/Subject: {{input.courseContext}}\nTopic: {{input.topicTitle}}\n{{#if input.learningObjectives}}Learning Objectives: {{input.learningObjectives}}{{/if}}\n\nContent to Summarize:\n{{input.lectureContent}}\n\n{{#if input.priorKnowledge}}Prior Knowledge/Context: {{input.priorKnowledge}}{{/if}}\nSummary Focus: {{input.summaryFocus}}\nTarget Length: {{input.targetLength}}\n\nCreate an academic summary that includes:\n\n1. **Overview** (1-2 paragraphs)\n   - Main topic introduction\n   - Why this topic matters\n   - Connection to broader subject\n\n2. **Key Concepts & Definitions**\n   - Core concepts with clear definitions\n   - Technical terms explained\n   - Important theories or principles\n   - Relationships between concepts\n\n3. **Main Points Summary**\n   - Primary arguments or findings\n   - Supporting evidence\n   - Critical details\n   - Logical progression of ideas\n\n4. **Examples & Applications**\n   - Key examples from the material\n   - Real-world applications\n   - Case studies mentioned\n   - Problem-solving approaches\n\n5. **Key Terms Glossary**\n   - Alphabetical list of important terms\n   - Concise definitions\n   - Page/section references if available\n\n6. **Formulas & Equations** (if applicable)\n   - Important formulas\n   - When to use them\n   - Variable definitions\n\n7. **Visual Elements Summary** (if mentioned)\n   - Important diagrams/charts described\n   - Key data or trends\n   - Visual relationships\n\n8. **Critical Analysis Points**\n   - Debates or controversies\n   - Limitations mentioned\n   - Future directions\n\n9. **Study Questions**\n   - 3-5 questions for self-testing\n   - Focus on comprehension and application\n\n10. **Quick Review Checklist**\n    - Bullet points of must-know items\n    - Perfect for exam review\n\nMaintain academic tone while making complex concepts accessible. Use clear structure with headings and bullet points for easy scanning.",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "courseContext",
+                "id": "course_context_input",
+                "label": "Course/Subject",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "e.g., Biology 101, Introduction to Psychology, Organic Chemistry..."
+                }
+              },
+              {
+                "fieldName": "topicTitle",
+                "id": "topic_title_input",
+                "label": "Lecture/Chapter Topic",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "e.g., Cell Division, Cognitive Development, Chemical Bonding..."
+                }
+              },
+              {
+                "fieldName": "lectureContent",
+                "id": "lecture_content_input",
+                "label": "Lecture Notes/Chapter Text",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Paste your lecture notes or textbook chapter here...",
+                  "minRows": 10
+                }
+              },
+              {
+                "fieldName": "learningObjectives",
+                "id": "learning_objectives_input",
+                "label": "Learning Objectives (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "What should students be able to do after this lecture/chapter?",
+                  "minRows": 2
+                }
+              },
+              {
+                "fieldName": "priorKnowledge",
+                "id": "prior_knowledge_input",
+                "label": "Prior Knowledge/Context (Optional)",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Any prerequisite concepts or previous lectures this builds on?"
+                }
+              },
+              {
+                "fieldName": "summaryFocus",
+                "id": "summary_focus_input",
+                "label": "Summary Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Comprehensive Overview", "Exam Preparation", "Concept Understanding", "Problem Solving", "Quick Review"],
+                  "defaultValue": "Comprehensive Overview"
+                }
+              },
+              {
+                "fieldName": "targetLength",
+                "id": "target_length_input",
+                "label": "Target Summary Length",
+                "type": "Selector",
+                "isRequired": true,
+                "props": {
+                  "options": ["Brief (1 page)", "Standard (2-3 pages)", "Detailed (4-5 pages)", "Comprehensive (5+ pages)"],
+                  "defaultValue": "Standard (2-3 pages)"
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "response",
+                "id": "complete_summary_output",
+                "label": "Complete Academic Summary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "keyTermsGlossary",
+                "id": "key_terms_glossary_output",
+                "label": "Key Terms Glossary",
+                "type": "Text"
+              },
+              {
+                "fieldName": "mainConcepts",
+                "id": "main_concepts_output",
+                "label": "Main Concepts Overview",
+                "type": "Text"
+              },
+              {
+                "fieldName": "studyQuestions",
+                "id": "study_questions_output",
+                "label": "Study Questions",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "translations": [
+        {
+          "id": "7829564732190847044",
+          "language": "en",
+          "name": "Lecture/Chapter Summarizer",
+          "description": "Summarizes academic texts focusing on key terms, concepts, and examples. Creates structured summaries perfect for studying, including glossaries, main points, and self-test questions. Maintains academic rigor while improving accessibility.",
+          "instructions": "1. Enter the course name and specific topic\n2. Paste your lecture notes or textbook chapter\n3. Add any learning objectives or prior context\n4. Choose your summary focus (exam prep, understanding, etc.)\n5. Select desired summary length\n\nThe summarizer will create:\n- Structured overview with key concepts\n- Definitions of important terms\n- Main points with supporting details\n- Examples and applications\n- Study questions for self-testing\n- Quick review checklist\n\nPerfect for exam preparation and concept mastery."
+        }
+      ]
+    }
+  ]
+}

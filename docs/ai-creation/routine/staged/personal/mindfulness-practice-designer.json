@@ -1,0 +1,147 @@
+{
+  "id": "7829564732190848255",
+  "publicId": "mindfulness-practice-designer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847028",
+      "publicId": "personal-dev-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "personal-development"
+    },
+    {
+      "id": "7829564732190847103",
+      "publicId": "mindfulness-tag",
+      "resourceType": "Tag",
+      "language": "en-US",
+      "tag": "mindfulness"
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848256",
+      "publicId": "mindfulness-practice-designer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Designs personalized mindfulness practice plans",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "callDataGenerate": {
+          "__version": "1.0",
+          "schema": {
+            "botStyle": "Wise",
+            "maxTokens": 750,
+            "model": null,
+            "prompt": "Design a personalized mindfulness practice plan based on assessment results:\n\nAssessment Results: {{input.assessmentResults}}\nPractice Preferences: {{input.practicePreferences}}\nTime Constraints: {{input.timeConstraints}}\nSpecific Goals: {{input.specificGoals}}\nLifestyle Context: {{input.lifestyleContext}}\n\nCreate comprehensive practice design:\n\n1. **Practice Structure Foundation**:\n   - Core practice selection\n   - Session duration planning\n   - Frequency recommendations\n   - Progression pathway\n   - Flexibility options\n\n2. **Beginner-Friendly Approach**:\n   - Gentle introduction methods\n   - Basic technique instruction\n   - Expectation setting\n   - Common challenge preparation\n   - Encouragement strategies\n\n3. **Practice Variety & Progression**:\n   - Breathing techniques\n   - Body awareness exercises\n   - Loving-kindness meditation\n   - Walking meditation\n   - Mindful daily activities\n\n4. **Daily Integration Strategies**:\n   - Morning practice routines\n   - Workday mindfulness breaks\n   - Evening wind-down practices\n   - Mindful transitions\n   - Stress response techniques\n\n5. **Environmental Optimization**:\n   - Practice space setup\n   - Distraction management\n   - Comfort considerations\n   - Technology aids\n   - Atmosphere creation\n\n6. **Support System Development**:\n   - Guided meditation resources\n   - Community connections\n   - Teacher recommendations\n   - Accountability methods\n   - Learning resources\n\n7. **Progress Tracking & Adaptation**:\n   - Milestone markers\n   - Practice logging methods\n   - Benefit recognition\n   - Difficulty adjustments\n   - Evolution planning\n\n8. **Obstacle Management**:\n   - Common resistance handling\n   - Time pressure solutions\n   - Motivation maintenance\n   - Plateau navigation\n   - Relapse recovery\n\nReturn as structured JSON with keys: practiceStructure (object), beginnerFramework (object), practiceVariety (array), dailyIntegration (object), environmentSetup (object), supportSystem (array), progressTracking (object), obstacleManagement (object).",
+            "respondingBot": null
+          }
+        },
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "assessmentResults",
+                "id": "assessment_input",
+                "label": "Assessment Results",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Results from the mindfulness needs assessment...",
+                  "multiline": true,
+                  "rows": 3
+                }
+              },
+              {
+                "fieldName": "practicePreferences",
+                "id": "preferences_input",
+                "label": "Practice Preferences",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Preferred meditation styles, duration, guided vs self-directed...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "timeConstraints",
+                "id": "time_input",
+                "label": "Time Constraints",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "Available time for practice, schedule limitations..."
+                }
+              },
+              {
+                "fieldName": "specificGoals",
+                "id": "goals_input",
+                "label": "Specific Goals",
+                "type": "Text",
+                "isRequired": true,
+                "props": {
+                  "placeholder": "What specific outcomes do you want from mindfulness practice?",
+                  "multiline": true,
+                  "rows": 2
+                }
+              },
+              {
+                "fieldName": "lifestyleContext",
+                "id": "lifestyle_input",
+                "label": "Lifestyle Context",
+                "type": "Text",
+                "isRequired": false,
+                "props": {
+                  "placeholder": "Work environment, family situation, living space...",
+                  "multiline": true,
+                  "rows": 2
+                }
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "practicePlan",
+                "id": "plan_output",
+                "label": "Personalized Practice Plan",
+                "type": "Text"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "guide_output",
+                "label": "Implementation Guide",
+                "type": "Text"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning"
+      },
+      "labels": [],
+      "translations": [
+        {
+          "id": "7829564732190848257",
+          "language": "en-US",
+          "description": "Designs personalized mindfulness practice plans with structured progression and daily integration",
+          "instructions": "Provide assessment results, practice preferences, time constraints, and goals. The system will create a personalized practice plan with implementation guidance.",
+          "name": "Mindfulness Practice Designer"
+        }
+      ]
+    }
+  ]
+}

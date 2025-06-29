@@ -27,7 +27,7 @@
                 "id": "step-1",
                 "name": "Parse and Structure Raw Notes",
                 "description": "Analyzes and organizes informal notes into structured content",
-                "subroutineId": "note-parser-v1",
+                "subroutineId": "7829564732190848648",
                 "inputMap": {
                   "originalRawNotes": "rawNotes",
                   "originalContext": "meetingContext",
@@ -44,7 +44,7 @@
                 "id": "step-2",
                 "name": "Identify Themes and Priorities",
                 "description": "Extracts main themes, priorities, and important concepts",
-                "subroutineId": "theme-identifier-v1",
+                "subroutineId": "7829564732190848651",
                 "inputMap": {
                   "organizedNotes": "structuredText",
                   "mainTopics": "topicList",
@@ -62,7 +62,7 @@
                 "id": "step-3",
                 "name": "Generate Organized Summary",
                 "description": "Creates clear, structured summary with logical organization",
-                "subroutineId": "summary-organizer-v1",
+                "subroutineId": "7829564732190848654",
                 "inputMap": {
                   "primaryThemes": "themeData",
                   "highPriorityTopics": "priorityData",
