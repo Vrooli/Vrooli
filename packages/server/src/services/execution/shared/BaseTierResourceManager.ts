@@ -9,16 +9,11 @@
 
 import { type Logger } from "winston";
 import { type IEventBus } from "../../events/types.js";
-import { RateLimiter } from "../cross-cutting/resources/rateLimiter.js";
 import { ResourceManager as UnifiedResourceManager } from "../cross-cutting/resources/resourceManager.js";
-import { ResourcePoolManager } from "../cross-cutting/resources/resourcePool.js";
-import { UsageTracker, type UsageTrackerConfig } from "../cross-cutting/resources/usageTracker.js";
+import { type UsageTracker } from "../cross-cutting/resources/usageTracker.js";
+import { InMemoryRateLimiter, type RateLimiter } from "../cross-cutting/resources/rateLimiter.js";
 import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
-import {
-    TierResourceConfigFactory,
-    type TierResourceAdapter,
-    type TierResourceConfig,
-} from "./ResourceManagerConfig.js";
+import { TierResourceConfigFactory, type TierResourceAdapter, type TierResourceConfig } from "./ResourceManagerConfig.js";
 
 /**
  * Abstract base class for all tier resource managers
@@ -30,13 +25,12 @@ export abstract class BaseTierResourceManager<TAdapter extends TierResourceAdapt
     protected readonly adapter: TAdapter;
     protected readonly errorHandler: ComponentErrorHandler;
 
-    // Shared components
-    protected readonly poolManager: ResourcePoolManager;
-    protected readonly usageTracker: UsageTracker;
-    protected readonly rateLimiter: RateLimiter;
-
     // Configuration
     protected readonly config: TierResourceConfig;
+    
+    // Shared components
+    protected rateLimiter?: RateLimiter;
+    protected usageTracker?: UsageTracker;
 
     constructor(
         logger: Logger,
@@ -72,32 +66,19 @@ export abstract class BaseTierResourceManager<TAdapter extends TierResourceAdapt
             eventTopic: this.config.eventTopic,
         });
     }
-
+    
     /**
-     * Initialize shared components used by all tiers
+     * Initialize shared components like rate limiter and usage tracker
      */
     private initializeSharedComponents(): void {
-        this.poolManager = new ResourcePoolManager(this.logger);
-
-        // Create usage tracker config
-        const usageConfig: UsageTrackerConfig = {
-            trackerId: `tier${this.config.tier}-usage-tracker`,
-            scope: "tier",
-            scopeId: `tier${this.config.tier}`,
-        };
-        this.usageTracker = new UsageTracker(usageConfig, this.logger, this.eventBus);
-
-        this.rateLimiter = new RateLimiter(this.logger, this.eventBus);
-
-        // Configure rate limiter with tier-specific settings
-        this.rateLimiter.configure([{
-            resource: `tier${this.config.tier}`,
-            limit: this.config.rateLimiterConfig.defaultLimit,
-            window: this.config.rateLimiterConfig.windowMs,
-            burstLimit: this.config.rateLimiterConfig.burstMultiplier
-                ? this.config.rateLimiterConfig.defaultLimit * this.config.rateLimiterConfig.burstMultiplier
-                : undefined,
-        }]);
+        // Initialize rate limiter with tier-specific config
+        this.rateLimiter = new InMemoryRateLimiter(
+            this.config.rateLimiterConfig.defaultLimit,
+            this.config.rateLimiterConfig.windowMs,
+        );
+        
+        // Usage tracker can be initialized here when implemented
+        // this.usageTracker = new UsageTracker(this.eventBus, this.logger);
     }
 
     /**
@@ -113,7 +94,6 @@ export abstract class BaseTierResourceManager<TAdapter extends TierResourceAdapt
                 eventTopic: this.config.eventTopic,
             },
             {
-                poolManager: this.poolManager,
                 usageTracker: this.usageTracker,
                 rateLimiter: this.rateLimiter,
             },

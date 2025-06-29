@@ -40,6 +40,27 @@ import {
 } from "@vrooli/shared";
 import { type Logger } from "winston";
 
+// Resource allocation constants
+const THIRTY_SECONDS_MS = 30_000;
+const TOOL_CALL_MULTIPLIER = 1.2;
+const API_REQUEST_MULTIPLIER = 1.1;
+const DATA_TRANSFORM_MULTIPLIER = 0.8;
+const DECISION_POINT_MULTIPLIER = 0.6;
+const LOOP_ITERATION_MULTIPLIER = 1.0;
+const CONDITIONAL_BRANCH_MULTIPLIER = 0.7;
+const PARALLEL_EXECUTION_MULTIPLIER = 1.5;
+const SUBROUTINE_CALL_MULTIPLIER = 1.3;
+const AI_MODEL_MULTIPLIER_VALUE = 1.4;
+const WEB_API_MULTIPLIER_VALUE = 1.2;
+const FILE_PROCESSING_MULTIPLIER_VALUE = 1.3;
+const HIGH_PRIORITY_THRESHOLD = 0.6;
+const SPEED_BOOST_MULTIPLIER = 1.2;
+const COST_REDUCTION_MULTIPLIER = 0.8;
+const RELIABILITY_BOOST_MULTIPLIER = 1.1;
+const CONSERVATIVE_ALLOCATION_PERCENTAGE = 0.2;
+const MIN_MULTIPLIER_VALUE = 0.3;
+const MAX_MULTIPLIER_VALUE = 3.0;
+
 /**
  * Runtime context interface for resource flow operations
  * @deprecated This temporary interface will be replaced by proper types from SwarmContext
@@ -49,8 +70,13 @@ interface RunContext {
     swarmId?: string;
     userId?: string;
     runId?: string;
+    routineId?: string;
     variables?: Record<string, unknown>;
     defaultStrategy?: string;
+    correlationId?: string;
+    timeout?: number;
+    retryCount?: number;
+    priority?: "low" | "medium" | "high" | "critical";
     parentContext?: {
         executingAgent?: string;
     };
@@ -154,6 +180,41 @@ export interface ResourceAllocationResult {
  * strategies based on observed performance patterns.
  */
 export class ResourceFlowProtocol {
+    private static readonly DEFAULT_TIMEOUT_MS = THIRTY_SECONDS_MS;
+    private static readonly DEFAULT_RETRIES = 3;
+    
+    // Resource multipliers for different step and tool types
+    private static readonly STEP_TYPE_MULTIPLIERS = {
+        "tool_call": TOOL_CALL_MULTIPLIER,
+        "api_request": API_REQUEST_MULTIPLIER,
+        "data_transform": DATA_TRANSFORM_MULTIPLIER,
+        "decision_point": DECISION_POINT_MULTIPLIER,
+        "loop_iteration": LOOP_ITERATION_MULTIPLIER,
+        "conditional_branch": CONDITIONAL_BRANCH_MULTIPLIER,
+        "parallel_execution": PARALLEL_EXECUTION_MULTIPLIER,
+        "subroutine_call": SUBROUTINE_CALL_MULTIPLIER,
+    } as const;
+    
+    private static readonly AI_MODEL_MULTIPLIER = AI_MODEL_MULTIPLIER_VALUE;
+    private static readonly WEB_API_MULTIPLIER = WEB_API_MULTIPLIER_VALUE;
+    private static readonly FILE_PROCESSING_MULTIPLIER = FILE_PROCESSING_MULTIPLIER_VALUE;
+    
+    private static readonly PRIORITY_THRESHOLDS = {
+        HIGH_SPEED: HIGH_PRIORITY_THRESHOLD,
+        HIGH_COST: HIGH_PRIORITY_THRESHOLD,
+        HIGH_RELIABILITY: HIGH_PRIORITY_THRESHOLD,
+    } as const;
+    
+    private static readonly PRIORITY_MULTIPLIERS = {
+        SPEED_BOOST: SPEED_BOOST_MULTIPLIER,
+        COST_REDUCTION: COST_REDUCTION_MULTIPLIER,
+        RELIABILITY_BOOST: RELIABILITY_BOOST_MULTIPLIER,
+    } as const;
+    
+    private static readonly CONSERVATIVE_ALLOCATION_RATIO = CONSERVATIVE_ALLOCATION_PERCENTAGE;
+    private static readonly MIN_MULTIPLIER = MIN_MULTIPLIER_VALUE;
+    private static readonly MAX_MULTIPLIER = MAX_MULTIPLIER_VALUE;
+    
     private readonly logger: Logger;
 
     constructor(logger: Logger) {
@@ -202,8 +263,8 @@ export class ResourceFlowProtocol {
             config: {
                 strategy: stepInput.strategy,
                 toolName: stepInput.toolName,
-                timeout: context.timeout || 30000,
-                retryCount: context.retryCount || 3,
+                timeout: context.timeout || ResourceFlowProtocol.DEFAULT_TIMEOUT_MS,
+                retryCount: context.retryCount || ResourceFlowProtocol.DEFAULT_RETRIES,
             },
         };
 
@@ -221,8 +282,8 @@ export class ResourceFlowProtocol {
             allocation: stepAllocation,
             options: {
                 priority: context.priority || "medium",
-                timeout: context.timeout || 30000,
-                retryCount: context.retryCount || 3,
+                timeout: context.timeout || ResourceFlowProtocol.DEFAULT_TIMEOUT_MS,
+                retryCount: context.retryCount || ResourceFlowProtocol.DEFAULT_RETRIES,
                 emergentCapabilities: true, // Enable agent-driven optimization
             },
         };
@@ -359,19 +420,8 @@ export class ResourceFlowProtocol {
         let multiplier = 1.0;
 
         // Base multiplier by step type (configurable for agent optimization)
-        const stepTypeMultipliers: Record<string, number> = {
-            "tool_call": 1.2,        // Tool calls typically need more resources
-            "api_request": 1.1,      // API requests need network buffer
-            "data_transform": 0.8,   // Data transforms are usually lightweight
-            "decision_point": 0.6,   // Decision points are quick evaluations
-            "loop_iteration": 1.0,   // Standard allocation for loops
-            "conditional_branch": 0.7, // Branches are typically quick
-            "parallel_execution": 1.5, // Parallel execution needs more resources
-            "subroutine_call": 1.3,  // Subroutines can be complex
-        };
-
         const stepType = stepInfo.type || stepInfo.stepType || "tool_call";
-        multiplier *= stepTypeMultipliers[stepType] || 1.0;
+        multiplier *= ResourceFlowProtocol.STEP_TYPE_MULTIPLIERS[stepType as keyof typeof ResourceFlowProtocol.STEP_TYPE_MULTIPLIERS] || 1.0;
 
         // Tool-specific multipliers (enables agent learning about tool costs)
         if (stepInfo.toolName || stepInfo.tool?.name) {
@@ -379,17 +429,17 @@ export class ResourceFlowProtocol {
 
             // AI model tools typically need more resources
             if (toolName.includes("gpt") || toolName.includes("claude") || toolName.includes("llm")) {
-                multiplier *= 1.4;
+                multiplier *= ResourceFlowProtocol.AI_MODEL_MULTIPLIER;
             }
 
             // Web scraping and API tools need network buffer
             if (toolName.includes("web") || toolName.includes("api") || toolName.includes("fetch")) {
-                multiplier *= 1.2;
+                multiplier *= ResourceFlowProtocol.WEB_API_MULTIPLIER;
             }
 
             // File processing tools need memory buffer  
             if (toolName.includes("file") || toolName.includes("image") || toolName.includes("document")) {
-                multiplier *= 1.3;
+                multiplier *= ResourceFlowProtocol.FILE_PROCESSING_MULTIPLIER;
             }
         }
 
@@ -397,22 +447,22 @@ export class ResourceFlowProtocol {
         const { speed, cost, reliability } = strategy.optimizationHints.priorities;
 
         // Higher speed priority = more resource allocation
-        if (speed > 0.6) {
-            multiplier *= 1.2;
+        if (speed > ResourceFlowProtocol.PRIORITY_THRESHOLDS.HIGH_SPEED) {
+            multiplier *= ResourceFlowProtocol.PRIORITY_MULTIPLIERS.SPEED_BOOST;
         }
 
         // Higher cost priority = less resource allocation
-        if (cost > 0.6) {
-            multiplier *= 0.8;
+        if (cost > ResourceFlowProtocol.PRIORITY_THRESHOLDS.HIGH_COST) {
+            multiplier *= ResourceFlowProtocol.PRIORITY_MULTIPLIERS.COST_REDUCTION;
         }
 
         // Higher reliability priority = more resource buffer
-        if (reliability > 0.6) {
-            multiplier *= 1.1;
+        if (reliability > ResourceFlowProtocol.PRIORITY_THRESHOLDS.HIGH_RELIABILITY) {
+            multiplier *= ResourceFlowProtocol.PRIORITY_MULTIPLIERS.RELIABILITY_BOOST;
         }
 
         // Clamp multiplier to reasonable bounds
-        return Math.max(0.3, Math.min(3.0, multiplier));
+        return Math.max(ResourceFlowProtocol.MIN_MULTIPLIER, Math.min(ResourceFlowProtocol.MAX_MULTIPLIER, multiplier));
     }
 
     /**
@@ -457,9 +507,9 @@ export class ResourceFlowProtocol {
      */
     private createConservativeAllocation(parentAllocation: CoreResourceAllocation): CoreResourceAllocation {
         return {
-            maxCredits: this.calculateCreditsAllocation(parentAllocation.maxCredits, 0.2),
-            maxDurationMs: Math.floor(parentAllocation.maxDurationMs * 0.2),
-            maxMemoryMB: Math.floor(parentAllocation.maxMemoryMB * 0.2),
+            maxCredits: this.calculateCreditsAllocation(parentAllocation.maxCredits, ResourceFlowProtocol.CONSERVATIVE_ALLOCATION_RATIO),
+            maxDurationMs: Math.floor(parentAllocation.maxDurationMs * ResourceFlowProtocol.CONSERVATIVE_ALLOCATION_RATIO),
+            maxMemoryMB: Math.floor(parentAllocation.maxMemoryMB * ResourceFlowProtocol.CONSERVATIVE_ALLOCATION_RATIO),
             maxConcurrentSteps: 1, // Conservative concurrency
         };
     }

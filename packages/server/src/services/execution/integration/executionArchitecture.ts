@@ -21,9 +21,6 @@ import { RedisRunStateStore, type IRunStateStore } from "../tier2/state/runState
 import { TierTwoOrchestrator } from "../tier2/tierTwoOrchestrator.js";
 import { ResourceManager as Tier3ResourceManager } from "../tier3/engine/resourceManager.js";
 import { UnifiedExecutor } from "../tier3/engine/unifiedExecutor.js";
-import { ConversationalStrategy } from "../tier3/strategies/conversationalStrategy.js";
-import { DeterministicStrategy } from "../tier3/strategies/deterministicStrategy.js";
-import { ReasoningStrategy } from "../tier3/strategies/reasoningStrategy.js";
 import { IntegratedToolRegistry } from "./mcp/toolRegistry.js";
 
 /**
@@ -48,8 +45,6 @@ interface ExecutionArchitectureConfig {
 export interface ExecutionArchitectureOptions {
     /** Use Redis for state storage (production) or in-memory (development) */
     useRedis?: boolean;
-    /** Enable SwarmContextManager for modern state management (recommended) */
-    useModernStateManagement?: boolean;
     // telemetryEnabled removed - monitoring now emergent
     // Rolling history options removed - monitoring now emergent
     /** Custom logger instance */
@@ -75,9 +70,6 @@ export interface ExecutionArchitectureOptions {
  * This factory now supports both legacy and modern state management:
  * - **Modern (Recommended)**: SwarmContextManager + ContextSubscriptionManager for live updates
  * - **Legacy**: Traditional state stores (deprecated - used only for backward compatibility)
- * 
- * Use `useModernStateManagement: true` to enable the new SwarmContextManager architecture
- * which provides live configuration updates and emergent AI capabilities.
  * 
  * Each tier communicates through the standardized TierCommunicationInterface,
  * enabling clean delegation and separation of concerns.
@@ -108,7 +100,6 @@ export class ExecutionArchitecture {
     constructor(options: ExecutionArchitectureOptions = {}) {
         this.options = {
             useRedis: process.env.NODE_ENV === "production",
-            useModernStateManagement: process.env.NODE_ENV === "production", // Enable modern state management by default in production
             ...options,
         };
 
@@ -135,7 +126,6 @@ export class ExecutionArchitecture {
 
         this.logger.info("[ExecutionArchitecture] Initializing execution architecture", {
             useRedis: this.options.useRedis,
-            useModernStateManagement: this.options.useModernStateManagement,
         });
 
         try {
@@ -189,20 +179,13 @@ export class ExecutionArchitecture {
             this.logger.warn("[ExecutionArchitecture] Unified event system not available");
         }
 
-        // Initialize state management based on configuration
-        if (this.options.useModernStateManagement) {
-            this.logger.info("[ExecutionArchitecture] Using modern SwarmContextManager for state management");
+        // Initialize modern state management components
+        const redis = await CacheService.get().raw();
+        this.contextSubscriptionManager = new ContextSubscriptionManager(redis, this.logger);
+        await this.contextSubscriptionManager.initialize();
 
-            // Initialize modern state management components
-            const redis = await CacheService.get().raw();
-            this.contextSubscriptionManager = new ContextSubscriptionManager(redis, this.logger);
-            await this.contextSubscriptionManager.initialize();
-
-            this.swarmContextManager = new SwarmContextManager(redis, this.logger);
-            await this.swarmContextManager.initialize();
-        } else {
-            this.logger.warn("[ExecutionArchitecture] Using legacy state management - consider enabling modern state management");
-        }
+        this.swarmContextManager = new SwarmContextManager(redis, this.logger);
+        await this.swarmContextManager.initialize();
 
         // Initialize run state store (still using existing implementation during transition)
         if (this.options.useRedis) {
@@ -245,22 +228,6 @@ export class ExecutionArchitecture {
      */
     private async initializeTier3(): Promise<void> {
         this.logger.debug("[ExecutionArchitecture] Initializing Tier 3");
-
-        // Create strategy factory
-        const strategyFactory: StrategyFactory = {
-            createStrategy: (type) => {
-                switch (type) {
-                    case "conversational":
-                        return new ConversationalStrategy(this.logger);
-                    case "reasoning":
-                        return new ReasoningStrategy(this.logger);
-                    case "deterministic":
-                        return new DeterministicStrategy(this.logger);
-                    default:
-                        throw new Error(`Unknown strategy type: ${type}`);
-                }
-            },
-        };
 
         // Configure UnifiedExecutor
         const executorConfig: UnifiedExecutorConfig = {
@@ -357,7 +324,7 @@ export class ExecutionArchitecture {
 
         // Subscribe to cross-tier events
         await this.eventBus.subscribe({
-            id: generatePK() as string,
+            id: generatePK().toString(),
             pattern: "tier.*",
             handler: async (event) => {
                 this.logger.debug("[ExecutionArchitecture] Cross-tier event received", {

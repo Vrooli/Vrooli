@@ -1,7 +1,7 @@
 /**
  * ConversationBridge - Bridge between SwarmStateMachine and conversation/responseEngine
  * 
- * @deprecated This component is deprecated as part of the SwarmContextManager architecture redesign.
+ * @deprecated This entire component is deprecated as part of the SwarmContextManager architecture redesign.
  * 
  * **Why Deprecated:**
  * - 248 lines of legacy conversation system bridging

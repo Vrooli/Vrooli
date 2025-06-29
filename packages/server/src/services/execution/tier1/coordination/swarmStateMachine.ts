@@ -175,17 +175,6 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
                     swarmLeader: swarmLeader.id, // Leader selected through data-driven approach
                 });
 
-                // Queue the started event
-                const startEvent: UnifiedEvent<SocketEventPayloads[typeof EventTypes.SWARM.STARTED]> = {
-                    id: generatePK().toString(),
-                    type: EventTypes.SWARM.STARTED,
-                    timestamp: new Date(),
-                    data: {
-                        chatId: convoId,
-                        goal,
-                        initiatingUser: initiatingUser.id,
-                    },
-                };
 
                 this.state = SwarmState.IDLE;
 
@@ -231,7 +220,26 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
                     },
                 );
 
-                await this.handleEvent(startEvent);
+                // Emit swarm initialization complete event for monitoring
+                await this.publishUnifiedEvent(
+                    EventTypes.SWARM.STATE_CHANGED,
+                    {
+                        chatId: convoId,
+                        swarmId: this.swarmId || convoId,
+                        oldState: "STARTING" as any,
+                        newState: "INITIALIZED" as any,
+                        message: `Swarm initialized with goal: "${goal}"`,
+                        metadata: {
+                            goal,
+                            leaderId: swarmLeader.id,
+                        },
+                    },
+                    {
+                        conversationId: convoId,
+                        priority: "medium",
+                        deliveryGuarantee: "reliable",
+                    },
+                );
 
                 // Process any queued events
                 if (this.eventQueue.length > 0) {
@@ -294,9 +302,6 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
         this.logger.debug(`[SwarmStateMachine] Handling event: ${event.type}`);
 
         switch (event.type) {
-            case EventTypes.SWARM.STARTED:
-                await this.handleSwarmStarted(event as UnifiedEvent<SocketEventPayloads[typeof EventTypes.SWARM.STARTED]>);
-                break;
 
             case EventTypes.CHAT.MESSAGE_ADDED:
                 await this.handleExternalMessage(event as UnifiedEvent<SocketEventPayloads[typeof EventTypes.CHAT.MESSAGE_ADDED]>);
@@ -324,56 +329,6 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
         }
     }
 
-    /**
-     * Handles swarm started event
-     */
-    private async handleSwarmStarted(event: UnifiedEvent<SocketEventPayloads[typeof EventTypes.SWARM.STARTED]>): Promise<void> {
-        const convoState = await this.getConversationState(event.data.chatId);
-        if (!convoState) {
-            this.logger.error(`Conversation state not found for ${event.data.chatId}`);
-            return;
-        }
-
-        // Get the leader bot
-        // @deprecated Hardcoded leader selection - use data-driven bot mapping
-        const leaderBot = this.findLeaderBot(convoState);
-        if (!leaderBot) {
-            this.logger.error(`No leader bot found for ${event.data.chatId}`);
-            return;
-        }
-
-        // Let the leader bot initialize the swarm
-        // @deprecated Complex agent response generation - use simple promptBot()
-        const response = await this.conversationBridge?.generateResponse(
-            {
-                conversationId: event.data.chatId,
-                sessionUser: { id: event.data.initiatingUser } as any,
-            },
-            `The swarm has started with goal: "${event.data.goal}". Initialize the team and create a plan.`,
-        );
-
-        this.logger.info("[SwarmStateMachine] Leader response to swarm start", {
-            conversationId: event.data.chatId,
-            responseLength: response?.length || 0,
-        });
-
-        // Emit event for monitoring
-        await this.publishUnifiedEvent(
-            EventTypes.SWARM.STATE_CHANGED,
-            {
-                chatId: event.data.chatId,
-                swarmId: this.swarmId || event.data.chatId,
-                oldState: "STARTING" as any,
-                newState: "RUNNING" as any,
-                message: `Swarm initialized with goal: "${event.data.goal}"`,
-            },
-            {
-                conversationId: event.data.chatId,
-                priority: "medium",
-                deliveryGuarantee: "reliable",
-            },
-        );
-    }
 
 
     /**
@@ -805,11 +760,6 @@ export class SwarmStateMachine extends BaseStateMachine<State, UnifiedEvent> {
             });
             throw error;
         }
-    }
-
-    private async getDrainDelay(conversationId: string): Promise<number> {
-        // Could get from config, for now return 0 for immediate processing
-        return 0;
     }
 
     private async handleExternalMessage(event: SwarmEvent): Promise<void> {

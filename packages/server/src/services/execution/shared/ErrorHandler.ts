@@ -1,7 +1,6 @@
-import { nanoid } from "@vrooli/shared";
+import { nanoid } from "nanoid";
 import { type Logger } from "winston";
-import { type IEventBus, EventUtils } from "../../events/index.js";
-import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { type IEventBus, EventUtils, getUnifiedEventSystem } from "../../events/index.js";
 
 export type Result<T, E = Error> =
     | { success: true; data: T }

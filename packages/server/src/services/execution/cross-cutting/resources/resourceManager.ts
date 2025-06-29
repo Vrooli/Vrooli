@@ -90,9 +90,8 @@ import {
     type IEventBus,
 } from "../../../events/index.js";
 import { ErrorHandler, type ComponentErrorHandler } from "../../shared/ErrorHandler.js";
-import { type RateLimiter } from "./rateLimiter.js";
-import { type ResourcePoolManager } from "./resourcePool.js";
 import { type UsageTracker } from "./usageTracker.js";
+import { type RateLimiter } from "./rateLimiter.js";
 
 /**
  * Resource allocation
@@ -136,15 +135,14 @@ export interface ResourceManagerConfig {
  */
 export class ResourceManager {
     private readonly eventBus: IEventBus;
-    private readonly errorHandler: ComponentErrorHandler;
     private readonly config: ResourceManagerConfig;
     private readonly allocations = new Map<string, ResourceAllocation>();
     private readonly usage = new Map<string, ResourceAmount>();
     private cleanupTimer?: NodeJS.Timer;
+    private errorHandler: ComponentErrorHandler;
 
     // Optional shared components (injected as needed)
     private rateLimiter?: RateLimiter;
-    private poolManager?: ResourcePoolManager;
     private usageTracker?: UsageTracker;
 
     constructor(
@@ -152,7 +150,6 @@ export class ResourceManager {
         config: ResourceManagerConfig,
         components?: {
             rateLimiter?: RateLimiter;
-            poolManager?: ResourcePoolManager;
             usageTracker?: UsageTracker;
         },
     ) {
@@ -160,7 +157,6 @@ export class ResourceManager {
         this.config = config;
         this.errorHandler = new ErrorHandler(logger).createComponentHandler(`ResourceManager-Tier${config.tier}`);
         this.rateLimiter = components?.rateLimiter;
-        this.poolManager = components?.poolManager;
         this.usageTracker = components?.usageTracker;
 
         // Start cleanup timer
@@ -246,11 +242,6 @@ export class ResourceManager {
         };
 
         this.usage.set(entityId, updatedUsage);
-
-        // Track in usage tracker if available
-        if (this.usageTracker) {
-            await this.usageTracker.track(entityId, used);
-        }
 
         // Emit usage event using unified event system with fire-and-forget for performance
         await this.eventBus.publish({

@@ -280,6 +280,29 @@ export interface MOISEPolicy {
 }
 
 /**
+ * Event-bot mapping for emergent agent coordination
+ * This enables data-driven agent selection instead of hardcoded routing
+ */
+export interface EventBotMapping {
+    [eventType: string]: {
+        /** Bot roles that should respond to this event type */
+        respondingBots: string[];
+        
+        /** Template for generating prompts (uses {variable} substitution) */
+        promptTemplate?: string;
+        
+        /** Priority level for event processing */
+        priority?: "low" | "medium" | "high";
+        
+        /** Whether multiple bots can respond simultaneously */
+        allowConcurrent?: boolean;
+        
+        /** Maximum response time in milliseconds */
+        maxResponseTimeMs?: number;
+    };
+}
+
+/**
  * Configuration settings for swarm behavior
  */
 export interface SwarmConfiguration {
@@ -315,6 +338,9 @@ export interface SwarmConfiguration {
         consensusThreshold: number; // For multi-agent decisions
         leadershipElection: "automatic" | "manual" | "rotating";
     };
+
+    /** Event-to-bot mapping for emergent agent coordination */
+    eventBotMapping?: EventBotMapping;
 }
 
 /**
@@ -632,3 +658,12 @@ export function isContextUpdateEvent(obj: any): obj is ContextUpdateEvent {
         obj.timestamp instanceof Date &&
         typeof obj.emergent === "boolean";
 }
+
+/**
+ * Namespace for type guards to match SwarmContextManager's usage
+ */
+export const UnifiedSwarmContextGuards = {
+    isResourcePool,
+    isUnifiedSwarmContext,
+    isContextUpdateEvent,
+};

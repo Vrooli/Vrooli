@@ -1,217 +1,78 @@
-import { type Logger } from "winston";
-import { type IEventBus } from "../../../events/types.js";
-
 /**
- * Rate limit configuration
- */
-export interface RateLimitConfig {
-    resource: string;
-    limit: number;
-    window: number; // milliseconds
-    burstLimit?: number;
-    burstWindow?: number; // milliseconds
-}
-
-/**
- * Rate limit state
- */
-export interface RateLimitState {
-    resource: string;
-    limit: number;
-    burstLimit: number;
-    window: number;
-    current: number;
-    burstCurrent: number;
-    resetTime: number;
-    burstResetTime: number;
-    violations: number;
-}
-
-/**
- * Rate limit check result
- */
-export interface RateLimitResult {
-    allowed: boolean;
-    reason?: string;
-    retryAfter?: number; // milliseconds
-    remaining?: number;
-    resetTime?: number;
-}
-
-/**
- * Shared rate limiter implementation
+ * Rate Limiter Interface for Resource Management
  * 
- * Provides rate limiting with:
- * - Token bucket algorithm
- * - Burst support
- * - Sliding window
- * - Distributed state (Redis)
- * - Event emission for violations
+ * Provides basic rate limiting functionality for resource allocation.
+ * Actual implementation can be plugged in as needed.
  */
-export class RateLimiter {
-    private readonly logger: Logger;
-    private readonly eventBus?: IEventBus;
-    private readonly limits: Map<string, RateLimitState> = new Map();
 
-    constructor(logger: Logger, eventBus?: IEventBus) {
-        this.logger = logger;
-        this.eventBus = eventBus;
-    }
-
+export interface RateLimiter {
     /**
-     * Configure rate limits
+     * Check if an operation is allowed under rate limits
+     * @param entityId - The entity to check (user, swarm, etc.)
+     * @param operation - The operation type
+     * @param count - Number of operations requested
+     * @returns true if allowed, false if rate limited
      */
-    configure(configs: RateLimitConfig[]): void {
-        for (const config of configs) {
-            const state: RateLimitState = {
-                resource: config.resource,
-                limit: config.limit,
-                burstLimit: config.burstLimit || config.limit * 2,
-                window: config.window,
-                current: 0,
-                burstCurrent: 0,
-                resetTime: Date.now() + config.window,
-                burstResetTime: Date.now() + (config.burstWindow || config.window / 2),
-                violations: 0,
-            };
-            this.limits.set(config.resource, state);
-        }
-
-        this.logger.debug("[RateLimiter] Configured rate limits", {
-            resources: configs.map(c => c.resource),
-        });
-    }
-
+    checkLimit(entityId: string, operation: string, count: number): Promise<boolean>;
+    
     /**
-     * Check if an operation is allowed
+     * Reset rate limit for an entity
+     * @param entityId - The entity to reset
+     * @param operation - The operation type to reset
      */
-    async check(
-        resource: string,
-        count = 1,
-        identifier?: string,
-    ): Promise<RateLimitResult> {
-        const state = this.limits.get(resource);
-        if (!state) {
-            // No limit configured, allow
-            return { allowed: true };
-        }
+    resetLimit(entityId: string, operation?: string): Promise<void>;
+}
 
-        // Reset if window expired
+// Constants for rate limiting
+const ONE_MINUTE_MS = 60_000;
+
+/**
+ * Simple in-memory rate limiter implementation
+ * This is a placeholder implementation - production should use Redis-based rate limiting
+ */
+export class InMemoryRateLimiter implements RateLimiter {
+    private static readonly DEFAULT_WINDOW_MS = ONE_MINUTE_MS;
+    private limits = new Map<string, Map<string, { count: number; resetAt: number }>>();
+    
+    constructor(
+        private defaultLimit: number = 100,
+        private windowMs: number = InMemoryRateLimiter.DEFAULT_WINDOW_MS,
+    ) {}
+    
+    async checkLimit(entityId: string, operation: string, count: number): Promise<boolean> {
         const now = Date.now();
-        if (now >= state.resetTime) {
-            state.current = 0;
-            state.resetTime = now + state.window;
+        
+        let entityLimits = this.limits.get(entityId);
+        if (!entityLimits) {
+            entityLimits = new Map();
+            this.limits.set(entityId, entityLimits);
         }
-
-        // Reset burst if burst window expired
-        if (now >= state.burstResetTime) {
-            state.burstCurrent = 0;
-            state.burstResetTime = now + (state.window / 2);
-        }
-
-        // Check normal limit
-        if (state.current + count <= state.limit) {
-            state.current += count;
-            return {
-                allowed: true,
-                remaining: state.limit - state.current,
-                resetTime: state.resetTime,
+        
+        let operationLimit = entityLimits.get(operation);
+        if (!operationLimit || operationLimit.resetAt < now) {
+            operationLimit = {
+                count: 0,
+                resetAt: now + this.windowMs,
             };
+            entityLimits.set(operation, operationLimit);
         }
-
-        // Check burst limit
-        if (state.burstCurrent + count <= state.burstLimit) {
-            state.burstCurrent += count;
-            this.logger.warn("[RateLimiter] Using burst capacity", {
-                resource,
-                burstUsed: state.burstCurrent,
-                burstLimit: state.burstLimit,
-            });
-
-            return {
-                allowed: true,
-                remaining: state.burstLimit - state.burstCurrent,
-                resetTime: state.burstResetTime,
-            };
+        
+        if (operationLimit.count + count > this.defaultLimit) {
+            return false;
         }
-
-        // Rate limit exceeded
-        state.violations++;
-        const retryAfter = Math.min(
-            state.resetTime - now,
-            state.burstResetTime - now,
-        );
-
-        // Emit violation event
-        if (this.eventBus) {
-            await this.eventBus.emit({
-                type: "rate_limit.violated",
-                timestamp: new Date(),
-                data: {
-                    resource,
-                    identifier,
-                    violations: state.violations,
-                    retryAfter,
-                },
-            });
-        }
-
-        this.logger.warn("[RateLimiter] Rate limit exceeded", {
-            resource,
-            identifier,
-            violations: state.violations,
-            retryAfter,
-        });
-
-        return {
-            allowed: false,
-            reason: `Rate limit exceeded for ${resource}`,
-            retryAfter,
-            remaining: 0,
-            resetTime: state.resetTime,
-        };
+        
+        operationLimit.count += count;
+        return true;
     }
-
-    /**
-     * Reset rate limit for a resource
-     */
-    reset(resource: string): void {
-        const state = this.limits.get(resource);
-        if (state) {
-            state.current = 0;
-            state.burstCurrent = 0;
-            state.violations = 0;
-            state.resetTime = Date.now() + state.window;
-            state.burstResetTime = Date.now() + (state.window / 2);
-        }
-    }
-
-    /**
-     * Get current state for monitoring
-     */
-    getState(resource?: string): RateLimitState | Map<string, RateLimitState> | null {
-        if (resource) {
-            return this.limits.get(resource) || null;
-        }
-        return new Map(this.limits);
-    }
-
-    /**
-     * Update limit configuration dynamically
-     */
-    updateLimit(resource: string, limit: number, burstLimit?: number): void {
-        const state = this.limits.get(resource);
-        if (state) {
-            state.limit = limit;
-            if (burstLimit !== undefined) {
-                state.burstLimit = burstLimit;
+    
+    async resetLimit(entityId: string, operation?: string): Promise<void> {
+        if (operation) {
+            const entityLimits = this.limits.get(entityId);
+            if (entityLimits) {
+                entityLimits.delete(operation);
             }
-
-            this.logger.info("[RateLimiter] Updated rate limit", {
-                resource,
-                limit,
-                burstLimit: state.burstLimit,
-            });
+        } else {
+            this.limits.delete(entityId);
         }
     }
 }

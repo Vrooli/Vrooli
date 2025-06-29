@@ -10,7 +10,7 @@ import { type Logger } from "winston";
 import { DbProvider } from "../../db/provider.js";
 import { CacheService } from "../../redisConn.js";
 import { getUnifiedEventSystem } from "../events/initialization/eventSystemService.js";
-import { type IEventBus } from "../events/types.js";
+import type { IEventBus } from "../events/types.js";
 import { AuthIntegrationService } from "./integration/authIntegrationService.js";
 import { RoutineStorageService } from "./integration/routineStorageService.js";
 import { RunPersistenceService } from "./integration/runPersistenceService.js";
