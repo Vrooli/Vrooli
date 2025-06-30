@@ -2,7 +2,7 @@
 module.exports = {
   root: true, // Prevent ESLint from searching further up the directory tree
   extends: [
-    '../../.eslintrc' // Inherit from the root configuration
+    '../../../.eslintrc' // Inherit from the root configuration
   ],
   parserOptions: {
     tsconfigRootDir: __dirname, // Root directory for T\\S config search is this folder

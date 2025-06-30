@@ -1,2 +1,17 @@
 packages:
-  - 'packages/*'
+  - packages/*
+ignoredBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@swc/core'
+  - bcrypt
+  - cpu-features
+  - esbuild
+  - isolated-vm
+  - msgpackr-extract
+  - msw
+  - prisma
+  - protobufjs
+  - sharp
+  - ssh2
+  - workerd

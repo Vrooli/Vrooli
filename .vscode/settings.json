@@ -22,6 +22,10 @@
             "directory": "./packages/shared",
             "changeProcessCWD": true
         },
+        {
+            "directory": "./packages/integration",
+            "changeProcessCWD": true
+        },
     ],
     "[javascript]": {
         "editor.defaultFormatter": "vscode.typescript-language-features"

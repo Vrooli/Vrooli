@@ -21,6 +21,7 @@ scripts/
 │   ├── develop/            # Helpers specific to the development process
 │   ├── build/              # Helpers specific to the build process
 │   ├── deploy/             # Helpers specific to the deployment process
+│   ├── ai-creation/        # AI routine/agent/swarm/etc. generation and import scripts
 │   └── ...                 # Potentially other specialized helper categories
 │
 └── README.md               # This file

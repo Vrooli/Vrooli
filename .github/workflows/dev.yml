@@ -63,7 +63,7 @@ jobs:
             --environment development \
             --ci-cd yes \
             --bundles zip \
-            --artifacts docker \
+            --artifacts all \
             --binaries none \
             --dest local \
             --yes yes \

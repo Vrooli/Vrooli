@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/server" },
+    { "path": "./packages/jobs" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/cli" },
+    { "path": "./packages/extension" },
+    { "path": "./packages/integration" },
+    { "path": "./packages/og-worker" }
+  ]
+}

@@ -21,8 +21,14 @@ fi
 
 # Find all .js files and update JSON import statements
 if [ "$WORD" = "with" ]; then
+    # Convert assert to with (for newer Node.js versions)
+    find "$DIR" -type f -name '*.js' -exec sed -i.bak 's/\(import .* from ".*\.json"\) assert { type: "json" };/\1 with { type: "json" };/g' {} \;
+    # Also handle cases without any assertion
     find "$DIR" -type f -name '*.js' -exec sed -i.bak 's/\(import .* from ".*\.json"\);/\1 with { type: "json" };/g' {} \;
 elif [ "$WORD" = "assert" ]; then
+    # Convert with to assert (for Node.js v18 compatibility)
+    find "$DIR" -type f -name '*.js' -exec sed -i.bak 's/\(import .* from ".*\.json"\) with { type: "json" };/\1 assert { type: "json" };/g' {} \;
+    # Also handle cases without any assertion
     find "$DIR" -type f -name '*.js' -exec sed -i.bak 's/\(import .* from ".*\.json"\);/\1 assert { type: "json" };/g' {} \;
 else
     echo "Error: Invalid argument. Use 'with' or 'assert'."

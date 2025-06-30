@@ -1,92 +1,113 @@
 {
-    "name": "vrooli",
-    "private": true,
-    "workspaces": [
-        "packages/*"
+  "name": "vrooli",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "author": "Vrooli",
+  "license": "AGPL-3.0-only",
+  "resolutions": {
+    "babel-loader": "8.1.0"
+  },
+  "version": "2.0.1",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^8.0.1",
+    "eslint-plugin-import": "^2.31.0",
+    "i18n-unused": "^0.17.3",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^3.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "setup": "bash scripts/main/setup.sh",
+    "develop": "bash scripts/main/develop.sh",
+    "build": "bash scripts/main/build.sh",
+    "deploy": "bash scripts/main/deploy.sh",
+    "lint:js": "eslint . --ext .ts,.tsx",
+    "lint:js:parallel": "concurrently --kill-others-on-fail --names \"ui,server,shared,jobs,cli,integration\" --prefix-colors \"blue,green,yellow,magenta,cyan,red\" \"cd packages/ui && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint\" \"cd packages/server && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint\" \"cd packages/shared && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint\" \"cd packages/jobs && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint\" \"cd packages/cli && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint\" \"cd packages/integration && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint\"",
+    "lint:js:parallel:fix": "concurrently --kill-others-on-fail --names \"ui,server,shared,jobs,cli,integration\" --prefix-colors \"blue,green,yellow,magenta,cyan,red\" \"cd packages/ui && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint --fix\" \"cd packages/server && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint --fix\" \"cd packages/shared && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint --fix\" \"cd packages/jobs && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint --fix\" \"cd packages/cli && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint --fix\" \"cd packages/integration && NODE_OPTIONS='--max-old-space-size=4096' pnpm run lint --fix\"",
+    "lint:shell": "shellcheck -x scripts/**/*.sh",
+    "lint": "run-s lint:js lint:shell",
+    "lint:parallel": "run-s lint:js:parallel lint:shell",
+    "lint:changed": "eslint $(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD | grep -E '\\.(ts|tsx)$' | tr '\n' ' ') --ext .ts,.tsx",
+    "lint:staged": "eslint $(git diff --cached --name-only --diff-filter=ACMR | grep -E '\\.(ts|tsx)$' | tr '\n' ' ') --ext .ts,.tsx",
+    "test:shell": "bash scripts/__tests/__runTests.sh",
+    "test:unit": "vitest run",
+    "test:unit:ui": "vitest run --project ui",
+    "test:unit:server": "vitest run --project server",
+    "test:unit:jobs": "vitest run --project jobs",
+    "test:unit:shared": "vitest run --project shared",
+    "test:integration": "cd packages/integration && pnpm test",
+    "test:integration:roundtrip": "cd packages/integration && pnpm test src/round-trip",
+    "test:integration:scenarios": "cd packages/integration && pnpm test src/scenarios",
+    "test": "run-s test:shell test:unit",
+    "test-watch": "vitest",
+    "i18n:check": "i18n-unused display-unused",
+    "type-check": "NODE_OPTIONS='--max-old-space-size=6144 --no-deprecation' tsc --build --verbose",
+    "type-check:incremental": "NODE_OPTIONS='--max-old-space-size=4096 --no-deprecation' tsc --build",
+    "type-check:parallel": "concurrently --kill-others-on-fail --names \"shared,server,ui,jobs\" --prefix-colors \"yellow,green,blue,magenta\" \"cd packages/shared && pnpm run type-check\" \"cd packages/server && pnpm run type-check\" \"cd packages/ui && pnpm run type-check\" \"cd packages/jobs && pnpm run type-check\"",
+    "type-check:staged": "bash scripts/type-check-staged.sh",
+    "type-check:changed": "bash scripts/type-check-changed.sh",
+    "type-check:clean": "tsc --build --clean"
+  },
+  "packageManager": "pnpm@10.5.2",
+  "lint-staged": {
+    "packages/**/*.{ts,tsx}": [
+      "eslint --fix --max-warnings 0"
+    ]
+  },
+  "build": {
+    "appId": "com.vrooli.app",
+    "productName": "Vrooli",
+    "directories": {
+      "output": "dist/desktop",
+      "buildResources": "platforms/desktop/assets"
+    },
+    "files": [
+      "dist/desktop/main.cjs",
+      "dist/desktop/preload.cjs",
+      "platforms/desktop/src/splash.html",
+      "packages/server/dist",
+      "!packages/server/dist/**/*.map",
+      {
+        "from": "packages/server/package.json",
+        "to": "packages/server/package.json"
+      }
     ],
-    "author": "Vrooli",
-    "license": "AGPL-3.0-only",
-    "resolutions": {
-        "babel-loader": "8.1.0"
+    "asarUnpack": [
+      "**/node_modules/*.node"
+    ],
+    "extraMetadata": {
+      "main": "dist/desktop/main.cjs"
     },
-    "version": "1.9.11",
-    "devDependencies": {
-        "@types/sinon-chai": "^4.0.0",
-        "concurrently": "^8.0.1",
-        "eslint-plugin-import": "^2.31.0",
-        "i18n-unused": "^0.17.3",
-        "sinon-chai": "^4.0.0",
-        "ts-node": "^10.9.2",
-        "typescript": "^5.8.3"
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico",
+      "signAndEditExecutable": false
     },
-    "scripts": {
-        "setup": "bash scripts/main/setup.sh",
-        "develop": "bash scripts/main/develop.sh",
-        "build": "bash scripts/main/build.sh",
-        "deploy": "bash scripts/main/deploy.sh",
-        "lint:js": "eslint . --ext .ts,.tsx",
-        "lint:shell": "shellcheck -x scripts/**/*.sh",
-        "lint": "run-s lint:js lint:shell",
-        "test:shell": "bash scripts/__tests/__runTests.sh",
-        "test:unit": "vitest run",
-        "test:unit:ui": "vitest run --project ui",
-        "test:unit:server": "vitest run --project server",
-        "test:unit:jobs": "vitest run --project jobs",
-        "test:unit:shared": "vitest run --project shared",
-        "test:integration": "cd packages/integration && pnpm test",
-        "test:integration:roundtrip": "cd packages/integration && pnpm test src/round-trip",
-        "test:integration:scenarios": "cd packages/integration && pnpm test src/scenarios",
-        "test": "run-s test:shell test:unit",
-        "test-watch": "vitest",
-        "i18n:check": "i18n-unused display-unused"
+    "nsis": {
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "uninstallDisplayName": "Vrooli",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "menuCategory": true
     },
-    "packageManager": "pnpm@10.5.2",
-    "build": {
-        "appId": "com.vrooli.app",
-        "productName": "Vrooli",
-        "directories": {
-            "output": "dist/desktop",
-            "buildResources": "platforms/desktop/assets"
-        },
-        "files": [
-            "dist/desktop/main.cjs",
-            "dist/desktop/preload.cjs",
-            "platforms/desktop/src/splash.html",
-            "packages/server/dist",
-            "!packages/server/dist/**/*.map",
-            {
-                "from": "packages/server/package.json",
-                "to": "packages/server/package.json"
-            }
-        ],
-        "asarUnpack": [
-            "**/node_modules/*.node"
-        ],
-        "extraMetadata": {
-            "main": "dist/desktop/main.cjs"
-        },
-        "win": {
-            "target": "nsis",
-            "icon": "icon.ico",
-            "signAndEditExecutable": false
-        },
-        "nsis": {
-            "installerIcon": "icon.ico",
-            "uninstallerIcon": "icon.ico",
-            "uninstallDisplayName": "Vrooli",
-            "oneClick": false,
-            "allowToChangeInstallationDirectory": true,
-            "createDesktopShortcut": true,
-            "createStartMenuShortcut": true,
-            "menuCategory": true
-        },
-        "mac": {
-            "target": "dmg",
-            "icon": "icon.icns"
-        },
-        "linux": {
-            "target": "AppImage",
-            "icon": "icon.png"
-        }
+    "mac": {
+      "target": "dmg",
+      "icon": "icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "icon.png"
     }
+  },
+  "dependencies": {
+    "npm-run-all": "^4.1.5",
+    "sharp": "^0.32.3"
+  }
 }
