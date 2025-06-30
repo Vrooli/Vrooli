@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Explore Topic Space",
                 "description": "Expands understanding of the brainstorm topic",
-                "subroutineId": "TODO: Need topic exploration subroutine",
+                "subroutineId": "7829564732190848873",
                 "inputMap": {
                   "brainstormPrompt": "ideationTopic",
                   "contextInfo": "backgroundKnowledge",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Generate Initial Ideas",
                 "description": "Creates diverse ideas using multiple techniques",
-                "subroutineId": "TODO: Need idea generation subroutine",
+                "subroutineId": "7829564732190848876",
                 "inputMap": {
                   "conceptualSpace": "topicMap",
                   "ideationMethods": "creativeTechniques",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Apply Creative Techniques",
                 "description": "Uses SCAMPER, analogies, and other methods",
-                "subroutineId": "TODO: Need creative technique subroutine",
+                "subroutineId": "7829564732190848879",
                 "inputMap": {
                   "initialConcepts": "rawIdeas",
                   "techniqueSelection": "methodChoice",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Cluster & Categorize",
                 "description": "Groups similar ideas into themes",
-                "subroutineId": "TODO: Need idea clustering subroutine",
+                "subroutineId": "7829564732190848882",
                 "inputMap": {
                   "expandedConcepts": "enhancedIdeas",
                   "clusteringCriteria": "groupingRules",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Evaluate & Prioritize",
                 "description": "Assesses ideas for potential and feasibility",
-                "subroutineId": "TODO: Need idea evaluation subroutine",
+                "subroutineId": "7829564732190848885",
                 "inputMap": {
                   "themedGroups": "ideaClusters",
                   "evaluationCriteria": "assessmentFactors",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Package Results",
                 "description": "Organizes brainstorm output for action",
-                "subroutineId": "TODO: Need results packaging subroutine",
+                "subroutineId": "7829564732190848888",
                 "inputMap": {
                   "prioritizedList": "topIdeas",
                   "themeNames": "clusterLabels",

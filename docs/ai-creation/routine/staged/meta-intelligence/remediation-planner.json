@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849089",
+  "publicId": "remediation-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Meta-cognitive and system intelligence"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849090",
+      "publicId": "remediation-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Plans remediation strategies for capability gaps",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "impactAssessment",
+                "id": "impact_assessment_input",
+                "label": "Impact Assessment",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The gap impact assessment"
+              },
+              {
+                "fieldName": "resourceConstraints",
+                "id": "resource_constraints_input",
+                "label": "Resource Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Available resources and constraints"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "remediationPlan",
+                "id": "remediation_plan_output",
+                "label": "Remediation Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationSteps",
+                "id": "implementation_steps_output",
+                "label": "Implementation Steps",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "successMetrics",
+                "id": "success_metrics_output",
+                "label": "Success Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849091",
+          "language": "en",
+          "name": "Remediation Planner",
+          "description": "Plans comprehensive remediation strategies to address capability gaps.",
+          "instructions": "Provide impact assessment and resource constraints. The routine will create remediation plans."
+        }
+      ]
+    }
+  ]
+}

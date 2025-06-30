@@ -1,0 +1,131 @@
+{
+  "id": "7829564732190848825",
+  "publicId": "mechanics-reviewer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847070",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847170",
+          "language": "en",
+          "description": "Content creation and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848826",
+      "publicId": "mechanics-reviewer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Grammar, style, and technical writing mechanics review",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "writingContent",
+                "id": "writing_content_input",
+                "label": "Text to Review",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The writing content to check for mechanics"
+              },
+              {
+                "fieldName": "reviewFocus",
+                "id": "review_focus_input",
+                "label": "Review Focus",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "grammar",
+                  "style",
+                  "clarity",
+                  "technical-elements",
+                  "comprehensive"
+                ]
+              },
+              {
+                "fieldName": "writingStyle",
+                "id": "writing_style_input",
+                "label": "Style Guide",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "general",
+                "options": [
+                  "academic",
+                  "business",
+                  "creative",
+                  "technical",
+                  "journalistic",
+                  "general"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "grammarAssessment",
+                "id": "grammar_assessment_output",
+                "label": "Grammar and Syntax Review",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "styleEvaluation",
+                "id": "style_evaluation_output",
+                "label": "Style and Clarity Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "technicalReview",
+                "id": "technical_review_output",
+                "label": "Technical Writing Elements",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848827",
+          "language": "en",
+          "name": "Mechanics Reviewer",
+          "description": "Checks grammar, style, clarity, and technical writing elements for improved readability and correctness.",
+          "instructions": "Provide writing content and review focus. The routine will check grammar, style, and technical elements to improve writing mechanics."
+        }
+      ]
+    }
+  ]
+}

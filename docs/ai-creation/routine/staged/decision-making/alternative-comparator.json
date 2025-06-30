@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848849",
+  "publicId": "alternative-comparator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847061",
+      "tag": "decision-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847161",
+          "language": "en",
+          "description": "Decision making and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847095",
+      "tag": "optimization",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Performance optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848850",
+      "publicId": "alternative-comparator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Alternative scenario comparison and decision matrix creation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "analyzedScenario",
+                "id": "analyzed_scenario_input",
+                "label": "Primary Scenario Analysis",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The analyzed scenario results"
+              },
+              {
+                "fieldName": "alternativeOptions",
+                "id": "alternative_options_input",
+                "label": "Alternative Scenarios",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Other options to compare against"
+              },
+              {
+                "fieldName": "comparisonCriteria",
+                "id": "comparison_criteria_input",
+                "label": "Comparison Factors",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Key factors for comparison"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "comparativeAnalysis",
+                "id": "comparative_analysis_output",
+                "label": "Scenario Comparison",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "relativeAdvantages",
+                "id": "relative_advantages_output",
+                "label": "Relative Benefits",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "decisionMatrix",
+                "id": "decision_matrix_output",
+                "label": "Decision Support Matrix",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848851",
+          "language": "en",
+          "name": "Alternative Comparator",
+          "description": "Compares analyzed scenario against alternatives to highlight relative advantages and create decision matrix.",
+          "instructions": "Provide primary scenario analysis and alternative options. The routine will compare scenarios and create a decision support matrix."
+        }
+      ]
+    }
+  ]
+}

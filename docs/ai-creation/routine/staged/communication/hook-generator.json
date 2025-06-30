@@ -1,0 +1,116 @@
+{
+  "id": "7829564732190849071",
+  "publicId": "hook-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849072",
+      "publicId": "hook-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates engaging hooks and openings",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "platformAdaptations",
+                "id": "platform_adaptations_input",
+                "label": "Platform Adaptations",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The platform-adapted content"
+              },
+              {
+                "fieldName": "hookStyle",
+                "id": "hook_style_input",
+                "label": "Hook Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "engaging",
+                "options": [
+                  "question",
+                  "surprising",
+                  "controversial",
+                  "storytelling",
+                  "engaging"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "engagingHooks",
+                "id": "engaging_hooks_output",
+                "label": "Engaging Hooks",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "openingLines",
+                "id": "opening_lines_output",
+                "label": "Opening Lines",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "attentionGrabbers",
+                "id": "attention_grabbers_output",
+                "label": "Attention Grabbers",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849073",
+          "language": "en",
+          "name": "Hook Generator",
+          "description": "Generates compelling hooks and openings to capture audience attention.",
+          "instructions": "Provide platform adaptations and hook style. The routine will generate engaging hooks."
+        }
+      ]
+    }
+  ]
+}

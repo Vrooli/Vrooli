@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Market Scope",
                 "description": "Establishes market boundaries and key areas to monitor",
-                "subroutineId": "TODO: Need market scope definition subroutine",
+                "subroutineId": "7829564732190848975",
                 "inputMap": {
                   "marketFocus": "targetSector",
                   "industryVerticals": "businessDomains",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Gather Market Data",
                 "description": "Collects relevant market information from multiple sources",
-                "subroutineId": "TODO: Need data collection subroutine",
+                "subroutineId": "7829564732190848978",
                 "inputMap": {
                   "scopedMarkets": "marketDefinition",
                   "dataSources": "informationChannels",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Analyze Trend Patterns",
                 "description": "Identifies emerging patterns and directional movements",
-                "subroutineId": "TODO: Need pattern analysis subroutine",
+                "subroutineId": "7829564732190848981",
                 "inputMap": {
                   "rawInformation": "marketData",
                   "earlyIndicators": "trendSignals",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Assess Business Impact",
                 "description": "Evaluates how trends affect business opportunities and risks",
-                "subroutineId": "TODO: Need impact assessment subroutine",
+                "subroutineId": "7829564732190848984",
                 "inputMap": {
                   "patternIdentification": "trendAnalysis",
                   "businessContext": "organizationalProfile",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Forecast Future Scenarios",
                 "description": "Projects potential market developments and outcomes",
-                "subroutineId": "TODO: Need scenario forecasting subroutine",
+                "subroutineId": "7829564732190848987",
                 "inputMap": {
                   "businessImplications": "impactAssessment",
                   "changeRate": "velocityMetrics",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Actionable Insights",
                 "description": "Creates strategic recommendations and monitoring alerts",
-                "subroutineId": "TODO: Need insights generation subroutine",
+                "subroutineId": "7829564732190848990",
                 "inputMap": {
                   "futureProjections": "scenarioForecasts",
                   "potentialGains": "opportunityMapping",

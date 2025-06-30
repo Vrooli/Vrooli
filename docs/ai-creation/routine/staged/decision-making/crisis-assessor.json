@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190848855",
+  "publicId": "crisis-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847062",
+      "tag": "crisis-management",
+      "translations": [
+        {
+          "id": "7829564732190847162",
+          "language": "en",
+          "description": "Crisis and emergency management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847096",
+      "tag": "risk-assessment",
+      "translations": [
+        {
+          "id": "7829564732190847196",
+          "language": "en",
+          "description": "Risk assessment and management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848856",
+      "publicId": "crisis-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Rapid crisis severity and scope assessment",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "crisisDescription",
+                "id": "crisis_description_input",
+                "label": "Crisis Situation",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Describe the crisis situation"
+              },
+              {
+                "fieldName": "initialReports",
+                "id": "initial_reports_input",
+                "label": "Initial Information",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Available information and reports"
+              },
+              {
+                "fieldName": "organizationType",
+                "id": "organization_type_input",
+                "label": "Organization Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "corporate",
+                "options": [
+                  "corporate",
+                  "nonprofit",
+                  "government",
+                  "educational",
+                  "healthcare"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "severityAssessment",
+                "id": "severity_assessment_output",
+                "label": "Crisis Severity Level",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "scopeAnalysis",
+                "id": "scope_analysis_output",
+                "label": "Impact Scope",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "urgencyRating",
+                "id": "urgency_rating_output",
+                "label": "Response Priority",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848857",
+          "language": "en",
+          "name": "Crisis Assessor",
+          "description": "Rapidly assesses crisis severity, scope, and urgency to determine appropriate response levels.",
+          "instructions": "Describe the crisis situation and provide initial information. The routine will assess severity, scope, and response priorities."
+        }
+      ]
+    }
+  ]
+}

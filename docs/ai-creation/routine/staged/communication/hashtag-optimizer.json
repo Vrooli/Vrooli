@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849074",
+  "publicId": "hashtag-optimizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849075",
+      "publicId": "hashtag-optimizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Optimizes hashtags for maximum reach",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "engagingHooks",
+                "id": "engaging_hooks_input",
+                "label": "Engaging Hooks",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The generated hooks and content"
+              },
+              {
+                "fieldName": "targetNiche",
+                "id": "target_niche_input",
+                "label": "Target Niche",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Specific niche or industry"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizedHashtags",
+                "id": "optimized_hashtags_output",
+                "label": "Optimized Hashtags",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "hashtagStrategy",
+                "id": "hashtag_strategy_output",
+                "label": "Hashtag Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "reachPotential",
+                "id": "reach_potential_output",
+                "label": "Reach Potential",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849076",
+          "language": "en",
+          "name": "Hashtag Optimizer",
+          "description": "Optimizes hashtags for maximum reach and engagement across social platforms.",
+          "instructions": "Provide engaging hooks and target niche. The routine will optimize hashtags."
+        }
+      ]
+    }
+  ]
+}

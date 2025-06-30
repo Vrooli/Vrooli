@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190849044",
+  "publicId": "maintenance-reporter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Meta-cognitive and system intelligence"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849045",
+      "publicId": "maintenance-reporter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates maintenance and optimization reports",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "updatedGraph",
+                "id": "updated_graph_input",
+                "label": "Updated Knowledge Graph",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The updated knowledge graph"
+              },
+              {
+                "fieldName": "reportingLevel",
+                "id": "reporting_level_input",
+                "label": "Reporting Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "detailed",
+                "options": [
+                  "summary",
+                  "detailed",
+                  "comprehensive",
+                  "technical"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "maintenanceReport",
+                "id": "maintenance_report_output",
+                "label": "Maintenance Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "performanceMetrics",
+                "id": "performance_metrics_output",
+                "label": "Performance Metrics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recommendedActions",
+                "id": "recommended_actions_output",
+                "label": "Recommended Actions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849046",
+          "language": "en",
+          "name": "Maintenance Reporter",
+          "description": "Generates comprehensive reports on memory maintenance and system optimization.",
+          "instructions": "Provide updated graph and reporting level. The routine will generate maintenance reports."
+        }
+      ]
+    }
+  ]
+}

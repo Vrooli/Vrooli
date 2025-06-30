@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Current Situation",
                 "description": "Evaluates existing career, skills, and motivations for change",
-                "subroutineId": "TODO: Need career assessment subroutine",
+                "subroutineId": "7829564732190848891",
                 "inputMap": {
                   "currentRole": "professionalSituation",
                   "dissatisfactionFactors": "changeMotivations",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Explore Career Options",
                 "description": "Researches potential career paths and opportunities",
-                "subroutineId": "TODO: Need career exploration subroutine",
+                "subroutineId": "7829564732190848894",
                 "inputMap": {
                   "careerInterests": "professionalAspirations",
                   "portableAssets": "transferableSkills",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Skill Gaps",
                 "description": "Analyzes competency differences between current and target roles",
-                "subroutineId": "TODO: Need gap analysis subroutine",
+                "subroutineId": "7829564732190848897",
                 "inputMap": {
                   "potentialPaths": "careerOptions",
                   "currentCapabilities": "skillInventory",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Transition Strategy",
                 "description": "Develops comprehensive plan for career change execution",
-                "subroutineId": "TODO: Need transition planning subroutine",
+                "subroutineId": "7829564732190848900",
                 "inputMap": {
                   "targetCareer": "chosenPath",
                   "competencyDeficits": "skillGaps",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Build Transition Resources",
                 "description": "Develops tools and materials needed for career change",
-                "subroutineId": "TODO: Need resource development subroutine",
+                "subroutineId": "7829564732190848903",
                 "inputMap": {
                   "chosenPath": "targetCareer",
                   "leverageableAssets": "strengthsAlignment",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Execute Transition Plan",
                 "description": "Provides implementation guidance and progress tracking",
-                "subroutineId": "TODO: Need execution guidance subroutine",
+                "subroutineId": "7829564732190848942",
                 "inputMap": {
                   "changeStrategy": "transitionPlan",
                   "learningRoadmap": "skillDevelopmentPlan",

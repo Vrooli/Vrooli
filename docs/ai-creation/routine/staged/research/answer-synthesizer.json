@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849008",
+  "publicId": "answer-synth-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849009",
+      "publicId": "answer-synth-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Synthesizes comprehensive answers from extracted information",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "extractedInfo",
+                "id": "extracted_info_input",
+                "label": "Extracted Information",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The extracted information to synthesize"
+              },
+              {
+                "fieldName": "originalQuery",
+                "id": "original_query_input",
+                "label": "Original Query",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The original search query"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "synthesizedAnswer",
+                "id": "synthesized_answer_output",
+                "label": "Synthesized Answer",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "confidenceLevel",
+                "id": "confidence_level_output",
+                "label": "Confidence Level",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "followUpQuestions",
+                "id": "follow_up_questions_output",
+                "label": "Follow-up Questions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849010",
+          "language": "en",
+          "name": "Answer Synthesizer",
+          "description": "Synthesizes comprehensive answers from extracted information with confidence assessment.",
+          "instructions": "Provide extracted information and original query. The routine will synthesize a comprehensive answer."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848786",
+  "publicId": "performance-evaluator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847095",
+      "tag": "optimization",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Performance optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848787",
+      "publicId": "performance-evaluator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Speaking performance analysis and improvement planning",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "speechDelivery",
+                "id": "speech_delivery_input",
+                "label": "Actual Performance Details",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "How the speech went, observations, and outcomes"
+              },
+              {
+                "fieldName": "audienceFeedback",
+                "id": "audience_feedback_input",
+                "label": "Audience Response",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Feedback received from the audience"
+              },
+              {
+                "fieldName": "personalReflection",
+                "id": "personal_reflection_input",
+                "label": "Self-Assessment",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Your own evaluation of the performance"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "performanceAnalysis",
+                "id": "performance_analysis_output",
+                "label": "Delivery Evaluation",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementPlan",
+                "id": "improvement_plan_output",
+                "label": "Development Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "futureGoals",
+                "id": "future_goals_output",
+                "label": "Continued Growth Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848788",
+          "language": "en",
+          "name": "Performance Evaluator",
+          "description": "Reviews speaking performance and creates improvement plans for continued development.",
+          "instructions": "Describe your speaking performance and any feedback received. The routine will analyze your delivery and create a development strategy for future improvement."
+        }
+      ]
+    }
+  ]
+}

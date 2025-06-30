@@ -1,0 +1,116 @@
+{
+  "id": "7829564732190849023",
+  "publicId": "roadmap-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847014",
+      "tag": "executive-leadership",
+      "translations": [
+        {
+          "id": "7829564732190847114",
+          "language": "en",
+          "description": "Executive leadership and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849024",
+      "publicId": "roadmap-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates strategic implementation roadmaps",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "strategicInitiatives",
+                "id": "strategic_initiatives_input",
+                "label": "Strategic Initiatives",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The defined strategic initiatives"
+              },
+              {
+                "fieldName": "planningHorizon",
+                "id": "planning_horizon_input",
+                "label": "Planning Horizon",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "12-months",
+                "options": [
+                  "6-months",
+                  "12-months",
+                  "18-months",
+                  "3-years",
+                  "5-years"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "implementationRoadmap",
+                "id": "implementation_roadmap_output",
+                "label": "Implementation Roadmap",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "milestoneTimeline",
+                "id": "milestone_timeline_output",
+                "label": "Milestone Timeline",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "dependencyMapping",
+                "id": "dependency_mapping_output",
+                "label": "Dependency Mapping",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849025",
+          "language": "en",
+          "name": "Roadmap Planner",
+          "description": "Creates detailed implementation roadmaps with timelines and dependencies.",
+          "instructions": "Provide strategic initiatives and planning horizon. The routine will create a roadmap."
+        }
+      ]
+    }
+  ]
+}

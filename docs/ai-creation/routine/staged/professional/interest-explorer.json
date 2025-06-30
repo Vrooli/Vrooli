@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848792",
+  "publicId": "interest-explorer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847014",
+      "tag": "leadership",
+      "translations": [
+        {
+          "id": "7829564732190847114",
+          "language": "en",
+          "description": "Leadership development and skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848793",
+      "publicId": "interest-explorer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Underlying interest and needs discovery in conflict resolution",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dialogueProgress",
+                "id": "dialogue_progress_input",
+                "label": "Conversation Dynamics",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Current state of the dialogue"
+              },
+              {
+                "fieldName": "sharedInterests",
+                "id": "shared_interests_input",
+                "label": "Common Ground Areas",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Areas of agreement already identified"
+              },
+              {
+                "fieldName": "statedPositions",
+                "id": "stated_positions_input",
+                "label": "Explicit Demands",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "What each party is asking for"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "underlyingNeeds",
+                "id": "underlying_needs_output",
+                "label": "Core Interests",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priorityMapping",
+                "id": "priority_mapping_output",
+                "label": "Needs Hierarchy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "negotiationSpace",
+                "id": "negotiation_space_output",
+                "label": "Resolution Opportunities",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848794",
+          "language": "en",
+          "name": "Interest Explorer",
+          "description": "Uncovers underlying interests behind stated positions to identify negotiation opportunities.",
+          "instructions": "Provide conversation dynamics and stated positions. The routine will explore deeper interests and map negotiation possibilities."
+        }
+      ]
+    }
+  ]
+}

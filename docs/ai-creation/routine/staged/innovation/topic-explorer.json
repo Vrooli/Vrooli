@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848873",
+  "publicId": "topic-explorer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847042",
+      "tag": "innovation",
+      "translations": [
+        {
+          "id": "7829564732190847142",
+          "language": "en",
+          "description": "Innovation and creativity"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848874",
+      "publicId": "topic-explorer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Brainstorming topic exploration and expansion",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "mainTopic",
+                "id": "main_topic_input",
+                "label": "Core Topic",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The main topic to explore"
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Interest Areas",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Specific areas of interest within the topic"
+              },
+              {
+                "fieldName": "explorationDepth",
+                "id": "exploration_depth_input",
+                "label": "Exploration Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "surface",
+                  "moderate",
+                  "deep",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "topicAnalysis",
+                "id": "topic_analysis_output",
+                "label": "Topic Breakdown",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "relatedAreas",
+                "id": "related_areas_output",
+                "label": "Connected Topics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "backgroundContext",
+                "id": "background_context_output",
+                "label": "Knowledge Base",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848875",
+          "language": "en",
+          "name": "Topic Explorer",
+          "description": "Explores and expands brainstorming topics, gathering background knowledge and identifying related areas.",
+          "instructions": "Provide the main topic to explore. The routine will analyze the topic and identify related areas for brainstorming."
+        }
+      ]
+    }
+  ]
+}

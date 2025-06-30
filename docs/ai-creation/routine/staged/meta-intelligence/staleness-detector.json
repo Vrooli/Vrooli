@@ -1,0 +1,116 @@
+{
+  "id": "7829564732190849098",
+  "publicId": "staleness-detector-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Meta-cognitive and system intelligence"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849099",
+      "publicId": "staleness-detector-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Detects stale and outdated memory elements",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "redundantElements",
+                "id": "redundant_elements_input",
+                "label": "Redundant Elements",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The detected redundant elements"
+              },
+              {
+                "fieldName": "stalenessThreshold",
+                "id": "staleness_threshold_input",
+                "label": "Staleness Threshold",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "30-days",
+                "options": [
+                  "7-days",
+                  "30-days",
+                  "90-days",
+                  "6-months",
+                  "1-year"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "staleElements",
+                "id": "stale_elements_output",
+                "label": "Stale Elements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "accessPatterns",
+                "id": "access_patterns_output",
+                "label": "Access Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "retentionRecommendations",
+                "id": "retention_recommendations_output",
+                "label": "Retention Recommendations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849100",
+          "language": "en",
+          "name": "Staleness Detector",
+          "description": "Detects stale and outdated elements in memory systems based on usage patterns.",
+          "instructions": "Provide redundant elements and staleness threshold. The routine will detect stale elements."
+        }
+      ]
+    }
+  ]
+}

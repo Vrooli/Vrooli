@@ -1,0 +1,116 @@
+{
+  "id": "7829564732190849125",
+  "publicId": "visual-designer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849126",
+      "publicId": "visual-designer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Designs visual elements for professional reports",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "detailedContent",
+                "id": "detailed_content_input",
+                "label": "Detailed Content",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The developed report content"
+              },
+              {
+                "fieldName": "visualStyle",
+                "id": "visual_style_input",
+                "label": "Visual Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "professional",
+                "options": [
+                  "corporate",
+                  "professional",
+                  "modern",
+                  "academic",
+                  "minimalist"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "visualElements",
+                "id": "visual_elements_output",
+                "label": "Visual Elements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "layoutDesign",
+                "id": "layout_design_output",
+                "label": "Layout Design",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "chartSpecifications",
+                "id": "chart_specifications_output",
+                "label": "Chart Specifications",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849127",
+          "language": "en",
+          "name": "Visual Designer",
+          "description": "Designs visual elements, layouts, and charts for professional reports.",
+          "instructions": "Provide detailed content and visual style. The routine will design visual elements."
+        }
+      ]
+    }
+  ]
+}

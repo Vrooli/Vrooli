@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Practice Interview Scenarios",
                 "description": "Simulates interview conditions with feedback",
-                "subroutineId": "TODO: Need interview simulation subroutine",
+                "subroutineId": "7829564732190848801",
                 "inputMap": {
                   "preparedResponses": "coreAnswers",
                   "interviewFormat": "meetingStyle",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Develop Questions Strategy",
                 "description": "Prepares thoughtful questions to ask interviewers",
-                "subroutineId": "TODO: Need question strategy subroutine",
+                "subroutineId": "7829564732190848804",
                 "inputMap": {
                   "organizationIntelligence": "companyInsights",
                   "positionBreakdown": "roleAnalysis",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Final Preparation Checklist",
                 "description": "Creates comprehensive readiness plan for interview day",
-                "subroutineId": "TODO: Need final prep subroutine",
+                "subroutineId": "7829564732190848816",
                 "inputMap": {
                   "allPreparation": "comprehensivePrep",
                   "interviewDetails": "logisticsInfo",

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Identify Strengths",
                 "description": "Catalogs internal advantages and capabilities",
-                "subroutineId": "TODO: Need strengths identification subroutine",
+                "subroutineId": "7829564732190849137",
                 "inputMap": {
                   "entityDescription": "organizationProfile",
                   "internalFactors": "capabilitiesInventory",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Weaknesses",
                 "description": "Examines internal limitations and gaps",
-                "subroutineId": "TODO: Need weaknesses identification subroutine",
+                "subroutineId": "7829564732190849140",
                 "inputMap": {
                   "organizationProfile": "entityDescription",
                   "performanceGaps": "deficiencyAreas",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Opportunities",
                 "description": "Discovers external favorable conditions",
-                "subroutineId": "TODO: Need opportunities identification subroutine",
+                "subroutineId": "7829564732190849143",
                 "inputMap": {
                   "marketPosition": "competitiveContext",
                   "industryTrends": "externalTrends",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Identify Threats",
                 "description": "Analyzes external risks and challenges",
-                "subroutineId": "TODO: Need threats identification subroutine",
+                "subroutineId": "7829564732190849146",
                 "inputMap": {
                   "externalTrends": "industryTrends",
                   "competitiveThreats": "rivalryFactors",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Analyze Strategic Combinations",
                 "description": "Explores interactions between SWOT elements",
-                "subroutineId": "TODO: Need strategic combination subroutine",
+                "subroutineId": "7829564732190849149",
                 "inputMap": {
                   "internalAdvantages": "strengthsList",
                   "externalAdvantages": "opportunitiesList",
@@ -142,7 +142,7 @@
                 "id": "step-6",
                 "name": "Generate Strategic Insights",
                 "description": "Creates actionable recommendations and priorities",
-                "subroutineId": "TODO: Need strategic insights subroutine",
+                "subroutineId": "7829564732190849152",
                 "inputMap": {
                   "strengthOpportunityActions": "soStrategies",
                   "strategicPriorities": "focusAreas",

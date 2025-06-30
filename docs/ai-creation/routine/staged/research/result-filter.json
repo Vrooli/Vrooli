@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190848966",
+  "publicId": "result-filter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848967",
+      "publicId": "result-filter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Filters and prioritizes search results",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "searchResults",
+                "id": "search_results_input",
+                "label": "Raw Search Results",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The search results to filter"
+              },
+              {
+                "fieldName": "filterCriteria",
+                "id": "filter_criteria_input",
+                "label": "Filter Criteria",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Criteria for filtering results"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "filteredResults",
+                "id": "filtered_results_output",
+                "label": "Filtered Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "relevanceRanking",
+                "id": "relevance_ranking_output",
+                "label": "Relevance Ranking",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "qualityAssessment",
+                "id": "quality_assessment_output",
+                "label": "Quality Assessment",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848968",
+          "language": "en",
+          "name": "Result Filter",
+          "description": "Filters and prioritizes search results based on relevance and quality criteria.",
+          "instructions": "Provide search results and filter criteria. The routine will filter and rank results."
+        }
+      ]
+    }
+  ]
+}

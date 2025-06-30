@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Process Query",
                 "description": "Analyzes and expands the search query",
-                "subroutineId": "TODO: Need query processing subroutine",
+                "subroutineId": "7829564732190848993",
                 "inputMap": {
                   "userQuery": "naturalLanguageQuery",
                   "searchContext": "contextualScope",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Generate Embeddings",
                 "description": "Creates vector representations for semantic search",
-                "subroutineId": "TODO: Need embedding generation subroutine",
+                "subroutineId": "7829564732190848996",
                 "inputMap": {
                   "expandedSearch": "processedQuery",
                   "embeddingModel": "vectorizationMethod",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Search Knowledge Base",
                 "description": "Performs similarity search in vector store",
-                "subroutineId": "TODO: Need vector search subroutine",
+                "subroutineId": "7829564732190848999",
                 "inputMap": {
                   "searchVectors": "queryEmbeddings",
                   "knowledgeBase": "contextDataset",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Rank & Filter Results",
                 "description": "Orders results by relevance and applies filters",
-                "subroutineId": "TODO: Need result ranking subroutine",
+                "subroutineId": "7829564732190849002",
                 "inputMap": {
                   "matchedDocuments": "searchResults",
                   "similarityRatings": "relevanceScores",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Extract Key Information",
                 "description": "Pulls relevant excerpts from matched content",
-                "subroutineId": "TODO: Need information extraction subroutine",
+                "subroutineId": "7829564732190848738",
                 "inputMap": {
                   "relevantDocuments": "filteredSet",
                   "extractedConcepts": "keyTerms",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Synthesize Answer",
                 "description": "Combines findings into coherent response",
-                "subroutineId": "TODO: Need answer synthesis subroutine",
+                "subroutineId": "7829564732190849008",
                 "inputMap": {
                   "keyPassages": "relevantExcerpts",
                   "queryUnderstanding": "searchIntents",

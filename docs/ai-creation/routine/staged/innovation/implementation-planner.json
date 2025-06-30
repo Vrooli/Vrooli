@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848936",
+  "publicId": "impl-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847066",
+      "tag": "implementation",
+      "translations": [
+        {
+          "id": "7829564732190847166",
+          "language": "en",
+          "description": "Implementation and execution"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848937",
+      "publicId": "impl-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Solution implementation action planning",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "chosenSolution",
+                "id": "chosen_solution_input",
+                "label": "Selected Solution",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The solution to implement"
+              },
+              {
+                "fieldName": "availableResources",
+                "id": "available_resources_input",
+                "label": "Available Resources",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Resources for implementation"
+              },
+              {
+                "fieldName": "timeline",
+                "id": "timeline_input",
+                "label": "Implementation Timeline",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": [
+                  "urgent",
+                  "accelerated",
+                  "standard",
+                  "extended"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "actionPlan",
+                "id": "action_plan_output",
+                "label": "Implementation Steps",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "milestones",
+                "id": "milestones_output",
+                "label": "Key Milestones",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "resourceAllocation",
+                "id": "resource_allocation_output",
+                "label": "Resource Distribution",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848938",
+          "language": "en",
+          "name": "Implementation Planner",
+          "description": "Creates detailed action plans for solution implementation with timelines and steps.",
+          "instructions": "Provide chosen solution and resources. The routine will create a detailed implementation plan."
+        }
+      ]
+    }
+  ]
+}

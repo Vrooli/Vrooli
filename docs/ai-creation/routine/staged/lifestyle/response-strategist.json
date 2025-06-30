@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190848948",
+  "publicId": "response-strat-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847077",
+      "tag": "boundaries",
+      "translations": [
+        {
+          "id": "7829564732190847177",
+          "language": "en",
+          "description": "Boundary setting and maintenance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848949",
+      "publicId": "response-strat-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Response strategy selection for social pressure",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "detectedTactics",
+                "id": "detected_tactics_input",
+                "label": "Identified Pressure Tactics",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The pressure tactics detected"
+              },
+              {
+                "fieldName": "personalBoundaries",
+                "id": "personal_boundaries_input",
+                "label": "Your Boundaries",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Your limits and preferences"
+              },
+              {
+                "fieldName": "responseStyle",
+                "id": "response_style_input",
+                "label": "Communication Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "assertive",
+                "options": [
+                  "diplomatic",
+                  "assertive",
+                  "firm",
+                  "gentle",
+                  "direct"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "responseStrategy",
+                "id": "response_strategy_output",
+                "label": "Recommended Approach",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "strategyRationale",
+                "id": "strategy_rationale_output",
+                "label": "Strategy Reasoning",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "alternativeApproaches",
+                "id": "alternative_approaches_output",
+                "label": "Other Options",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848950",
+          "language": "en",
+          "name": "Response Strategist",
+          "description": "Determines the best approach for responding to identified social pressure.",
+          "instructions": "Provide detected tactics and your boundaries. The routine will recommend response strategies."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848840",
+  "publicId": "impact-identifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847061",
+      "tag": "decision-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847161",
+          "language": "en",
+          "description": "Decision making and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847096",
+      "tag": "risk-assessment",
+      "translations": [
+        {
+          "id": "7829564732190847196",
+          "language": "en",
+          "description": "Risk assessment and management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848841",
+      "publicId": "impact-identifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Impact area identification for scenario analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "scenarioModel",
+                "id": "scenario_model_input",
+                "label": "Structured Scenario",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The structured scenario to analyze"
+              },
+              {
+                "fieldName": "stakeholders",
+                "id": "stakeholders_input",
+                "label": "Stakeholder Groups",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Groups and individuals affected"
+              },
+              {
+                "fieldName": "scope",
+                "id": "scope_input",
+                "label": "Analysis Scope",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "immediate",
+                  "short-term",
+                  "long-term",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "impactAreas",
+                "id": "impact_areas_output",
+                "label": "Affected Areas",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "rippleEffects",
+                "id": "ripple_effects_output",
+                "label": "Secondary Impacts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "stakeholderImpacts",
+                "id": "stakeholder_impacts_output",
+                "label": "Stakeholder Effects",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848842",
+          "language": "en",
+          "name": "Impact Identifier",
+          "description": "Analyzes scenarios to identify all affected areas, ripple effects, and stakeholder impacts.",
+          "instructions": "Provide the structured scenario and stakeholder information. The routine will identify all impact areas and effects."
+        }
+      ]
+    }
+  ]
+}

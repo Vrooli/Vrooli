@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190849080",
+  "publicId": "knowledge-inventory-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Meta-cognitive and system intelligence"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849081",
+      "publicId": "knowledge-inventory-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Inventories available knowledge and capabilities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "requiredCapabilities",
+                "id": "required_capabilities_input",
+                "label": "Required Capabilities",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The capabilities needed for analysis"
+              },
+              {
+                "fieldName": "searchScope",
+                "id": "search_scope_input",
+                "label": "Search Scope",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "basic",
+                  "standard",
+                  "comprehensive",
+                  "exhaustive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "availableCapabilities",
+                "id": "available_capabilities_output",
+                "label": "Available Capabilities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "knowledgeBase",
+                "id": "knowledge_base_output",
+                "label": "Knowledge Base",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "capabilityMap",
+                "id": "capability_map_output",
+                "label": "Capability Map",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849082",
+          "language": "en",
+          "name": "Knowledge Inventory",
+          "description": "Inventories available knowledge and capabilities through semantic search.",
+          "instructions": "Provide required capabilities and search scope. The routine will inventory available knowledge."
+        }
+      ]
+    }
+  ]
+}

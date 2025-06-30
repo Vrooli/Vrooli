@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849047",
+  "publicId": "campaign-strategist-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849048",
+      "publicId": "campaign-strategist-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops email campaign strategies",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "campaignGoals",
+                "id": "campaign_goals_input",
+                "label": "Campaign Goals",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "What are the campaign objectives?"
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Target Audience",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Who is the target audience?"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "campaignStrategy",
+                "id": "campaign_strategy_output",
+                "label": "Campaign Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "messagingFramework",
+                "id": "messaging_framework_output",
+                "label": "Messaging Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "successMetrics",
+                "id": "success_metrics_output",
+                "label": "Success Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849049",
+          "language": "en",
+          "name": "Campaign Strategist",
+          "description": "Develops comprehensive email campaign strategies based on goals and target audience.",
+          "instructions": "Provide campaign goals and target audience. The routine will develop a campaign strategy."
+        }
+      ]
+    }
+  ]
+}

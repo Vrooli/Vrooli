@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848915",
+  "publicId": "dept-integrator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847064",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847164",
+          "language": "en",
+          "description": "Team and resource management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847015",
+      "tag": "team-building",
+      "translations": [
+        {
+          "id": "7829564732190847115",
+          "language": "en",
+          "description": "Team formation and optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848916",
+      "publicId": "dept-integrator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Department team integration and workflow familiarization",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "departmentStructure",
+                "id": "department_structure_input",
+                "label": "Department Organization",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Team structure and roles"
+              },
+              {
+                "fieldName": "workflowProcesses",
+                "id": "workflow_processes_input",
+                "label": "Department Workflows",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Key processes and procedures"
+              },
+              {
+                "fieldName": "teamCulture",
+                "id": "team_culture_input",
+                "label": "Team Dynamics",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Team culture and collaboration style"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "integrationPlan",
+                "id": "integration_plan_output",
+                "label": "Team Integration Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "meetingSchedule",
+                "id": "meeting_schedule_output",
+                "label": "Introduction Meetings",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "workflowGuide",
+                "id": "workflow_guide_output",
+                "label": "Process Documentation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848917",
+          "language": "en",
+          "name": "Department Integrator",
+          "description": "Facilitates team introductions and workflow integration for new employees.",
+          "instructions": "Provide department structure and workflows. The routine will create an integration plan for smooth team onboarding."
+        }
+      ]
+    }
+  ]
+}

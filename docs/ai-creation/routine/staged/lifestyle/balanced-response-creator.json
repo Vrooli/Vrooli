@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848951",
+  "publicId": "balanced-resp-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847077",
+      "tag": "boundaries",
+      "translations": [
+        {
+          "id": "7829564732190847177",
+          "language": "en",
+          "description": "Boundary setting and maintenance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848952",
+      "publicId": "balanced-resp-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates balanced responses maintaining boundaries",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "responseStrategy",
+                "id": "response_strategy_input",
+                "label": "Chosen Strategy",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The selected response approach"
+              },
+              {
+                "fieldName": "originalRequest",
+                "id": "original_request_input",
+                "label": "Original Message",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "What you're responding to"
+              },
+              {
+                "fieldName": "keyPoints",
+                "id": "key_points_input",
+                "label": "Main Points",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Key messages to convey"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "balancedResponse",
+                "id": "balanced_response_output",
+                "label": "Crafted Response",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "toneAnalysis",
+                "id": "tone_analysis_output",
+                "label": "Response Tone",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "alternativeVersions",
+                "id": "alternative_versions_output",
+                "label": "Response Variations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848953",
+          "language": "en",
+          "name": "Balanced Response Creator",
+          "description": "Creates responses that maintain boundaries while being helpful and respectful.",
+          "instructions": "Provide the response strategy and original request. The routine will craft a balanced response."
+        }
+      ]
+    }
+  ]
+}

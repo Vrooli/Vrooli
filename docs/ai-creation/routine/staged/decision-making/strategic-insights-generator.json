@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849152",
+  "publicId": "strategic-insights-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849153",
+      "publicId": "strategic-insights-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates strategic insights from SWOT analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "strategicOptions",
+                "id": "strategic_options_input",
+                "label": "Strategic Options",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Strategic options from combiner"
+              },
+              {
+                "fieldName": "businessContext",
+                "id": "business_context_input",
+                "label": "Business Context",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Additional business context"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "keyInsights",
+                "id": "key_insights_output",
+                "label": "Key Strategic Insights",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionablePlans",
+                "id": "actionable_plans_output",
+                "label": "Actionable Plans",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationRoadmap",
+                "id": "implementation_roadmap_output",
+                "label": "Implementation Roadmap",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849154",
+          "language": "en",
+          "name": "Strategic Insights Generator",
+          "description": "Generates strategic insights and actionable plans from SWOT analysis.",
+          "instructions": "Provide strategic options and context. The routine will generate insights."
+        }
+      ]
+    }
+  ]
+}

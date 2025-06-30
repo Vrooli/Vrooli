@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Upcoming Tasks",
                 "description": "Examines upcoming tasks to identify required capabilities",
-                "subroutineId": "TODO: Need reasoning subroutine for task analysis",
+                "subroutineId": "7829564732190849077",
                 "inputMap": {
                   "upcomingTasks": "taskQueue",
                   "taskRequirements": "requirementsList",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Inventory Current Knowledge",
                 "description": "Scans knowledge base to assess current capabilities",
-                "subroutineId": "TODO: Need embedding search subroutine for knowledge inventory",
+                "subroutineId": "7829564732190849080",
                 "inputMap": {
                   "knowledgeBase": "currentKnowledge",
                   "teamProfiles": "skillProfiles",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Gaps",
                 "description": "Compares required vs existing capabilities to find gaps",
-                "subroutineId": "TODO: Need deterministic comparison subroutine",
+                "subroutineId": "7829564732190849083",
                 "inputMap": {
                   "requiredCapabilities": "capabilityList",
                   "existingCapabilities": "availableSkills",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Assess Impact and Risk",
                 "description": "Evaluates the impact of gaps on task performance",
-                "subroutineId": "TODO: Need reasoning subroutine for impact assessment",
+                "subroutineId": "7829564732190849086",
                 "inputMap": {
                   "capabilityGaps": "identifiedGaps",
                   "upcomingTasks": "taskQueue",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Remediation Plan",
                 "description": "Creates plan to acquire missing capabilities",
-                "subroutineId": "TODO: Need generation subroutine for remediation planning",
+                "subroutineId": "7829564732190849089",
                 "inputMap": {
                   "capabilityGaps": "identifiedGaps",
                   "criticalGaps": "urgentNeeds",

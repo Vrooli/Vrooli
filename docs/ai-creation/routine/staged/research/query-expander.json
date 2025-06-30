@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190848960",
+  "publicId": "query-expander-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848961",
+      "publicId": "query-expander-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Expands search queries with related terms",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "intentAnalysis",
+                "id": "intent_analysis_input",
+                "label": "Intent Analysis",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The analyzed search intent"
+              },
+              {
+                "fieldName": "originalQuery",
+                "id": "original_query_input",
+                "label": "Original Query",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The original search query"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "expandedQueries",
+                "id": "expanded_queries_output",
+                "label": "Expanded Queries",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "relatedTerms",
+                "id": "related_terms_output",
+                "label": "Related Terms",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "searchStrategy",
+                "id": "search_strategy_output",
+                "label": "Search Strategy",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848962",
+          "language": "en",
+          "name": "Query Expander",
+          "description": "Expands search queries with synonyms, related terms, and alternative formulations.",
+          "instructions": "Provide the intent analysis and original query. The routine will generate expanded search queries."
+        }
+      ]
+    }
+  ]
+}

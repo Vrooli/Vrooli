@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190848993",
+  "publicId": "query-processor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848994",
+      "publicId": "query-processor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Processes and normalizes search queries",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rawQuery",
+                "id": "raw_query_input",
+                "label": "Raw Query",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The user's search query"
+              },
+              {
+                "fieldName": "queryContext",
+                "id": "query_context_input",
+                "label": "Query Context",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Additional context for the query"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "processedQuery",
+                "id": "processed_query_output",
+                "label": "Processed Query",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "queryEntities",
+                "id": "query_entities_output",
+                "label": "Query Entities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "queryIntention",
+                "id": "query_intention_output",
+                "label": "Query Intention",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848995",
+          "language": "en",
+          "name": "Query Processor",
+          "description": "Processes and normalizes search queries for contextual understanding.",
+          "instructions": "Provide the raw query and context. The routine will process and analyze the query."
+        }
+      ]
+    }
+  ]
+}

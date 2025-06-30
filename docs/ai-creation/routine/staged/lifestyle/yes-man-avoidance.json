@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Message for Pressure Tactics",
                 "description": "Analyzes the user message to detect various forms of social pressure",
-                "subroutineId": "TODO: Need reasoning subroutine for pressure tactic detection",
+                "subroutineId": "7829564732190848945",
                 "inputMap": {
                   "userMessage": "messageContent",
                   "conversationContext": "contextHistory",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Evaluate Response Strategy",
                 "description": "Determines the best approach for responding to identified pressure",
-                "subroutineId": "TODO: Need reasoning subroutine for response strategy selection",
+                "subroutineId": "7829564732190848948",
                 "inputMap": {
                   "pressureTactics": "detectedTactics",
                   "pressureScore": "manipulationScore",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Balanced Response",
                 "description": "Creates a response that maintains boundaries while being helpful",
-                "subroutineId": "TODO: Need generation subroutine for balanced response creation",
+                "subroutineId": "7829564732190848951",
                 "inputMap": {
                   "responseStrategy": "selectedStrategy",
                   "balancingFactors": "balanceConsiderations",

@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190849041",
+  "publicId": "graph-updater-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Meta-cognitive and system intelligence"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847066",
+      "tag": "implementation",
+      "translations": [
+        {
+          "id": "7829564732190847166",
+          "language": "en",
+          "description": "Implementation and execution"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849042",
+      "publicId": "graph-updater-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Updates knowledge graph structures",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizedIndex",
+                "id": "optimized_index_input",
+                "label": "Optimized Index",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The optimized memory index"
+              },
+              {
+                "fieldName": "updateStrategy",
+                "id": "update_strategy_input",
+                "label": "Update Strategy",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "incremental",
+                "options": [
+                  "incremental",
+                  "full-rebuild",
+                  "selective",
+                  "batch"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "updatedGraph",
+                "id": "updated_graph_output",
+                "label": "Updated Knowledge Graph",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "graphMetrics",
+                "id": "graph_metrics_output",
+                "label": "Graph Metrics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "updateSummary",
+                "id": "update_summary_output",
+                "label": "Update Summary",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849043",
+          "language": "en",
+          "name": "Graph Updater",
+          "description": "Updates knowledge graph structures based on optimized memory indexes.",
+          "instructions": "Provide optimized index and update strategy. The routine will update the knowledge graph."
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Source Material",
                 "description": "Processes raw data and identifies key information",
-                "subroutineId": "TODO: Need source analysis subroutine",
+                "subroutineId": "7829564732190849113",
                 "inputMap": {
                   "sourceData": "rawInformation",
                   "reportPurpose": "documentObjective",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Structure Report Framework",
                 "description": "Creates logical organization and flow",
-                "subroutineId": "TODO: Need structure creation subroutine",
+                "subroutineId": "7829564732190849116",
                 "inputMap": {
                   "processedInformation": "dataAnalysis",
                   "reportType": "documentFormat",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Write Executive Summary",
                 "description": "Crafts compelling overview of key points",
-                "subroutineId": "TODO: Need executive summary subroutine",
+                "subroutineId": "7829564732190849119",
                 "inputMap": {
                   "criticalInsights": "keyFindings",
                   "documentObjective": "reportPurpose",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Develop Main Sections",
                 "description": "Expands each section with detailed content",
-                "subroutineId": "TODO: Need content development subroutine",
+                "subroutineId": "7829564732190849122",
                 "inputMap": {
                   "contentOrganization": "sectionPlan",
                   "corroboratingData": "supportingEvidence",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Visual Elements",
                 "description": "Designs charts, tables, and formatting",
-                "subroutineId": "TODO: Need visual design subroutine",
+                "subroutineId": "7829564732190849125",
                 "inputMap": {
                   "dataPresentation": "evidenceIntegration",
                   "visualPreferences": "presentationStyle",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Finalize Report",
                 "description": "Assembles complete document with polish",
-                "subroutineId": "TODO: Need report finalization subroutine",
+                "subroutineId": "7829564732190849128",
                 "inputMap": {
                   "reportOverview": "executiveSummary",
                   "detailedSections": "sectionContent",

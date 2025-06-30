@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848912",
+  "publicId": "role-trainer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847064",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847164",
+          "language": "en",
+          "description": "Team and resource management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848913",
+      "publicId": "role-trainer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Job-specific skills and knowledge training",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "roleSpecs",
+                "id": "role_specs_input",
+                "label": "Position Specifications",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Job requirements and responsibilities"
+              },
+              {
+                "fieldName": "trainingCurriculum",
+                "id": "training_curriculum_input",
+                "label": "Training Materials",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Available training resources"
+              },
+              {
+                "fieldName": "learningPace",
+                "id": "learning_pace_input",
+                "label": "Training Timeline",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": [
+                  "accelerated",
+                  "standard",
+                  "extended",
+                  "self-paced"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trainingPlan",
+                "id": "training_plan_output",
+                "label": "Skills Training Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "learningModules",
+                "id": "learning_modules_output",
+                "label": "Training Modules",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "competencyChecks",
+                "id": "competency_checks_output",
+                "label": "Assessment Points",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848914",
+          "language": "en",
+          "name": "Role Trainer",
+          "description": "Delivers job-specific skills and knowledge training based on position requirements.",
+          "instructions": "Provide role specifications and training materials. The routine will create a comprehensive training plan."
+        }
+      ]
+    }
+  ]
+}

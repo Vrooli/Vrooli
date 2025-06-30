@@ -1,0 +1,125 @@
+{
+  "id": "7829564732190849191",
+  "publicId": "language-curriculum-designer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847080",
+      "tag": "learning",
+      "translations": [
+        {
+          "id": "7829564732190847180",
+          "language": "en",
+          "description": "Learning and education"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849192",
+      "publicId": "language-curriculum-designer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Designs comprehensive language learning curriculum",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "languageGoals",
+                "id": "language_goals_input",
+                "label": "Language Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Specific learning objectives and milestones"
+              },
+              {
+                "fieldName": "skillPriorities",
+                "id": "skill_priorities_input",
+                "label": "Skill Priorities",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Reading, writing, speaking, listening priorities"
+              },
+              {
+                "fieldName": "learningStyle",
+                "id": "learning_style_input",
+                "label": "Learning Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "visual",
+                  "auditory",
+                  "kinesthetic",
+                  "communicative",
+                  "analytical",
+                  "balanced"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "curriculumPlan",
+                "id": "curriculum_plan_output",
+                "label": "Curriculum Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "lessonStructure",
+                "id": "lesson_structure_output",
+                "label": "Lesson Structure",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practiceActivities",
+                "id": "practice_activities_output",
+                "label": "Practice Activities",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849193",
+          "language": "en",
+          "name": "Language Curriculum Designer",
+          "description": "Designs comprehensive language learning curriculum with structured lessons and activities.",
+          "instructions": "Provide language goals and skill priorities. The routine will design curriculum."
+        }
+      ]
+    }
+  ]
+}

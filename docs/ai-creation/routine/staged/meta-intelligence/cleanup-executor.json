@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190849203",
+  "publicId": "cleanup-executor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "memory-management",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Memory and data management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847066",
+      "tag": "implementation",
+      "translations": [
+        {
+          "id": "7829564732190847166",
+          "language": "en",
+          "description": "Implementation and execution"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849204",
+      "publicId": "cleanup-executor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Executes memory cleanup and reorganization tasks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reorganizationPlan",
+                "id": "reorganization_plan_input",
+                "label": "Reorganization Plan",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Memory cleanup and reorganization instructions"
+              },
+              {
+                "fieldName": "safetyMode",
+                "id": "safety_mode_input",
+                "label": "Safety Mode",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "conservative",
+                "options": [
+                  "aggressive",
+                  "moderate",
+                  "conservative",
+                  "backup-first"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "cleanupResults",
+                "id": "cleanup_results_output",
+                "label": "Cleanup Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "restructuredMemory",
+                "id": "restructured_memory_output",
+                "label": "Restructured Memory",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "executionLog",
+                "id": "execution_log_output",
+                "label": "Execution Log",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849205",
+          "language": "en",
+          "name": "Cleanup Executor",
+          "description": "Executes memory cleanup and reorganization according to optimization plans.",
+          "instructions": "Provide reorganization plan. The routine will execute cleanup safely."
+        }
+      ]
+    }
+  ]
+}

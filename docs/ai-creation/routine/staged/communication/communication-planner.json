@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849161",
+  "publicId": "communication-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849162",
+      "publicId": "communication-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Plans communication strategies during crisis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "crisisContext",
+                "id": "crisis_context_input",
+                "label": "Crisis Context",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Context of the crisis situation"
+              },
+              {
+                "fieldName": "stakeholderGroups",
+                "id": "stakeholder_groups_input",
+                "label": "Stakeholder Groups",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Groups that need to be communicated with"
+              },
+              {
+                "fieldName": "communicationGoals",
+                "id": "communication_goals_input",
+                "label": "Communication Goals",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Objectives for crisis communication"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "communicationStrategy",
+                "id": "communication_strategy_output",
+                "label": "Communication Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "messagingFramework",
+                "id": "messaging_framework_output",
+                "label": "Messaging Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "channelPlan",
+                "id": "channel_plan_output",
+                "label": "Channel Plan",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849163",
+          "language": "en",
+          "name": "Communication Planner",
+          "description": "Plans comprehensive communication strategies for crisis management.",
+          "instructions": "Provide crisis context and stakeholder groups. The routine will plan communication."
+        }
+      ]
+    }
+  ]
+}

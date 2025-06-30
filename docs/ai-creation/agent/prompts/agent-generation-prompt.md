@@ -17,6 +17,21 @@ OUTPUT RULES:
 • You may create up to 3 behaviours per agent
 • Keep it minimal; omit optional fields unless they add clear value
 
+TRIGGER CONDITIONS (optional):
+Use jexl expressions in the `trigger.when` field to add conditions. Available variables:
+• `event.data.*` - Event payload fields (e.g., `event.data.remaining`, `event.data.newState`)
+• `event.type` - Event type string
+• `swarm.state` - Current swarm execution state ("RUNNING", "FAILED", etc.)
+• `swarm.resources.remaining.*` - Remaining credits, tokens, time
+• `swarm.resources.consumed.*` - Used credits, tokens, time
+• `swarm.agents` - Number of active agents
+• `bot.performance.successRate` - Agent's success rate (0-1)
+
+Examples:
+• `"event.data.remaining < event.data.allocated * 0.1"` - Low resources
+• `"event.data.newState == 'FAILED'"` - Specific state change
+• `"bot.performance.successRate < 0.8"` - Poor performance
+
 VALID EVENTS YOU CAN USE:
 SWARM: swarm/started, swarm/state/changed, swarm/resource/updated, swarm/config/updated, 
        swarm/team/updated, swarm/goal/created, swarm/goal/updated, swarm/goal/completed, swarm/goal/failed

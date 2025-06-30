@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190848996",
+  "publicId": "embedding-gen-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848997",
+      "publicId": "embedding-gen-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates semantic embeddings for search queries",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "processedQuery",
+                "id": "processed_query_input",
+                "label": "Processed Query",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The processed search query"
+              },
+              {
+                "fieldName": "embeddingModel",
+                "id": "embedding_model_input",
+                "label": "Embedding Model",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "semantic",
+                "options": [
+                  "semantic",
+                  "contextual",
+                  "domain-specific",
+                  "multilingual"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "queryEmbeddings",
+                "id": "query_embeddings_output",
+                "label": "Query Embeddings",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "semanticVector",
+                "id": "semantic_vector_output",
+                "label": "Semantic Vector",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "embeddingMetadata",
+                "id": "embedding_metadata_output",
+                "label": "Embedding Metadata",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848998",
+          "language": "en",
+          "name": "Embedding Generator",
+          "description": "Generates semantic embeddings for processed queries to enable vector-based search.",
+          "instructions": "Provide processed query and embedding model. The routine will generate semantic embeddings."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848924",
+  "publicId": "problem-definer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847042",
+      "tag": "innovation",
+      "translations": [
+        {
+          "id": "7829564732190847142",
+          "language": "en",
+          "description": "Innovation and creativity"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847061",
+      "tag": "decision-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847161",
+          "language": "en",
+          "description": "Decision making and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848925",
+      "publicId": "problem-definer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Problem articulation and clarity enhancement",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "initialDescription",
+                "id": "initial_description_input",
+                "label": "Problem Description",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Initial problem statement"
+              },
+              {
+                "fieldName": "situationalContext",
+                "id": "situational_context_input",
+                "label": "Background Context",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Circumstances and environment"
+              },
+              {
+                "fieldName": "stakeholders",
+                "id": "stakeholders_input",
+                "label": "Affected Parties",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Who is impacted by this problem"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedProblem",
+                "id": "clarified_problem_output",
+                "label": "Precise Problem Statement",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "rootCauses",
+                "id": "root_causes_output",
+                "label": "Underlying Causes",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "problemScope",
+                "id": "problem_scope_output",
+                "label": "Scope and Boundaries",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848926",
+          "language": "en",
+          "name": "Problem Definer",
+          "description": "Articulates problems with precision and clarity, analyzing context and stakeholders.",
+          "instructions": "Provide initial problem description and context. The routine will clarify and define the problem precisely."
+        }
+      ]
+    }
+  ]
+}

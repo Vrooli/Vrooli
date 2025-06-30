@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190848891",
+  "publicId": "career-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847011",
+      "tag": "professional-growth",
+      "translations": [
+        {
+          "id": "7829564732190847111",
+          "language": "en",
+          "description": "Career and professional development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848892",
+      "publicId": "career-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Current career situation and satisfaction assessment",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "currentRole",
+                "id": "current_role_input",
+                "label": "Current Position",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Current job title and responsibilities"
+              },
+              {
+                "fieldName": "careerHistory",
+                "id": "career_history_input",
+                "label": "Work Experience",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Previous roles and experience"
+              },
+              {
+                "fieldName": "satisfactionLevel",
+                "id": "satisfaction_level_input",
+                "label": "Job Satisfaction",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "very-low",
+                  "low",
+                  "moderate",
+                  "high",
+                  "very-high"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "careerAnalysis",
+                "id": "career_analysis_output",
+                "label": "Career Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "skillsInventory",
+                "id": "skills_inventory_output",
+                "label": "Skills Profile",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "satisfactionInsights",
+                "id": "satisfaction_insights_output",
+                "label": "Satisfaction Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848893",
+          "language": "en",
+          "name": "Career Assessor",
+          "description": "Assesses current career situation, skills, experience, and satisfaction levels.",
+          "instructions": "Provide current role and career history. The routine will assess your career profile and satisfaction insights."
+        }
+      ]
+    }
+  ]
+}

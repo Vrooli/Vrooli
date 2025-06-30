@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848939",
+  "publicId": "monitoring-fw-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847066",
+      "tag": "implementation",
+      "translations": [
+        {
+          "id": "7829564732190847166",
+          "language": "en",
+          "description": "Implementation and execution"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847095",
+      "tag": "optimization",
+      "translations": [
+        {
+          "id": "7829564732190847195",
+          "language": "en",
+          "description": "Performance optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848940",
+      "publicId": "monitoring-fw-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Implementation tracking and adaptation framework",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "implementationPlan",
+                "id": "implementation_plan_input",
+                "label": "Action Plan",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The implementation plan to monitor"
+              },
+              {
+                "fieldName": "successCriteria",
+                "id": "success_criteria_input",
+                "label": "Success Metrics",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "How to measure success"
+              },
+              {
+                "fieldName": "adaptationThreshold",
+                "id": "adaptation_threshold_input",
+                "label": "Change Tolerance",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "rigid",
+                  "moderate",
+                  "flexible",
+                  "highly-adaptive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "trackingSystem",
+                "id": "tracking_system_output",
+                "label": "Monitoring Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "adaptationTriggers",
+                "id": "adaptation_triggers_output",
+                "label": "Change Indicators",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "feedbackLoops",
+                "id": "feedback_loops_output",
+                "label": "Continuous Improvement",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848941",
+          "language": "en",
+          "name": "Monitoring Framework",
+          "description": "Establishes tracking systems and adaptation strategies for implementation.",
+          "instructions": "Provide implementation plan and success criteria. The routine will create monitoring and adaptation frameworks."
+        }
+      ]
+    }
+  ]
+}

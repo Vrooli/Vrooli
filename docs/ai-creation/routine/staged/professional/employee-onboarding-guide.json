@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Pre-boarding Preparation",
                 "description": "Sets up workspace, systems access, and welcome materials",
-                "subroutineId": "TODO: Need pre-boarding setup subroutine",
+                "subroutineId": "7829564732190848906",
                 "inputMap": {
                   "newEmployeeProfile": "employeeDetails",
                   "roleRequirements": "positionSpecifications",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "First Day Orientation",
                 "description": "Provides company overview, policies, and initial introductions",
-                "subroutineId": "TODO: Need orientation session subroutine",
+                "subroutineId": "7829564732190848909",
                 "inputMap": {
                   "introductoryMaterials": "welcomePackage",
                   "companyOverview": "organizationalContext",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Role-Specific Training",
                 "description": "Delivers job-specific skills and knowledge training",
-                "subroutineId": "TODO: Need role training subroutine",
+                "subroutineId": "7829564732190848912",
                 "inputMap": {
                   "positionSpecifications": "roleRequirements",
                   "trainingCurriculum": "learningPlan",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Department Integration",
                 "description": "Facilitates team introductions and workflow integration",
-                "subroutineId": "TODO: Need department integration subroutine",
+                "subroutineId": "7829564732190848915",
                 "inputMap": {
                   "teamStructure": "departmentOrganization",
                   "workflowProcesses": "operationalProcedures",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Performance Goal Setting",
                 "description": "Establishes clear expectations and development objectives",
-                "subroutineId": "TODO: Need goal setting subroutine",
+                "subroutineId": "7829564732190848918",
                 "inputMap": {
                   "roleExpectations": "performanceStandards",
                   "careerAspirations": "developmentGoals",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "90-Day Follow-up & Assessment",
                 "description": "Reviews progress, addresses concerns, and plans continued development",
-                "subroutineId": "TODO: Need follow-up assessment subroutine",
+                "subroutineId": "7829564732190848921",
                 "inputMap": {
                   "performanceTracking": "progressMonitoring",
                   "feedbackCollection": "stakeholderInput",

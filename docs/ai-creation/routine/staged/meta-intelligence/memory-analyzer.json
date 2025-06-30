@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190849029",
+  "publicId": "memory-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Meta-cognitive and system intelligence"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849030",
+      "publicId": "memory-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes memory usage patterns and quality",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "memoryData",
+                "id": "memory_data_input",
+                "label": "Memory Data",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Current memory system data"
+              },
+              {
+                "fieldName": "analysisType",
+                "id": "analysis_type_input",
+                "label": "Analysis Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "usage-patterns",
+                  "quality-assessment",
+                  "redundancy-check",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "memoryAnalysis",
+                "id": "memory_analysis_output",
+                "label": "Memory Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "usagePatterns",
+                "id": "usage_patterns_output",
+                "label": "Usage Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "optimizationRecommendations",
+                "id": "optimization_recommendations_output",
+                "label": "Optimization Recommendations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849031",
+          "language": "en",
+          "name": "Memory Analyzer",
+          "description": "Analyzes memory system usage patterns and provides optimization recommendations.",
+          "instructions": "Provide memory data and analysis type. The routine will analyze memory usage patterns."
+        }
+      ]
+    }
+  ]
+}

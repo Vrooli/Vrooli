@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Problem Clearly",
                 "description": "Articulates the problem with precision and clarity",
-                "subroutineId": "TODO: Need problem definition subroutine",
+                "subroutineId": "7829564732190848924",
                 "inputMap": {
                   "problemStatement": "initialDescription",
                   "context": "situationalBackground",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Gather Relevant Information",
                 "description": "Collects data, facts, and insights needed for solution",
-                "subroutineId": "TODO: Need information gathering subroutine",
+                "subroutineId": "7829564732190848927",
                 "inputMap": {
                   "clarifiedProblem": "preciseProblemStatement",
                   "availableData": "existingInformation",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Solution Options",
                 "description": "Creates multiple potential approaches and solutions",
-                "subroutineId": "TODO: Need solution generation subroutine",
+                "subroutineId": "7829564732190848930",
                 "inputMap": {
                   "preciseProblemStatement": "clarifiedProblem",
                   "relevantFacts": "factualData",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Evaluate Solutions",
                 "description": "Assesses feasibility, impact, and risks of each option",
-                "subroutineId": "TODO: Need solution evaluation subroutine",
+                "subroutineId": "7829564732190848933",
                 "inputMap": {
                   "potentialSolutions": "solutionOptions",
                   "evaluationCriteria": "assessmentFactors",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Develop Implementation Plan",
                 "description": "Creates detailed action plan for chosen solution",
-                "subroutineId": "TODO: Need implementation planning subroutine",
+                "subroutineId": "7829564732190848936",
                 "inputMap": {
                   "chosenSolution": "selectedOption",
                   "availableAssets": "resources",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Plan Monitoring & Adjustment",
                 "description": "Establishes tracking system and adaptation strategies",
-                "subroutineId": "TODO: Need monitoring framework subroutine",
+                "subroutineId": "7829564732190848939",
                 "inputMap": {
                   "implementationSteps": "actionPlan",
                   "measurementCriteria": "successMetrics",

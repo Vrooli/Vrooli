@@ -1,0 +1,116 @@
+{
+  "id": "7829564732190849119",
+  "publicId": "exec-summary-writer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847014",
+      "tag": "executive-leadership",
+      "translations": [
+        {
+          "id": "7829564732190847114",
+          "language": "en",
+          "description": "Executive leadership and management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849120",
+      "publicId": "exec-summary-writer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Writes compelling executive summaries",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reportStructure",
+                "id": "report_structure_input",
+                "label": "Report Structure",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The structured report outline"
+              },
+              {
+                "fieldName": "audienceLevel",
+                "id": "audience_level_input",
+                "label": "Audience Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "executive",
+                "options": [
+                  "executive",
+                  "management",
+                  "technical",
+                  "general",
+                  "board"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyFindings",
+                "id": "key_findings_output",
+                "label": "Key Findings",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Recommendations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849121",
+          "language": "en",
+          "name": "Executive Summary Writer",
+          "description": "Writes compelling executive summaries tailored to specific audiences.",
+          "instructions": "Provide report structure and audience level. The routine will write executive summary."
+        }
+      ]
+    }
+  ]
+}

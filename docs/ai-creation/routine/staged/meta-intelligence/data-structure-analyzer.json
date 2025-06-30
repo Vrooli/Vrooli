@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849206",
+  "publicId": "data-structure-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847089",
+      "tag": "data-processing",
+      "translations": [
+        {
+          "id": "7829564732190847189",
+          "language": "en",
+          "description": "Data processing and transformation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849207",
+      "publicId": "data-structure-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes data format, types, and distribution patterns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "inputData",
+                "id": "input_data_input",
+                "label": "Input Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Raw dataset to analyze"
+              },
+              {
+                "fieldName": "dataDescription",
+                "id": "data_description_input",
+                "label": "Data Description",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Context and description of the data"
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "basic",
+                  "standard",
+                  "comprehensive",
+                  "deep"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dataProfile",
+                "id": "data_profile_output",
+                "label": "Data Profile",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "baselinePatterns",
+                "id": "baseline_patterns_output",
+                "label": "Baseline Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "variabilityMetrics",
+                "id": "variability_metrics_output",
+                "label": "Variability Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849208",
+          "language": "en",
+          "name": "Data Structure Analyzer",
+          "description": "Analyzes data format, types, distribution patterns, and baseline characteristics.",
+          "instructions": "Provide input data and description. The routine will analyze structure patterns."
+        }
+      ]
+    }
+  ]
+}

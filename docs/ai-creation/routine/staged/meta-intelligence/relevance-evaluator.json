@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849197",
+  "publicId": "relevance-evaluator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "memory-management",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Memory and data management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849198",
+      "publicId": "relevance-evaluator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Evaluates memory relevance and importance",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "redundantElements",
+                "id": "redundant_elements_input",
+                "label": "Redundant Elements",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Identified redundant memory elements"
+              },
+              {
+                "fieldName": "currentContext",
+                "id": "current_context_input",
+                "label": "Current Context",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Current usage context and priorities"
+              },
+              {
+                "fieldName": "relevanceThreshold",
+                "id": "relevance_threshold_input",
+                "label": "Relevance Threshold",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "low",
+                  "moderate",
+                  "high",
+                  "critical"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "relevanceScores",
+                "id": "relevance_scores_output",
+                "label": "Relevance Scores",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "retentionRecommendations",
+                "id": "retention_recommendations_output",
+                "label": "Retention Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priorityRanking",
+                "id": "priority_ranking_output",
+                "label": "Priority Ranking",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849199",
+          "language": "en",
+          "name": "Relevance Evaluator",
+          "description": "Evaluates memory relevance and provides retention recommendations.",
+          "instructions": "Provide redundant elements and context. The routine will evaluate relevance."
+        }
+      ]
+    }
+  ]
+}

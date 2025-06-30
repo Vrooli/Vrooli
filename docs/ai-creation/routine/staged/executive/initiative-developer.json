@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849020",
+  "publicId": "initiative-dev-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847014",
+      "tag": "executive-leadership",
+      "translations": [
+        {
+          "id": "7829564732190847114",
+          "language": "en",
+          "description": "Executive leadership and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849021",
+      "publicId": "initiative-dev-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops strategic initiatives and action plans",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "strategicObjectives",
+                "id": "strategic_objectives_input",
+                "label": "Strategic Objectives",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The defined strategic objectives"
+              },
+              {
+                "fieldName": "resourceConstraints",
+                "id": "resource_constraints_input",
+                "label": "Resource Constraints",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Budget, time, and resource limitations"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "strategicInitiatives",
+                "id": "strategic_initiatives_output",
+                "label": "Strategic Initiatives",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionPlans",
+                "id": "action_plans_output",
+                "label": "Action Plans",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "resourceAllocation",
+                "id": "resource_allocation_output",
+                "label": "Resource Allocation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849022",
+          "language": "en",
+          "name": "Initiative Developer",
+          "description": "Develops strategic initiatives and detailed action plans to achieve objectives.",
+          "instructions": "Provide strategic objectives and resource constraints. The routine will develop initiatives."
+        }
+      ]
+    }
+  ]
+}

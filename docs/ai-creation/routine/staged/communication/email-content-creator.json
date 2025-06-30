@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849053",
+  "publicId": "email-content-creator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849054",
+      "publicId": "email-content-creator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates email content for campaigns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "audienceSegments",
+                "id": "audience_segments_input",
+                "label": "Audience Segments",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The target audience segments"
+              },
+              {
+                "fieldName": "messagingFramework",
+                "id": "messaging_framework_input",
+                "label": "Messaging Framework",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The messaging framework to follow"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailContent",
+                "id": "email_content_output",
+                "label": "Email Content",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "subjectLines",
+                "id": "subject_lines_output",
+                "label": "Subject Lines",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "callToActions",
+                "id": "call_to_actions_output",
+                "label": "Call to Actions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849055",
+          "language": "en",
+          "name": "Email Content Creator",
+          "description": "Creates compelling email content tailored to specific audience segments.",
+          "instructions": "Provide audience segments and messaging framework. The routine will create email content."
+        }
+      ]
+    }
+  ]
+}

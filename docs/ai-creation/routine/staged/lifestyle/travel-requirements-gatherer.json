@@ -1,0 +1,125 @@
+{
+  "id": "7829564732190848954",
+  "publicId": "travel-req-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847078",
+      "tag": "travel",
+      "translations": [
+        {
+          "id": "7829564732190847178",
+          "language": "en",
+          "description": "Travel planning and guidance"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848955",
+      "publicId": "travel-req-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Travel planning requirements gathering",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "initialRequest",
+                "id": "initial_request_input",
+                "label": "Travel Interest",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Initial travel idea or request"
+              },
+              {
+                "fieldName": "knownPreferences",
+                "id": "known_preferences_input",
+                "label": "Known Preferences",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Any stated preferences"
+              },
+              {
+                "fieldName": "travelPurpose",
+                "id": "travel_purpose_input",
+                "label": "Trip Purpose",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "leisure",
+                "options": [
+                  "leisure",
+                  "business",
+                  "adventure",
+                  "relaxation",
+                  "cultural",
+                  "family"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "travelRequirements",
+                "id": "travel_requirements_output",
+                "label": "Clarified Requirements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "budgetParameters",
+                "id": "budget_parameters_output",
+                "label": "Budget Details",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "preferenceProfile",
+                "id": "preference_profile_output",
+                "label": "Travel Preferences",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848956",
+          "language": "en",
+          "name": "Travel Requirements Gatherer",
+          "description": "Clarifies destination, dates, budget, and travel preferences for trip planning.",
+          "instructions": "Provide initial travel interest. The routine will gather and clarify all travel requirements."
+        }
+      ]
+    }
+  ]
+}

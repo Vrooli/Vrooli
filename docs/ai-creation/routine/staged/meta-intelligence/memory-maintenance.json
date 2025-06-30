@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Memory Usage",
                 "description": "Scans vector store and identifies storage patterns",
-                "subroutineId": "TODO: Need memory analysis subroutine",
+                "subroutineId": "7829564732190849092",
                 "inputMap": {
                   "vectorStore": "embeddingDatabase",
                   "retentionPolicy": "memoryRules",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Redundancies",
                 "description": "Finds duplicate or similar entries using clustering",
-                "subroutineId": "TODO: Need redundancy detection subroutine",
+                "subroutineId": "7829564732190849095",
                 "inputMap": {
                   "storageAnalysis": "memoryProfile",
                   "similarityThreshold": "deduplicationLevel",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Mark Outdated Content",
                 "description": "Identifies stale entries based on age and relevance",
-                "subroutineId": "TODO: Need staleness detection subroutine",
+                "subroutineId": "7829564732190849098",
                 "inputMap": {
                   "usageStatistics": "accessPatterns",
                   "ageThresholds": "expirationRules",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Consolidate Knowledge",
                 "description": "Merges similar entries and updates references",
-                "subroutineId": "TODO: Need knowledge consolidation subroutine",
+                "subroutineId": "7829564732190849101",
                 "inputMap": {
                   "mergeTargets": "consolidationCandidates",
                   "preservationRules": "mergeStrategy",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Archive & Prune",
                 "description": "Moves or removes content based on retention policy",
-                "subroutineId": "TODO: Need archival subroutine",
+                "subroutineId": "7829564732190849104",
                 "inputMap": {
                   "staleContent": "outdatedEntries",
                   "archivePolicy": "retentionRules",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Optimize Indexes",
                 "description": "Rebuilds indexes for improved retrieval performance",
-                "subroutineId": "TODO: Need index optimization subroutine",
+                "subroutineId": "7829564732190849038",
                 "inputMap": {
                   "mergedKnowledge": "consolidatedEntries",
                   "performanceTargets": "speedRequirements",

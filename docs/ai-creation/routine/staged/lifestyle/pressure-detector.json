@@ -1,0 +1,126 @@
+{
+  "id": "7829564732190848945",
+  "publicId": "pressure-detect-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847077",
+      "tag": "boundaries",
+      "translations": [
+        {
+          "id": "7829564732190847177",
+          "language": "en",
+          "description": "Boundary setting and maintenance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848946",
+      "publicId": "pressure-detect-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Social pressure and manipulation detection",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "messageContent",
+                "id": "message_content_input",
+                "label": "Communication to Analyze",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The message or request to analyze"
+              },
+              {
+                "fieldName": "relationshipContext",
+                "id": "relationship_context_input",
+                "label": "Relationship Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "peer",
+                "options": [
+                  "family",
+                  "friend",
+                  "colleague",
+                  "supervisor",
+                  "client",
+                  "peer",
+                  "stranger"
+                ]
+              },
+              {
+                "fieldName": "situationContext",
+                "id": "situation_context_input",
+                "label": "Situation Details",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Additional context about the situation"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "pressureTactics",
+                "id": "pressure_tactics_output",
+                "label": "Detected Tactics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "manipulationLevel",
+                "id": "manipulation_level_output",
+                "label": "Pressure Intensity",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "tacticExplanation",
+                "id": "tactic_explanation_output",
+                "label": "Analysis Details",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848947",
+          "language": "en",
+          "name": "Pressure Detector",
+          "description": "Analyzes messages to detect social pressure and manipulation tactics.",
+          "instructions": "Provide the message to analyze. The routine will identify pressure tactics and manipulation attempts."
+        }
+      ]
+    }
+  ]
+}

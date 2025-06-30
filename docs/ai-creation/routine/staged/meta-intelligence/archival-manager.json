@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190849104",
+  "publicId": "archival-manager-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Meta-cognitive and system intelligence"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847066",
+      "tag": "implementation",
+      "translations": [
+        {
+          "id": "7829564732190847166",
+          "language": "en",
+          "description": "Implementation and execution"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849105",
+      "publicId": "archival-manager-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Manages archival of inactive memory elements",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "consolidatedKnowledge",
+                "id": "consolidated_knowledge_input",
+                "label": "Consolidated Knowledge",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The consolidated knowledge elements"
+              },
+              {
+                "fieldName": "archivalPolicy",
+                "id": "archival_policy_input",
+                "label": "Archival Policy",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "selective",
+                "options": [
+                  "aggressive",
+                  "selective",
+                  "conservative",
+                  "minimal"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "archivedElements",
+                "id": "archived_elements_output",
+                "label": "Archived Elements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "activeElements",
+                "id": "active_elements_output",
+                "label": "Active Elements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "archivalReport",
+                "id": "archival_report_output",
+                "label": "Archival Report",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849106",
+          "language": "en",
+          "name": "Archival Manager",
+          "description": "Manages the archival and retention of memory elements based on usage patterns.",
+          "instructions": "Provide consolidated knowledge and archival policy. The routine will manage archival process."
+        }
+      ]
+    }
+  ]
+}

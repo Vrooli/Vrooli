@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Conduct Situational Analysis",
                 "description": "Assesses current position, market conditions, and internal capabilities",
-                "subroutineId": "TODO: Need situational analysis subroutine",
+                "subroutineId": "7829564732190849011",
                 "inputMap": {
                   "organizationContext": "entityProfile",
                   "marketEnvironment": "externalContext",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Define Vision & Mission",
                 "description": "Establishes organizational purpose and long-term aspirations",
-                "subroutineId": "TODO: Need vision/mission development subroutine",
+                "subroutineId": "7829564732190849014",
                 "inputMap": {
                   "organizationalValues": "coreBeliefs",
                   "stakeholderExpectations": "stakeholderNeeds",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Set Strategic Objectives",
                 "description": "Develops specific, measurable goals aligned with vision",
-                "subroutineId": "TODO: Need objective setting subroutine",
+                "subroutineId": "7829564732190849017",
                 "inputMap": {
                   "futureDirection": "visionStatement",
                   "currentStateAnalysis": "situationalAssessment",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Develop Strategic Initiatives",
                 "description": "Creates specific programs and projects to achieve objectives",
-                "subroutineId": "TODO: Need initiative development subroutine",
+                "subroutineId": "7829564732190849020",
                 "inputMap": {
                   "primaryObjectives": "strategicGoals",
                   "resourceAssessment": "availableCapabilities",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Implementation Roadmap",
                 "description": "Develops detailed timeline and execution sequence",
-                "subroutineId": "TODO: Need roadmap planning subroutine",
+                "subroutineId": "7829564732190849023",
                 "inputMap": {
                   "keyPrograms": "strategicInitiatives",
                   "executionStrategy": "implementationPlan",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Establish Monitoring Framework",
                 "description": "Creates tracking system for progress and course correction",
-                "subroutineId": "TODO: Need monitoring framework subroutine",
+                "subroutineId": "7829564732190849026",
                 "inputMap": {
                   "performanceIndicators": "successMetrics",
                   "executionTimeline": "implementationRoadmap",

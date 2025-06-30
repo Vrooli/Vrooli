@@ -1,0 +1,116 @@
+{
+  "id": "7829564732190849002",
+  "publicId": "result-ranker-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849003",
+      "publicId": "result-ranker-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Ranks and prioritizes search results",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "vectorResults",
+                "id": "vector_results_input",
+                "label": "Vector Search Results",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The vector search results to rank"
+              },
+              {
+                "fieldName": "rankingCriteria",
+                "id": "ranking_criteria_input",
+                "label": "Ranking Criteria",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "relevance",
+                "options": [
+                  "relevance",
+                  "recency",
+                  "authority",
+                  "comprehensive",
+                  "mixed"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rankedResults",
+                "id": "ranked_results_output",
+                "label": "Ranked Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "rankingScores",
+                "id": "ranking_scores_output",
+                "label": "Ranking Scores",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "topResults",
+                "id": "top_results_output",
+                "label": "Top Results",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849004",
+          "language": "en",
+          "name": "Result Ranker",
+          "description": "Ranks and prioritizes search results based on relevance and quality criteria.",
+          "instructions": "Provide vector results and ranking criteria. The routine will rank the search results."
+        }
+      ]
+    }
+  ]
+}

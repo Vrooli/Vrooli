@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Memory Store",
                 "description": "Scans embedding store for patterns, duplicates, and inefficiencies",
-                "subroutineId": "TODO: Need memory analysis subroutine",
+                "subroutineId": "7829564732190849029",
                 "inputMap": {
                   "embeddingStore": "vectorDatabase",
                   "accessLogs": "usagePatterns",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Consolidation Opportunities",
                 "description": "Finds similar entries that can be merged or consolidated",
-                "subroutineId": "TODO: Need clustering subroutine",
+                "subroutineId": "7829564732190849032",
                 "inputMap": {
                   "storeAssessment": "memoryAnalysis",
                   "similarityThreshold": "clusteringCriteria",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Prune Outdated Entries",
                 "description": "Removes obsolete or low-value memory entries",
-                "subroutineId": "TODO: Need pruning subroutine",
+                "subroutineId": "7829564732190849035",
                 "inputMap": {
                   "usageStatistics": "accessFrequency",
                   "retentionPolicy": "memoryRules",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Optimize Index Structure",
                 "description": "Reorganizes embeddings for improved retrieval performance",
-                "subroutineId": "TODO: Need index optimization subroutine",
+                "subroutineId": "7829564732190849038",
                 "inputMap": {
                   "similarityGroups": "clusterGroups",
                   "queryPatterns": "retrievalBehavior",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Update Knowledge Graph",
                 "description": "Refreshes relationships and connections between memories",
-                "subroutineId": "TODO: Need graph update subroutine",
+                "subroutineId": "7829564732190849041",
                 "inputMap": {
                   "consolidatedMemories": "mergedEntries",
                   "newConnections": "discoveredRelationships",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Maintenance Report",
                 "description": "Documents changes and provides optimization recommendations",
-                "subroutineId": "TODO: Need reporting subroutine",
+                "subroutineId": "7829564732190849044",
                 "inputMap": {
                   "maintenanceActions": "completedOperations",
                   "performanceMetrics": "systemImprovement",

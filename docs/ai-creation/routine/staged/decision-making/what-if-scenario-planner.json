@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Scenario",
                 "description": "Clarifies the hypothetical situation and variables",
-                "subroutineId": "TODO: Need scenario definition subroutine",
+                "subroutineId": "7829564732190848837",
                 "inputMap": {
                   "scenarioDescription": "hypotheticalSituation",
                   "changeVariables": "whatIfFactors",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Impact Areas",
                 "description": "Determines what aspects would be affected",
-                "subroutineId": "TODO: Need impact identification subroutine",
+                "subroutineId": "7829564732190848840",
                 "inputMap": {
                   "structuredScenario": "scenarioModel",
                   "systemContext": "environmentFactors",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Project Outcomes",
                 "description": "Predicts likely results in each impact area",
-                "subroutineId": "TODO: Need outcome projection subroutine",
+                "subroutineId": "7829564732190848843",
                 "inputMap": {
                   "affectedAreas": "impactDomains",
                   "changeParameters": "variableMap",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Analyze Consequences",
                 "description": "Evaluates benefits, drawbacks, and risks",
-                "subroutineId": "TODO: Need consequence analysis subroutine",
+                "subroutineId": "7829564732190848846",
                 "inputMap": {
                   "scenarioResults": "outcomeProjections",
                   "evaluationCriteria": "assessmentFramework",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Compare Alternatives",
                 "description": "Contrasts scenario with other options",
-                "subroutineId": "TODO: Need alternative comparison subroutine",
+                "subroutineId": "7829564732190848849",
                 "inputMap": {
                   "costBenefitBalance": "tradeoffMatrix",
                   "alternativeScenarios": "otherOptions",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Recommendations",
                 "description": "Provides insights and action suggestions",
-                "subroutineId": "TODO: Need recommendation generation subroutine",
+                "subroutineId": "7829564732190848852",
                 "inputMap": {
                   "scenarioComparison": "comparativeAnalysis",
                   "likelihoodEstimates": "probabilityRanges",

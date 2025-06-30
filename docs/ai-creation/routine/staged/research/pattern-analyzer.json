@@ -1,0 +1,116 @@
+{
+  "id": "7829564732190848981",
+  "publicId": "pattern-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848982",
+      "publicId": "pattern-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes patterns and trends in market data",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "marketData",
+                "id": "market_data_input",
+                "label": "Market Data",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The collected market data"
+              },
+              {
+                "fieldName": "analysisType",
+                "id": "analysis_type_input",
+                "label": "Analysis Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "trends",
+                "options": [
+                  "trends",
+                  "patterns",
+                  "anomalies",
+                  "correlations",
+                  "forecasting"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "identifiedPatterns",
+                "id": "identified_patterns_output",
+                "label": "Identified Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "trendAnalysis",
+                "id": "trend_analysis_output",
+                "label": "Trend Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "significantFindings",
+                "id": "significant_findings_output",
+                "label": "Significant Findings",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848983",
+          "language": "en",
+          "name": "Pattern Analyzer",
+          "description": "Analyzes patterns, trends, and correlations in market data.",
+          "instructions": "Provide market data and analysis type. The routine will identify patterns and trends."
+        }
+      ]
+    }
+  ]
+}

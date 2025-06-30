@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Search Intent",
                 "description": "Understands search query context, intent, and requirements",
-                "subroutineId": "TODO: Need intent analysis subroutine",
+                "subroutineId": "7829564732190848957",
                 "inputMap": {
                   "searchQuery": "userQuery",
                   "searchContext": "contextualInfo",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Expand Query Terms",
                 "description": "Enhances search with synonyms, related terms, and context-specific keywords",
-                "subroutineId": "TODO: Need query expansion subroutine",
+                "subroutineId": "7829564732190848960",
                 "inputMap": {
                   "queryIntent": "intentAnalysis",
                   "relevanceContext": "contextualFactors",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Execute Contextual Search",
                 "description": "Performs targeted search within specific knowledge domains",
-                "subroutineId": "TODO: Need contextual search subroutine",
+                "subroutineId": "7829564732190848963",
                 "inputMap": {
                   "enhancedTerms": "expandedQuery",
                   "queryBoundaries": "searchScope",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Filter and Rank Results",
                 "description": "Prioritizes results based on context relevance and quality",
-                "subroutineId": "TODO: Need result filtering subroutine",
+                "subroutineId": "7829564732190848966",
                 "inputMap": {
                   "retrievedContent": "searchResults",
                   "matchQuality": "relevanceScores",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Synthesize Information",
                 "description": "Combines and summarizes relevant information from multiple sources",
-                "subroutineId": "TODO: Need information synthesis subroutine",
+                "subroutineId": "7829564732190848969",
                 "inputMap": {
                   "qualityContent": "filteredResults",
                   "sourceReferences": "contentSources",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Search Report",
                 "description": "Creates comprehensive response with sources and follow-up suggestions",
-                "subroutineId": "TODO: Need report generation subroutine",
+                "subroutineId": "7829564732190848972",
                 "inputMap": {
                   "compiledResponse": "synthesizedAnswer",
                   "backingInformation": "supportingEvidence",

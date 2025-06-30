@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848921",
+  "publicId": "followup-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847064",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847164",
+          "language": "en",
+          "description": "Team and resource management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847061",
+      "tag": "decision-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847161",
+          "language": "en",
+          "description": "Decision making and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848922",
+      "publicId": "followup-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - 90-day onboarding progress review and adjustment",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "onboardingProgress",
+                "id": "onboarding_progress_input",
+                "label": "Progress Summary",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Employee progress through onboarding"
+              },
+              {
+                "fieldName": "performanceData",
+                "id": "performance_data_input",
+                "label": "Performance Indicators",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Early performance metrics"
+              },
+              {
+                "fieldName": "feedbackCollected",
+                "id": "feedback_collected_input",
+                "label": "Employee Feedback",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Feedback from new employee"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "progressAssessment",
+                "id": "progress_assessment_output",
+                "label": "90-Day Review",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "adjustmentPlan",
+                "id": "adjustment_plan_output",
+                "label": "Improvement Actions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "continuedSupport",
+                "id": "continued_support_output",
+                "label": "Ongoing Development",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848923",
+          "language": "en",
+          "name": "Follow-up Assessor",
+          "description": "Reviews progress after 90 days, collects feedback, and creates adjustment plans.",
+          "instructions": "Provide onboarding progress and performance data. The routine will assess and create continued development plans."
+        }
+      ]
+    }
+  ]
+}

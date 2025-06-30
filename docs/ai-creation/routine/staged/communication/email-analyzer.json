@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190849131",
+  "publicId": "email-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849132",
+      "publicId": "email-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes emails for triage and categorization",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailContent",
+                "id": "email_content_input",
+                "label": "Email Content",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The email content to analyze"
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": [
+                  "basic",
+                  "standard",
+                  "detailed",
+                  "comprehensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailClassification",
+                "id": "email_classification_output",
+                "label": "Email Classification",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contentAnalysis",
+                "id": "content_analysis_output",
+                "label": "Content Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionableItems",
+                "id": "actionable_items_output",
+                "label": "Actionable Items",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849133",
+          "language": "en",
+          "name": "Email Analyzer",
+          "description": "Analyzes email content for classification, sentiment, and actionable items.",
+          "instructions": "Provide email content and analysis depth. The routine will analyze the email."
+        }
+      ]
+    }
+  ]
+}

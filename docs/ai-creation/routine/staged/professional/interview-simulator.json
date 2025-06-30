@@ -1,0 +1,130 @@
+{
+  "id": "7829564732190848801",
+  "publicId": "interview-simulator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847011",
+      "tag": "professional-growth",
+      "translations": [
+        {
+          "id": "7829564732190847111",
+          "language": "en",
+          "description": "Career and professional development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847013",
+      "tag": "interview-prep",
+      "translations": [
+        {
+          "id": "7829564732190847113",
+          "language": "en",
+          "description": "Interview preparation and coaching"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848802",
+      "publicId": "interview-simulator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Interactive interview practice simulation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "preparedResponses",
+                "id": "prepared_responses_input",
+                "label": "Core Answers",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Prepared answers and STAR stories"
+              },
+              {
+                "fieldName": "interviewFormat",
+                "id": "interview_format_input",
+                "label": "Meeting Style",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "phone",
+                  "video-call",
+                  "in-person",
+                  "panel",
+                  "technical",
+                  "behavioral"
+                ]
+              },
+              {
+                "fieldName": "difficultyLevel",
+                "id": "difficulty_level_input",
+                "label": "Challenge Intensity",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "easy",
+                  "moderate",
+                  "challenging",
+                  "expert"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "practiceResults",
+                "id": "practice_results_output",
+                "label": "Simulation Feedback",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvedAnswers",
+                "id": "improved_answers_output",
+                "label": "Refined Responses",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "confidenceAssessment",
+                "id": "confidence_assessment_output",
+                "label": "Readiness Level",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848803",
+          "language": "en",
+          "name": "Interview Simulator",
+          "description": "Simulates interview conditions with realistic scenarios and provides detailed feedback for improvement.",
+          "instructions": "Provide your prepared responses and interview format. The routine will conduct a practice interview and provide feedback for improvement."
+        }
+      ]
+    }
+  ]
+}

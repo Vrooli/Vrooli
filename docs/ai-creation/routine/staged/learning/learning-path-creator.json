@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Current Knowledge",
                 "description": "Evaluates existing skills and knowledge baseline",
-                "subroutineId": "TODO: Need assessment subroutine for skill evaluation",
+                "subroutineId": "7829564732190849167",
                 "inputMap": {
                   "learningGoal": "targetSkill",
                   "currentExperience": "existingKnowledge",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Define Learning Objectives",
                 "description": "Creates specific, measurable learning goals and milestones",
-                "subroutineId": "TODO: Need planning subroutine for objective setting",
+                "subroutineId": "7829564732190849170",
                 "inputMap": {
                   "learningGoal": "targetSkill",
                   "skillGaps": "knowledgeDeficits",
@@ -94,7 +94,7 @@
                 "id": "step-3",
                 "name": "Design Learning Sequence",
                 "description": "Structures topics in optimal learning order with dependencies",
-                "subroutineId": "TODO: Need sequencing subroutine for curriculum design",
+                "subroutineId": "7829564732190849173",
                 "inputMap": {
                   "objectives": "learningGoals",
                   "skillGaps": "knowledgeDeficits",
@@ -111,7 +111,7 @@
                 "id": "step-4",
                 "name": "Select Resources & Methods",
                 "description": "Chooses optimal learning materials and methodologies",
-                "subroutineId": "TODO: Need resource recommendation subroutine",
+                "subroutineId": "7829564732190849176",
                 "inputMap": {
                   "learningModules": "courseSequence",
                   "learningStyle": "preferredMethods",
@@ -128,7 +128,7 @@
                 "id": "step-5",
                 "name": "Create Study Schedule",
                 "description": "Develops realistic timeline with spaced repetition and practice",
-                "subroutineId": "TODO: Need scheduling subroutine for time management",
+                "subroutineId": "7829564732190849179",
                 "inputMap": {
                   "learningModules": "courseSequence",
                   "timeAvailable": "studySchedule",
@@ -145,7 +145,7 @@
                 "id": "step-6",
                 "name": "Design Progress Tracking",
                 "description": "Establishes monitoring system for learning progress and adjustments",
-                "subroutineId": "TODO: Need tracking subroutine for progress monitoring",
+                "subroutineId": "7829564732190849182",
                 "inputMap": {
                   "successMetrics": "completionCriteria",
                   "milestones": "progressMarkers",

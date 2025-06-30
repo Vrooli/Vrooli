@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190848975",
+  "publicId": "market-scope-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848976",
+      "publicId": "market-scope-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Defines market research scope and parameters",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "marketInterest",
+                "id": "market_interest_input",
+                "label": "Market Interest",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The market or industry to analyze"
+              },
+              {
+                "fieldName": "analysisGoals",
+                "id": "analysis_goals_input",
+                "label": "Analysis Goals",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "What you want to learn about the market"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "marketDefinition",
+                "id": "market_definition_output",
+                "label": "Market Definition",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "researchScope",
+                "id": "research_scope_output",
+                "label": "Research Scope",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyMetrics",
+                "id": "key_metrics_output",
+                "label": "Key Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848977",
+          "language": "en",
+          "name": "Market Scope Definer",
+          "description": "Defines the scope and parameters for market trend analysis research.",
+          "instructions": "Provide market interest and analysis goals. The routine will define research scope."
+        }
+      ]
+    }
+  ]
+}

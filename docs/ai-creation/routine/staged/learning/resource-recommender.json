@@ -1,0 +1,131 @@
+{
+  "id": "7829564732190849176",
+  "publicId": "resource-recommender-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847080",
+      "tag": "learning",
+      "translations": [
+        {
+          "id": "7829564732190847180",
+          "language": "en",
+          "description": "Learning and education"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847093",
+      "tag": "recommendations",
+      "translations": [
+        {
+          "id": "7829564732190847193",
+          "language": "en",
+          "description": "Recommendations and suggestions"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849177",
+      "publicId": "resource-recommender-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Recommends learning resources and materials",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "curriculumSequence",
+                "id": "curriculum_sequence_input",
+                "label": "Curriculum Sequence",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Ordered learning topics and progression"
+              },
+              {
+                "fieldName": "learningStyle",
+                "id": "learning_style_input",
+                "label": "Learning Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "mixed",
+                "options": [
+                  "visual",
+                  "auditory",
+                  "kinesthetic",
+                  "reading",
+                  "mixed"
+                ]
+              },
+              {
+                "fieldName": "budget",
+                "id": "budget_input",
+                "label": "Budget Constraint",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "free",
+                  "low",
+                  "moderate",
+                  "high",
+                  "unlimited"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "resourceRecommendations",
+                "id": "resource_recommendations_output",
+                "label": "Resource Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "learningMaterials",
+                "id": "learning_materials_output",
+                "label": "Learning Materials",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practiceActivities",
+                "id": "practice_activities_output",
+                "label": "Practice Activities",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849178",
+          "language": "en",
+          "name": "Resource Recommender",
+          "description": "Recommends learning resources and materials tailored to curriculum and style.",
+          "instructions": "Provide curriculum sequence and preferences. The routine will recommend resources."
+        }
+      ]
+    }
+  ]
+}

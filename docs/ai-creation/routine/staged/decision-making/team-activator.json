@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848858",
+  "publicId": "team-activator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847062",
+      "tag": "crisis-management",
+      "translations": [
+        {
+          "id": "7829564732190847162",
+          "language": "en",
+          "description": "Crisis and emergency management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847064",
+      "tag": "team-management",
+      "translations": [
+        {
+          "id": "7829564732190847164",
+          "language": "en",
+          "description": "Team and resource management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848859",
+      "publicId": "team-activator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Crisis team mobilization and resource allocation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "crisisAssessment",
+                "id": "crisis_assessment_input",
+                "label": "Crisis Assessment Results",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Severity and scope assessment"
+              },
+              {
+                "fieldName": "teamRoster",
+                "id": "team_roster_input",
+                "label": "Available Team Members",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Team members and their capabilities"
+              },
+              {
+                "fieldName": "resourceInventory",
+                "id": "resource_inventory_input",
+                "label": "Available Resources",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Resources that can be mobilized"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "teamAssignments",
+                "id": "team_assignments_output",
+                "label": "Role Assignments",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "communicationProtocol",
+                "id": "communication_protocol_output",
+                "label": "Communication Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "resourceAllocation",
+                "id": "resource_allocation_output",
+                "label": "Resource Distribution",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848860",
+          "language": "en",
+          "name": "Team Activator",
+          "description": "Mobilizes appropriate team members and resources based on crisis assessment with communication protocols.",
+          "instructions": "Provide crisis assessment and team roster. The routine will assign roles, establish protocols, and allocate resources."
+        }
+      ]
+    }
+  ]
+}

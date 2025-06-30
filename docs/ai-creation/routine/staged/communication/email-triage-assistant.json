@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Email Content",
                 "description": "Processes email content to understand context and intent",
-                "subroutineId": "TODO: Need email analysis subroutine",
+                "subroutineId": "7829564732190849131",
                 "inputMap": {
                   "emailContent": "messageData",
                   "senderInformation": "correspondentProfile",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Assess Priority Level",
                 "description": "Determines email importance based on multiple factors",
-                "subroutineId": "TODO: Need priority assessment subroutine",
+                "subroutineId": "7829564732190849134",
                 "inputMap": {
                   "messageBreakdown": "contentAnalysis",
                   "correspondentProfile": "senderInformation",

@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848843",
+  "publicId": "outcome-projector-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847061",
+      "tag": "decision-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847161",
+          "language": "en",
+          "description": "Decision making and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848844",
+      "publicId": "outcome-projector-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Outcome projection with probability and timeline estimation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "impactAreas",
+                "id": "impact_areas_input",
+                "label": "Identified Impact Areas",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Areas affected by the scenario"
+              },
+              {
+                "fieldName": "scenarioParameters",
+                "id": "scenario_parameters_input",
+                "label": "Scenario Variables",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Key parameters and variables"
+              },
+              {
+                "fieldName": "projectionTimeframe",
+                "id": "projection_timeframe_input",
+                "label": "Time Horizon",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "medium-term",
+                "options": [
+                  "short-term",
+                  "medium-term",
+                  "long-term",
+                  "variable"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "outcomeProjections",
+                "id": "outcome_projections_output",
+                "label": "Projected Outcomes",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "probabilityEstimates",
+                "id": "probability_estimates_output",
+                "label": "Likelihood Assessments",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timelineProjections",
+                "id": "timeline_projections_output",
+                "label": "Timeline Estimates",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848845",
+          "language": "en",
+          "name": "Outcome Projector",
+          "description": "Projects likely outcomes for impact areas with probability estimates and timeline projections.",
+          "instructions": "Provide impact areas and scenario parameters. The routine will project outcomes with probabilities and timelines."
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Essay Structure",
                 "description": "Examines organization, flow, and structural elements of the essay",
-                "subroutineId": "TODO: Need structure analysis subroutine",
+                "subroutineId": "7829564732190848819",
                 "inputMap": {
                   "essayText": "writingContent",
                   "assignmentRequirements": "academicCriteria",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Evaluate Content Quality",
                 "description": "Assesses argument strength, evidence, and depth of analysis",
-                "subroutineId": "TODO: Need content evaluation subroutine",
+                "subroutineId": "7829564732190848822",
                 "inputMap": {
                   "writingContent": "essayText",
                   "academicCriteria": "assignmentRequirements",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Review Writing Mechanics",
                 "description": "Checks grammar, style, clarity, and technical writing elements",
-                "subroutineId": "TODO: Need mechanics review subroutine",
+                "subroutineId": "7829564732190848825",
                 "inputMap": {
                   "organizationalAssessment": "structureAnalysis",
                   "writingStyle": "stylisticElements",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Identify Improvement Areas",
                 "description": "Pinpoints specific areas needing enhancement or revision",
-                "subroutineId": "TODO: Need improvement identification subroutine",
+                "subroutineId": "7829564732190848828",
                 "inputMap": {
                   "argumentStrength": "contentAssessment",
                   "organizationIssues": "structuralWeaknesses",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Coaching Feedback",
                 "description": "Creates detailed, constructive feedback with specific guidance",
-                "subroutineId": "TODO: Need feedback generation subroutine",
+                "subroutineId": "7829564732190848831",
                 "inputMap": {
                   "revisionFocus": "improvementPriorities",
                   "targetedRecommendations": "specificSuggestions",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Development Plan",
                 "description": "Develops personalized writing improvement roadmap",
-                "subroutineId": "TODO: Need development planning subroutine",
+                "subroutineId": "7829564732190848834",
                 "inputMap": {
                   "comprehensiveReview": "detailedFeedback",
                   "enhancementMethods": "improvementStrategies",

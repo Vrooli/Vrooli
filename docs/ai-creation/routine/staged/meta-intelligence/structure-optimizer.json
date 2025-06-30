@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190849200",
+  "publicId": "structure-optimizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "memory-management",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Memory and data management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847081",
+      "tag": "optimization",
+      "translations": [
+        {
+          "id": "7829564732190847181",
+          "language": "en",
+          "description": "Performance and efficiency optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849201",
+      "publicId": "structure-optimizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Optimizes memory structure for better organization",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "retentionRecommendations",
+                "id": "retention_recommendations_input",
+                "label": "Retention Recommendations",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Memory retention and organization recommendations"
+              },
+              {
+                "fieldName": "optimizationGoals",
+                "id": "optimization_goals_input",
+                "label": "Optimization Goals",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "speed",
+                  "storage",
+                  "accuracy",
+                  "balanced"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizedStructure",
+                "id": "optimized_structure_output",
+                "label": "Optimized Structure",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "reorganizationPlan",
+                "id": "reorganization_plan_output",
+                "label": "Reorganization Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "performanceImprovements",
+                "id": "performance_improvements_output",
+                "label": "Performance Improvements",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849202",
+          "language": "en",
+          "name": "Structure Optimizer",
+          "description": "Optimizes memory structure for improved organization and performance.",
+          "instructions": "Provide retention recommendations. The routine will optimize structure."
+        }
+      ]
+    }
+  ]
+}

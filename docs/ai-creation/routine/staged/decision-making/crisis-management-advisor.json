@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Crisis Situation",
                 "description": "Evaluates crisis severity, scope, and immediate threats",
-                "subroutineId": "TODO: Need crisis assessment subroutine",
+                "subroutineId": "7829564732190848855",
                 "inputMap": {
                   "crisisDescription": "situationDetails",
                   "impactScope": "affectedAreas",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Establish Crisis Response Team",
                 "description": "Identifies key personnel and communication structure",
-                "subroutineId": "TODO: Need team formation subroutine",
+                "subroutineId": "7829564732190849158",
                 "inputMap": {
                   "organizationStructure": "availableResources",
                   "crisisAssessment": "situationAnalysis",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Develop Immediate Response Plan",
                 "description": "Creates urgent action steps and safety measures",
-                "subroutineId": "TODO: Need immediate response subroutine",
+                "subroutineId": "7829564732190848861",
                 "inputMap": {
                   "situationAnalysis": "crisisAssessment",
                   "availableResources": "responseCapacity",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Plan Stakeholder Communication",
                 "description": "Develops messaging strategy for all affected parties",
-                "subroutineId": "TODO: Need communication planning subroutine",
+                "subroutineId": "7829564732190849161",
                 "inputMap": {
                   "impactedParties": "affectedStakeholders",
                   "messagingRequirements": "communicationNeeds",

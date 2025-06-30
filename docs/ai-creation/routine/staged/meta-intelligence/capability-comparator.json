@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849083",
+  "publicId": "capability-comparator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Meta-cognitive and system intelligence"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849084",
+      "publicId": "capability-comparator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compares required vs available capabilities",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "requiredCapabilities",
+                "id": "required_capabilities_input",
+                "label": "Required Capabilities",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The capabilities needed"
+              },
+              {
+                "fieldName": "availableCapabilities",
+                "id": "available_capabilities_input",
+                "label": "Available Capabilities",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The capabilities currently available"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "capabilityGaps",
+                "id": "capability_gaps_output",
+                "label": "Capability Gaps",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "matchingCapabilities",
+                "id": "matching_capabilities_output",
+                "label": "Matching Capabilities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "gapAnalysis",
+                "id": "gap_analysis_output",
+                "label": "Gap Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849085",
+          "language": "en",
+          "name": "Capability Comparator",
+          "description": "Compares required capabilities against available ones to identify gaps.",
+          "instructions": "Provide required and available capabilities. The routine will identify gaps."
+        }
+      ]
+    }
+  ]
+}

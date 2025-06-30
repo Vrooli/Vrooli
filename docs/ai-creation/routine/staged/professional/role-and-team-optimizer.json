@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Design Optimal Structure",
                 "description": "Creates improved team organization and role definitions",
-                "subroutineId": "TODO: Need structure design subroutine",
+                "subroutineId": "7829564732190848807",
                 "inputMap": {
                   "improvementAreas": "optimizationTargets",
                   "teamConstraints": "organizationalLimits",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Plan Agent Changes",
                 "description": "Determines agent additions, modifications, or retirements",
-                "subroutineId": "TODO: Need agent planning subroutine",
+                "subroutineId": "7829564732190848810",
                 "inputMap": {
                   "newOrganization": "proposedStructure",
                   "missingCapabilities": "roleGaps",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Implementation Roadmap",
                 "description": "Creates phased plan for team structure changes",
-                "subroutineId": "TODO: Need implementation planning subroutine",
+                "subroutineId": "7829564732190848615",
                 "inputMap": {
                   "migrationSteps": "transitionPlan",
                   "changeTimeline": "implementationSchedule",

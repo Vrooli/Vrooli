@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848777",
+  "publicId": "delivery-trainer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847014",
+      "tag": "leadership",
+      "translations": [
+        {
+          "id": "7829564732190847114",
+          "language": "en",
+          "description": "Leadership development and skills"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848778",
+      "publicId": "delivery-trainer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Speech delivery training and technique development",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "skillAssessment",
+                "id": "skill_assessment_input",
+                "label": "Current Skill Assessment",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Current speaking abilities and areas for improvement"
+              },
+              {
+                "fieldName": "deliveryStyle",
+                "id": "delivery_style_input",
+                "label": "Preferred Delivery Style",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "conversational",
+                  "formal",
+                  "dynamic",
+                  "authoritative",
+                  "inspirational"
+                ]
+              },
+              {
+                "fieldName": "focusAreas",
+                "id": "focus_areas_input",
+                "label": "Training Focus Areas",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Specific delivery aspects to improve"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "vocalTechniques",
+                "id": "vocal_techniques_output",
+                "label": "Voice Control Techniques",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "physicalPresence",
+                "id": "physical_presence_output",
+                "label": "Body Language Guidance",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "engagementMethods",
+                "id": "engagement_methods_output",
+                "label": "Audience Connection Strategies",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848779",
+          "language": "en",
+          "name": "Delivery Trainer",
+          "description": "Develops voice control, body language, and presentation skills for effective speech delivery.",
+          "instructions": "Provide current skill level and preferred delivery style. The routine will develop vocal techniques, physical presence, and audience engagement methods."
+        }
+      ]
+    }
+  ]
+}

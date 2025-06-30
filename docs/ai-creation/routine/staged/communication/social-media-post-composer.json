@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Content & Audience",
                 "description": "Understands source content and target audience",
-                "subroutineId": "TODO: Need content analysis subroutine",
+                "subroutineId": "7829564732190848021",
                 "inputMap": {
                   "sourceContent": "originalMaterial",
                   "targetAudience": "audienceProfile",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Adapt for Platforms",
                 "description": "Customizes content for each social platform",
-                "subroutineId": "TODO: Need platform adaptation subroutine",
+                "subroutineId": "7829564732190848570",
                 "inputMap": {
                   "materialBreakdown": "contentAnalysis",
                   "platformList": "targetPlatforms",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Engaging Hooks",
                 "description": "Creates attention-grabbing opening lines",
-                "subroutineId": "TODO: Need hook generation subroutine",
+                "subroutineId": "7829564732190849071",
                 "inputMap": {
                   "corePoints": "keyMessages",
                   "engagementStyle": "hookStrategy",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Add Hashtags & Keywords",
                 "description": "Optimizes discoverability with relevant tags",
-                "subroutineId": "TODO: Need hashtag optimization subroutine",
+                "subroutineId": "7829564732190849074",
                 "inputMap": {
                   "adaptedContent": "platformVariations",
                   "topicTags": "relevantHashtags",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Call-to-Actions",
                 "description": "Designs compelling CTAs for engagement",
-                "subroutineId": "TODO: Need CTA creation subroutine",
+                "subroutineId": "7829564732190849107",
                 "inputMap": {
                   "engagementGoals": "desiredActions",
                   "audienceProfile": "targetAudience",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Finalize Post Variations",
                 "description": "Assembles complete posts with scheduling suggestions",
-                "subroutineId": "TODO: Need post finalization subroutine",
+                "subroutineId": "7829564732190849110",
                 "inputMap": {
                   "openingLines": "hookVariations",
                   "discoveryTags": "hashtagSuggestions",

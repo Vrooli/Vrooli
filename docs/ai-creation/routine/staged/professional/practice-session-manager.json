@@ -1,0 +1,128 @@
+{
+  "id": "7829564732190848783",
+  "publicId": "practice-session-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848784",
+      "publicId": "practice-session-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Structured speaking practice and rehearsal management",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "speechContent",
+                "id": "speech_content_input",
+                "label": "Speech Content",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Content to practice and rehearse"
+              },
+              {
+                "fieldName": "practiceEnvironment",
+                "id": "practice_environment_input",
+                "label": "Practice Setting",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "solo-practice",
+                  "small-audience",
+                  "recording",
+                  "mirror-practice",
+                  "virtual-reality"
+                ]
+              },
+              {
+                "fieldName": "timeAvailable",
+                "id": "time_available_input",
+                "label": "Practice Time Available",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "limited",
+                  "moderate",
+                  "extensive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "practiceResults",
+                "id": "practice_results_output",
+                "label": "Practice Session Outcomes",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "refinedDelivery",
+                "id": "refined_delivery_output",
+                "label": "Improved Presentation",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "readinessAssessment",
+                "id": "readiness_assessment_output",
+                "label": "Preparation Level Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848785",
+          "language": "en",
+          "name": "Practice Session Manager",
+          "description": "Provides structured practice sessions and feedback loops for speech rehearsal and delivery refinement.",
+          "instructions": "Provide your speech content and preferred practice environment. The routine will organize effective practice sessions and assess your readiness."
+        }
+      ]
+    }
+  ]
+}

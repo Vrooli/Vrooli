@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Crisis Situation",
                 "description": "Rapidly evaluates crisis scope, severity, and immediate threats",
-                "subroutineId": "TODO: Need crisis assessment subroutine",
+                "subroutineId": "7829564732190848855",
                 "inputMap": {
                   "crisisDescription": "situationOverview",
                   "impactAssessment": "consequenceEvaluation",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Activate Response Team",
                 "description": "Mobilizes appropriate personnel and establishes command structure",
-                "subroutineId": "TODO: Need team activation subroutine",
+                "subroutineId": "7829564732190848858",
                 "inputMap": {
                   "situationAssessment": "crisisAnalysis",
                   "availableResources": "resourceInventory",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Implement Immediate Actions",
                 "description": "Executes urgent interventions to prevent escalation",
-                "subroutineId": "TODO: Need immediate response subroutine",
+                "subroutineId": "7829564732190848861",
                 "inputMap": {
                   "criticalFoci": "priorityAreas",
                   "activatedPersonnel": "responseTeam",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Develop Action Plan",
                 "description": "Creates comprehensive strategy for crisis resolution",
-                "subroutineId": "TODO: Need action planning subroutine",
+                "subroutineId": "7829564732190848864",
                 "inputMap": {
                   "riskProfile": "threatEvaluation",
                   "urgentActions": "immediateMeasures",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Execute & Monitor Response",
                 "description": "Implements plan while continuously monitoring and adapting",
-                "subroutineId": "TODO: Need execution monitoring subroutine",
+                "subroutineId": "7829564732190848867",
                 "inputMap": {
                   "resolutionPlan": "crisisStrategy",
                   "implementationSteps": "actionSequence",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Conduct Recovery & Learning",
                 "description": "Manages recovery phase and captures lessons learned",
-                "subroutineId": "TODO: Need recovery planning subroutine",
+                "subroutineId": "7829564732190848870",
                 "inputMap": {
                   "implementationStatus": "executionProgress",
                   "damageAssessment": "impactEvaluation",

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848927",
+  "publicId": "info-gatherer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847042",
+      "tag": "innovation",
+      "translations": [
+        {
+          "id": "7829564732190847142",
+          "language": "en",
+          "description": "Innovation and creativity"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847061",
+      "tag": "decision-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847161",
+          "language": "en",
+          "description": "Decision making and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848928",
+      "publicId": "info-gatherer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Problem-solving information and data collection",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedProblem",
+                "id": "clarified_problem_input",
+                "label": "Precise Problem Statement",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The well-defined problem to solve"
+              },
+              {
+                "fieldName": "existingData",
+                "id": "existing_data_input",
+                "label": "Available Information",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Information already available"
+              },
+              {
+                "fieldName": "informationGaps",
+                "id": "information_gaps_input",
+                "label": "Research Needs",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "What information is missing"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "factualData",
+                "id": "factual_data_output",
+                "label": "Relevant Facts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_output",
+                "label": "Limiting Factors",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "resources",
+                "id": "resources_output",
+                "label": "Available Assets",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848929",
+          "language": "en",
+          "name": "Information Gatherer",
+          "description": "Collects data, facts, and insights needed for effective problem solving.",
+          "instructions": "Provide the clarified problem and any existing information. The routine will gather relevant data and identify constraints."
+        }
+      ]
+    }
+  ]
+}

@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Master Delivery Techniques",
                 "description": "Develops voice, body language, and presentation skills",
-                "subroutineId": "TODO: Need delivery training subroutine",
+                "subroutineId": "7829564732190848777",
                 "inputMap": {
                   "abilityProfile": "skillAssessment",
                   "deliveryStyle": "presentationApproach",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Build Confidence & Manage Anxiety",
                 "description": "Addresses nervousness and builds speaking confidence",
-                "subroutineId": "TODO: Need confidence building subroutine",
+                "subroutineId": "7829564732190848780",
                 "inputMap": {
                   "confidenceChallenges": "anxietyLevel",
                   "mentalPreparation": "psychologicalReadiness",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Practice & Rehearse",
                 "description": "Provides structured practice sessions and feedback loops",
-                "subroutineId": "TODO: Need practice session subroutine",
+                "subroutineId": "7829564732190848783",
                 "inputMap": {
                   "organizedContent": "speechStructure",
                   "voiceControl": "vocalTechniques",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Performance Evaluation & Improvement",
                 "description": "Reviews actual performance and plans continued development",
-                "subroutineId": "TODO: Need performance evaluation subroutine",
+                "subroutineId": "7829564732190848786",
                 "inputMap": {
                   "actualPerformance": "speechDelivery",
                   "audienceFeedback": "responseData",

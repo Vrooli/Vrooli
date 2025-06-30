@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849077",
+  "publicId": "task-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847021",
+      "tag": "meta-intelligence",
+      "translations": [
+        {
+          "id": "7829564732190847121",
+          "language": "en",
+          "description": "Meta-cognitive and system intelligence"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849078",
+      "publicId": "task-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes tasks to identify capability requirements",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "taskDescription",
+                "id": "task_description_input",
+                "label": "Task Description",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Describe the task to analyze"
+              },
+              {
+                "fieldName": "performanceGoals",
+                "id": "performance_goals_input",
+                "label": "Performance Goals",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Expected performance criteria"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "requiredCapabilities",
+                "id": "required_capabilities_output",
+                "label": "Required Capabilities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "complexityAssessment",
+                "id": "complexity_assessment_output",
+                "label": "Complexity Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "skillRequirements",
+                "id": "skill_requirements_output",
+                "label": "Skill Requirements",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849079",
+          "language": "en",
+          "name": "Task Analyzer",
+          "description": "Analyzes tasks to identify required capabilities and complexity factors.",
+          "instructions": "Provide task description and performance goals. The routine will analyze capability requirements."
+        }
+      ]
+    }
+  ]
+}

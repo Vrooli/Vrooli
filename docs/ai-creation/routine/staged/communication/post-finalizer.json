@@ -1,0 +1,115 @@
+{
+  "id": "7829564732190849110",
+  "publicId": "post-finalizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849111",
+      "publicId": "post-finalizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Finalizes social media posts for publication",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "callToActions",
+                "id": "call_to_actions_input",
+                "label": "Call to Actions",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The created call-to-action elements"
+              },
+              {
+                "fieldName": "postingSchedule",
+                "id": "posting_schedule_input",
+                "label": "Posting Schedule",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "optimal",
+                "options": [
+                  "immediate",
+                  "optimal",
+                  "scheduled",
+                  "batch"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "finalizedPosts",
+                "id": "finalized_posts_output",
+                "label": "Finalized Posts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "publishingSchedule",
+                "id": "publishing_schedule_output",
+                "label": "Publishing Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "performancePredictions",
+                "id": "performance_predictions_output",
+                "label": "Performance Predictions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849112",
+          "language": "en",
+          "name": "Post Finalizer",
+          "description": "Finalizes social media posts with scheduling and performance optimization.",
+          "instructions": "Provide CTAs and posting schedule. The routine will finalize posts for publication."
+        }
+      ]
+    }
+  ]
+}

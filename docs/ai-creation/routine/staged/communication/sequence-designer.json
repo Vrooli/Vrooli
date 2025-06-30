@@ -1,0 +1,116 @@
+{
+  "id": "7829564732190849056",
+  "publicId": "sequence-designer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849057",
+      "publicId": "sequence-designer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Designs email sequence timing and flow",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailContent",
+                "id": "email_content_input",
+                "label": "Email Content",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The created email content"
+              },
+              {
+                "fieldName": "campaignDuration",
+                "id": "campaign_duration_input",
+                "label": "Campaign Duration",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "4-weeks",
+                "options": [
+                  "1-week",
+                  "2-weeks",
+                  "4-weeks",
+                  "8-weeks",
+                  "3-months"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "emailSequence",
+                "id": "email_sequence_output",
+                "label": "Email Sequence",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timingSchedule",
+                "id": "timing_schedule_output",
+                "label": "Timing Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "flowDiagram",
+                "id": "flow_diagram_output",
+                "label": "Flow Diagram",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849058",
+          "language": "en",
+          "name": "Sequence Designer",
+          "description": "Designs optimal email sequence timing and flow for maximum engagement.",
+          "instructions": "Provide email content and campaign duration. The routine will design the sequence."
+        }
+      ]
+    }
+  ]
+}

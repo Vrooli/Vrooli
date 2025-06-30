@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190848819",
+  "publicId": "structure-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847070",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847170",
+          "language": "en",
+          "description": "Content creation and management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848820",
+      "publicId": "structure-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Writing structure and organization analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "writingContent",
+                "id": "writing_content_input",
+                "label": "Text to Analyze",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The writing content to analyze for structure"
+              },
+              {
+                "fieldName": "writingType",
+                "id": "writing_type_input",
+                "label": "Content Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "essay",
+                  "report",
+                  "article",
+                  "blog-post",
+                  "academic-paper",
+                  "business-document"
+                ]
+              },
+              {
+                "fieldName": "targetAudience",
+                "id": "target_audience_input",
+                "label": "Intended Audience",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Who is this written for?"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "structureAssessment",
+                "id": "structure_assessment_output",
+                "label": "Organization Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "flowEvaluation",
+                "id": "flow_evaluation_output",
+                "label": "Logical Flow Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "structuralRecommendations",
+                "id": "structural_recommendations_output",
+                "label": "Structure Improvement Suggestions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848821",
+          "language": "en",
+          "name": "Structure Analyzer",
+          "description": "Analyzes essay organization, flow, and structural elements to provide improvement recommendations.",
+          "instructions": "Provide the writing content and type. The routine will analyze structure, flow, and organization to suggest improvements."
+        }
+      ]
+    }
+  ]
+}

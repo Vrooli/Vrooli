@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848780",
+  "publicId": "confidence-builder-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848781",
+      "publicId": "confidence-builder-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Speaking confidence and anxiety management",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "anxietyLevel",
+                "id": "anxiety_level_input",
+                "label": "Current Anxiety Level",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "none",
+                  "mild",
+                  "moderate",
+                  "high",
+                  "severe"
+                ]
+              },
+              {
+                "fieldName": "confidenceChallenges",
+                "id": "confidence_challenges_input",
+                "label": "Confidence Challenges",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Specific fears or concerns about speaking"
+              },
+              {
+                "fieldName": "pastExperiences",
+                "id": "past_experiences_input",
+                "label": "Past Speaking Experiences",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Previous speaking successes or challenges"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "confidenceBuilding",
+                "id": "confidence_building_output",
+                "label": "Confidence Building Strategies",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "stressManagement",
+                "id": "stress_management_output",
+                "label": "Anxiety Control Techniques",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "mentalResilience",
+                "id": "mental_resilience_output",
+                "label": "Psychological Strength Building",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848782",
+          "language": "en",
+          "name": "Confidence Builder",
+          "description": "Addresses speaking nervousness and builds confidence through anxiety management and mental preparation techniques.",
+          "instructions": "Describe your anxiety level and confidence challenges. The routine will provide strategies for building confidence and managing speaking stress."
+        }
+      ]
+    }
+  ]
+}

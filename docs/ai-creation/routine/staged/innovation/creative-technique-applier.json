@@ -1,0 +1,131 @@
+{
+  "id": "7829564732190848879",
+  "publicId": "creative-technique-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847042",
+      "tag": "innovation",
+      "translations": [
+        {
+          "id": "7829564732190847142",
+          "language": "en",
+          "description": "Innovation and creativity"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848880",
+      "publicId": "creative-technique-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Applies creative techniques for enhanced ideation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "baseIdeas",
+                "id": "base_ideas_input",
+                "label": "Initial Ideas",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Ideas to enhance with creative techniques"
+              },
+              {
+                "fieldName": "techniqueChoice",
+                "id": "technique_choice_input",
+                "label": "Creative Technique",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "mixed",
+                "options": [
+                  "scamper",
+                  "mind-mapping",
+                  "lateral-thinking",
+                  "analogies",
+                  "forced-connections",
+                  "mixed"
+                ]
+              },
+              {
+                "fieldName": "innovationLevel",
+                "id": "innovation_level_input",
+                "label": "Innovation Degree",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "incremental",
+                  "moderate",
+                  "radical",
+                  "disruptive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "enhancedIdeas",
+                "id": "enhanced_ideas_output",
+                "label": "Enhanced Concepts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "techniqueResults",
+                "id": "technique_results_output",
+                "label": "Technique Applications",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "creativeInsights",
+                "id": "creative_insights_output",
+                "label": "Innovation Insights",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848881",
+          "language": "en",
+          "name": "Creative Technique Applier",
+          "description": "Applies creative techniques like SCAMPER and lateral thinking to enhance idea generation.",
+          "instructions": "Provide initial ideas and select a technique. The routine will enhance ideas using creative methodologies."
+        }
+      ]
+    }
+  ]
+}

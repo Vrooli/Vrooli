@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Campaign Strategy",
                 "description": "Establishes campaign goals, audience, and messaging strategy",
-                "subroutineId": "TODO: Need campaign strategy subroutine",
+                "subroutineId": "7829564732190849047",
                 "inputMap": {
                   "campaignObjectives": "marketingGoals",
                   "targetAudience": "segmentProfiles",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Segment & Personalize",
                 "description": "Creates targeted segments and personalization rules",
-                "subroutineId": "TODO: Need segmentation subroutine",
+                "subroutineId": "7829564732190849050",
                 "inputMap": {
                   "targetGroups": "audienceSegments",
                   "customerData": "subscriberAttributes",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Create Email Content",
                 "description": "Develops compelling email copy and design elements",
-                "subroutineId": "TODO: Need content creation subroutine",
+                "subroutineId": "7829564732190849053",
                 "inputMap": {
                   "contentDirectives": "messagingThemes",
                   "emailTemplates": "designFrameworks",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Design Email Sequence",
                 "description": "Plans automated workflows and drip campaigns",
-                "subroutineId": "TODO: Need sequence design subroutine",
+                "subroutineId": "7829564732190849056",
                 "inputMap": {
                   "strategicFramework": "campaignStrategy",
                   "contentVersions": "emailCopy",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Test & Optimize",
                 "description": "Sets up A/B tests and optimization strategies",
-                "subroutineId": "TODO: Need testing optimization subroutine",
+                "subroutineId": "7829564732190849059",
                 "inputMap": {
                   "attentionGrabbers": "subjectLines",
                   "contentVersions": "emailCopy",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Launch & Monitor",
                 "description": "Deploys campaign and tracks performance metrics",
-                "subroutineId": "TODO: Need launch monitoring subroutine",
+                "subroutineId": "7829564732190849062",
                 "inputMap": {
                   "campaignFlow": "emailSequence",
                   "kpiDefinitions": "successMetrics",

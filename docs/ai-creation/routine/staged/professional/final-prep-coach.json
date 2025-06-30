@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190848816",
+  "publicId": "final-prep-coach-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847011",
+      "tag": "professional-growth",
+      "translations": [
+        {
+          "id": "7829564732190847111",
+          "language": "en",
+          "description": "Career and professional development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847013",
+      "tag": "interview-prep",
+      "translations": [
+        {
+          "id": "7829564732190847113",
+          "language": "en",
+          "description": "Interview preparation and coaching"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848817",
+      "publicId": "final-prep-coach-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Final interview preparation and readiness checklist",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "comprehensivePrep",
+                "id": "comprehensive_prep_input",
+                "label": "All Preparation Materials",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Complete preparation package from previous steps"
+              },
+              {
+                "fieldName": "interviewDetails",
+                "id": "interview_details_input",
+                "label": "Logistics Information",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Date, time, location, format, and interviewer details"
+              },
+              {
+                "fieldName": "anxietyFactors",
+                "id": "anxiety_factors_input",
+                "label": "Nervousness Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "low",
+                  "moderate",
+                  "high",
+                  "very-high"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "finalChecklist",
+                "id": "final_checklist_output",
+                "label": "Readiness Checklist",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "confidenceBoosts",
+                "id": "confidence_boosts_output",
+                "label": "Last Minute Tips",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "emergencyPrep",
+                "id": "emergency_prep_output",
+                "label": "Backup Plans",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848818",
+          "language": "en",
+          "name": "Final Prep Coach",
+          "description": "Creates comprehensive readiness plan for interview day with confidence building and backup strategies.",
+          "instructions": "Provide all preparation materials and interview logistics. The routine will create a final checklist with confidence boosters and emergency backup plans."
+        }
+      ]
+    }
+  ]
+}

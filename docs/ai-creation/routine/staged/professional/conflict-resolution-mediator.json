@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Facilitate Initial Dialogue",
                 "description": "Guides structured conversation to establish ground rules",
-                "subroutineId": "TODO: Need dialogue facilitation subroutine",
+                "subroutineId": "7829564732190848789",
                 "inputMap": {
                   "resolutionStrategy": "mediationPlan",
                   "sessionFramework": "processStructure",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Explore Interests & Needs",
                 "description": "Uncovers underlying interests behind stated positions",
-                "subroutineId": "TODO: Need interest exploration subroutine",
+                "subroutineId": "7829564732190848792",
                 "inputMap": {
                   "conversationDynamics": "dialogueProgress",
                   "sharedInterests": "commonGround",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Resolution Options",
                 "description": "Develops creative solutions addressing all parties' interests",
-                "subroutineId": "TODO: Need solution generation subroutine",
+                "subroutineId": "7829564732190848795",
                 "inputMap": {
                   "coreInterests": "underlyingNeeds",
                   "resolutionOpportunities": "negotiationSpace",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Negotiate & Finalize Agreement",
                 "description": "Facilitates negotiation and creates binding agreement",
-                "subroutineId": "TODO: Need agreement negotiation subroutine",
+                "subroutineId": "7829564732190848798",
                 "inputMap": {
                   "resolutionAlternatives": "solutionOptions",
                   "implementationViability": "feasibilityAssessment",

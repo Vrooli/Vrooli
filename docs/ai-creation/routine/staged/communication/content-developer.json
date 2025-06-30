@@ -1,0 +1,109 @@
+{
+  "id": "7829564732190849122",
+  "publicId": "content-developer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849123",
+      "publicId": "content-developer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops detailed content for report sections",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_input",
+                "label": "Executive Summary",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The executive summary content"
+              },
+              {
+                "fieldName": "sectionOutlines",
+                "id": "section_outlines_input",
+                "label": "Section Outlines",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "The detailed section outlines"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "detailedContent",
+                "id": "detailed_content_output",
+                "label": "Detailed Content",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "supportingEvidence",
+                "id": "supporting_evidence_output",
+                "label": "Supporting Evidence",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "sectionTransitions",
+                "id": "section_transitions_output",
+                "label": "Section Transitions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849124",
+          "language": "en",
+          "name": "Content Developer",
+          "description": "Develops detailed, well-researched content for professional report sections.",
+          "instructions": "Provide executive summary and section outlines. The routine will develop detailed content."
+        }
+      ]
+    }
+  ]
+}

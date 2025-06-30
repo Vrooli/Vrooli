@@ -1,0 +1,122 @@
+{
+  "id": "7829564732190848933",
+  "publicId": "solution-eval-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847042",
+      "tag": "innovation",
+      "translations": [
+        {
+          "id": "7829564732190847142",
+          "language": "en",
+          "description": "Innovation and creativity"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847061",
+      "tag": "decision-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847161",
+          "language": "en",
+          "description": "Decision making and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848934",
+      "publicId": "solution-eval-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Solution feasibility and impact assessment",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "solutionOptions",
+                "id": "solution_options_input",
+                "label": "Potential Solutions",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Solutions to evaluate"
+              },
+              {
+                "fieldName": "evaluationCriteria",
+                "id": "evaluation_criteria_input",
+                "label": "Assessment Criteria",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Criteria for evaluation"
+              },
+              {
+                "fieldName": "riskTolerance",
+                "id": "risk_tolerance_input",
+                "label": "Risk Appetite",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "conservative",
+                  "moderate",
+                  "aggressive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "feasibilityAssessment",
+                "id": "feasibility_assessment_output",
+                "label": "Feasibility Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "impactAnalysis",
+                "id": "impact_analysis_output",
+                "label": "Impact Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "riskEvaluation",
+                "id": "risk_evaluation_output",
+                "label": "Risk Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848935",
+          "language": "en",
+          "name": "Solution Evaluator",
+          "description": "Assesses feasibility, impact, and risks of each solution option.",
+          "instructions": "Provide solution options and evaluation criteria. The routine will assess feasibility, impact, and risks."
+        }
+      ]
+    }
+  ]
+}

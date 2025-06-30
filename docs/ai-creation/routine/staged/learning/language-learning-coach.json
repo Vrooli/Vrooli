@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Current Proficiency",
                 "description": "Evaluates existing language skills and competency level",
-                "subroutineId": "TODO: Need language assessment subroutine",
+                "subroutineId": "7829564732190849185",
                 "inputMap": {
                   "targetLanguage": "languageGoal",
                   "currentLevel": "skillEstimate",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Define Learning Goals",
                 "description": "Sets specific, measurable language learning objectives",
-                "subroutineId": "TODO: Need goal setting subroutine",
+                "subroutineId": "7829564732190849188",
                 "inputMap": {
                   "languageGoal": "targetLanguage",
                   "learningPurpose": "motivationFactors",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Create Personalized Curriculum",
                 "description": "Designs learning pathway tailored to goals and style",
-                "subroutineId": "TODO: Need curriculum design subroutine",
+                "subroutineId": "7829564732190849191",
                 "inputMap": {
                   "specificGoals": "learningObjectives",
                   "skillGaps": "improvementAreas",

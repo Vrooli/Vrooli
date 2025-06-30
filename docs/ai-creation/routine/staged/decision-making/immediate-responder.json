@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190848861",
+  "publicId": "immediate-responder-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847062",
+      "tag": "crisis-management",
+      "translations": [
+        {
+          "id": "7829564732190847162",
+          "language": "en",
+          "description": "Crisis and emergency management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847066",
+      "tag": "implementation",
+      "translations": [
+        {
+          "id": "7829564732190847166",
+          "language": "en",
+          "description": "Implementation and execution"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190848862",
+      "publicId": "immediate-responder-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Immediate crisis containment and damage mitigation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "crisisSituation",
+                "id": "crisis_situation_input",
+                "label": "Current Crisis State",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Current crisis situation details"
+              },
+              {
+                "fieldName": "availableActions",
+                "id": "available_actions_input",
+                "label": "Possible Immediate Actions",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Actions that can be taken immediately"
+              },
+              {
+                "fieldName": "stakeholderPriorities",
+                "id": "stakeholder_priorities_input",
+                "label": "Protection Priorities",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "What/who needs immediate protection"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "immediateActions",
+                "id": "immediate_actions_output",
+                "label": "Containment Actions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "mitigationSteps",
+                "id": "mitigation_steps_output",
+                "label": "Damage Mitigation",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "protectionMeasures",
+                "id": "protection_measures_output",
+                "label": "Stakeholder Protection",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190848863",
+          "language": "en",
+          "name": "Immediate Responder",
+          "description": "Generates immediate actions to contain crisis, mitigate damage, and protect stakeholders.",
+          "instructions": "Provide crisis situation and available actions. The routine will generate immediate response measures for containment and protection."
+        }
+      ]
+    }
+  ]
+}
