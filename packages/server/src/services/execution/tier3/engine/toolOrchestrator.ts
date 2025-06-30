@@ -6,9 +6,7 @@ import {
     type ToolResource,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type EventBus } from "../../../events/types.js";
-import { EventTypes, EventUtils, type IEventBus } from "../../../events/index.js";
-import { getUnifiedEventSystem } from "../../../events/initialization/eventSystemService.js";
+import { EventTypes, EventUtils, getUnifiedEventSystem, type IEventBus } from "../../../events/index.js";
 import { type Tool } from "../../../mcp/types.js";
 import {
     IntegratedToolRegistry,

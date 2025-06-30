@@ -1,32 +1,27 @@
-import { type Logger } from "winston";
-import { 
-    type ExecutionContext, 
-    type ExecutionStrategy, 
-    type StrategyExecutionResult,
-    type StrategyType,
-    type ResourceUsage,
-    type UnifiedExecutorConfig,
+import {
     type AvailableResources,
-    type ExecutionConstraints,
-    type TierCommunicationInterface,
-    type TierExecutionRequest,
+    type ExecutionContext,
+    type ExecutionId,
     type ExecutionResult,
     ExecutionStatus,
-    type ExecutionId,
+    type ExecutionStrategy,
     type StepExecutionInput,
-    type TierCapabilities,
-    type ResourceAllocation,
+    type StrategyExecutionResult,
+    type StrategyType,
     StrategyType as StrategyTypeEnum,
+    type TierCapabilities,
+    type TierCommunicationInterface,
+    type TierExecutionRequest,
 } from "@vrooli/shared";
-import { getUnifiedEventSystem, EventTypes, EventUtils, type IEventBus } from "../../../events/index.js";
-import { type SimpleStrategyProvider } from "./simpleStrategyProvider.js";
-import { type ResourceManager } from "./resourceManager.js";
+import { type Logger } from "winston";
+import { EventTypes, EventUtils, getUnifiedEventSystem, type IEventBus } from "../../../events/index.js";
+import { ContextExporter } from "../context/contextExporter.js";
+import { type RunContext } from "../context/runContext.js";
 import { type IOProcessor } from "./ioProcessor.js";
+import { type ResourceManager } from "./resourceManager.js";
+import { type SimpleStrategyProvider } from "./simpleStrategyProvider.js";
 import { type ToolOrchestrator } from "./toolOrchestrator.js";
 import { type ValidationEngine } from "./validationEngine.js";
-import { type RunContext } from "../context/runContext.js";
-import { ContextExporter } from "../context/contextExporter.js";
-import { type IntegratedToolRegistry } from "../../integration/mcp/toolRegistry.js";
 
 /**
  * UnifiedExecutor - The heart of Tier 3 Execution Intelligence
@@ -505,7 +500,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
     }
 
     // ===== TierCommunicationInterface Implementation =====
-    
+
     private readonly activeExecutions = new Map<ExecutionId, {
         status: ExecutionStatus;
         startTime: Date;

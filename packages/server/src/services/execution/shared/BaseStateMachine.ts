@@ -32,8 +32,7 @@
 
 import { generatePK, type UnifiedEvent } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { EventUtils, type IEventBus } from "../../events/index.js";
-import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { EventUtils, getUnifiedEventSystem, type IEventBus } from "../../events/index.js";
 import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**

@@ -1135,7 +1135,11 @@ let runStateStore: RedisRunStateStore | null = null;
  */
 export async function getRunStateStore(): Promise<RedisRunStateStore> {
     if (!runStateStore) {
-        const redis = await CacheService.get().raw();
+        const cacheService = CacheService.get();
+        if (!cacheService) {
+            throw new Error("CacheService.get() returned undefined. Ensure CacheService is properly initialized.");
+        }
+        const redis = await cacheService.raw();
         runStateStore = new RedisRunStateStore(redis as Redis);
     }
     return runStateStore;

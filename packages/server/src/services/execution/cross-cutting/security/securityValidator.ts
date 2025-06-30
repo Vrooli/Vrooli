@@ -11,6 +11,7 @@ import type {
     Permission,
 } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
+import { EventTypes } from "../../../events/index.js";
 import { type IEventBus } from "../../../events/types.js";
 
 /**
@@ -22,7 +23,7 @@ import { type IEventBus } from "../../../events/types.js";
  */
 export class SecurityValidator {
     private readonly eventBus: IEventBus;
-    
+
     constructor(eventBus: IEventBus) {
         this.eventBus = eventBus;
     }
@@ -103,7 +104,7 @@ export class SecurityValidator {
         eventType: string,
         details: any,
     ): Promise<void> {
-        await this.eventBus.publish("security.events", {
+        await this.eventBus.publish(EventTypes.SECURITY_AUDIT, {
             type: "SECURITY_AUDIT",
             timestamp: new Date(),
             metadata: {

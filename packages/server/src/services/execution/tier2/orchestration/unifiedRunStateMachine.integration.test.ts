@@ -143,7 +143,7 @@ describe("UnifiedRunStateMachine - Routine Examples Integration", () => {
         // Initialize dependencies
         navigatorRegistry = new NavigatorRegistry(mockLogger);
         moiseGate = new MOISEGate(mockLogger);
-        stateStore = getRunStateStore();
+        stateStore = await getRunStateStore();
 
         // Mock state store
         stateStore.initialize = vi.fn().mockResolvedValue(undefined);

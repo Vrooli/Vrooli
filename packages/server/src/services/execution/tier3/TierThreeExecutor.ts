@@ -16,8 +16,7 @@ import {
     type ValidStrategy,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { EventTypes, EventUtils, type IEventBus } from "../../events/index.js";
-import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { EventTypes, EventUtils, getUnifiedEventSystem, type IEventBus } from "../../events/index.js";
 import { BaseTierExecutor } from "../shared/BaseTierExecutor.js";
 // Socket events now handled through unified event system
 import { ContextExporter } from "./context/contextExporter.js";

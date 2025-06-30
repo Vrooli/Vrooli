@@ -17,9 +17,7 @@ import {
     nanoid,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type EventBus } from "../../../events/types.js";
-import { type IEventBus, EventTypes, EventUtils } from "../../../events/index.js";
-import { getUnifiedEventSystem } from "../../../events/initialization/eventSystemService.js";
+import { type IEventBus, EventTypes, EventUtils, getUnifiedEventSystem } from "../../../events/index.js";
 import { ConversationalStrategy } from "../strategies/conversationalStrategy.js";
 import { DeterministicStrategy } from "../strategies/deterministicStrategy.js";
 import { ReasoningStrategy } from "../strategies/reasoningStrategy.js";

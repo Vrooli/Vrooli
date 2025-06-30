@@ -1,5 +1,5 @@
 import { generatePK, generatePublicId, nanoid } from "../idHelpers.js";
-import { ViewFor } from "@vrooli/shared";
+import { type ViewFor } from "@vrooli/shared";
 import { type view, type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
@@ -63,11 +63,7 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
             Resource: "resource",
             Team: "team",
             User: "user",
-            // Legacy mappings
-            "Issue": "issue",
-            "Resource": "resource",
-            "Team": "team",
-            "User": "user",
+            Issue: "issue",
         };
 
         const fieldName = typeMapping[objectType];
@@ -101,10 +97,7 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
             Resource: "resource",
             Team: "team",
             User: "user",
-            "Issue": "issue",
-            "Resource": "resource",
-            "Team": "team",
-            "User": "user",
+            Issue: "issue",
         };
 
         const fieldName = typeMapping[objectType];
@@ -182,10 +175,7 @@ export class ViewDbFactory extends DatabaseFixtureFactory<
                 Resource: "resource",
                 Team: "team",
                 User: "user",
-                "Issue": "issue",
-                "Resource": "resource",
-                "Team": "team",
-                "User": "user",
+                Issue: "issue",
             };
 
             const fieldName = typeMapping[config.objectType];

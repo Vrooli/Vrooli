@@ -58,8 +58,7 @@ import {
 } from "@vrooli/shared";
 import { type Redis as RedisClient } from "ioredis";
 import { type Logger } from "winston";
-import { EventTypes, EventUtils, type IEventBus } from "../../events/index.js";
-import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { EventTypes, EventUtils, getUnifiedEventSystem, type IEventBus } from "../../events/index.js";
 import {
     type ContextQuery,
     type ContextSubscription,
@@ -159,7 +158,7 @@ export class SwarmContextManager implements ISwarmContextManager {
     private static readonly DEFAULT_CACHE_TTL_MS = THIRTY_SECONDS_MS;
     private static readonly DEFAULT_CONTEXT_TTL_DAYS = SEVEN_DAYS;
     private static readonly CHECKSUM_LENGTH = BASE64_CHECKSUM_LENGTH;
-    
+
     private readonly logger: Logger;
     private redis: RedisClient | null = null;
     private readonly config: SwarmContextManagerConfig;

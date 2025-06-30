@@ -1,9 +1,9 @@
 /**
- * Emergent Agent Fixtures
- * 
- * Defines agent personalities and capabilities that emerge from the execution architecture.
- * These agents demonstrate how intelligence emerges from configuration, not hard-coding.
- */
+* Emergent Agent Fixtures
+* 
+* Defines agent personalities and capabilities that emerge from the execution architecture.
+* These agents demonstrate how intelligence emerges from configuration, not hard-coding.
+*/
 
 /**
  * Agent structure for emergent capabilities
@@ -28,7 +28,7 @@ export const TECHNICAL_SUPPORT_AGENT: EmergentAgent = {
     goal: "Provide comprehensive technical assistance and problem resolution",
     subscriptions: [
         "user.query.technical",
-        "system.error.detected", 
+        "system.error.detected",
         "support.ticket.created",
     ],
     capabilities: [
@@ -56,7 +56,7 @@ export const SECURITY_MONITORING_AGENT: EmergentAgent = {
     ],
     capabilities: [
         "threat_detection",
-        "anomaly_analysis", 
+        "anomaly_analysis",
         "risk_assessment",
         "automated_response",
     ],
@@ -69,7 +69,7 @@ export const SECURITY_MONITORING_AGENT: EmergentAgent = {
  * Emerges from performance monitoring and optimization routines
  */
 export const PERFORMANCE_OPTIMIZATION_AGENT: EmergentAgent = {
-    agentId: "perf_optimizer_001", 
+    agentId: "perf_optimizer_001",
     name: "Performance Optimization Specialist",
     goal: "Monitor, analyze, and optimize system performance across all tiers",
     subscriptions: [
@@ -93,7 +93,7 @@ export const PERFORMANCE_OPTIMIZATION_AGENT: EmergentAgent = {
  */
 export const QUALITY_ASSURANCE_AGENT: EmergentAgent = {
     agentId: "qa_specialist_001",
-    name: "Quality Assurance Specialist", 
+    name: "Quality Assurance Specialist",
     goal: "Ensure output quality and validate system responses",
     subscriptions: [
         "output.generated",
@@ -120,7 +120,7 @@ export const COORDINATION_AGENT: EmergentAgent = {
     goal: "Coordinate multi-agent activities and resource allocation",
     subscriptions: [
         "swarm.task.assigned",
-        "agent.capacity.updated", 
+        "agent.capacity.updated",
         "coordination.required",
     ],
     capabilities: [
@@ -147,7 +147,7 @@ export const LEARNING_AGENT: EmergentAgent = {
         "learning.opportunity.identified",
     ],
     capabilities: [
-        "pattern_recognition", 
+        "pattern_recognition",
         "learning_synthesis",
         "adaptation_recommendations",
         "knowledge_integration",

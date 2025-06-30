@@ -114,7 +114,10 @@
 import {
     type BlackboardItem,
     type ChatConfigObject,
+    type CoreResourceAllocation,
+    type ExecutionContext,
     type ExecutionId,
+    type ExecutionOptions,
     type ExecutionResult,
     type ExecutionStatus,
     type Location,
@@ -122,21 +125,21 @@ import {
     type RoutineExecutionInput,
     type RunConfig,
     type RunProgress,
+    type StepExecutionInput,
     type StepInfo,
     type SwarmResource,
     type TierCapabilities,
     type TierCommunicationInterface,
     type TierExecutionRequest,
     type ToolCallRecord,
+    createTierRequest,
     deepClone,
     generatePK,
     nanoid,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
-import { type IEventBus, EventTypes, EventUtils } from "../../../events/index.js";
-import { getUnifiedEventSystem } from "../../../events/initialization/eventSystemService.js";
+import { type IEventBus, EventTypes, EventUtils, getUnifiedEventSystem } from "../../../events/index.js";
 import { type BaseEvent, BaseStateMachine } from "../../shared/BaseStateMachine.js";
-import { ResourceFlowProtocol } from "../../shared/ResourceFlowProtocol.js";
 import { type NavigatorRegistry } from "../navigation/navigatorRegistry.js";
 import { type IModernRunStateStore, type IRunStateStore } from "../state/runStateStore.js";
 import { type DeonticValidationResult, type MOISEGate } from "../validation/moiseGate.js";
@@ -324,6 +327,11 @@ export interface RunExecutionContext {
     // Resource tracking
     resourceLimits: ResourceLimits;
     resourceUsage: ResourceUsage;
+    activeAllocations?: Array<{
+        stepId: string;
+        allocationId: string;
+        swarmId: string;
+    }>;
 
     // Progress tracking
     progress: RunProgress;
@@ -453,9 +461,6 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
     private readonly tier3Executor: TierCommunicationInterface;
     private readonly unifiedEventBus: IEventBus | null;
 
-    // @deprecated Temporary resource flow protocol to fix critical Tier 2 → Tier 3 bug
-    // This will be replaced by SwarmContextManager.allocateResources() once implemented
-    private readonly resourceFlowProtocol: ResourceFlowProtocol;
 
     // SwarmContextManager integration for live policy updates
     private readonly contextManager?: ISwarmContextManager;
@@ -488,9 +493,6 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
         // Get unified event system for modern event publishing
         this.unifiedEventBus = getUnifiedEventSystem();
 
-        // @deprecated Initialize temporary resource flow protocol to fix critical bug
-        // This will be removed once SwarmContextManager is implemented
-        this.resourceFlowProtocol = new ResourceFlowProtocol(logger);
 
         // Create modern context adapter - both Redis and InMemory stores implement both interfaces
         this.modernStateStore = stateStore as unknown as IModernRunStateStore;
@@ -662,9 +664,9 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                 hasThresholds: !!resourcePolicy.thresholds,
             });
 
-            // Use ResourceFlowProtocol for updated allocation
+            // TODO: Replace with SwarmContextManager.updateResourceAllocation() in Phase 2
             if (resourcePolicy.allocation) {
-                await this.resourceFlowProtocol.updateAllocation(runContext.runId, resourcePolicy.allocation);
+                // await this.contextManager?.updateResourceAllocation(runContext.runId, resourcePolicy.allocation);
             }
         }
     }
@@ -689,8 +691,8 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             resourceUpdates: Object.keys(resourceUpdates),
         });
 
-        // Use ResourceFlowProtocol for live resource updates
-        await this.resourceFlowProtocol.updateAllocation(runContext.runId, resourceUpdates);
+        // TODO: Replace with SwarmContextManager.updateResourceAllocation() in Phase 2
+        // await this.contextManager?.updateResourceAllocation(runContext.runId, resourceUpdates);
     }
 
     /**
@@ -1139,10 +1141,13 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
 
             // Execute step through tier 3
             const context = this.getRunContext(event.runId);
-            const executionRequest = this.createTier3ExecutionRequest(context, event.stepInfo);
+            const executionRequest = await this.createTier3ExecutionRequest(context, event.stepInfo);
 
             try {
                 const result = await this.tier3Executor.execute(executionRequest);
+
+                // Clean up step resource allocation
+                await this.cleanupStepResourceAllocation(context, event.stepInfo.id);
 
                 await this.handleEvent({
                     type: "STEP_COMPLETED",
@@ -1151,6 +1156,9 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
                     timestamp: new Date(),
                 });
             } catch (error) {
+                // Clean up step resource allocation on failure
+                await this.cleanupStepResourceAllocation(context, event.stepInfo.id);
+
                 await this.handleEvent({
                     type: "STEP_FAILED",
                     runId: event.runId,
@@ -1632,34 +1640,58 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
      * @param stepInfo - Step information to execute in Tier 3
      * @returns Properly formatted TierExecutionRequest for TierThreeExecutor
      */
-    private createTier3ExecutionRequest(context: RunExecutionContext, stepInfo: StepInfo): TierExecutionRequest {
-        // Create parent allocation for step execution
-        // @deprecated This will be replaced by SwarmContextManager.getCurrentAllocation()
-        const parentAllocation = {
-            maxCredits: context.resourceLimits?.maxCredits || "1000",
-            maxDurationMs: context.resourceLimits?.maxDurationMs || 30000,
-            maxMemoryMB: context.resourceLimits?.maxMemoryMB || 512,
-            maxConcurrentSteps: context.resourceLimits?.maxConcurrentSteps || 1,
+    private async createTier3ExecutionRequest(context: RunExecutionContext, stepInfo: StepInfo): Promise<TierExecutionRequest<StepExecutionInput>> {
+        // 1. Create proper ExecutionContext (direct mapping from RunExecutionContext)
+        const executionContext: ExecutionContext = {
+            executionId: generatePK(),
+            parentExecutionId: context.parentContext?.executionId,
+            swarmId: context.swarmId,
+            userId: context.parentContext?.executingAgent || "system",
+            timestamp: new Date(),
+            correlationId: generatePK(),
+            stepId: stepInfo.id,
+            routineId: context.routineId,
+            stepType: stepInfo.stepType,
+            inputs: stepInfo.parameters,
+            config: {
+                strategy: stepInfo.strategy,
+                toolName: stepInfo.toolName,
+                timeout: context.resourceLimits?.maxDurationMs,
+            },
         };
 
-        // Use ResourceFlowProtocol to create properly formatted request
-        const properRequest = this.resourceFlowProtocol.createTier3ExecutionRequest(
-            context,
-            stepInfo,
-            parentAllocation,
-        );
+        // 2. Create proper StepExecutionInput (direct mapping from StepInfo)
+        const stepInput: StepExecutionInput = {
+            stepId: stepInfo.id,
+            stepType: stepInfo.stepType,
+            toolName: stepInfo.toolName,
+            parameters: stepInfo.parameters,
+            strategy: stepInfo.strategy,
+        };
 
-        this.logger.debug("[UnifiedRunStateMachine] Created Tier 3 execution request (BUG FIXED)", {
-            stepId: properRequest.input.stepId,
-            stepType: properRequest.input.stepType,
-            hasAllocation: !!properRequest.allocation,
-            hasContext: !!properRequest.context,
-            hasInput: !!properRequest.input,
-            // Log the fix that was applied
-            bugFix: "Using correct TierExecutionRequest format instead of legacy payload/metadata structure",
+        // 3. Get intelligent resource allocation from SwarmContextManager
+        const allocation = await this.getStepResourceAllocation(context, stepInfo);
+
+        // 4. Create execution options
+        const options: ExecutionOptions = {
+            strategy: stepInfo.strategy,
+            timeout: context.resourceLimits?.maxDurationMs,
+            priority: "medium",
+        };
+
+        // 5. Use built-in helper to create properly formatted request
+        const request = createTierRequest(executionContext, stepInput, allocation, options);
+
+        this.logger.debug("[UnifiedRunStateMachine] Created Tier 3 execution request (DIRECT IMPLEMENTATION)", {
+            stepId: request.input.stepId,
+            stepType: request.input.stepType,
+            hasAllocation: !!request.allocation,
+            hasContext: !!request.context,
+            hasInput: !!request.input,
+            improvement: "Using direct createTierRequest() instead of 517-line ResourceFlowProtocol bridge",
         });
 
-        return properRequest;
+        return request;
     }
 
     private updateContextWithResults(context: RunExecutionContext, result: ExecutionResult): void {
@@ -1678,6 +1710,161 @@ export class UnifiedRunStateMachine extends BaseStateMachine<RunStateMachineStat
             context.resourceUsage.durationMs += result.resourcesUsed.durationMs || 0;
             context.resourceUsage.memoryUsedMB = Math.max(context.resourceUsage.memoryUsedMB, result.resourcesUsed.memoryUsedMB || 0);
             context.resourceUsage.stepsExecuted++;
+        }
+    }
+
+    /**
+     * Get intelligent step resource allocation from SwarmContextManager
+     * Falls back to hard-coded allocation if SwarmContextManager is unavailable
+     */
+    private async getStepResourceAllocation(context: RunExecutionContext, stepInfo: StepInfo): Promise<CoreResourceAllocation> {
+        // Try SwarmContextManager first for intelligent allocation
+        if (this.contextManager && context.swarmId) {
+            try {
+                // Calculate step resource requirements from routine-level limits
+                const stepAllocation = this.calculateStepResourceAllocation(context, stepInfo);
+                
+                const resourceRequest = {
+                    consumerId: stepInfo.id,
+                    consumerType: "step" as const,
+                    allocation: stepAllocation,
+                    usage: {
+                        creditsUsed: "0",
+                        durationMs: 0,
+                        memoryUsedMB: 0,
+                        stepsExecuted: 0,
+                    },
+                    parentAllocationId: context.runId, // Link to routine allocation
+                    priority: this.determineStepPriority(stepInfo),
+                };
+                
+                const resourceAllocation = await this.contextManager.allocateResources(
+                    context.swarmId,
+                    resourceRequest
+                );
+                
+                // Store allocation ID for later cleanup
+                context.activeAllocations = context.activeAllocations || [];
+                context.activeAllocations.push({
+                    stepId: stepInfo.id,
+                    allocationId: resourceAllocation.id,
+                    swarmId: context.swarmId,
+                });
+                
+                this.logger.debug("[UnifiedRunStateMachine] Allocated step resources via SwarmContextManager", {
+                    stepId: stepInfo.id,
+                    allocationId: resourceAllocation.id,
+                    maxCredits: resourceAllocation.allocation.maxCredits,
+                    maxDurationMs: resourceAllocation.allocation.maxDurationMs,
+                    maxMemoryMB: resourceAllocation.allocation.maxMemoryMB,
+                });
+                
+                return resourceAllocation.allocation;
+                
+            } catch (error) {
+                this.logger.warn("[UnifiedRunStateMachine] SwarmContextManager allocation failed, using fallback", {
+                    stepId: stepInfo.id,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+        
+        // Fallback to current hard-coded approach
+        return this.createFallbackAllocation(context);
+    }
+
+    /**
+     * Calculate step resource allocation based on routine limits and step characteristics
+     */
+    private calculateStepResourceAllocation(context: RunExecutionContext, stepInfo: StepInfo): CoreResourceAllocation {
+        // Apply tier allocation ratios from swarm policy (would come from SwarmContextManager policy)
+        const tier2ToTier3Ratio = 0.6; // Default 60% of routine resources for step
+        
+        const routineLimits = context.resourceLimits;
+        
+        return {
+            maxCredits: this.calculateStepCredits(routineLimits?.maxCredits, stepInfo),
+            maxDurationMs: Math.floor((routineLimits?.maxDurationMs || 30000) * tier2ToTier3Ratio),
+            maxMemoryMB: Math.floor((routineLimits?.maxMemoryMB || 512) * tier2ToTier3Ratio),
+            maxConcurrentSteps: 1, // Step executes single operations
+        };
+    }
+
+    /**
+     * Calculate step credit allocation based on step complexity and type
+     */
+    private calculateStepCredits(routineMaxCredits: string | undefined, stepInfo: StepInfo): string {
+        const routineCredits = BigInt(routineMaxCredits || "1000");
+        
+        // Adjust based on step complexity/type
+        let stepRatio = 0.2; // Default 20% of routine credits
+        
+        if (stepInfo.stepType === "llm" || stepInfo.stepType === "ai") {
+            stepRatio = 0.4; // LLM steps need more credits
+        } else if (stepInfo.stepType === "tool") {
+            stepRatio = 0.1; // Tool steps typically cheaper
+        } else if (stepInfo.stepType === "api" || stepInfo.stepType === "service") {
+            stepRatio = 0.15; // API calls moderate cost
+        }
+        
+        const stepCredits = routineCredits * BigInt(Math.floor(stepRatio * 100)) / BigInt(100);
+        return stepCredits.toString();
+    }
+
+    /**
+     * Determine step priority based on step characteristics
+     */
+    private determineStepPriority(stepInfo: StepInfo): "low" | "medium" | "high" | "critical" {
+        if (stepInfo.stepType === "error_handling" || stepInfo.stepType === "validation") {
+            return "high";
+        }
+        if (stepInfo.stepType === "cleanup" || stepInfo.stepType === "logging") {
+            return "low";
+        }
+        return "medium";
+    }
+
+    /**
+     * Create fallback allocation when SwarmContextManager is unavailable
+     */
+    private createFallbackAllocation(context: RunExecutionContext): CoreResourceAllocation {
+        return {
+            maxCredits: context.resourceLimits?.maxCredits || "1000",
+            maxDurationMs: context.resourceLimits?.maxDurationMs || 30000,
+            maxMemoryMB: context.resourceLimits?.maxMemoryMB || 512,
+            maxConcurrentSteps: 1,
+        };
+    }
+
+    /**
+     * Clean up step resource allocation when step execution completes
+     */
+    private async cleanupStepResourceAllocation(context: RunExecutionContext, stepId: string): Promise<void> {
+        if (!this.contextManager || !context.swarmId || !context.activeAllocations) {
+            return;
+        }
+        
+        const allocationIndex = context.activeAllocations.findIndex(a => a.stepId === stepId);
+        if (allocationIndex === -1) {
+            return;
+        }
+        
+        const { allocationId, swarmId } = context.activeAllocations[allocationIndex];
+        
+        try {
+            await this.contextManager.releaseResources(swarmId, allocationId);
+            context.activeAllocations.splice(allocationIndex, 1);
+            
+            this.logger.debug("[UnifiedRunStateMachine] Released step resources", {
+                stepId,
+                allocationId,
+            });
+        } catch (error) {
+            this.logger.warn("[UnifiedRunStateMachine] Failed to release step resources", {
+                stepId,
+                allocationId,
+                error: error instanceof Error ? error.message : String(error),
+            });
         }
     }
 

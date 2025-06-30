@@ -12,23 +12,10 @@ Traditional testing verifies that code does what it's programmed to do. Our MCP 
 
 ```
 mcp/
-├── behaviors/          # Test emergent behaviors
-│   ├── emergence.ts    # Capability emergence testing
-│   ├── evolution.ts    # Capability evolution testing
-│   └── patterns.ts     # Behavior pattern recognition
 ├── integration/        # Real system integration
 │   ├── registry.ts     # MCP tool registry integration
 │   ├── approval.ts     # Tool approval workflows
 │   └── execution.ts    # Tool execution testing
-├── tools/              # Tool-specific behavioral tests
-│   ├── base.ts         # Base tool testing framework
-│   ├── monitoring.ts   # Monitoring tool behaviors
-│   ├── security.ts     # Security tool behaviors
-│   └── resilience.ts   # Resilience tool behaviors
-└── scenarios/          # End-to-end emergent scenarios
-    ├── adaptive-security.ts  # Security that improves
-    ├── self-healing.ts       # System self-repair
-    └── learning-patterns.ts  # Pattern learning emergence
 ```
 
 ## 🔬 Core Testing Concepts

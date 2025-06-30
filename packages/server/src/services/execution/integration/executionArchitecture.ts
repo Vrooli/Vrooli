@@ -9,7 +9,7 @@ import { type Logger } from "winston";
 import { logger } from "../../../events/logger.js";
 import { CacheService } from "../../../redisConn.js";
 import { CachedConversationStateStore, PrismaChatStore } from "../../conversation/chatStore.js";
-import { getUnifiedEventSystem } from "../../events/initialization/eventSystemService.js";
+import { getUnifiedEventSystem } from "../../events/index.js";
 import { type IEventBus } from "../../events/types.js";
 import { ContextSubscriptionManager } from "../shared/ContextSubscriptionManager.js";
 import { SwarmContextManager, type ISwarmContextManager } from "../shared/SwarmContextManager.js";
