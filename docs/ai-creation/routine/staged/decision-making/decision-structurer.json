@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849548",
+  "publicId": "decision-structurer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849549",
+      "publicId": "decision-structurer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Structures complex decisions into manageable frameworks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "complexDecision",
+                "id": "complex_decision_input",
+                "label": "Complex Decision",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Multi-faceted decision requiring structure"
+              },
+              {
+                "fieldName": "stakeholderInputs",
+                "id": "stakeholder_inputs_input",
+                "label": "Stakeholder Inputs",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Input from various stakeholders"
+              },
+              {
+                "fieldName": "structuringApproach",
+                "id": "structuring_approach_input",
+                "label": "Structuring Approach",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "hierarchical",
+                "options": [
+                  "hierarchical",
+                  "matrix-based",
+                  "process-oriented",
+                  "systems-thinking"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "structuredFramework",
+                "id": "structured_framework_output",
+                "label": "Structured Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "decisionHierarchy",
+                "id": "decision_hierarchy_output",
+                "label": "Decision Hierarchy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "analysisRoadmap",
+                "id": "analysis_roadmap_output",
+                "label": "Analysis Roadmap",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849550",
+          "language": "en",
+          "name": "Decision Structurer",
+          "description": "Structures complex decisions into clear, manageable frameworks for systematic analysis.",
+          "instructions": "Provide complex decision details. The routine will create structured framework."
+        }
+      ]
+    }
+  ]
+}

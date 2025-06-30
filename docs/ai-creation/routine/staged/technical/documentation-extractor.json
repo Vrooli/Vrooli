@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849374",
+  "publicId": "documentation-extractor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847154",
+      "tag": "documentation",
+      "translations": [
+        {
+          "id": "7829564732190847254",
+          "language": "en",
+          "description": "Documentation generation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847169",
+      "tag": "extraction",
+      "translations": [
+        {
+          "id": "7829564732190847269",
+          "language": "en",
+          "description": "Information extraction"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849375",
+      "publicId": "documentation-extractor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Extracts documentation from code and comments",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "parsedStructure",
+                "id": "parsed_structure_input",
+                "label": "Parsed Structure",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Parsed API structure"
+              },
+              {
+                "fieldName": "sourceCode",
+                "id": "source_code_input",
+                "label": "Source Code",
+                "type": "Text",
+                "isRequired": false,
+                "placeholder": "Original source code"
+              },
+              {
+                "fieldName": "extractionScope",
+                "id": "extraction_scope_input",
+                "label": "Extraction Scope",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "What to extract from code"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "extractedDocs",
+                "id": "extracted_docs_output",
+                "label": "Extracted Documentation",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "codeComments",
+                "id": "code_comments_output",
+                "label": "Code Comments",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "missingDocs",
+                "id": "missing_docs_output",
+                "label": "Missing Documentation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849376",
+          "language": "en",
+          "name": "Documentation Extractor",
+          "description": "Extracts existing documentation from code and identifies gaps.",
+          "instructions": "Provide parsed structure. The routine will extract documentation."
+        }
+      ]
+    }
+  ]
+}

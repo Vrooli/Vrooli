@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849518",
+  "publicId": "probability-assessor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "risk-management",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Risk assessment and mitigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849519",
+      "publicId": "probability-assessor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assesses probability and likelihood of risk events",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "riskEvents",
+                "id": "risk_events_input",
+                "label": "Risk Events",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Specific risk events to assess"
+              },
+              {
+                "fieldName": "historicalData",
+                "id": "historical_data_input",
+                "label": "Historical Data",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Past occurrence data and trends"
+              },
+              {
+                "fieldName": "assessmentMethod",
+                "id": "assessment_method_input",
+                "label": "Assessment Method",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "qualitative",
+                "options": [
+                  "qualitative",
+                  "quantitative",
+                  "mixed",
+                  "expert-judgment"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "probabilityEstimates",
+                "id": "probability_estimates_output",
+                "label": "Probability Estimates",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "confidenceIntervals",
+                "id": "confidence_intervals_output",
+                "label": "Confidence Intervals",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "likelihoodRanking",
+                "id": "likelihood_ranking_output",
+                "label": "Likelihood Ranking",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849520",
+          "language": "en",
+          "name": "Probability Assessor",
+          "description": "Assesses probability and likelihood of risk events using multiple methodologies.",
+          "instructions": "Provide risk events and historical data. The routine will assess probabilities."
+        }
+      ]
+    }
+  ]
+}

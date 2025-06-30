@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849227",
+  "publicId": "pattern-establisher-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847086",
+      "tag": "pattern-recognition",
+      "translations": [
+        {
+          "id": "7829564732190847186",
+          "language": "en",
+          "description": "Pattern recognition and analysis"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849228",
+      "publicId": "pattern-establisher-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Defines expected behavior and normal ranges for pattern detection",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "processedDataset",
+                "id": "processed_dataset_input",
+                "label": "Processed Dataset",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Loaded and cleaned data"
+              },
+              {
+                "fieldName": "statisticalBaseline",
+                "id": "statistical_baseline_input",
+                "label": "Statistical Baseline",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Data profile and characteristics"
+              },
+              {
+                "fieldName": "confidenceLevel",
+                "id": "confidence_level_input",
+                "label": "Confidence Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "95",
+                "options": [
+                  "90",
+                  "95",
+                  "99",
+                  "99.9"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "normalPatterns",
+                "id": "normal_patterns_output",
+                "label": "Normal Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "expectedRanges",
+                "id": "expected_ranges_output",
+                "label": "Expected Ranges",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "patternConfidence",
+                "id": "pattern_confidence_output",
+                "label": "Pattern Confidence",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849229",
+          "language": "en",
+          "name": "Pattern Establisher",
+          "description": "Defines expected behavior patterns and normal ranges for anomaly detection.",
+          "instructions": "Provide processed dataset and statistical baseline. The routine will establish patterns."
+        }
+      ]
+    }
+  ]
+}

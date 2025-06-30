@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849527",
+  "publicId": "mitigation-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "risk-management",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Risk assessment and mitigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849528",
+      "publicId": "mitigation-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops risk mitigation strategies and contingency plans",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedRisks",
+                "id": "prioritized_risks_input",
+                "label": "Prioritized Risks",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "High-priority risks requiring mitigation"
+              },
+              {
+                "fieldName": "resourceConstraints",
+                "id": "resource_constraints_input",
+                "label": "Resource Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Available budget, time, and personnel for mitigation"
+              },
+              {
+                "fieldName": "mitigationPreferences",
+                "id": "mitigation_preferences_input",
+                "label": "Mitigation Preferences",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "preventive",
+                  "reactive",
+                  "balanced",
+                  "transfer-focused"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "mitigationStrategies",
+                "id": "mitigation_strategies_output",
+                "label": "Mitigation Strategies",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contingencyPlans",
+                "id": "contingency_plans_output",
+                "label": "Contingency Plans",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationRoadmap",
+                "id": "implementation_roadmap_output",
+                "label": "Implementation Roadmap",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849529",
+          "language": "en",
+          "name": "Mitigation Planner",
+          "description": "Develops comprehensive risk mitigation strategies and contingency plans.",
+          "instructions": "Provide prioritized risks and constraints. The routine will create mitigation plans."
+        }
+      ]
+    }
+  ]
+}

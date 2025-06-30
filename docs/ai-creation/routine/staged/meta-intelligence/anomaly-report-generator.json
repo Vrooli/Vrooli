@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849221",
+  "publicId": "anomaly-report-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849222",
+      "publicId": "anomaly-report-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates comprehensive anomaly detection reports",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "anomalyExplanations",
+                "id": "anomaly_explanations_input",
+                "label": "Anomaly Explanations",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Root cause analysis and explanations"
+              },
+              {
+                "fieldName": "confidenceScores",
+                "id": "confidence_scores_input",
+                "label": "Confidence Scores",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Reliability metrics for anomalies"
+              },
+              {
+                "fieldName": "reportFormat",
+                "id": "report_format_input",
+                "label": "Report Format",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "summary",
+                  "detailed",
+                  "comprehensive",
+                  "executive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "detectionReport",
+                "id": "detection_report_output",
+                "label": "Detection Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionableInsights",
+                "id": "actionable_insights_output",
+                "label": "Actionable Insights",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849223",
+          "language": "en",
+          "name": "Anomaly Report Generator",
+          "description": "Creates comprehensive reports for anomaly detection findings and recommendations.",
+          "instructions": "Provide anomaly explanations and confidence scores. The routine will generate reports."
+        }
+      ]
+    }
+  ]
+}

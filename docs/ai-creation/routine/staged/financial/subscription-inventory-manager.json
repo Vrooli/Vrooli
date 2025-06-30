@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849437",
+  "publicId": "subscription-inventory-manager-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847196",
+      "tag": "financial",
+      "translations": [
+        {
+          "id": "7829564732190847296",
+          "language": "en",
+          "description": "Financial management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847214",
+      "tag": "subscriptions",
+      "translations": [
+        {
+          "id": "7829564732190847314",
+          "language": "en",
+          "description": "Subscription management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849438",
+      "publicId": "subscription-inventory-manager-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Catalogs and organizes subscription services",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "subscriptionData",
+                "id": "subscription_data_input",
+                "label": "Subscription Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Raw subscription information"
+              },
+              {
+                "fieldName": "accountConnections",
+                "id": "account_connections_input",
+                "label": "Account Connections",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Bank and credit card accounts"
+              },
+              {
+                "fieldName": "inventoryScope",
+                "id": "inventory_scope_input",
+                "label": "Inventory Scope",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "active-only",
+                  "comprehensive",
+                  "financial-only",
+                  "custom"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "organizedSubscriptions",
+                "id": "organized_subscriptions_output",
+                "label": "Organized Subscriptions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "subscriptionCategories",
+                "id": "subscription_categories_output",
+                "label": "Subscription Categories",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "renewalCalendar",
+                "id": "renewal_calendar_output",
+                "label": "Renewal Calendar",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849439",
+          "language": "en",
+          "name": "Subscription Inventory Manager",
+          "description": "Catalogs and organizes all subscription services.",
+          "instructions": "Provide subscription data. The routine will organize inventory."
+        }
+      ]
+    }
+  ]
+}

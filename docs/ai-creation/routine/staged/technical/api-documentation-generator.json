@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze API Structure",
                 "description": "Parses code to identify endpoints, methods, and parameters",
-                "subroutineId": "TODO: Need API analysis subroutine",
+                "subroutineId": "7829564732190849326",
                 "inputMap": {
                   "codebase": "apiSourceCode",
                   "apiType": "restOrGraphQL",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Extract Type Information",
                 "description": "Identifies request/response types and data models",
-                "subroutineId": "TODO: Need type extraction subroutine",
+                "subroutineId": "7829564732190849329",
                 "inputMap": {
                   "endpointInventory": "apiStructure",
                   "typeDefinitions": "dataModels",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Examples",
                 "description": "Creates realistic request/response examples",
-                "subroutineId": "TODO: Need example generation subroutine",
+                "subroutineId": "7829564732190849341",
                 "inputMap": {
                   "completeTypeMap": "typeSystem",
                   "useCases": "commonScenarios",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Document Authentication",
                 "description": "Details authentication methods and security requirements",
-                "subroutineId": "TODO: Need auth documentation subroutine",
+                "subroutineId": "7829564732190849344",
                 "inputMap": {
                   "authMethods": "securitySchemes",
                   "permissionModel": "accessControl",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Error Reference",
                 "description": "Documents error codes, messages, and handling",
-                "subroutineId": "TODO: Need error documentation subroutine",
+                "subroutineId": "7829564732190849347",
                 "inputMap": {
                   "errorCodes": "statusCodes",
                   "errorMessages": "responseMessages",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Compile Documentation",
                 "description": "Assembles complete API documentation in multiple formats",
-                "subroutineId": "TODO: Need documentation compiler subroutine",
+                "subroutineId": "7829564732190849350",
                 "inputMap": {
                   "implementationSamples": "codeExamples",
                   "securityGuide": "authDocumentation",

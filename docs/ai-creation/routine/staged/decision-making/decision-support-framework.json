@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Structure Decision Context",
                 "description": "Organizes the decision parameters and identifies key factors",
-                "subroutineId": "TODO: Need reasoning subroutine for decision structuring",
+                "subroutineId": "7829564732190849548",
                 "inputMap": {
                   "decisionContext": "originalContext",
                   "optionsList": "originalOptions",

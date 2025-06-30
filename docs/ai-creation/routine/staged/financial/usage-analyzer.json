@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849440",
+  "publicId": "usage-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847214",
+      "tag": "subscriptions",
+      "translations": [
+        {
+          "id": "7829564732190847314",
+          "language": "en",
+          "description": "Subscription management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847112",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847212",
+          "language": "en",
+          "description": "Analysis and evaluation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849441",
+      "publicId": "usage-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes subscription usage patterns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "organizedSubscriptions",
+                "id": "organized_subscriptions_input",
+                "label": "Organized Subscriptions",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Cataloged subscription data"
+              },
+              {
+                "fieldName": "usageData",
+                "id": "usage_data_input",
+                "label": "Usage Data",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Service usage metrics"
+              },
+              {
+                "fieldName": "analysisTimeframe",
+                "id": "analysis_timeframe_input",
+                "label": "Analysis Timeframe",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "3-months",
+                "options": [
+                  "1-month",
+                  "3-months",
+                  "6-months",
+                  "1-year"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "usagePatterns",
+                "id": "usage_patterns_output",
+                "label": "Usage Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "utilizationRates",
+                "id": "utilization_rates_output",
+                "label": "Utilization Rates",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "lowUsageServices",
+                "id": "low_usage_services_output",
+                "label": "Low Usage Services",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849442",
+          "language": "en",
+          "name": "Usage Analyzer",
+          "description": "Analyzes subscription usage patterns and utilization rates.",
+          "instructions": "Provide organized subscriptions. The routine will analyze usage."
+        }
+      ]
+    }
+  ]
+}

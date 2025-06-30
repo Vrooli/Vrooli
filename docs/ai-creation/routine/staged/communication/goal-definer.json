@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190849575",
+  "publicId": "goal-definer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847051",
+      "tag": "communication-content",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Communication and content systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849576",
+      "publicId": "goal-definer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Defines clear presentation goals and objectives",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "presentationTopic",
+                "id": "presentation_topic_input",
+                "label": "Presentation Topic",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Subject and context of presentation"
+              },
+              {
+                "fieldName": "audienceInfo",
+                "id": "audience_info_input",
+                "label": "Audience Info",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Target audience characteristics"
+              },
+              {
+                "fieldName": "presentationPurpose",
+                "id": "presentation_purpose_input",
+                "label": "Presentation Purpose",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "inform",
+                "options": [
+                  "inform",
+                  "persuade",
+                  "entertain",
+                  "train",
+                  "inspire"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "presentationGoals",
+                "id": "presentation_goals_output",
+                "label": "Presentation Goals",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyMessages",
+                "id": "key_messages_output",
+                "label": "Key Messages",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "successMetrics",
+                "id": "success_metrics_output",
+                "label": "Success Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849577",
+          "language": "en",
+          "name": "Goal Definer",
+          "description": "Defines clear goals and objectives for effective presentations.",
+          "instructions": "Provide topic and audience info. The routine will define presentation goals."
+        }
+      ]
+    }
+  ]
+}

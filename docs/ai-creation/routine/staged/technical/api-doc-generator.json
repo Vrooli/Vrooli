@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Parse API Structure",
                 "description": "Analyzes code or specification files to extract API endpoints",
-                "subroutineId": "TODO: Need API parsing subroutine",
+                "subroutineId": "7829564732190849371",
                 "inputMap": {
                   "sourceCode": "apiDefinition",
                   "specificationFiles": "configurationData",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Extract Documentation Elements",
                 "description": "Identifies existing comments, annotations, and documentation",
-                "subroutineId": "TODO: Need documentation extraction subroutine",
+                "subroutineId": "7829564732190849374",
                 "inputMap": {
                   "apiStructure": "endpointCatalog",
                   "codeComments": "inlineDocumentation",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Missing Documentation",
                 "description": "Creates descriptions for undocumented endpoints and parameters",
-                "subroutineId": "TODO: Need documentation generation subroutine",
+                "subroutineId": "7829564732190849377",
                 "inputMap": {
                   "documentationGaps": "missingElements",
                   "operationSpecs": "methodDetails",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Interactive Examples",
                 "description": "Develops request/response examples and usage demonstrations",
-                "subroutineId": "TODO: Need example generation subroutine",
+                "subroutineId": "7829564732190849341",
                 "inputMap": {
                   "schemaDefinitions": "dataModels",
                   "fieldDescriptions": "parameterExplanations",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Format Documentation",
                 "description": "Structures content according to documentation standards",
-                "subroutineId": "TODO: Need formatting subroutine",
+                "subroutineId": "7829564732190849380",
                 "inputMap": {
                   "foundDocumentation": "extractedDescriptions",
                   "newDocumentation": "generatedDescriptions",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Final Documentation",
                 "description": "Compiles complete API documentation package",
-                "subroutineId": "TODO: Need final compilation subroutine",
+                "subroutineId": "7829564732190849392",
                 "inputMap": {
                   "structuredContent": "formattedSections",
                   "sampleRequests": "requestExamples",

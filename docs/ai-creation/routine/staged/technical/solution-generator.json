@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849365",
+  "publicId": "solution-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847109",
+      "tag": "technical",
+      "translations": [
+        {
+          "id": "7829564732190847209",
+          "language": "en",
+          "description": "Technical and engineering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847160",
+      "tag": "problem-solving",
+      "translations": [
+        {
+          "id": "7829564732190847260",
+          "language": "en",
+          "description": "Problem solving strategies"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849366",
+      "publicId": "solution-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates multiple solution approaches",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "problemDescription",
+                "id": "problem_description_input",
+                "label": "Problem Description",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Detailed problem analysis"
+              },
+              {
+                "fieldName": "rootCauses",
+                "id": "root_causes_input",
+                "label": "Root Causes",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Identified root causes"
+              },
+              {
+                "fieldName": "solutionCriteria",
+                "id": "solution_criteria_input",
+                "label": "Solution Criteria",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Requirements for solutions"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "solutionOptions",
+                "id": "solution_options_output",
+                "label": "Solution Options",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "tradeoffAnalysis",
+                "id": "tradeoff_analysis_output",
+                "label": "Tradeoff Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recommendedApproach",
+                "id": "recommended_approach_output",
+                "label": "Recommended Approach",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849367",
+          "language": "en",
+          "name": "Solution Generator",
+          "description": "Generates multiple solution approaches with tradeoff analysis.",
+          "instructions": "Provide problem and root causes. The routine will generate solutions."
+        }
+      ]
+    }
+  ]
+}

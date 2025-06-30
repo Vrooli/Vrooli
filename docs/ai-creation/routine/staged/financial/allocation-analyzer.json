@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849431",
+  "publicId": "allocation-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847196",
+      "tag": "financial",
+      "translations": [
+        {
+          "id": "7829564732190847296",
+          "language": "en",
+          "description": "Financial management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847211",
+      "tag": "allocation",
+      "translations": [
+        {
+          "id": "7829564732190847311",
+          "language": "en",
+          "description": "Asset allocation analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849432",
+      "publicId": "allocation-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes asset allocation effectiveness",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "allocationBreakdown",
+                "id": "allocation_breakdown_input",
+                "label": "Allocation Breakdown",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current asset allocation"
+              },
+              {
+                "fieldName": "riskProfile",
+                "id": "risk_profile_input",
+                "label": "Risk Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Risk assessment results"
+              },
+              {
+                "fieldName": "investmentGoals",
+                "id": "investment_goals_input",
+                "label": "Investment Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Investment objectives and timeline"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "allocationEfficiency",
+                "id": "allocation_efficiency_output",
+                "label": "Allocation Efficiency",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "diversificationScore",
+                "id": "diversification_score_output",
+                "label": "Diversification Score",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "rebalancingNeeds",
+                "id": "rebalancing_needs_output",
+                "label": "Rebalancing Needs",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849433",
+          "language": "en",
+          "name": "Allocation Analyzer",
+          "description": "Evaluates asset allocation efficiency and diversification.",
+          "instructions": "Provide allocation breakdown and risk profile. The routine will analyze allocation."
+        }
+      ]
+    }
+  ]
+}

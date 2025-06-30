@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849443",
+  "publicId": "cost-efficiency-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847214",
+      "tag": "subscriptions",
+      "translations": [
+        {
+          "id": "7829564732190847314",
+          "language": "en",
+          "description": "Subscription management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847217",
+      "tag": "cost-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847317",
+          "language": "en",
+          "description": "Cost analysis and optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849444",
+      "publicId": "cost-efficiency-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes subscription cost efficiency",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "usagePatterns",
+                "id": "usage_patterns_input",
+                "label": "Usage Patterns",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Service usage analysis"
+              },
+              {
+                "fieldName": "subscriptionCosts",
+                "id": "subscription_costs_input",
+                "label": "Subscription Costs",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Monthly and annual costs"
+              },
+              {
+                "fieldName": "alternativeOptions",
+                "id": "alternative_options_input",
+                "label": "Alternative Options",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Alternative service options"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "costPerUsage",
+                "id": "cost_per_usage_output",
+                "label": "Cost Per Usage",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "valueMismatch",
+                "id": "value_mismatch_output",
+                "label": "Value Mismatch",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "optimizationOpportunities",
+                "id": "optimization_opportunities_output",
+                "label": "Optimization Opportunities",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849445",
+          "language": "en",
+          "name": "Cost Efficiency Analyzer",
+          "description": "Analyzes subscription cost efficiency and value alignment.",
+          "instructions": "Provide usage patterns and costs. The routine will analyze efficiency."
+        }
+      ]
+    }
+  ]
+}

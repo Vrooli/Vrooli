@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Identify Risk Categories",
                 "description": "Categorizes potential risks by type and domain",
-                "subroutineId": "TODO: Need reasoning subroutine for risk categorization",
+                "subroutineId": "7829564732190849515",
                 "inputMap": {
                   "planDescription": "planOrDecision",
                   "contextInfo": "contextDetails",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Risk Likelihood",
                 "description": "Assesses probability of each risk occurring",
-                "subroutineId": "TODO: Need reasoning subroutine for probability assessment",
+                "subroutineId": "7829564732190849518",
                 "inputMap": {
                   "riskFactors": "potentialRisks",
                   "contextInfo": "contextDetails",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Evaluate Impact Severity",
                 "description": "Determines potential impact if risks materialize",
-                "subroutineId": "TODO: Need reasoning subroutine for impact analysis",
+                "subroutineId": "7829564732190849521",
                 "inputMap": {
                   "riskFactors": "potentialRisks",
                   "planDescription": "planOrDecision",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Risk Matrix",
                 "description": "Creates risk matrix plotting likelihood vs impact",
-                "subroutineId": "TODO: Need deterministic matrix generation subroutine",
+                "subroutineId": "7829564732190849524",
                 "inputMap": {
                   "likelihoodScores": "probabilityRatings",
                   "impactScores": "severityRatings",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Develop Mitigation Strategies",
                 "description": "Creates strategies to prevent or minimize risks",
-                "subroutineId": "TODO: Need reasoning subroutine for mitigation planning",
+                "subroutineId": "7829564732190849527",
                 "inputMap": {
                   "riskRankings": "orderedRisks",
                   "riskDrivers": "causalFactors",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Compile Risk Report",
                 "description": "Generates comprehensive risk assessment report",
-                "subroutineId": "TODO: Need generation subroutine for report compilation",
+                "subroutineId": "7829564732190849530",
                 "inputMap": {
                   "riskMatrix": "priorityMatrix",
                   "mitigationPlans": "preventionStrategies",

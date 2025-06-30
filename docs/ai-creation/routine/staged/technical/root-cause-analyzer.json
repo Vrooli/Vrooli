@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849356",
+  "publicId": "root-cause-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847109",
+      "tag": "technical",
+      "translations": [
+        {
+          "id": "7829564732190847209",
+          "language": "en",
+          "description": "Technical and engineering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847157",
+      "tag": "debugging",
+      "translations": [
+        {
+          "id": "7829564732190847257",
+          "language": "en",
+          "description": "Debugging and error analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849357",
+      "publicId": "root-cause-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies root causes of errors",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "errorType",
+                "id": "error_type_input",
+                "label": "Error Classification",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Analyzed error type"
+              },
+              {
+                "fieldName": "affectedComponents",
+                "id": "affected_components_input",
+                "label": "Affected Components",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Components involved in error"
+              },
+              {
+                "fieldName": "systemState",
+                "id": "system_state_input",
+                "label": "System State",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "State when error occurred"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rootCauses",
+                "id": "root_causes_output",
+                "label": "Root Causes",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "causeChain",
+                "id": "cause_chain_output",
+                "label": "Cause Chain",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contributingFactors",
+                "id": "contributing_factors_output",
+                "label": "Contributing Factors",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849358",
+          "language": "en",
+          "name": "Root Cause Analyzer",
+          "description": "Identifies root causes and contributing factors of errors.",
+          "instructions": "Provide error analysis. The routine will find root causes."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849404",
+  "publicId": "summary-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847193",
+      "tag": "summarization",
+      "translations": [
+        {
+          "id": "7829564732190847293",
+          "language": "en",
+          "description": "Content summarization"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847118",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847218",
+          "language": "en",
+          "description": "Code generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849405",
+      "publicId": "summary-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates executive summaries from analysis",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "analysisResults",
+                "id": "analysis_results_input",
+                "label": "Analysis Results",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Complete analysis results"
+              },
+              {
+                "fieldName": "chartSpecifications",
+                "id": "chart_specifications_input",
+                "label": "Chart Specifications",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Generated visualizations"
+              },
+              {
+                "fieldName": "summaryLevel",
+                "id": "summary_level_input",
+                "label": "Summary Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "executive",
+                "options": [
+                  "brief",
+                  "executive",
+                  "detailed",
+                  "technical"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyFindings",
+                "id": "key_findings_output",
+                "label": "Key Findings",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionableInsights",
+                "id": "actionable_insights_output",
+                "label": "Actionable Insights",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849406",
+          "language": "en",
+          "name": "Summary Generator",
+          "description": "Generates executive summaries and key findings from analysis.",
+          "instructions": "Provide analysis results and charts. The routine will generate summary."
+        }
+      ]
+    }
+  ]
+}

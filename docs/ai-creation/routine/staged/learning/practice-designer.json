@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849581",
+  "publicId": "practice-designer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847046",
+      "tag": "learning-education",
+      "translations": [
+        {
+          "id": "7829564732190847146",
+          "language": "en",
+          "description": "Learning and educational systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849582",
+      "publicId": "practice-designer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Designs language practice activities and exercises",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "learningGoals",
+                "id": "learning_goals_input",
+                "label": "Learning Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Specific language learning objectives"
+              },
+              {
+                "fieldName": "skillLevel",
+                "id": "skill_level_input",
+                "label": "Skill Level",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current proficiency and skill gaps"
+              },
+              {
+                "fieldName": "practicePreferences",
+                "id": "practice_preferences_input",
+                "label": "Practice Preferences",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "interactive",
+                "options": [
+                  "traditional",
+                  "interactive",
+                  "immersive",
+                  "game-based"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "practiceActivities",
+                "id": "practice_activities_output",
+                "label": "Practice Activities",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "exercisePlans",
+                "id": "exercise_plans_output",
+                "label": "Exercise Plans",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practiceSchedule",
+                "id": "practice_schedule_output",
+                "label": "Practice Schedule",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849583",
+          "language": "en",
+          "name": "Practice Designer",
+          "description": "Designs customized language practice activities and exercise plans.",
+          "instructions": "Provide learning goals and skill level. The routine will design practice activities."
+        }
+      ]
+    }
+  ]
+}

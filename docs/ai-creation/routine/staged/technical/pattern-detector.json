@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849317",
+  "publicId": "pattern-detector-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847124",
+      "tag": "data",
+      "translations": [
+        {
+          "id": "7829564732190847224",
+          "language": "en",
+          "description": "Data analysis and processing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847127",
+      "tag": "patterns",
+      "translations": [
+        {
+          "id": "7829564732190847227",
+          "language": "en",
+          "description": "Pattern recognition and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849318",
+      "publicId": "pattern-detector-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Detects patterns and trends in data",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "dataProfile",
+                "id": "data_profile_input",
+                "label": "Data Profile",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Profiled data characteristics"
+              },
+              {
+                "fieldName": "patternTypes",
+                "id": "pattern_types_input",
+                "label": "Pattern Types",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Types of patterns to look for"
+              },
+              {
+                "fieldName": "temporalScope",
+                "id": "temporal_scope_input",
+                "label": "Temporal Scope",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "all",
+                "options": [
+                  "recent",
+                  "seasonal",
+                  "yearly",
+                  "all"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "detectedPatterns",
+                "id": "detected_patterns_output",
+                "label": "Detected Patterns",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "trendAnalysis",
+                "id": "trend_analysis_output",
+                "label": "Trend Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "correlations",
+                "id": "correlations_output",
+                "label": "Correlations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849319",
+          "language": "en",
+          "name": "Pattern Detector",
+          "description": "Identifies patterns, trends, and correlations in data.",
+          "instructions": "Provide data profile. The routine will detect patterns and trends."
+        }
+      ]
+    }
+  ]
+}

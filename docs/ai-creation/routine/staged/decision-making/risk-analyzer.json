@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849500",
+  "publicId": "risk-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847088",
+      "tag": "risk-management",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Risk assessment and mitigation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849501",
+      "publicId": "risk-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes risks and uncertainties in decision options",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "alternativeSolutions",
+                "id": "alternative_solutions_input",
+                "label": "Alternative Solutions",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of decision options to analyze"
+              },
+              {
+                "fieldName": "riskCategories",
+                "id": "risk_categories_input",
+                "label": "Risk Categories",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Types of risks to consider"
+              },
+              {
+                "fieldName": "uncertaintyFactors",
+                "id": "uncertainty_factors_input",
+                "label": "Uncertainty Factors",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Unknown elements and variables"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "riskAssessment",
+                "id": "risk_assessment_output",
+                "label": "Risk Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "probabilityAnalysis",
+                "id": "probability_analysis_output",
+                "label": "Probability Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contingencyNeeds",
+                "id": "contingency_needs_output",
+                "label": "Contingency Needs",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849502",
+          "language": "en",
+          "name": "Risk Analyzer",
+          "description": "Analyzes risks and uncertainties associated with different decision options.",
+          "instructions": "Provide solution alternatives and risk categories. The routine will assess risks."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849560",
+  "publicId": "thesis-developer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847051",
+      "tag": "communication-content",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Communication and content systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849561",
+      "publicId": "thesis-developer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops strong thesis statements for essays",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "essayTopic",
+                "id": "essay_topic_input",
+                "label": "Essay Topic",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Essay subject and requirements"
+              },
+              {
+                "fieldName": "initialIdeas",
+                "id": "initial_ideas_input",
+                "label": "Initial Ideas",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Preliminary thoughts and position"
+              },
+              {
+                "fieldName": "thesisStrength",
+                "id": "thesis_strength_input",
+                "label": "Thesis Strength",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "strong",
+                "options": [
+                  "moderate",
+                  "strong",
+                  "bold",
+                  "nuanced"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "thesisStatements",
+                "id": "thesis_statements_output",
+                "label": "Thesis Statements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "supportingPoints",
+                "id": "supporting_points_output",
+                "label": "Supporting Points",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "argumentStructure",
+                "id": "argument_structure_output",
+                "label": "Argument Structure",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849562",
+          "language": "en",
+          "name": "Thesis Developer",
+          "description": "Develops strong, focused thesis statements with supporting argument structures.",
+          "instructions": "Provide essay topic and initial ideas. The routine will develop thesis options."
+        }
+      ]
+    }
+  ]
+}

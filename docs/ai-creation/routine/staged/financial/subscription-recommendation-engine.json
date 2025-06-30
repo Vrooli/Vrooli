@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849449",
+  "publicId": "subscription-recommendation-engine-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847214",
+      "tag": "subscriptions",
+      "translations": [
+        {
+          "id": "7829564732190847314",
+          "language": "en",
+          "description": "Subscription management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847223",
+      "tag": "recommendations",
+      "translations": [
+        {
+          "id": "7829564732190847323",
+          "language": "en",
+          "description": "Recommendation systems"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849450",
+      "publicId": "subscription-recommendation-engine-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates subscription optimization recommendations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizationOpportunities",
+                "id": "optimization_opportunities_input",
+                "label": "Optimization Opportunities",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Cost efficiency analysis results"
+              },
+              {
+                "fieldName": "consolidationOptions",
+                "id": "consolidation_options_input",
+                "label": "Consolidation Options",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Redundancy analysis results"
+              },
+              {
+                "fieldName": "userPreferences",
+                "id": "user_preferences_input",
+                "label": "User Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Budget and feature preferences"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "prioritizedRecommendations",
+                "id": "prioritized_recommendations_output",
+                "label": "Prioritized Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "savingsProjections",
+                "id": "savings_projections_output",
+                "label": "Savings Projections",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationSteps",
+                "id": "implementation_steps_output",
+                "label": "Implementation Steps",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849451",
+          "language": "en",
+          "name": "Subscription Recommendation Engine",
+          "description": "Generates personalized subscription optimization recommendations.",
+          "instructions": "Provide optimization and consolidation data. The routine will recommend actions."
+        }
+      ]
+    }
+  ]
+}

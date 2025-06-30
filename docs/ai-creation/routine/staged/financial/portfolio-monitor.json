@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849458",
+  "publicId": "portfolio-monitor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847196",
+      "tag": "financial",
+      "translations": [
+        {
+          "id": "7829564732190847296",
+          "language": "en",
+          "description": "Financial management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847226",
+      "tag": "monitoring",
+      "translations": [
+        {
+          "id": "7829564732190847326",
+          "language": "en",
+          "description": "Portfolio monitoring and tracking"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849459",
+      "publicId": "portfolio-monitor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Sets up portfolio monitoring and alerting",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optimizationStrategy",
+                "id": "optimization_strategy_input",
+                "label": "Optimization Strategy",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Portfolio optimization plan"
+              },
+              {
+                "fieldName": "monitoringPreferences",
+                "id": "monitoring_preferences_input",
+                "label": "Monitoring Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Alerting and tracking preferences"
+              },
+              {
+                "fieldName": "reviewFrequency",
+                "id": "review_frequency_input",
+                "label": "Review Frequency",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "monthly",
+                "options": [
+                  "weekly",
+                  "monthly",
+                  "quarterly",
+                  "semi-annually"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "monitoringSetup",
+                "id": "monitoring_setup_output",
+                "label": "Monitoring Setup",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "alertingRules",
+                "id": "alerting_rules_output",
+                "label": "Alerting Rules",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "reviewSchedule",
+                "id": "review_schedule_output",
+                "label": "Review Schedule",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849460",
+          "language": "en",
+          "name": "Portfolio Monitor",
+          "description": "Sets up comprehensive portfolio monitoring and alerting system.",
+          "instructions": "Provide optimization strategy. The routine will setup monitoring."
+        }
+      ]
+    }
+  ]
+}

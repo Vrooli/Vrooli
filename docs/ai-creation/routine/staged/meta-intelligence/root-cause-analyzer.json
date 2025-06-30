@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849236",
+  "publicId": "root-cause-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "risk-management",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Risk assessment and management"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849237",
+      "publicId": "root-cause-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes root causes and potential explanations for anomalies",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "classifiedAnomalies",
+                "id": "classified_anomalies_input",
+                "label": "Classified Anomalies",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Categorized anomalies with severity"
+              },
+              {
+                "fieldName": "systemContext",
+                "id": "system_context_input",
+                "label": "System Context",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "System environment and operational context"
+              },
+              {
+                "fieldName": "analysisDepth",
+                "id": "analysis_depth_input",
+                "label": "Analysis Depth",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "thorough",
+                "options": [
+                  "surface",
+                  "standard",
+                  "thorough",
+                  "exhaustive"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "rootCauseAnalysis",
+                "id": "root_cause_analysis_output",
+                "label": "Root Cause Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contributingFactors",
+                "id": "contributing_factors_output",
+                "label": "Contributing Factors",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "preventionStrategies",
+                "id": "prevention_strategies_output",
+                "label": "Prevention Strategies",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849238",
+          "language": "en",
+          "name": "Root Cause Analyzer",
+          "description": "Analyzes root causes and contributing factors for anomalies with prevention strategies.",
+          "instructions": "Provide classified anomalies and system context. The routine will analyze root causes."
+        }
+      ]
+    }
+  ]
+}

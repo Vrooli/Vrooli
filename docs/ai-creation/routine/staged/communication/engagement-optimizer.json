@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849284",
+  "publicId": "engagement-optimizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847055",
+      "tag": "social-media",
+      "translations": [
+        {
+          "id": "7829564732190847155",
+          "language": "en",
+          "description": "Social media planning and content"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847081",
+      "tag": "optimization",
+      "translations": [
+        {
+          "id": "7829564732190847181",
+          "language": "en",
+          "description": "Performance and efficiency optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849285",
+      "publicId": "engagement-optimizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Optimizes content for maximum engagement",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "platformContent",
+                "id": "platform_content_input",
+                "label": "Platform Content",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Content adapted for specific platforms"
+              },
+              {
+                "fieldName": "audienceInsights",
+                "id": "audience_insights_input",
+                "label": "Audience Insights",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Target audience behavior and preferences"
+              },
+              {
+                "fieldName": "engagementGoals",
+                "id": "engagement_goals_input",
+                "label": "Engagement Goals",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "reach",
+                  "interaction",
+                  "conversion",
+                  "balanced"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "engagementTactics",
+                "id": "engagement_tactics_output",
+                "label": "Engagement Tactics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "interactionPrompts",
+                "id": "interaction_prompts_output",
+                "label": "Interaction Prompts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timingRecommendations",
+                "id": "timing_recommendations_output",
+                "label": "Timing Recommendations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849286",
+          "language": "en",
+          "name": "Engagement Optimizer",
+          "description": "Optimizes content and timing for maximum audience engagement.",
+          "instructions": "Provide platform content and audience insights. The routine will optimize engagement."
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Each Option",
                 "description": "Breaks down each option into components",
-                "subroutineId": "TODO: Need reasoning subroutine for option analysis",
+                "subroutineId": "7829564732190849533",
                 "inputMap": {
                   "optionsList": "decisionOptions",
                   "decisionContext": "contextInfo",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Pros",
                 "description": "Lists advantages of each option",
-                "subroutineId": "TODO: Need reasoning subroutine for advantage identification",
+                "subroutineId": "7829564732190849536",
                 "inputMap": {
                   "analyzedOptions": "optionBreakdown",
                   "evaluationPerspective": "perspective",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Cons",
                 "description": "Lists disadvantages and risks of each option",
-                "subroutineId": "TODO: Need reasoning subroutine for disadvantage identification",
+                "subroutineId": "7829564732190849539",
                 "inputMap": {
                   "analyzedOptions": "optionBreakdown",
                   "evaluationPerspective": "perspective",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Weight Factors",
                 "description": "Assigns importance to different pros and cons",
-                "subroutineId": "TODO: Need deterministic weighting subroutine",
+                "subroutineId": "7829564732190849542",
                 "inputMap": {
                   "prosList": "advantages",
                   "consList": "disadvantages",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Evaluation",
                 "description": "Creates comprehensive pros/cons report",
-                "subroutineId": "TODO: Need generation subroutine for evaluation report",
+                "subroutineId": "7829564732190849545",
                 "inputMap": {
                   "weightedPros": "prioritizedAdvantages",
                   "weightedCons": "prioritizedDisadvantages",

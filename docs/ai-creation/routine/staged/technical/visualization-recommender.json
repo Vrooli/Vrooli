@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849335",
+  "publicId": "visualization-recommender-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847124",
+      "tag": "data",
+      "translations": [
+        {
+          "id": "7829564732190847224",
+          "language": "en",
+          "description": "Data analysis and processing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847142",
+      "tag": "visualization",
+      "translations": [
+        {
+          "id": "7829564732190847242",
+          "language": "en",
+          "description": "Data visualization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849336",
+      "publicId": "visualization-recommender-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Recommends optimal visualizations for insights",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "keyInsights",
+                "id": "key_insights_input",
+                "label": "Key Insights",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Insights to visualize"
+              },
+              {
+                "fieldName": "dataCharacteristics",
+                "id": "data_characteristics_input",
+                "label": "Data Characteristics",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Data types and structure"
+              },
+              {
+                "fieldName": "audienceLevel",
+                "id": "audience_level_input",
+                "label": "Audience Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "business",
+                "options": [
+                  "technical",
+                  "business",
+                  "executive",
+                  "general"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "visualizationSpecs",
+                "id": "visualization_specs_output",
+                "label": "Chart Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "dashboardLayout",
+                "id": "dashboard_layout_output",
+                "label": "Dashboard Layout",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "narrativeFlow",
+                "id": "narrative_flow_output",
+                "label": "Story Structure",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849337",
+          "language": "en",
+          "name": "Visualization Recommender",
+          "description": "Recommends optimal charts and visualizations for data insights.",
+          "instructions": "Provide insights and data characteristics. The routine will recommend visualizations."
+        }
+      ]
+    }
+  ]
+}

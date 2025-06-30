@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Implement Recovery Strategy",
                 "description": "Establishes medium-term stabilization and restoration",
-                "subroutineId": "TODO: Need recovery planning subroutine",
+                "subroutineId": "7829564732190848870",
                 "inputMap": {
                   "crisisAssessment": "situationAnalysis",
                   "recoveryGoals": "stabilizationTargets",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Establish Learning Framework",
                 "description": "Creates post-crisis analysis and improvement system",
-                "subroutineId": "TODO: Need learning framework subroutine",
+                "subroutineId": "7829564732190849242",
                 "inputMap": {
                   "crisisResponse": "managementActions",
                   "outcomesResults": "responseEffectiveness",

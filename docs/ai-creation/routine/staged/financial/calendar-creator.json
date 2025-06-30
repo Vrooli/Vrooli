@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849467",
+  "publicId": "calendar-creator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847196",
+      "tag": "financial",
+      "translations": [
+        {
+          "id": "7829564732190847296",
+          "language": "en",
+          "description": "Financial management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849468",
+      "publicId": "calendar-creator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates subscription management calendar",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "savingsOpportunities",
+                "id": "savings_opportunities_input",
+                "label": "Savings Opportunities",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Identified savings actions"
+              },
+              {
+                "fieldName": "subscriptionSchedule",
+                "id": "subscription_schedule_input",
+                "label": "Subscription Schedule",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Renewal dates and billing cycles"
+              },
+              {
+                "fieldName": "calendarPreferences",
+                "id": "calendar_preferences_input",
+                "label": "Calendar Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Reminder timing and format preferences"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "managementCalendar",
+                "id": "management_calendar_output",
+                "label": "Management Calendar",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "reminderSchedule",
+                "id": "reminder_schedule_output",
+                "label": "Reminder Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "actionDeadlines",
+                "id": "action_deadlines_output",
+                "label": "Action Deadlines",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849469",
+          "language": "en",
+          "name": "Calendar Creator",
+          "description": "Creates comprehensive subscription management calendar with reminders.",
+          "instructions": "Provide savings opportunities and schedule. The routine will create calendar."
+        }
+      ]
+    }
+  ]
+}

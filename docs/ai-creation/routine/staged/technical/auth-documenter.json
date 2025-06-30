@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849344",
+  "publicId": "auth-documenter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847136",
+      "tag": "api",
+      "translations": [
+        {
+          "id": "7829564732190847236",
+          "language": "en",
+          "description": "API development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847148",
+      "tag": "security",
+      "translations": [
+        {
+          "id": "7829564732190847248",
+          "language": "en",
+          "description": "Security and authentication"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849345",
+      "publicId": "auth-documenter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Documents API authentication methods",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "authMethods",
+                "id": "auth_methods_input",
+                "label": "Security Schemes",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Authentication methods used"
+              },
+              {
+                "fieldName": "permissionModel",
+                "id": "permission_model_input",
+                "label": "Access Control",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Permission and role structure"
+              },
+              {
+                "fieldName": "securityHeaders",
+                "id": "security_headers_input",
+                "label": "Required Headers",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Security-related headers"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "authDocumentation",
+                "id": "auth_documentation_output",
+                "label": "Security Guide",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "permissionMatrix",
+                "id": "permission_matrix_output",
+                "label": "Access Rights",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "securityBestPractices",
+                "id": "security_best_practices_output",
+                "label": "Implementation Guidance",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849346",
+          "language": "en",
+          "name": "Auth Documenter",
+          "description": "Documents authentication methods and security requirements.",
+          "instructions": "Provide auth methods and permissions. The routine will document security."
+        }
+      ]
+    }
+  ]
+}

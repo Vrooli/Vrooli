@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Financial Current State",
                 "description": "Evaluates net worth, cash flow, and financial health metrics",
-                "subroutineId": "TODO: Need financial assessment subroutine",
+                "subroutineId": "7829564732190849473",
                 "inputMap": {
                   "financialProfile": "currentFinances",
                   "incomeStreams": "revenueAnalysis",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Define Financial Independence Goals",
                 "description": "Sets specific FIRE targets and lifestyle objectives",
-                "subroutineId": "TODO: Need goal setting subroutine",
+                "subroutineId": "7829564732190849476",
                 "inputMap": {
                   "lifestyleGoals": "desiredLifestyle",
                   "retirementVision": "futureAspiration",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Optimize Spending & Savings",
                 "description": "Maximizes savings rate through expense optimization",
-                "subroutineId": "TODO: Need spending optimization subroutine",
+                "subroutineId": "7829564732190849479",
                 "inputMap": {
                   "spendingPatterns": "expenseCategories",
                   "savingsCapacity": "optimizationPotential",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Develop Investment Strategy",
                 "description": "Creates diversified portfolio aligned with risk tolerance and timeline",
-                "subroutineId": "TODO: Need investment planning subroutine",
+                "subroutineId": "7829564732190849482",
                 "inputMap": {
                   "investmentCapacity": "savingsRate",
                   "riskProfile": "riskTolerance",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Build Multiple Income Streams",
                 "description": "Develops passive and active income diversification",
-                "subroutineId": "TODO: Need income diversification subroutine",
+                "subroutineId": "7829564732190849485",
                 "inputMap": {
                   "skillsAssets": "capabilityInventory",
                   "marketOpportunities": "incomeOptions",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Monitor Progress & Adjust",
                 "description": "Tracks progress and adapts strategy based on performance",
-                "subroutineId": "TODO: Need progress tracking subroutine",
+                "subroutineId": "7829564732190849488",
                 "inputMap": {
                   "performanceData": "progressMetrics",
                   "marketChanges": "environmentalShifts",

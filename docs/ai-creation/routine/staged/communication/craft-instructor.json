@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849551",
+  "publicId": "craft-instructor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847051",
+      "tag": "communication-content",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Communication and content systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847092",
+      "tag": "coaching",
+      "translations": [
+        {
+          "id": "7829564732190847192",
+          "language": "en",
+          "description": "Coaching and guidance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849552",
+      "publicId": "craft-instructor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Provides targeted craft instruction for creative writing",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "writingGoals",
+                "id": "writing_goals_input",
+                "label": "Writing Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Specific writing objectives and target areas"
+              },
+              {
+                "fieldName": "skillGaps",
+                "id": "skill_gaps_input",
+                "label": "Skill Gaps",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Areas needing improvement"
+              },
+              {
+                "fieldName": "instructionStyle",
+                "id": "instruction_style_input",
+                "label": "Instruction Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "balanced",
+                "options": [
+                  "examples-heavy",
+                  "theory-focused",
+                  "balanced",
+                  "practice-oriented"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "craftLessons",
+                "id": "craft_lessons_output",
+                "label": "Craft Lessons",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "techniqueGuides",
+                "id": "technique_guides_output",
+                "label": "Technique Guides",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practicePrompts",
+                "id": "practice_prompts_output",
+                "label": "Practice Prompts",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849553",
+          "language": "en",
+          "name": "Craft Instructor",
+          "description": "Provides targeted instruction on specific creative writing techniques and craft elements.",
+          "instructions": "Provide writing goals and skill gaps. The routine will create personalized craft lessons."
+        }
+      ]
+    }
+  ]
+}

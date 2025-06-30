@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849419",
+  "publicId": "financial-insight-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847196",
+      "tag": "financial",
+      "translations": [
+        {
+          "id": "7829564732190847296",
+          "language": "en",
+          "description": "Financial management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847133",
+      "tag": "insights",
+      "translations": [
+        {
+          "id": "7829564732190847233",
+          "language": "en",
+          "description": "Insight generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849420",
+      "publicId": "financial-insight-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates actionable financial insights",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "spendingTrends",
+                "id": "spending_trends_input",
+                "label": "Spending Trends",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Analyzed spending patterns"
+              },
+              {
+                "fieldName": "budgetVariance",
+                "id": "budget_variance_input",
+                "label": "Budget Variance",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Budget comparison results"
+              },
+              {
+                "fieldName": "financialGoals",
+                "id": "financial_goals_input",
+                "label": "Financial Goals",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "User's financial objectives"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "personalizedInsights",
+                "id": "personalized_insights_output",
+                "label": "Personalized Insights",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recommendedActions",
+                "id": "recommended_actions_output",
+                "label": "Recommended Actions",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "financialHealthScore",
+                "id": "financial_health_score_output",
+                "label": "Financial Health Score",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849421",
+          "language": "en",
+          "name": "Financial Insight Generator",
+          "description": "Generates personalized financial insights and recommendations.",
+          "instructions": "Provide trends and variance data. The routine will generate insights."
+        }
+      ]
+    }
+  ]
+}

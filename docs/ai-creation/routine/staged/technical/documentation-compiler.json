@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849350",
+  "publicId": "documentation-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847136",
+      "tag": "api",
+      "translations": [
+        {
+          "id": "7829564732190847236",
+          "language": "en",
+          "description": "API development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847154",
+      "tag": "documentation",
+      "translations": [
+        {
+          "id": "7829564732190847254",
+          "language": "en",
+          "description": "Documentation generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849351",
+      "publicId": "documentation-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Assembles complete API documentation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "codeExamples",
+                "id": "code_examples_input",
+                "label": "Implementation Samples",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Code examples and snippets"
+              },
+              {
+                "fieldName": "authDocumentation",
+                "id": "auth_documentation_input",
+                "label": "Security Guide",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Authentication documentation"
+              },
+              {
+                "fieldName": "formatPreferences",
+                "id": "format_preferences_input",
+                "label": "Output Formats",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Desired documentation formats"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "completeDocumentation",
+                "id": "complete_documentation_output",
+                "label": "Full API Docs",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "quickStartGuide",
+                "id": "quick_start_guide_output",
+                "label": "Getting Started",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "apiReference",
+                "id": "api_reference_output",
+                "label": "Reference Manual",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849352",
+          "language": "en",
+          "name": "Documentation Compiler",
+          "description": "Assembles complete API documentation in multiple formats.",
+          "instructions": "Provide examples and auth docs. The routine will compile documentation."
+        }
+      ]
+    }
+  ]
+}

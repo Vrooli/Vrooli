@@ -1,0 +1,127 @@
+{
+  "id": "7829564732190849461",
+  "publicId": "cost-calculator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847196",
+      "tag": "financial",
+      "translations": [
+        {
+          "id": "7829564732190847296",
+          "language": "en",
+          "description": "Financial management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847217",
+      "tag": "cost-analysis",
+      "translations": [
+        {
+          "id": "7829564732190847317",
+          "language": "en",
+          "description": "Cost analysis and optimization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849462",
+      "publicId": "cost-calculator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Calculates total subscription costs and projections",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "subscriptionData",
+                "id": "subscription_data_input",
+                "label": "Subscription Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Subscription inventory and usage data"
+              },
+              {
+                "fieldName": "calculationPeriod",
+                "id": "calculation_period_input",
+                "label": "Calculation Period",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "annual",
+                "options": [
+                  "monthly",
+                  "quarterly",
+                  "annual",
+                  "lifetime"
+                ]
+              },
+              {
+                "fieldName": "includeTaxes",
+                "id": "include_taxes_input",
+                "label": "Include Taxes",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "yes",
+                "options": [
+                  "yes",
+                  "no"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "totalCosts",
+                "id": "total_costs_output",
+                "label": "Total Costs",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "costBreakdown",
+                "id": "cost_breakdown_output",
+                "label": "Cost Breakdown",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "costProjections",
+                "id": "cost_projections_output",
+                "label": "Cost Projections",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849463",
+          "language": "en",
+          "name": "Cost Calculator",
+          "description": "Calculates total subscription costs with detailed breakdowns and projections.",
+          "instructions": "Provide subscription data. The routine will calculate costs."
+        }
+      ]
+    }
+  ]
+}

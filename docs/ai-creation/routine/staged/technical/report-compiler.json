@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849338",
+  "publicId": "report-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847145",
+      "tag": "reporting",
+      "translations": [
+        {
+          "id": "7829564732190847245",
+          "language": "en",
+          "description": "Report generation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847124",
+      "tag": "data",
+      "translations": [
+        {
+          "id": "7829564732190847224",
+          "language": "en",
+          "description": "Data analysis and processing"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849339",
+      "publicId": "report-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compiles comprehensive analysis reports",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "visualizationSpecs",
+                "id": "visualization_specs_input",
+                "label": "Visualization Specs",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Chart recommendations"
+              },
+              {
+                "fieldName": "insightRationale",
+                "id": "insight_rationale_input",
+                "label": "Insight Evidence",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Evidence and rationale"
+              },
+              {
+                "fieldName": "reportTemplate",
+                "id": "report_template_input",
+                "label": "Report Format",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "standard",
+                "options": [
+                  "executive",
+                  "detailed",
+                  "technical",
+                  "standard"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "finalReport",
+                "id": "final_report_output",
+                "label": "Complete Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "recommendations",
+                "id": "recommendations_output",
+                "label": "Next Steps",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849340",
+          "language": "en",
+          "name": "Report Compiler",
+          "description": "Assembles comprehensive analysis reports with visualizations.",
+          "instructions": "Provide visualization specs and evidence. The routine will compile report."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849263",
+  "publicId": "executive-writer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847082",
+      "tag": "content-creation",
+      "translations": [
+        {
+          "id": "7829564732190847182",
+          "language": "en",
+          "description": "Content creation and writing"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849264",
+      "publicId": "executive-writer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates executive summaries and high-level content",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "reportOutline",
+                "id": "report_outline_input",
+                "label": "Report Outline",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Document structure and organization"
+              },
+              {
+                "fieldName": "keyFindings",
+                "id": "key_findings_input",
+                "label": "Key Findings",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Primary insights and discoveries"
+              },
+              {
+                "fieldName": "executiveLevel",
+                "id": "executive_level_input",
+                "label": "Executive Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "senior",
+                "options": [
+                  "mid-level",
+                  "senior",
+                  "c-suite",
+                  "board"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "executiveSummary",
+                "id": "executive_summary_output",
+                "label": "Executive Summary",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "keyRecommendations",
+                "id": "key_recommendations_output",
+                "label": "Key Recommendations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "impactHighlights",
+                "id": "impact_highlights_output",
+                "label": "Impact Highlights",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849265",
+          "language": "en",
+          "name": "Executive Writer",
+          "description": "Creates executive summaries and high-level content for leadership audiences.",
+          "instructions": "Provide report outline and key findings. The routine will write executive content."
+        }
+      ]
+    }
+  ]
+}

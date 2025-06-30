@@ -65,9 +65,26 @@
     }
   ],
   "resources": [
-    "data-sanitizers",
-    "transformation-rules",
-    "validation-schemas",
-    "integration-adapters"
+    {
+      "type": "blackboard",
+      "label": "external-requests-pending",
+      "permissions": ["read"],
+      "scope": "requests.pending",
+      "description": "Read pending external integration requests for processing"
+    },
+    {
+      "type": "blackboard",
+      "label": "external-requests-validated", 
+      "permissions": ["write"],
+      "scope": "requests.validated",
+      "description": "Write validated and processed external requests"
+    },
+    {
+      "type": "blackboard",
+      "label": "integration-logs",
+      "permissions": ["write"],
+      "scope": "logs.activities",
+      "description": "Log external integration activities and results for audit"
+    }
   ]
 }

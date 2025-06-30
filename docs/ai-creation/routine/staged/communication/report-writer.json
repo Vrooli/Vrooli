@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Data & Sources",
                 "description": "Processes raw data and source materials to extract key insights",
-                "subroutineId": "TODO: Need analysis subroutine for data processing",
+                "subroutineId": "7829564732190849257",
                 "inputMap": {
                   "rawData": "sourceData",
                   "dataTypes": "informationFormats",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Structure Report Framework",
                 "description": "Creates logical report structure based on type and audience",
-                "subroutineId": "TODO: Need planning subroutine for document structure",
+                "subroutineId": "7829564732190849260",
                 "inputMap": {
                   "reportType": "documentFormat",
                   "targetAudience": "readerProfile",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Write Executive Summary",
                 "description": "Crafts compelling executive summary with key recommendations",
-                "subroutineId": "TODO: Need generation subroutine for executive writing",
+                "subroutineId": "7829564732190849263",
                 "inputMap": {
                   "keyFindings": "primaryInsights",
                   "recommendations": "actionItems",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Develop Main Content",
                 "description": "Writes detailed sections with supporting evidence and analysis",
-                "subroutineId": "TODO: Need generation subroutine for detailed writing",
+                "subroutineId": "7829564732190849266",
                 "inputMap": {
                   "reportOutline": "documentStructure",
                   "processedData": "analyzedInformation",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Visual Elements",
                 "description": "Generates charts, tables, and visual aids to support findings",
-                "subroutineId": "TODO: Need visualization subroutine for data presentation",
+                "subroutineId": "7829564732190849269",
                 "inputMap": {
                   "processedData": "analyzedInformation",
                   "visualNeeds": "chartRequirements",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Compile & Format Final Report",
                 "description": "Assembles all components into professional final document",
-                "subroutineId": "TODO: Need formatting subroutine for document assembly",
+                "subroutineId": "7829564732190848060",
                 "inputMap": {
                   "allContent": "compiledSections",
                   "formatRequirements": "styleGuide",

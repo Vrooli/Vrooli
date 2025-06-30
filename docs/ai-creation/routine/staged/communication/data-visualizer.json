@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849269",
+  "publicId": "data-visualizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847089",
+      "tag": "data-processing",
+      "translations": [
+        {
+          "id": "7829564732190847189",
+          "language": "en",
+          "description": "Data processing and transformation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847084",
+      "tag": "visualization",
+      "translations": [
+        {
+          "id": "7829564732190847184",
+          "language": "en",
+          "description": "Data visualization and charts"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849270",
+      "publicId": "data-visualizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates charts, tables, and visual data presentations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "evidenceIntegration",
+                "id": "evidence_integration_input",
+                "label": "Evidence Integration",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Data presentation and evidence"
+              },
+              {
+                "fieldName": "visualPreferences",
+                "id": "visual_preferences_input",
+                "label": "Visual Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Presentation style and visual guidelines"
+              },
+              {
+                "fieldName": "audienceNeeds",
+                "id": "audience_needs_input",
+                "label": "Audience Needs",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Comprehension level and audience requirements"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "visualElements",
+                "id": "visual_elements_output",
+                "label": "Visual Elements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "formattingGuidance",
+                "id": "formatting_guidance_output",
+                "label": "Formatting Guidance",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "accessibilityFeatures",
+                "id": "accessibility_features_output",
+                "label": "Accessibility Features",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849271",
+          "language": "en",
+          "name": "Data Visualizer",
+          "description": "Creates charts, tables, and visual elements for effective data presentation.",
+          "instructions": "Provide evidence integration and preferences. The routine will create visualizations."
+        }
+      ]
+    }
+  ]
+}

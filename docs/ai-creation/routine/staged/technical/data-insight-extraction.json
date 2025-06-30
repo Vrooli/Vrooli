@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Profile Dataset",
                 "description": "Analyzes data structure and characteristics",
-                "subroutineId": "TODO: Need data profiling subroutine",
+                "subroutineId": "7829564732190849314",
                 "inputMap": {
                   "dataset": "inputData",
                   "dataTypes": "columnTypes",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Detect Patterns",
                 "description": "Identifies trends, cycles, and correlations",
-                "subroutineId": "TODO: Need pattern detection subroutine",
+                "subroutineId": "7829564732190849317",
                 "inputMap": {
                   "structuralAnalysis": "dataProfile",
                   "patternTypes": "searchTargets",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Find Anomalies",
                 "description": "Locates outliers and unusual data points",
-                "subroutineId": "TODO: Need anomaly detection subroutine",
+                "subroutineId": "7829564732190849320",
                 "inputMap": {
                   "descriptiveStats": "statisticalSummary",
                   "anomalyMethods": "detectionAlgorithms",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Insights",
                 "description": "Translates patterns into business insights",
-                "subroutineId": "TODO: Need insight generation subroutine",
+                "subroutineId": "7829564732190849323",
                 "inputMap": {
                   "trendAnalysis": "identifiedPatterns",
                   "businessContext": "domainKnowledge",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Visualizations",
                 "description": "Recommends charts and graphs for insights",
-                "subroutineId": "TODO: Need visualization recommendation subroutine",
+                "subroutineId": "7829564732190849335",
                 "inputMap": {
                   "actionableFindings": "keyInsights",
                   "dataCharacteristics": "visualizationContext",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Compile Report",
                 "description": "Assembles comprehensive insight report",
-                "subroutineId": "TODO: Need report compilation subroutine",
+                "subroutineId": "7829564732190849338",
                 "inputMap": {
                   "chartRecommendations": "visualizationSpecs",
                   "evidenceBase": "insightRationale",

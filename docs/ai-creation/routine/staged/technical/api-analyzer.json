@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849326",
+  "publicId": "api-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847109",
+      "tag": "technical",
+      "translations": [
+        {
+          "id": "7829564732190847209",
+          "language": "en",
+          "description": "Technical and engineering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847136",
+      "tag": "api",
+      "translations": [
+        {
+          "id": "7829564732190847236",
+          "language": "en",
+          "description": "API development"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849327",
+      "publicId": "api-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes API structure and endpoints",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "apiSource",
+                "id": "api_source_input",
+                "label": "API Source",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "API code, spec, or URL"
+              },
+              {
+                "fieldName": "apiType",
+                "id": "api_type_input",
+                "label": "API Type",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "REST",
+                  "GraphQL",
+                  "gRPC",
+                  "WebSocket",
+                  "SOAP"
+                ]
+              },
+              {
+                "fieldName": "analysisScope",
+                "id": "analysis_scope_input",
+                "label": "Analysis Scope",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Specific areas to focus on"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "endpointList",
+                "id": "endpoint_list_output",
+                "label": "Endpoint List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "dataModels",
+                "id": "data_models_output",
+                "label": "Data Models",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "apiStructure",
+                "id": "api_structure_output",
+                "label": "API Structure",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849328",
+          "language": "en",
+          "name": "API Analyzer",
+          "description": "Analyzes API structure, endpoints, and data models.",
+          "instructions": "Provide API source and type. The routine will analyze the API."
+        }
+      ]
+    }
+  ]
+}

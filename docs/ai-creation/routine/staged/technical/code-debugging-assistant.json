@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Error Context",
                 "description": "Examines error messages, code, and execution environment",
-                "subroutineId": "TODO: Need error analysis subroutine",
+                "subroutineId": "7829564732190849353",
                 "inputMap": {
                   "sourceCode": "codeToDebug",
                   "errorMessages": "bugReports",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Root Causes",
                 "description": "Traces through code to find the source of the problem",
-                "subroutineId": "TODO: Need root cause analysis subroutine",
+                "subroutineId": "7829564732190849356",
                 "inputMap": {
                   "bugBreakdown": "errorAnalysis",
                   "programFlow": "codeStructure",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Fix Strategies",
                 "description": "Develops multiple approaches to resolve the identified issues",
-                "subroutineId": "TODO: Need fix strategy subroutine",
+                "subroutineId": "7829564732190849359",
                 "inputMap": {
                   "problemSources": "rootCauses",
                   "bugLocation": "executionPath",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Implement Code Fixes",
                 "description": "Creates specific code changes to address the problems",
-                "subroutineId": "TODO: Need code fixing subroutine",
+                "subroutineId": "7829564732190849362",
                 "inputMap": {
                   "solutionApproaches": "fixStrategies",
                   "codeToDebug": "sourceCode",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Validate Solutions",
                 "description": "Tests fixes and checks for potential side effects",
-                "subroutineId": "TODO: Need solution validation subroutine",
+                "subroutineId": "7829564732190849383",
                 "inputMap": {
                   "fixedCode": "codeChanges",
                   "validationSteps": "testingSuggestions",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Debug Report",
                 "description": "Compiles comprehensive debugging documentation",
-                "subroutineId": "TODO: Need report compilation subroutine",
+                "subroutineId": "7829564732190849338",
                 "inputMap": {
                   "changeJustifications": "modificationExplanations",
                   "validationOutcome": "testResults",

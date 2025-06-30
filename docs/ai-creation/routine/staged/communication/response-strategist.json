@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849248",
+  "publicId": "response-strategist-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847076",
+      "tag": "communication",
+      "translations": [
+        {
+          "id": "7829564732190847176",
+          "language": "en",
+          "description": "Communication skills"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849249",
+      "publicId": "response-strategist-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates appropriate response approaches for emails",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "messageType",
+                "id": "message_type_input",
+                "label": "Message Type",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Email category and classification"
+              },
+              {
+                "fieldName": "responseNeeds",
+                "id": "response_needs_input",
+                "label": "Response Needs",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Required actions and responses"
+              },
+              {
+                "fieldName": "communicationStyle",
+                "id": "communication_style_input",
+                "label": "Communication Style",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Response preferences and style guidelines"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "responseStrategy",
+                "id": "response_strategy_output",
+                "label": "Response Strategy",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "responseTemplate",
+                "id": "response_template_output",
+                "label": "Response Template",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "timingRecommendation",
+                "id": "timing_recommendation_output",
+                "label": "Timing Recommendation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849250",
+          "language": "en",
+          "name": "Response Strategist",
+          "description": "Creates appropriate response strategies and templates for different email types.",
+          "instructions": "Provide message type and response needs. The routine will create response strategy."
+        }
+      ]
+    }
+  ]
+}

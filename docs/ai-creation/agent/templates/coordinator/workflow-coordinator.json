@@ -21,7 +21,9 @@
         "label": "Task Decomposer",
         "inputMap": {
           "goalDescription": "event.data.description",
-          "goalId": "event.data.goalId"
+          "goalId": "event.data.goalId",
+          "existingTasks": "subtasks.length",
+          "currentWorkload": "blackboard.workflows.active"
         }
       },
       "qos": 1
@@ -62,9 +64,26 @@
     }
   ],
   "resources": [
-    "task-queue",
-    "agent-registry",
-    "workflow-templates",
-    "performance-metrics"
+    {
+      "type": "blackboard",
+      "label": "task-coordination",
+      "permissions": ["read", "write"],
+      "scope": "workflows.*",
+      "description": "Read and write workflow states and task assignments"
+    },
+    {
+      "type": "blackboard",
+      "label": "agent-registry",
+      "permissions": ["read"],
+      "scope": "agents.capabilities",
+      "description": "Read available agents and their current capabilities"
+    },
+    {
+      "type": "blackboard",
+      "label": "performance-metrics",
+      "permissions": ["read"],
+      "scope": "workflows.performance",
+      "description": "Read workflow performance data for optimization"
+    }
   ]
 }

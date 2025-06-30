@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Memory Usage",
                 "description": "Examines current memory store utilization and access patterns",
-                "subroutineId": "TODO: Need memory analysis subroutine",
+                "subroutineId": "7829564732190849029",
                 "inputMap": {
                   "memoryStore": "vectorEmbeddings",
                   "accessLogs": "retrievalPatterns",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Redundant Entries",
                 "description": "Finds duplicate or near-duplicate memory entries for consolidation",
-                "subroutineId": "TODO: Need redundancy detection subroutine",
+                "subroutineId": "7829564732190849095",
                 "inputMap": {
                   "vectorEmbeddings": "memoryStore",
                   "similarityThreshold": "deduplicationCriteria",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Evaluate Content Relevance",
                 "description": "Assesses which memories remain valuable for future retrieval",
-                "subroutineId": "TODO: Need relevance evaluation subroutine",
+                "subroutineId": "7829564732190849197",
                 "inputMap": {
                   "memoryMetrics": "usageAnalysis",
                   "retrievalStats": "accessFrequency",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Optimize Memory Structure",
                 "description": "Reorganizes memory for improved retrieval performance",
-                "subroutineId": "TODO: Need structure optimization subroutine",
+                "subroutineId": "7829564732190849200",
                 "inputMap": {
                   "distinctMemories": "uniqueContent",
                   "contentValue": "relevanceScores",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Perform Cleanup Operations",
                 "description": "Executes memory consolidation and archival processes",
-                "subroutineId": "TODO: Need cleanup execution subroutine",
+                "subroutineId": "7829564732190849203",
                 "inputMap": {
                   "mergeableEntries": "consolidationCandidates",
                   "staleMemories": "outdatedEntries",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Maintenance Report",
                 "description": "Documents maintenance activities and performance improvements",
-                "subroutineId": "TODO: Need reporting subroutine",
+                "subroutineId": "7829564732190849044",
                 "inputMap": {
                   "maintenanceOutcome": "cleanupResults",
                   "efficiencyImprovements": "performanceGains",

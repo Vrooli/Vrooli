@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849341",
+  "publicId": "example-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847136",
+      "tag": "api",
+      "translations": [
+        {
+          "id": "7829564732190847236",
+          "language": "en",
+          "description": "API development"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847118",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847218",
+          "language": "en",
+          "description": "Code generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849342",
+      "publicId": "example-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates API usage examples",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "typeSystem",
+                "id": "type_system_input",
+                "label": "Type System",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Complete type definitions"
+              },
+              {
+                "fieldName": "useCases",
+                "id": "use_cases_input",
+                "label": "Use Cases",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Common usage scenarios"
+              },
+              {
+                "fieldName": "testData",
+                "id": "test_data_input",
+                "label": "Test Data",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Sample values for examples"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "codeExamples",
+                "id": "code_examples_output",
+                "label": "Implementation Samples",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "curlCommands",
+                "id": "curl_commands_output",
+                "label": "Command Line Examples",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "responseExamples",
+                "id": "response_examples_output",
+                "label": "Expected Outputs",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849343",
+          "language": "en",
+          "name": "Example Generator",
+          "description": "Creates realistic API usage examples with various formats.",
+          "instructions": "Provide type system and use cases. The routine will generate examples."
+        }
+      ]
+    }
+  ]
+}

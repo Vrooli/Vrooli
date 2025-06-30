@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Writing Goals & Style",
                 "description": "Evaluates writer's objectives, preferences, and current skill level",
-                "subroutineId": "TODO: Need writing assessment subroutine",
+                "subroutineId": "7829564732190849290",
                 "inputMap": {
                   "writingGoals": "objectives",
                   "experienceLevel": "skillLevel",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Writing Sample",
                 "description": "Reviews existing work to identify style, voice, and areas for growth",
-                "subroutineId": "TODO: Need writing analysis subroutine",
+                "subroutineId": "7829564732190849293",
                 "inputMap": {
                   "writingSample": "submittedWork",
                   "analysisScope": "reviewDepth",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Create Development Plan",
                 "description": "Designs personalized writing improvement roadmap",
-                "subroutineId": "TODO: Need development planning subroutine",
+                "subroutineId": "7829564732190848834",
                 "inputMap": {
                   "writerProfile": "individualAssessment",
                   "skillAreas": "strengthsWeaknesses",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Writing Prompts",
                 "description": "Creates tailored prompts to inspire and challenge the writer",
-                "subroutineId": "TODO: Need prompt generation subroutine",
+                "subroutineId": "7829564732190849299",
                 "inputMap": {
                   "genreInterests": "preferredGenres",
                   "skillLevel": "experienceLevel",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Provide Craft Guidance",
                 "description": "Offers specific techniques and strategies for improvement",
-                "subroutineId": "TODO: Need craft instruction subroutine",
+                "subroutineId": "7829564732190849551",
                 "inputMap": {
                   "craftEvaluation": "technicalFeedback",
                   "developmentAreas": "improvementOpportunities",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Feedback Framework",
                 "description": "Establishes system for ongoing evaluation and improvement",
-                "subroutineId": "TODO: Need feedback framework subroutine",
+                "subroutineId": "7829564732190849554",
                 "inputMap": {
                   "developmentRoadmap": "learningPlan",
                   "progressMarkers": "masteryMilestones",

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849506",
+  "publicId": "decision-finalizer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849507",
+      "publicId": "decision-finalizer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Finalizes decision selection and creates implementation plan",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "comparativeAnalysis",
+                "id": "comparative_analysis_input",
+                "label": "Comparative Analysis",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Scoring results and option rankings"
+              },
+              {
+                "fieldName": "stakeholderInput",
+                "id": "stakeholder_input_input",
+                "label": "Stakeholder Input",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Input from relevant stakeholders"
+              },
+              {
+                "fieldName": "implementationReadiness",
+                "id": "implementation_readiness_input",
+                "label": "Implementation Readiness",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Capacity and resources for execution"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "finalDecision",
+                "id": "final_decision_output",
+                "label": "Final Decision",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationPlan",
+                "id": "implementation_plan_output",
+                "label": "Implementation Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "successMetrics",
+                "id": "success_metrics_output",
+                "label": "Success Metrics",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849508",
+          "language": "en",
+          "name": "Decision Finalizer",
+          "description": "Finalizes decision selection and creates comprehensive implementation strategy.",
+          "instructions": "Provide analysis results and stakeholder input. The routine will finalize decision and plan."
+        }
+      ]
+    }
+  ]
+}

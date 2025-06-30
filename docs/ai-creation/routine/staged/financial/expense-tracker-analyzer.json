@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Import & Parse Expenses",
                 "description": "Loads expense data from various sources",
-                "subroutineId": "TODO: Need expense import subroutine",
+                "subroutineId": "7829564732190849407",
                 "inputMap": {
                   "expenseData": "transactionSources",
                   "importFormat": "dataFormats",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Categorize Transactions",
                 "description": "Intelligently assigns categories to expenses",
-                "subroutineId": "TODO: Need categorization subroutine",
+                "subroutineId": "7829564732190849410",
                 "inputMap": {
                   "cleanExpenseData": "parsedTransactions",
                   "categoryRules": "classificationLogic",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Analyze Spending Patterns",
                 "description": "Identifies trends and spending behaviors",
-                "subroutineId": "TODO: Need pattern analysis subroutine",
+                "subroutineId": "7829564732190849413",
                 "inputMap": {
                   "classifiedTransactions": "categorizedExpenses",
                   "temporalAnalysis": "timeBasedPatterns",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Compare to Budget",
                 "description": "Evaluates spending against budget targets",
-                "subroutineId": "TODO: Need budget comparison subroutine",
+                "subroutineId": "7829564732190849416",
                 "inputMap": {
                   "spendingCategories": "categoryBreakdown",
                   "budgetTargets": "plannedSpending",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Insights & Advice",
                 "description": "Creates actionable recommendations for savings",
-                "subroutineId": "TODO: Need insight generation subroutine",
+                "subroutineId": "7829564732190849419",
                 "inputMap": {
                   "patternAnalysis": "spendingTrends",
                   "budgetWarnings": "categoryAlerts",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Reports & Dashboards",
                 "description": "Compiles visual reports and tracking dashboards",
-                "subroutineId": "TODO: Need report generation subroutine",
+                "subroutineId": "7829564732190849422",
                 "inputMap": {
                   "overUnderAnalysis": "budgetVariance",
                   "costReductions": "savingsOpportunities",

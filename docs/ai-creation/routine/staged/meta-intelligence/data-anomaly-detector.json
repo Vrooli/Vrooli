@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Data Structure",
                 "description": "Examines data format, types, and distribution patterns",
-                "subroutineId": "TODO: Need data structure analysis subroutine",
+                "subroutineId": "7829564732190849206",
                 "inputMap": {
                   "inputData": "rawDataset",
                   "dataDescription": "contextualInfo",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Apply Statistical Detection",
                 "description": "Uses statistical methods to identify outliers and unusual values",
-                "subroutineId": "TODO: Need statistical detection subroutine",
+                "subroutineId": "7829564732190849209",
                 "inputMap": {
                   "rawDataset": "inputData",
                   "normalBehavior": "baselinePatterns",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Perform Pattern Analysis",
                 "description": "Identifies sequential or temporal anomalies in data patterns",
-                "subroutineId": "TODO: Need pattern analysis subroutine",
+                "subroutineId": "7829564732190849212",
                 "inputMap": {
                   "structuralAnalysis": "dataProfile",
                   "temporalSequence": "timeSeriesData",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Contextual Evaluation",
                 "description": "Assesses anomalies within business or domain context",
-                "subroutineId": "TODO: Need contextual evaluation subroutine",
+                "subroutineId": "7829564732190849215",
                 "inputMap": {
                   "numericalAnomalies": "statisticalOutliers",
                   "temporalOutliers": "sequentialAnomalies",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Explanations",
                 "description": "Provides potential explanations for detected anomalies",
-                "subroutineId": "TODO: Need explanation generation subroutine",
+                "subroutineId": "7829564732190849218",
                 "inputMap": {
                   "meaningfulOutliers": "contextualAnomalies",
                   "impactAssessment": "severityRatings",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Detection Report",
                 "description": "Compiles comprehensive anomaly detection findings",
-                "subroutineId": "TODO: Need report generation subroutine",
+                "subroutineId": "7829564732190849221",
                 "inputMap": {
                   "anomalyReliability": "confidenceScores",
                   "rootCauseAnalysis": "anomalyExplanations",

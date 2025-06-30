@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849539",
+  "publicId": "disadvantage-identifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849540",
+      "publicId": "disadvantage-identifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies and categorizes disadvantages of decision options",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "analyzedOptions",
+                "id": "analyzed_options_input",
+                "label": "Analyzed Options",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Options with detailed analysis"
+              },
+              {
+                "fieldName": "riskFactors",
+                "id": "risk_factors_input",
+                "label": "Risk Factors",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Potential risks and concerns to evaluate"
+              },
+              {
+                "fieldName": "weaknessWeights",
+                "id": "weakness_weights_input",
+                "label": "Weakness Weights",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Importance weights for different types of disadvantages"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "identifiedDisadvantages",
+                "id": "identified_disadvantages_output",
+                "label": "Identified Disadvantages",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "disadvantageCategories",
+                "id": "disadvantage_categories_output",
+                "label": "Disadvantage Categories",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "weaknessRanking",
+                "id": "weakness_ranking_output",
+                "label": "Weakness Ranking",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849541",
+          "language": "en",
+          "name": "Disadvantage Identifier",
+          "description": "Systematically identifies and categorizes disadvantages and risks of decision options.",
+          "instructions": "Provide analyzed options and risk factors. The routine will identify key disadvantages."
+        }
+      ]
+    }
+  ]
+}

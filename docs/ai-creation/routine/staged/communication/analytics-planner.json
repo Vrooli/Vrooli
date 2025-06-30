@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849287",
+  "publicId": "analytics-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847055",
+      "tag": "social-media",
+      "translations": [
+        {
+          "id": "7829564732190847155",
+          "language": "en",
+          "description": "Social media planning and content"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847100",
+      "tag": "analytics",
+      "translations": [
+        {
+          "id": "7829564732190847200",
+          "language": "en",
+          "description": "Data analysis and insights"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849288",
+      "publicId": "analytics-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Plans metrics tracking and reporting strategies",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "contentCalendar",
+                "id": "content_calendar_input",
+                "label": "Content Calendar",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Scheduled content and posting plans"
+              },
+              {
+                "fieldName": "businessGoals",
+                "id": "business_goals_input",
+                "label": "Business Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "KPIs and performance objectives"
+              },
+              {
+                "fieldName": "trackingPreferences",
+                "id": "tracking_preferences_input",
+                "label": "Tracking Preferences",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "basic",
+                  "intermediate",
+                  "comprehensive",
+                  "custom"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "metricsFramework",
+                "id": "metrics_framework_output",
+                "label": "Metrics Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "trackingSetup",
+                "id": "tracking_setup_output",
+                "label": "Tracking Setup",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "reportingTemplates",
+                "id": "reporting_templates_output",
+                "label": "Reporting Templates",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849289",
+          "language": "en",
+          "name": "Analytics Planner",
+          "description": "Designs comprehensive analytics and measurement strategies.",
+          "instructions": "Provide content calendar and business goals. The routine will plan analytics."
+        }
+      ]
+    }
+  ]
+}

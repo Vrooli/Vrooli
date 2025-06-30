@@ -17,19 +17,42 @@ OUTPUT RULES:
 • You may create up to 3 behaviours per agent
 • Keep it minimal; omit optional fields unless they add clear value
 
+QOS (QUALITY OF SERVICE) LEVELS:
+• qos: 0 = LOW PRIORITY: Background tasks, analytics, non-critical monitoring
+• qos: 1 = NORMAL PRIORITY: Standard workflow operations, most routine tasks
+• qos: 2 = HIGH PRIORITY: Critical alerts, failure handling, urgent responses
+
+INPUT MAPPING SYNTAX:
+• `event.data.*` - Event payload fields (e.g., "event.data.goalId", "event.data.error")
+• `blackboard.SCOPE` - Blackboard data (e.g., "blackboard.metrics.cpu", "blackboard.tasks.pending")
+• `stats.*` - Swarm statistics (e.g., "stats.totalToolCalls", "stats.totalCredits")
+• `records.*` - Event history (e.g., "records.length", "records.latest.routine_name")
+• `subtasks.*` - Sub-task data (e.g., "subtasks.length", "subtasks.active.count")
+• `goal` - Primary objective string
+• `eventSubscriptions.*` - Event subscription mappings
+• Access will be validated against agent's resource permissions
+
 TRIGGER CONDITIONS (optional):
 Use jexl expressions in the `trigger.when` field to add conditions. Available variables:
 • `event.data.*` - Event payload fields (e.g., `event.data.remaining`, `event.data.newState`)
 • `event.type` - Event type string
-• `swarm.state` - Current swarm execution state ("RUNNING", "FAILED", etc.)
-• `swarm.resources.remaining.*` - Remaining credits, tokens, time
-• `swarm.resources.consumed.*` - Used credits, tokens, time
-• `swarm.agents` - Number of active agents
+• `event.timestamp` - Event timestamp
+• `blackboard.*` - Blackboard data (filtered by agent's scope permissions)
+• `stats.*` - Swarm statistics (e.g., `stats.totalToolCalls > 10`)
+• `records.length` - Number of tool call records
+• `subtasks.length` - Number of active subtasks
+• `goal` - Primary objective string
 • `bot.performance.successRate` - Agent's success rate (0-1)
+• `bot.performance.tasksFailed` - Number of failed tasks
+• `swarm.state` - Current swarm state
+• `swarm.id` - Swarm identifier
 
 Examples:
 • `"event.data.remaining < event.data.allocated * 0.1"` - Low resources
-• `"event.data.newState == 'FAILED'"` - Specific state change
+• `"event.data.newState == 'FAILED'"` - Specific state change  
+• `"stats.totalToolCalls > 50"` - High activity threshold
+• `"blackboard.failures.critical.length > 0"` - Critical failures present
+• `"subtasks.length == 0"` - No active subtasks
 • `"bot.performance.successRate < 0.8"` - Poor performance
 
 VALID EVENTS YOU CAN USE:
@@ -50,7 +73,15 @@ AVAILABLE_ROUTINES
 |-------------------------------|-------------------------------------------|
 {{ROUTINE_TABLE}}
 
-OPTIONAL_RESOURCES (free-text labels, if helpful):
+RESOURCES (use ResourceSpec format with type, label, permissions, scope, description):
+- Use ONLY type: "routine" or "blackboard"
+- Always include permissions array: ["read"], ["write"], or ["read","write"]
+- For blackboards, include scope: "metrics.*", "alerts.critical", "tasks.pending", etc.
+- Do NOT set source (bot is implied)
+- Provide descriptive labels and clear descriptions
+- Keep resources focused and relevant to the agent's role
+- IMPORTANT: Each resource must have a UNIQUE label within the agent (no duplicates)
+
 {{RESOURCE_HINTS}}
 
 Constraints
@@ -72,12 +103,20 @@ interface AgentSpec {
   subscriptions: string[];
   behaviours: BehaviourSpec[];
   norms?: { modality:"obligation"|"permission"|"prohibition"; target:string }[];
-  resources?: string[];
+  resources?: ResourceSpec[];
 }
 interface BehaviourSpec {
   trigger: { topic:string; when?:string };
   action: { type:"routine"; label:string; inputMap?:Record<string,string> } |
           { type:"invoke"; purpose?:string };
   qos?: 0|1|2;
+}
+interface ResourceSpec {
+  type: "routine" | "blackboard";  // Only these two types allowed for generated agents
+  label: string;
+  permissions: string[];  // Required: ["read"], ["write"], or ["read","write"]
+  scope?: string;         // For blackboards: "metrics.*", "alerts.critical", "tasks.pending", etc.
+  description: string;    // Required: clear description of resource purpose
+  // Do NOT set: id, source (bot implied), config
 }
 ```

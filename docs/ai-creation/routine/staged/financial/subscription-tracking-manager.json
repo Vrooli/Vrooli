@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Inventory Current Subscriptions",
                 "description": "Catalogs all active subscriptions and recurring payments",
-                "subroutineId": "TODO: Need subscription inventory subroutine",
+                "subroutineId": "7829564732190849437",
                 "inputMap": {
                   "subscriptionData": "serviceList",
                   "paymentMethods": "billingAccounts",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Usage Patterns",
                 "description": "Evaluates how frequently each subscription is actually used",
-                "subroutineId": "TODO: Need usage analysis subroutine",
+                "subroutineId": "7829564732190849440",
                 "inputMap": {
                   "catalogedServices": "subscriptionInventory",
                   "usageData": "serviceUtilization",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Calculate Cost Efficiency",
                 "description": "Determines cost per usage and value proposition for each service",
-                "subroutineId": "TODO: Need cost efficiency subroutine",
+                "subroutineId": "7829564732190849443",
                 "inputMap": {
                   "spendingAnalysis": "costBreakdown",
                   "utilizationAnalysis": "usageMetrics",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Identify Redundancies",
                 "description": "Finds overlapping services and consolidation opportunities",
-                "subroutineId": "TODO: Need redundancy detection subroutine",
+                "subroutineId": "7829564732190849446",
                 "inputMap": {
                   "serviceWorthiness": "valueAssessment",
                   "featureComparison": "serviceCapabilities",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Recommendations",
                 "description": "Creates actionable suggestions for subscription optimization",
-                "subroutineId": "TODO: Need recommendation engine subroutine",
+                "subroutineId": "7829564732190849449",
                 "inputMap": {
                   "savingsPotential": "optimizationOpportunities",
                   "lowValueSubscriptions": "underutilizedServices",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Management Plan",
                 "description": "Develops comprehensive subscription management strategy",
-                "subroutineId": "TODO: Need management planning subroutine",
+                "subroutineId": "7829564732190849452",
                 "inputMap": {
                   "servicesToCancel": "cancellationSuggestions",
                   "tierOptimization": "downgradePlans",

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Current Holdings",
                 "description": "Analyzes existing portfolio composition and performance",
-                "subroutineId": "TODO: Need portfolio assessment subroutine",
+                "subroutineId": "7829564732190849425",
                 "inputMap": {
                   "portfolioData": "currentHoldings",
                   "timeFrame": "analysisWindow",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Evaluate Risk Profile",
                 "description": "Assesses investor risk tolerance and capacity",
-                "subroutineId": "TODO: Need risk profiling subroutine",
+                "subroutineId": "7829564732190849428",
                 "inputMap": {
                   "investorProfile": "personalSituation",
                   "goals": "investmentObjectives",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Analyze Asset Allocation",
                 "description": "Reviews diversification and alignment with goals",
-                "subroutineId": "TODO: Need allocation analysis subroutine",
+                "subroutineId": "7829564732190849431",
                 "inputMap": {
                   "compositionAnalysis": "portfolioBreakdown",
                   "recommendedMix": "targetAllocation",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Evaluate Individual Investments",
                 "description": "Assesses quality and suitability of specific holdings",
-                "subroutineId": "TODO: Need investment evaluation subroutine",
+                "subroutineId": "7829564732190849434",
                 "inputMap": {
                   "currentHoldings": "portfolioData",
                   "fundamentalData": "investmentMetrics",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Generate Optimization Recommendations",
                 "description": "Creates specific actionable improvement strategies",
-                "subroutineId": "TODO: Need optimization subroutine",
+                "subroutineId": "7829564732190849455",
                 "inputMap": {
                   "allAnalysis": "comprehensiveAssessment",
                   "adjustmentRequirements": "rebalancingNeeds",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Create Monitoring Framework",
                 "description": "Establishes ongoing portfolio tracking system",
-                "subroutineId": "TODO: Need monitoring setup subroutine",
+                "subroutineId": "7829564732190849458",
                 "inputMap": {
                   "optimizationPlan": "improvementStrategy",
                   "keyMetrics": "trackingIndicators",

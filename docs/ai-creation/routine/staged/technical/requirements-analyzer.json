@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849302",
+  "publicId": "requirements-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847109",
+      "tag": "technical",
+      "translations": [
+        {
+          "id": "7829564732190847209",
+          "language": "en",
+          "description": "Technical and engineering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847112",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847212",
+          "language": "en",
+          "description": "Analysis and evaluation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849303",
+      "publicId": "requirements-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes and structures project requirements",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "projectDescription",
+                "id": "project_description_input",
+                "label": "Project Description",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Describe the project goals and scope"
+              },
+              {
+                "fieldName": "userRequirements",
+                "id": "user_requirements_input",
+                "label": "User Requirements",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "User stories and needs"
+              },
+              {
+                "fieldName": "constraints",
+                "id": "constraints_input",
+                "label": "Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Technical, time, or resource constraints"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "functionalRequirements",
+                "id": "functional_requirements_output",
+                "label": "Functional Requirements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "nonFunctionalRequirements",
+                "id": "non_functional_requirements_output",
+                "label": "Non-Functional Requirements",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "acceptanceCriteria",
+                "id": "acceptance_criteria_output",
+                "label": "Acceptance Criteria",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849304",
+          "language": "en",
+          "name": "Requirements Analyzer",
+          "description": "Analyzes project requirements and generates structured specifications.",
+          "instructions": "Provide project description and user requirements. The routine will analyze and structure them."
+        }
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Error Context",
                 "description": "Examines error messages, stack traces, and code context",
-                "subroutineId": "TODO: Need error analysis subroutine",
+                "subroutineId": "7829564732190849353",
                 "inputMap": {
                   "errorMessage": "problemDescription",
                   "stackTrace": "executionPath",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Root Cause",
                 "description": "Traces error origin and determines underlying causes",
-                "subroutineId": "TODO: Need root cause analysis subroutine",
+                "subroutineId": "7829564732190849356",
                 "inputMap": {
                   "problemBreakdown": "errorAnalysis",
                   "executionFlow": "programPath",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Generate Hypotheses",
                 "description": "Creates potential solutions and fix strategies",
-                "subroutineId": "TODO: Need solution generation subroutine",
+                "subroutineId": "7829564732190849365",
                 "inputMap": {
                   "primaryIssue": "rootCause",
                   "codePatterns": "implementationStyle",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Test Solutions",
                 "description": "Validates fixes and verifies problem resolution",
-                "subroutineId": "TODO: Need solution testing subroutine",
+                "subroutineId": "7829564732190849368",
                 "inputMap": {
                   "potentialFixes": "solutionHypotheses",
                   "testScenarios": "validationCases",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Implement Best Fix",
                 "description": "Applies optimal solution with proper error handling",
-                "subroutineId": "TODO: Need implementation subroutine",
+                "subroutineId": "7829564732190849386",
                 "inputMap": {
                   "verifiedFixes": "workingSolutions",
                   "codeStandards": "qualityGuidelines",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Document Resolution",
                 "description": "Creates debugging report and prevention guidelines",
-                "subroutineId": "TODO: Need documentation subroutine",
+                "subroutineId": "7829564732190849389",
                 "inputMap": {
                   "appliedSolution": "implementedFix",
                   "technicalReasoning": "causeExplanation",

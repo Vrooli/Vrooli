@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Content Strategy",
                 "description": "Establishes content goals, audience, and brand voice",
-                "subroutineId": "TODO: Need content strategy subroutine",
+                "subroutineId": "7829564732190849275",
                 "inputMap": {
                   "brandProfile": "businessInfo",
                   "targetAudience": "audienceProfile",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Generate Content Ideas",
                 "description": "Creates diverse content concepts aligned with strategy",
-                "subroutineId": "TODO: Need content ideation subroutine",
+                "subroutineId": "7829564732190849278",
                 "inputMap": {
                   "contentStrategy": "strategicFramework",
                   "contentTypes": "formatPreferences",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Plan Content Calendar",
                 "description": "Schedules content with optimal timing and frequency",
-                "subroutineId": "TODO: Need calendar planning subroutine",
+                "subroutineId": "7829564732190849281",
                 "inputMap": {
                   "contentIdeas": "creativeConceptsLibrary",
                   "platformSchedule": "postingFrequency",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Platform-Specific Content",
                 "description": "Adapts content for different social media platforms",
-                "subroutineId": "TODO: Need platform adaptation subroutine",
+                "subroutineId": "7829564732190848024",
                 "inputMap": {
                   "contentCalendar": "scheduledPosts",
                   "platformRequirements": "channelSpecs",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Optimize for Engagement",
                 "description": "Enhances content for maximum reach and interaction",
-                "subroutineId": "TODO: Need engagement optimization subroutine",
+                "subroutineId": "7829564732190849284",
                 "inputMap": {
                   "platformContent": "adaptedPosts",
                   "engagementTactics": "interactionStrategies",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Plan Analytics and Tracking",
                 "description": "Sets up measurement framework for content performance",
-                "subroutineId": "TODO: Need analytics planning subroutine",
+                "subroutineId": "7829564732190849287",
                 "inputMap": {
                   "contentGoals": "objectives",
                   "performanceMetrics": "trackingKPIs",

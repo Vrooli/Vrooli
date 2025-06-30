@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Categorize by Type",
                 "description": "Classifies emails into actionable categories",
-                "subroutineId": "TODO: Need email categorization subroutine",
+                "subroutineId": "7829564732190849245",
                 "inputMap": {
                   "communicationPurpose": "intentClassification",
                   "importanceLevel": "priorityRating",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Response Strategy",
                 "description": "Creates appropriate response approach for each email",
-                "subroutineId": "TODO: Need response strategy subroutine",
+                "subroutineId": "7829564732190849248",
                 "inputMap": {
                   "messageType": "emailCategory",
                   "responseNeeds": "actionRequired",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Action Plan",
                 "description": "Develops specific steps for handling each email",
-                "subroutineId": "TODO: Need action planning subroutine",
+                "subroutineId": "7829564732190849251",
                 "inputMap": {
                   "replyApproach": "responseStrategy",
                   "timelineRequirement": "urgencyScore",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Triage Summary",
                 "description": "Compiles comprehensive email management recommendations",
-                "subroutineId": "TODO: Need summary generation subroutine",
+                "subroutineId": "7829564732190849254",
                 "inputMap": {
                   "taskList": "actionItems",
                   "draftStructure": "responseTemplate",

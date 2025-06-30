@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849494",
+  "publicId": "option-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849495",
+      "publicId": "option-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates comprehensive set of decision alternatives",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "structuredProblem",
+                "id": "structured_problem_input",
+                "label": "Structured Problem",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Framed decision context and problem statement"
+              },
+              {
+                "fieldName": "creativityTechniques",
+                "id": "creativity_techniques_input",
+                "label": "Creativity Techniques",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Brainstorming methods and ideation approaches"
+              },
+              {
+                "fieldName": "benchmarkingSources",
+                "id": "benchmarking_sources_input",
+                "label": "Benchmarking Sources",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Best practices and reference cases"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optionsList",
+                "id": "options_list_output",
+                "label": "Options List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "hybridOptions",
+                "id": "hybrid_options_output",
+                "label": "Hybrid Options",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "innovativeAlternatives",
+                "id": "innovative_alternatives_output",
+                "label": "Innovative Alternatives",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849496",
+          "language": "en",
+          "name": "Option Generator",
+          "description": "Generates comprehensive set of decision alternatives using creative and systematic approaches.",
+          "instructions": "Provide structured problem context. The routine will generate multiple solution options."
+        }
+      ]
+    }
+  ]
+}

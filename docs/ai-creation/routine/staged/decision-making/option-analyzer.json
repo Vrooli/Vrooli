@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849533",
+  "publicId": "option-analyzer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849534",
+      "publicId": "option-analyzer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes decision options for pros and cons evaluation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "decisionOptions",
+                "id": "decision_options_input",
+                "label": "Decision Options",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of options to analyze"
+              },
+              {
+                "fieldName": "analysisFramework",
+                "id": "analysis_framework_input",
+                "label": "Analysis Framework",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Criteria and dimensions for analysis"
+              },
+              {
+                "fieldName": "stakeholderPerspectives",
+                "id": "stakeholder_perspectives_input",
+                "label": "Stakeholder Perspectives",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Different viewpoints to consider"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "optionBreakdown",
+                "id": "option_breakdown_output",
+                "label": "Option Breakdown",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "feasibilityAssessment",
+                "id": "feasibility_assessment_output",
+                "label": "Feasibility Assessment",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "comparativeAnalysis",
+                "id": "comparative_analysis_output",
+                "label": "Comparative Analysis",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849535",
+          "language": "en",
+          "name": "Option Analyzer",
+          "description": "Systematically analyzes decision options across multiple dimensions and perspectives.",
+          "instructions": "Provide decision options and analysis framework. The routine will analyze each option."
+        }
+      ]
+    }
+  ]
+}

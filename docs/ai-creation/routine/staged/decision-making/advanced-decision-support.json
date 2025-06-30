@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Frame & Structure Decision",
                 "description": "Clarifies decision context, stakeholders, and constraints",
-                "subroutineId": "TODO: Need decision framing subroutine",
+                "subroutineId": "7829564732190847922",
                 "inputMap": {
                   "decisionProblem": "problemDefinition",
                   "stakeholderList": "involvedParties",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Identify Options & Alternatives",
                 "description": "Generates comprehensive set of potential solutions",
-                "subroutineId": "TODO: Need option generation subroutine",
+                "subroutineId": "7829564732190849494",
                 "inputMap": {
                   "structuredProblem": "decisionFraming",
                   "creativityTechniques": "ideationMethods",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Define Evaluation Criteria",
                 "description": "Establishes weighted criteria for comparing options",
-                "subroutineId": "TODO: Need criteria setting subroutine",
+                "subroutineId": "7829564732190849497",
                 "inputMap": {
                   "decisionGoals": "objectives",
                   "valueSystem": "priorities",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Analyze Risks & Uncertainties",
                 "description": "Evaluates potential downsides and probability factors",
-                "subroutineId": "TODO: Need risk analysis subroutine",
+                "subroutineId": "7829564732190849500",
                 "inputMap": {
                   "alternativeSolutions": "optionsList",
                   "riskCategories": "threatTypes",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Compare & Score Options",
                 "description": "Systematically evaluates alternatives against criteria",
-                "subroutineId": "TODO: Need option scoring subroutine",
+                "subroutineId": "7829564732190847982",
                 "inputMap": {
                   "alternativeSolutions": "optionsList",
                   "assessmentFramework": "evaluationCriteria",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Make Final Decision & Plan",
                 "description": "Selects optimal choice and creates implementation strategy",
-                "subroutineId": "TODO: Need decision finalization subroutine",
+                "subroutineId": "7829564732190849506",
                 "inputMap": {
                   "comparativeAnalysis": "scoringResults",
                   "stakeholderInput": "consultationResults",

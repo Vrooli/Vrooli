@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849497",
+  "publicId": "criteria-setter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847106",
+      "tag": "assessment",
+      "translations": [
+        {
+          "id": "7829564732190847206",
+          "language": "en",
+          "description": "Evaluation and assessment"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849498",
+      "publicId": "criteria-setter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Establishes weighted evaluation criteria for decision options",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "decisionGoals",
+                "id": "decision_goals_input",
+                "label": "Decision Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Objectives and desired outcomes"
+              },
+              {
+                "fieldName": "valueSystem",
+                "id": "value_system_input",
+                "label": "Value System",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Priorities and values to consider"
+              },
+              {
+                "fieldName": "measurementMethods",
+                "id": "measurement_methods_input",
+                "label": "Measurement Methods",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "How to evaluate and measure criteria"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "evaluationCriteria",
+                "id": "evaluation_criteria_output",
+                "label": "Evaluation Criteria",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "criteriaWeights",
+                "id": "criteria_weights_output",
+                "label": "Criteria Weights",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "scoringMethods",
+                "id": "scoring_methods_output",
+                "label": "Scoring Methods",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849499",
+          "language": "en",
+          "name": "Criteria Setter",
+          "description": "Establishes weighted evaluation criteria for systematically comparing decision options.",
+          "instructions": "Provide decision goals and value system. The routine will create evaluation framework."
+        }
+      ]
+    }
+  ]
+}

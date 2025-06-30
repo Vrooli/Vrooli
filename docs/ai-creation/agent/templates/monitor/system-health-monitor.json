@@ -49,7 +49,10 @@
         "inputMap": {
           "swarmId": "event.data.swarmId",
           "oldState": "event.data.oldState",
-          "newState": "event.data.newState"
+          "newState": "event.data.newState",
+          "recentFailures": "blackboard.failures.history",
+          "failureCount": "records.length",
+          "goal": "goal"
         }
       },
       "qos": 2
@@ -66,9 +69,33 @@
     }
   ],
   "resources": [
-    "alert-channels",
-    "failure-analytics",
-    "resource-monitors",
-    "escalation-policies"
+    {
+      "type": "blackboard",
+      "label": "system-alerts",
+      "permissions": ["write"],
+      "scope": "alerts.health",
+      "description": "Write system health alerts and critical notifications"
+    },
+    {
+      "type": "blackboard",
+      "label": "failure-history",
+      "permissions": ["read"],
+      "scope": "failures.history",
+      "description": "Read historical failure data for pattern analysis"
+    },
+    {
+      "type": "blackboard",
+      "label": "failure-analysis",
+      "permissions": ["write"],
+      "scope": "failures.analysis",
+      "description": "Write failure pattern analysis and recommendations"
+    },
+    {
+      "type": "blackboard",
+      "label": "resource-status",
+      "permissions": ["read"],
+      "scope": "resources.*",
+      "description": "Monitor system resource utilization and availability"
+    }
   ]
 }

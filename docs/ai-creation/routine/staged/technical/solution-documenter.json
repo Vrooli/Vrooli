@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849389",
+  "publicId": "solution-documenter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847154",
+      "tag": "documentation",
+      "translations": [
+        {
+          "id": "7829564732190847254",
+          "language": "en",
+          "description": "Documentation generation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847181",
+      "tag": "solutions",
+      "translations": [
+        {
+          "id": "7829564732190847281",
+          "language": "en",
+          "description": "Solution documentation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849390",
+      "publicId": "solution-documenter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Documents solutions and implementation details",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "finalImplementation",
+                "id": "final_implementation_input",
+                "label": "Final Implementation",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Implemented solution code"
+              },
+              {
+                "fieldName": "solutionHistory",
+                "id": "solution_history_input",
+                "label": "Solution History",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Development and testing history"
+              },
+              {
+                "fieldName": "documentationLevel",
+                "id": "documentation_level_input",
+                "label": "Documentation Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "basic",
+                  "standard",
+                  "comprehensive",
+                  "tutorial"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "solutionDocumentation",
+                "id": "solution_documentation_output",
+                "label": "Solution Documentation",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "implementationGuide",
+                "id": "implementation_guide_output",
+                "label": "Implementation Guide",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "maintenanceNotes",
+                "id": "maintenance_notes_output",
+                "label": "Maintenance Notes",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849391",
+          "language": "en",
+          "name": "Solution Documenter",
+          "description": "Creates comprehensive documentation for implemented solutions.",
+          "instructions": "Provide implementation and history. The routine will document solution."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849380",
+  "publicId": "doc-formatter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847154",
+      "tag": "documentation",
+      "translations": [
+        {
+          "id": "7829564732190847254",
+          "language": "en",
+          "description": "Documentation generation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847172",
+      "tag": "formatting",
+      "translations": [
+        {
+          "id": "7829564732190847272",
+          "language": "en",
+          "description": "Document formatting"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849381",
+      "publicId": "doc-formatter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Formats documentation for various output formats",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "generatedDocs",
+                "id": "generated_docs_input",
+                "label": "Generated Documentation",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Raw documentation content"
+              },
+              {
+                "fieldName": "outputFormat",
+                "id": "output_format_input",
+                "label": "Output Format",
+                "type": "Selector",
+                "isRequired": true,
+                "options": [
+                  "markdown",
+                  "html",
+                  "pdf",
+                  "json",
+                  "openapi"
+                ]
+              },
+              {
+                "fieldName": "styleGuide",
+                "id": "style_guide_input",
+                "label": "Style Guide",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Formatting preferences"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "formattedDocs",
+                "id": "formatted_docs_output",
+                "label": "Formatted Documentation",
+                "type": "Text"
+              },
+              {
+                "fieldName": "tableOfContents",
+                "id": "table_of_contents_output",
+                "label": "Table of Contents",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "navigationStructure",
+                "id": "navigation_structure_output",
+                "label": "Navigation Structure",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849382",
+          "language": "en",
+          "name": "Doc Formatter",
+          "description": "Formats documentation content for various output formats.",
+          "instructions": "Provide documentation and format. The routine will format the docs."
+        }
+      ]
+    }
+  ]
+}

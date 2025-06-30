@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Presentation Goals",
                 "description": "Establishes objectives, audience, and key messages",
-                "subroutineId": "TODO: Need goal definition subroutine",
+                "subroutineId": "7829564732190849575",
                 "inputMap": {
                   "presentationPurpose": "objectiveDefinition",
                   "audienceProfile": "targetViewers",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Structure Content Flow",
                 "description": "Creates logical narrative and slide organization",
-                "subroutineId": "TODO: Need content structuring subroutine",
+                "subroutineId": "7829564732190849578",
                 "inputMap": {
                   "keyTakeaways": "coreMessages",
                   "storyArc": "narrativeStructure",

@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849233",
+  "publicId": "anomaly-classifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847085",
+      "tag": "classification",
+      "translations": [
+        {
+          "id": "7829564732190847185",
+          "language": "en",
+          "description": "Classification and categorization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849234",
+      "publicId": "anomaly-classifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Classifies anomalies by type, severity, and impact",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "detectedAnomalies",
+                "id": "detected_anomalies_input",
+                "label": "Detected Anomalies",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Raw anomaly detection results"
+              },
+              {
+                "fieldName": "anomalyScores",
+                "id": "anomaly_scores_input",
+                "label": "Anomaly Scores",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Severity scores for each anomaly"
+              },
+              {
+                "fieldName": "classificationCriteria",
+                "id": "classification_criteria_input",
+                "label": "Classification Criteria",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "comprehensive",
+                "options": [
+                  "basic",
+                  "standard",
+                  "comprehensive",
+                  "domain-specific"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "classifiedAnomalies",
+                "id": "classified_anomalies_output",
+                "label": "Classified Anomalies",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "severityRanking",
+                "id": "severity_ranking_output",
+                "label": "Severity Ranking",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "impactAssessment",
+                "id": "impact_assessment_output",
+                "label": "Impact Assessment",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849235",
+          "language": "en",
+          "name": "Anomaly Classifier",
+          "description": "Classifies detected anomalies by type, severity, and potential impact.",
+          "instructions": "Provide detected anomalies and scores. The routine will classify them."
+        }
+      ]
+    }
+  ]
+}

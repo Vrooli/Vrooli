@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849386",
+  "publicId": "solution-implementer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847109",
+      "tag": "technical",
+      "translations": [
+        {
+          "id": "7829564732190847209",
+          "language": "en",
+          "description": "Technical and engineering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847178",
+      "tag": "implementation",
+      "translations": [
+        {
+          "id": "7829564732190847278",
+          "language": "en",
+          "description": "Solution implementation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849387",
+      "publicId": "solution-implementer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Implements solutions based on testing feedback",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "testResults",
+                "id": "test_results_input",
+                "label": "Test Results",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Validation and testing outcomes"
+              },
+              {
+                "fieldName": "recommendedApproach",
+                "id": "recommended_approach_input",
+                "label": "Recommended Approach",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Preferred solution approach"
+              },
+              {
+                "fieldName": "implementationConstraints",
+                "id": "implementation_constraints_input",
+                "label": "Implementation Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Technical and business constraints"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "finalImplementation",
+                "id": "final_implementation_output",
+                "label": "Final Implementation",
+                "type": "Text"
+              },
+              {
+                "fieldName": "deploymentPlan",
+                "id": "deployment_plan_output",
+                "label": "Deployment Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "rollbackStrategy",
+                "id": "rollback_strategy_output",
+                "label": "Rollback Strategy",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849388",
+          "language": "en",
+          "name": "Solution Implementer",
+          "description": "Implements final solutions with deployment and rollback strategies.",
+          "instructions": "Provide test results and approach. The routine will implement solution."
+        }
+      ]
+    }
+  ]
+}

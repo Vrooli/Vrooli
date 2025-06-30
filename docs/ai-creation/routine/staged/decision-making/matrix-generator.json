@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849524",
+  "publicId": "matrix-generator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847088",
+      "tag": "risk-management",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Risk assessment and mitigation"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849525",
+      "publicId": "matrix-generator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Generates risk matrices and priority frameworks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "riskData",
+                "id": "risk_data_input",
+                "label": "Risk Data",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Risk probabilities and impact assessments"
+              },
+              {
+                "fieldName": "matrixType",
+                "id": "matrix_type_input",
+                "label": "Matrix Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "probability-impact",
+                "options": [
+                  "probability-impact",
+                  "likelihood-severity",
+                  "cost-benefit",
+                  "priority-urgency"
+                ]
+              },
+              {
+                "fieldName": "scalingFactors",
+                "id": "scaling_factors_input",
+                "label": "Scaling Factors",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Custom scaling or weighting factors"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "riskMatrix",
+                "id": "risk_matrix_output",
+                "label": "Risk Matrix",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priorityRankings",
+                "id": "priority_rankings_output",
+                "label": "Priority Rankings",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "visualizations",
+                "id": "visualizations_output",
+                "label": "Visualizations",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849526",
+          "language": "en",
+          "name": "Matrix Generator",
+          "description": "Generates risk matrices and priority frameworks for systematic risk evaluation.",
+          "instructions": "Provide risk data and matrix preferences. The routine will generate structured matrices."
+        }
+      ]
+    }
+  ]
+}

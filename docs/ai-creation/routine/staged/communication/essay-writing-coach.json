@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Analyze Essay Requirements",
                 "description": "Understands prompt, criteria, and expectations",
-                "subroutineId": "TODO: Need requirements analysis subroutine",
+                "subroutineId": "7829564732190849557",
                 "inputMap": {
                   "essayPrompt": "assignmentDetails",
                   "rubricCriteria": "gradingStandards",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Develop Thesis & Outline",
                 "description": "Creates strong thesis statement and essay structure",
-                "subroutineId": "TODO: Need thesis development subroutine",
+                "subroutineId": "7829564732190849560",
                 "inputMap": {
                   "promptBreakdown": "requirementsAnalysis",
                   "researchPoints": "keyArguments",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Guide Content Development",
                 "description": "Assists with paragraph construction and evidence integration",
-                "subroutineId": "TODO: Need content development subroutine",
+                "subroutineId": "7829564732190849122",
                 "inputMap": {
                   "structuredPlan": "essayOutline",
                   "evidenceSources": "researchMaterial",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Review & Strengthen Arguments",
                 "description": "Evaluates logic, coherence, and persuasiveness",
-                "subroutineId": "TODO: Need argument review subroutine",
+                "subroutineId": "7829564732190849566",
                 "inputMap": {
                   "bodyContent": "paragraphStructures",
                   "centralArgument": "thesisStatement",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Polish Language & Style",
                 "description": "Refines writing clarity, grammar, and academic tone",
-                "subroutineId": "TODO: Need language polishing subroutine",
+                "subroutineId": "7829564732190849569",
                 "inputMap": {
                   "draftContent": "essayText",
                   "styleGuidelines": "writingStandards",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Final Review & Feedback",
                 "description": "Provides comprehensive feedback and improvement suggestions",
-                "subroutineId": "TODO: Need final review subroutine",
+                "subroutineId": "7829564732190849572",
                 "inputMap": {
                   "improvedText": "languageRevisions",
                   "evaluationMetrics": "successCriteria",

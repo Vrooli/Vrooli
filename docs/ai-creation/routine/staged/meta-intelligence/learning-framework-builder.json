@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849242",
+  "publicId": "learning-framework-builder-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847080",
+      "tag": "learning",
+      "translations": [
+        {
+          "id": "7829564732190847180",
+          "language": "en",
+          "description": "Learning and education"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849243",
+      "publicId": "learning-framework-builder-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates post-crisis learning and improvement frameworks",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "crisisResponse",
+                "id": "crisis_response_input",
+                "label": "Crisis Response Actions",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Management actions taken during crisis"
+              },
+              {
+                "fieldName": "outcomesResults",
+                "id": "outcomes_results_input",
+                "label": "Outcomes and Results",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Response effectiveness and results"
+              },
+              {
+                "fieldName": "improvementAreas",
+                "id": "improvement_areas_input",
+                "label": "Improvement Areas",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Identified lessons and improvement opportunities"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "postCrisisAnalysis",
+                "id": "post_crisis_analysis_output",
+                "label": "Post-Crisis Analysis",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "preventionMeasures",
+                "id": "prevention_measures_output",
+                "label": "Prevention Measures",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementPlan",
+                "id": "improvement_plan_output",
+                "label": "System Improvements",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849244",
+          "language": "en",
+          "name": "Learning Framework Builder",
+          "description": "Creates post-crisis learning frameworks and system improvement plans.",
+          "instructions": "Provide crisis response and outcomes. The routine will build learning framework."
+        }
+      ]
+    }
+  ]
+}

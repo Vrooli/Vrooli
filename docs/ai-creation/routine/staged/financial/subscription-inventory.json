@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849509",
+  "publicId": "subscription-inventory-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847196",
+      "tag": "financial",
+      "translations": [
+        {
+          "id": "7829564732190847296",
+          "language": "en",
+          "description": "Financial management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847035",
+      "tag": "expense-tracking",
+      "translations": [
+        {
+          "id": "7829564732190847135",
+          "language": "en",
+          "description": "Expense tracking and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849510",
+      "publicId": "subscription-inventory-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Catalogs all active and inactive subscriptions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "subscriptionList",
+                "id": "subscription_list_input",
+                "label": "Subscription List",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "List of known subscriptions"
+              },
+              {
+                "fieldName": "paymentMethods",
+                "id": "payment_methods_input",
+                "label": "Payment Methods",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Credit cards, bank accounts used for billing"
+              },
+              {
+                "fieldName": "accountCredentials",
+                "id": "account_credentials_input",
+                "label": "Account Credentials",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Access information for subscription accounts"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "subscriptionInventory",
+                "id": "subscription_inventory_output",
+                "label": "Subscription Inventory",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "billingSchedule",
+                "id": "billing_schedule_output",
+                "label": "Billing Schedule",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "accessDetails",
+                "id": "access_details_output",
+                "label": "Access Details",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "deterministic",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849511",
+          "language": "en",
+          "name": "Subscription Inventory",
+          "description": "Catalogs all active and inactive subscriptions with billing and access details.",
+          "instructions": "Provide subscription list and payment methods. The routine will create complete inventory."
+        }
+      ]
+    }
+  ]
+}

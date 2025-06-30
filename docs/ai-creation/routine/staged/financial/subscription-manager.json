@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Inventory Subscriptions",
                 "description": "Catalogs all active and inactive subscriptions",
-                "subroutineId": "TODO: Need subscription inventory subroutine",
+                "subroutineId": "7829564732190849509",
                 "inputMap": {
                   "subscriptionList": "currentSubscriptions",
                   "paymentMethods": "billingAccounts",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Usage Patterns",
                 "description": "Evaluates actual usage versus subscription value",
-                "subroutineId": "TODO: Need usage analysis subroutine",
+                "subroutineId": "7829564732190849440",
                 "inputMap": {
                   "completeList": "subscriptionInventory",
                   "usageData": "activityMetrics",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Calculate Total Costs",
                 "description": "Computes current and projected subscription expenses",
-                "subroutineId": "TODO: Need cost calculation subroutine",
+                "subroutineId": "7829564732190849461",
                 "inputMap": {
                   "paymentCalendar": "billingSchedule",
                   "pricingChanges": "rateAdjustments",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Identify Savings Opportunities",
                 "description": "Finds redundancies, alternatives, and optimization options",
-                "subroutineId": "TODO: Need savings identification subroutine",
+                "subroutineId": "7829564732190849464",
                 "inputMap": {
                   "utilizationReport": "usageAnalysis",
                   "expenseAnalysis": "costBreakdown",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Renewal Calendar",
                 "description": "Schedules renewal dates and cancellation windows",
-                "subroutineId": "TODO: Need calendar creation subroutine",
+                "subroutineId": "7829564732190849467",
                 "inputMap": {
                   "subscriptionInventory": "completeList",
                   "cancellationTerms": "contractDetails",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Action Plan",
                 "description": "Creates prioritized recommendations and management strategy",
-                "subroutineId": "TODO: Need action planning subroutine",
+                "subroutineId": "7829564732190849470",
                 "inputMap": {
                   "costReductions": "savingsOpportunities",
                   "managementSchedule": "renewalCalendar",

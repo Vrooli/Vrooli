@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849332",
+  "publicId": "test-executor-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847109",
+      "tag": "technical",
+      "translations": [
+        {
+          "id": "7829564732190847209",
+          "language": "en",
+          "description": "Technical and engineering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847121",
+      "tag": "testing",
+      "translations": [
+        {
+          "id": "7829564732190847221",
+          "language": "en",
+          "description": "Testing and quality assurance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849333",
+      "publicId": "test-executor-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Executes tests and attempts automatic fixes",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "generatedTests",
+                "id": "generated_tests_input",
+                "label": "Generated Tests",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Test suite to execute"
+              },
+              {
+                "fieldName": "implementation",
+                "id": "implementation_input",
+                "label": "Implementation Code",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Code to test"
+              },
+              {
+                "fieldName": "debuggingStrategies",
+                "id": "debugging_strategies_input",
+                "label": "Debugging Strategies",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Approaches for fixing failures"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "testResults",
+                "id": "test_results_output",
+                "label": "Test Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "debuggingAttempts",
+                "id": "debugging_attempts_output",
+                "label": "Debugging History",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "finalCode",
+                "id": "final_code_output",
+                "label": "Fixed Code",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849334",
+          "language": "en",
+          "name": "Test Executor",
+          "description": "Runs tests and automatically attempts to fix failures.",
+          "instructions": "Provide tests and code. The routine will execute and debug."
+        }
+      ]
+    }
+  ]
+}

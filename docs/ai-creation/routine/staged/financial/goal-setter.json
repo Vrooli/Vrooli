@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190849476",
+  "publicId": "goal-setter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847196",
+      "tag": "financial",
+      "translations": [
+        {
+          "id": "7829564732190847296",
+          "language": "en",
+          "description": "Financial management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847232",
+      "tag": "goal-setting",
+      "translations": [
+        {
+          "id": "7829564732190847332",
+          "language": "en",
+          "description": "Goal setting and planning"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849477",
+      "publicId": "goal-setter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Sets SMART financial independence goals",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "financialSnapshot",
+                "id": "financial_snapshot_input",
+                "label": "Financial Snapshot",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Current financial assessment"
+              },
+              {
+                "fieldName": "lifeGoals",
+                "id": "life_goals_input",
+                "label": "Life Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Personal and lifestyle objectives"
+              },
+              {
+                "fieldName": "timeHorizon",
+                "id": "time_horizon_input",
+                "label": "Time Horizon",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "10-15-years",
+                "options": [
+                  "5-years",
+                  "10-years",
+                  "10-15-years",
+                  "15-20-years",
+                  "20+ years"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "smartGoals",
+                "id": "smart_goals_output",
+                "label": "SMART Goals",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "milestones",
+                "id": "milestones_output",
+                "label": "Key Milestones",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "targetNumbers",
+                "id": "target_numbers_output",
+                "label": "Target Numbers",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849478",
+          "language": "en",
+          "name": "Goal Setter",
+          "description": "Sets specific, measurable financial independence goals with milestones.",
+          "instructions": "Provide financial snapshot and life goals. The routine will set SMART goals."
+        }
+      ]
+    }
+  ]
+}

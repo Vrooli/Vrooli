@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849368",
+  "publicId": "solution-tester-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847109",
+      "tag": "technical",
+      "translations": [
+        {
+          "id": "7829564732190847209",
+          "language": "en",
+          "description": "Technical and engineering"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847121",
+      "tag": "testing",
+      "translations": [
+        {
+          "id": "7829564732190847221",
+          "language": "en",
+          "description": "Testing and quality assurance"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849369",
+      "publicId": "solution-tester-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Tests and validates proposed solutions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "solutionCode",
+                "id": "solution_code_input",
+                "label": "Solution Code",
+                "type": "Text",
+                "isRequired": true,
+                "placeholder": "Proposed solution implementation"
+              },
+              {
+                "fieldName": "testScenarios",
+                "id": "test_scenarios_input",
+                "label": "Test Scenarios",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Test cases and scenarios"
+              },
+              {
+                "fieldName": "originalProblem",
+                "id": "original_problem_input",
+                "label": "Original Problem",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Original problem context"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "testResults",
+                "id": "test_results_output",
+                "label": "Test Results",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "validationReport",
+                "id": "validation_report_output",
+                "label": "Validation Report",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "improvementSuggestions",
+                "id": "improvement_suggestions_output",
+                "label": "Improvement Suggestions",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849370",
+          "language": "en",
+          "name": "Solution Tester",
+          "description": "Tests and validates proposed solutions against requirements.",
+          "instructions": "Provide solution code and test scenarios. The routine will validate solution."
+        }
+      ]
+    }
+  ]
+}

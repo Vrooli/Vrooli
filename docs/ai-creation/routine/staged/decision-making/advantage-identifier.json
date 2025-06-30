@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849536",
+  "publicId": "advantage-identifier-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847036",
+      "tag": "decision-support",
+      "translations": [
+        {
+          "id": "7829564732190847136",
+          "language": "en",
+          "description": "Decision support and frameworks"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849537",
+      "publicId": "advantage-identifier-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Identifies and categorizes advantages of decision options",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "analyzedOptions",
+                "id": "analyzed_options_input",
+                "label": "Analyzed Options",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Options with detailed analysis"
+              },
+              {
+                "fieldName": "evaluationCriteria",
+                "id": "evaluation_criteria_input",
+                "label": "Evaluation Criteria",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Criteria for identifying advantages"
+              },
+              {
+                "fieldName": "strengthsWeights",
+                "id": "strengths_weights_input",
+                "label": "Strengths Weights",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Importance weights for different types of advantages"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "identifiedAdvantages",
+                "id": "identified_advantages_output",
+                "label": "Identified Advantages",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "advantageCategories",
+                "id": "advantage_categories_output",
+                "label": "Advantage Categories",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "strengthsRanking",
+                "id": "strengths_ranking_output",
+                "label": "Strengths Ranking",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849538",
+          "language": "en",
+          "name": "Advantage Identifier",
+          "description": "Systematically identifies and categorizes advantages of different decision options.",
+          "instructions": "Provide analyzed options and criteria. The routine will identify key advantages."
+        }
+      ]
+    }
+  ]
+}

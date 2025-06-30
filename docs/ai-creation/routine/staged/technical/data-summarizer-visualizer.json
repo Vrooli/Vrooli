@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Load & Validate Data",
                 "description": "Imports dataset and performs quality checks",
-                "subroutineId": "TODO: Need data loading subroutine",
+                "subroutineId": "7829564732190849395",
                 "inputMap": {
                   "dataSource": "inputDataset",
                   "dataFormat": "fileStructure",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Perform Statistical Analysis",
                 "description": "Calculates descriptive statistics and distributions",
-                "subroutineId": "TODO: Need statistical analysis subroutine",
+                "subroutineId": "7829564732190849398",
                 "inputMap": {
                   "validatedDataset": "cleanedData",
                   "analysisDepth": "statisticalRequirements",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Identify Key Patterns",
                 "description": "Discovers trends, outliers, and significant patterns",
-                "subroutineId": "TODO: Need pattern detection subroutine",
+                "subroutineId": "7829564732190849317",
                 "inputMap": {
                   "summaryStatistics": "descriptiveStats",
                   "patternMethods": "analysisAlgorithms",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Visualizations",
                 "description": "Creates appropriate charts and graphs for insights",
-                "subroutineId": "TODO: Need visualization generation subroutine",
+                "subroutineId": "7829564732190849401",
                 "inputMap": {
                   "dataDistributions": "distributionAnalysis",
                   "temporalPatterns": "trendAnalysis",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Written Summary",
                 "description": "Generates plain language insights and explanations",
-                "subroutineId": "TODO: Need summary generation subroutine",
+                "subroutineId": "7829564732190849404",
                 "inputMap": {
                   "summaryStatistics": "descriptiveStats",
                   "dataGroupings": "clusteringResults",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Compile Analysis Report",
                 "description": "Assembles complete report with visuals and insights",
-                "subroutineId": "TODO: Need report compilation subroutine",
+                "subroutineId": "7829564732190849338",
                 "inputMap": {
                   "visualizationSet": "chartCollection",
                   "comprehensiveAnalysis": "detailedFindings",

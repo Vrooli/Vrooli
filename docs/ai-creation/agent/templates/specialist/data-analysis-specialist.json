@@ -21,7 +21,9 @@
         "inputMap": {
           "metrics": "event.data.metrics",
           "stepId": "event.data.stepId",
-          "routineId": "event.data.routineId"
+          "routineId": "event.data.routineId",
+          "historicalData": "blackboard.metrics.step_history",
+          "totalToolCalls": "stats.totalToolCalls"
         }
       },
       "qos": 0
@@ -64,9 +66,19 @@
     }
   ],
   "resources": [
-    "performance-analytics",
-    "metric-aggregators",
-    "pattern-recognition",
-    "optimization-models"
+    {
+      "type": "blackboard",
+      "label": "performance-metrics",
+      "permissions": ["read"],
+      "scope": "metrics.*",
+      "description": "Read execution metrics from steps, runs, and swarm activities"
+    },
+    {
+      "type": "blackboard",
+      "label": "analysis-insights",
+      "permissions": ["write"],
+      "scope": "analysis.insights",
+      "description": "Write performance analysis results and optimization recommendations"
+    }
   ]
 }

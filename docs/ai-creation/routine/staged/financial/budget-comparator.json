@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849416",
+  "publicId": "budget-comparator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847196",
+      "tag": "financial",
+      "translations": [
+        {
+          "id": "7829564732190847296",
+          "language": "en",
+          "description": "Financial management"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847202",
+      "tag": "budgeting",
+      "translations": [
+        {
+          "id": "7829564732190847302",
+          "language": "en",
+          "description": "Budget planning and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849417",
+      "publicId": "budget-comparator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Compares actual spending against budget",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "categoryBreakdown",
+                "id": "category_breakdown_input",
+                "label": "Category Breakdown",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Actual spending by category"
+              },
+              {
+                "fieldName": "budgetTargets",
+                "id": "budget_targets_input",
+                "label": "Budget Targets",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Planned budget amounts"
+              },
+              {
+                "fieldName": "comparisonPeriod",
+                "id": "comparison_period_input",
+                "label": "Comparison Period",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "monthly",
+                "options": [
+                  "weekly",
+                  "monthly",
+                  "quarterly",
+                  "yearly"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "budgetVariance",
+                "id": "budget_variance_output",
+                "label": "Budget Variance",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "overspendingAreas",
+                "id": "overspending_areas_output",
+                "label": "Overspending Areas",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "savingsOpportunities",
+                "id": "savings_opportunities_output",
+                "label": "Savings Opportunities",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849418",
+          "language": "en",
+          "name": "Budget Comparator",
+          "description": "Compares actual spending against budget targets.",
+          "instructions": "Provide spending breakdown and budget. The routine will compare them."
+        }
+      ]
+    }
+  ]
+}
