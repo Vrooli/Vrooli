@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Assess Learning Goals",
                 "description": "Clarifies objectives and skill requirements",
-                "subroutineId": "TODO: Need goal assessment subroutine",
+                "subroutineId": "7829564732190849608",
                 "inputMap": {
                   "learningGoal": "targetSkill",
                   "currentLevel": "existingKnowledge",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Design Learning Path",
                 "description": "Creates structured progression from basics to advanced",
-                "subroutineId": "TODO: Need path design subroutine",
+                "subroutineId": "7829564732190849623",
                 "inputMap": {
                   "skillBreakdown": "goalAnalysis",
                   "learningNeeds": "competencyGaps",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Curate Resources",
                 "description": "Selects appropriate learning materials and tools",
-                "subroutineId": "TODO: Need resource curation subroutine",
+                "subroutineId": "7829564732190849626",
                 "inputMap": {
                   "progressionPath": "learningSequence",
                   "resourcePreferences": "materialTypes",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Practice Framework",
                 "description": "Designs exercises and application opportunities",
-                "subroutineId": "TODO: Need practice design subroutine",
+                "subroutineId": "7829564732190849581",
                 "inputMap": {
                   "achievementLevels": "milestoneStructure",
                   "practicePreferences": "exerciseStyle",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Build Support System",
                 "description": "Establishes community and mentorship connections",
-                "subroutineId": "TODO: Need support system subroutine",
+                "subroutineId": "7829564732190849632",
                 "inputMap": {
                   "learningCommunity": "socialSupport",
                   "mentorshipNeeds": "guidanceRequirements",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Generate Complete Plan",
                 "description": "Assembles comprehensive learning curriculum",
-                "subroutineId": "TODO: Need plan compilation subroutine",
+                "subroutineId": "7829564732190849635",
                 "inputMap": {
                   "learningMaterials": "resourceCollection",
                   "skillExercises": "practiceActivities",

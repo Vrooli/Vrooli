@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849650",
+  "publicId": "travel-resource-compiler-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849651",
+      "publicId": "travel-resource-compiler-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Gathers essential travel information and documentation",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "destination",
+                "id": "destination_input",
+                "label": "Destination",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Travel destination details"
+              },
+              {
+                "fieldName": "travelPlan",
+                "id": "travel_plan_input",
+                "label": "Travel Plan",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Complete travel itinerary"
+              },
+              {
+                "fieldName": "documentNeeds",
+                "id": "document_needs_input",
+                "label": "Document Needs",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Required travel documents"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "travelDocuments",
+                "id": "travel_documents_output",
+                "label": "Travel Documents",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "emergencyContacts",
+                "id": "emergency_contacts_output",
+                "label": "Emergency Contacts",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "practicalInfo",
+                "id": "practical_info_output",
+                "label": "Practical Information",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849652",
+          "language": "en",
+          "name": "Travel Resource Compiler",
+          "description": "Gathers essential travel information, contacts, and documentation.",
+          "instructions": "Provide destination and travel plan. The routine will compile resources."
+        }
+      ]
+    }
+  ]
+}

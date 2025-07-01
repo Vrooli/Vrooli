@@ -1,0 +1,124 @@
+{
+  "id": "7829564732190849683",
+  "publicId": "campaign-objective-setter-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847030",
+      "tag": "business",
+      "translations": [
+        {
+          "id": "7829564732190847130",
+          "language": "en",
+          "description": "Business and enterprise"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847068",
+      "tag": "marketing",
+      "translations": [
+        {
+          "id": "7829564732190847168",
+          "language": "en",
+          "description": "Marketing and promotion"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849684",
+      "publicId": "campaign-objective-setter-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Establishes clear marketing campaign goals and success criteria",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "businessGoals",
+                "id": "business_goals_input",
+                "label": "Business Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Organizational objectives and priorities"
+              },
+              {
+                "fieldName": "targetMarket",
+                "id": "target_market_input",
+                "label": "Target Market",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Market segment and audience description"
+              },
+              {
+                "fieldName": "campaignType",
+                "id": "campaign_type_input",
+                "label": "Campaign Type",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "awareness",
+                "options": [
+                  "awareness",
+                  "lead-generation",
+                  "conversion",
+                  "retention",
+                  "brand-building"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedObjectives",
+                "id": "clarified_objectives_output",
+                "label": "Clarified Objectives",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "successMetrics",
+                "id": "success_metrics_output",
+                "label": "Success Metrics",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "targetKPIs",
+                "id": "target_kpis_output",
+                "label": "Target KPIs",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849685",
+          "language": "en",
+          "name": "Campaign Objective Setter",
+          "description": "Establishes clear goals, target metrics, and success criteria for marketing campaigns.",
+          "instructions": "Provide business goals and target market. The routine will set campaign objectives."
+        }
+      ]
+    }
+  ]
+}

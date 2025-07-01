@@ -78,7 +78,7 @@
                 "id": "step-2",
                 "name": "Research Transportation Options",
                 "description": "Finds optimal flights, trains, or other transportation methods",
-                "subroutineId": "TODO: Need transportation research subroutine",
+                "subroutineId": "7829564732190849638",
                 "inputMap": {
                   "travelSpecs": "tripRequirements",
                   "departure": "originLocation",
@@ -95,7 +95,7 @@
                 "id": "step-3",
                 "name": "Find Accommodation",
                 "description": "Searches for suitable hotels, rentals, or lodging options",
-                "subroutineId": "TODO: Need accommodation search subroutine",
+                "subroutineId": "7829564732190849641",
                 "inputMap": {
                   "destination": "travelDestination",
                   "travelDates": "tripDates",
@@ -112,7 +112,7 @@
                 "id": "step-4",
                 "name": "Plan Activities & Attractions",
                 "description": "Curates activities, attractions, and experiences based on interests",
-                "subroutineId": "TODO: Need activity planning subroutine",
+                "subroutineId": "7829564732190849644",
                 "inputMap": {
                   "destination": "travelDestination",
                   "interests": "activityPreferences",
@@ -129,7 +129,7 @@
                 "id": "step-5",
                 "name": "Create Daily Itinerary",
                 "description": "Organizes activities into logical daily schedules with timing",
-                "subroutineId": "TODO: Need itinerary optimization subroutine",
+                "subroutineId": "7829564732190849647",
                 "inputMap": {
                   "attractions": "mustSeeList",
                   "activities": "experienceOptions",
@@ -146,7 +146,7 @@
                 "id": "step-6",
                 "name": "Compile Travel Resources",
                 "description": "Gathers essential travel information, contacts, and documentation",
-                "subroutineId": "TODO: Need travel resource compilation subroutine",
+                "subroutineId": "7829564732190849650",
                 "inputMap": {
                   "destination": "travelDestination",
                   "itinerary": "travelPlan",

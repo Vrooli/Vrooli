@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Design Visual Theme",
                 "description": "Develops consistent visual style and branding",
-                "subroutineId": "TODO: Need design theme subroutine",
+                "subroutineId": "7829564732190849611",
                 "inputMap": {
                   "brandGuidelines": "visualIdentity",
                   "audiencePreferences": "designExpectations",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Create Slide Content",
                 "description": "Develops text, visuals, and data for each slide",
-                "subroutineId": "TODO: Need slide creation subroutine",
+                "subroutineId": "7829564732190849614",
                 "inputMap": {
                   "presentationStructure": "slideOutline",
                   "designSystem": "visualTheme",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Add Engagement Elements",
                 "description": "Incorporates interactive and memorable components",
-                "subroutineId": "TODO: Need engagement design subroutine",
+                "subroutineId": "7829564732190849617",
                 "inputMap": {
                   "viewerInsights": "audienceAnalysis",
                   "interactionPoints": "engagementOpportunities",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Polish & Prepare Delivery",
                 "description": "Finalizes presentation and prepares speaker materials",
-                "subroutineId": "TODO: Need delivery preparation subroutine",
+                "subroutineId": "7829564732190849620",
                 "inputMap": {
                   "completedSlides": "slideContent",
                   "presentationScript": "speakerNotes",

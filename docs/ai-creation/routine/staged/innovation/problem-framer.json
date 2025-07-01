@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849680",
+  "publicId": "problem-framer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847037",
+      "tag": "innovation",
+      "translations": [
+        {
+          "id": "7829564732190847137",
+          "language": "en",
+          "description": "Innovation and creative thinking"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847090",
+      "tag": "analysis",
+      "translations": [
+        {
+          "id": "7829564732190847190",
+          "language": "en",
+          "description": "Analytical capabilities"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849681",
+      "publicId": "problem-framer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Clarifies challenges and explores different problem perspectives",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "problemDescription",
+                "id": "problem_description_input",
+                "label": "Problem Description",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Initial challenge description"
+              },
+              {
+                "fieldName": "stakeholderViews",
+                "id": "stakeholder_views_input",
+                "label": "Stakeholder Views",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Different perspectives on the problem"
+              },
+              {
+                "fieldName": "contextualFactors",
+                "id": "contextual_factors_input",
+                "label": "Contextual Factors",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Environmental and situational influences"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "clarifiedChallenge",
+                "id": "clarified_challenge_output",
+                "label": "Clarified Challenge",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "alternativeFrames",
+                "id": "alternative_frames_output",
+                "label": "Alternative Frames",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "framingInsights",
+                "id": "framing_insights_output",
+                "label": "Framing Insights",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849682",
+          "language": "en",
+          "name": "Problem Framer",
+          "description": "Clarifies challenges and explores different problem perspectives for better understanding.",
+          "instructions": "Provide problem description and context. The routine will frame the challenge."
+        }
+      ]
+    }
+  ]
+}

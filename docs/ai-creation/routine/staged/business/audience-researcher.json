@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849686",
+  "publicId": "audience-researcher-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847030",
+      "tag": "business",
+      "translations": [
+        {
+          "id": "7829564732190847130",
+          "language": "en",
+          "description": "Business and enterprise"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849687",
+      "publicId": "audience-researcher-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Analyzes demographics, psychographics, and behavioral patterns",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "productService",
+                "id": "product_service_input",
+                "label": "Product/Service",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Offering details and value proposition"
+              },
+              {
+                "fieldName": "marketSegment",
+                "id": "market_segment_input",
+                "label": "Market Segment",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Initial target market definition"
+              },
+              {
+                "fieldName": "researchScope",
+                "id": "research_scope_input",
+                "label": "Research Scope",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Areas to focus research on"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "idealCustomers",
+                "id": "ideal_customers_output",
+                "label": "Ideal Customers",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "behaviorInsights",
+                "id": "behavior_insights_output",
+                "label": "Behavior Insights",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "audienceSegmentation",
+                "id": "audience_segmentation_output",
+                "label": "Audience Segmentation",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849688",
+          "language": "en",
+          "name": "Audience Researcher",
+          "description": "Analyzes target audience demographics, psychographics, and behavioral patterns.",
+          "instructions": "Provide product/service details and market segment. The routine will research audiences."
+        }
+      ]
+    }
+  ]
+}

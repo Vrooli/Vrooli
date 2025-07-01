@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849611",
+  "publicId": "design-theme-creator-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847051",
+      "tag": "communication-content",
+      "translations": [
+        {
+          "id": "7829564732190847151",
+          "language": "en",
+          "description": "Communication and content systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849612",
+      "publicId": "design-theme-creator-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates cohesive design themes for presentations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "presentationGoals",
+                "id": "presentation_goals_input",
+                "label": "Presentation Goals",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Key messages and audience"
+              },
+              {
+                "fieldName": "brandGuidelines",
+                "id": "brand_guidelines_input",
+                "label": "Brand Guidelines",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Colors, fonts, style preferences"
+              },
+              {
+                "fieldName": "themeStyle",
+                "id": "theme_style_input",
+                "label": "Theme Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "professional",
+                "options": [
+                  "minimalist",
+                  "professional",
+                  "creative",
+                  "modern"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "designTheme",
+                "id": "design_theme_output",
+                "label": "Design Theme",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "colorScheme",
+                "id": "color_scheme_output",
+                "label": "Color Scheme",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "visualElements",
+                "id": "visual_elements_output",
+                "label": "Visual Elements",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849613",
+          "language": "en",
+          "name": "Design Theme Creator",
+          "description": "Creates cohesive design themes that align with presentation goals and brand.",
+          "instructions": "Provide presentation goals and style preferences. The routine will create design theme."
+        }
+      ]
+    }
+  ]
+}

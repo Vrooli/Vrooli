@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define & Frame the Problem",
                 "description": "Clarifies the challenge and explores different problem perspectives",
-                "subroutineId": "TODO: Need problem framing subroutine",
+                "subroutineId": "7829564732190849680",
                 "inputMap": {
                   "problemDescription": "challengeContext",
                   "stakeholderPerspectives": "viewpointVariety",

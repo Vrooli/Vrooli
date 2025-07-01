@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Customer Personas",
                 "description": "Creates detailed profiles of target customer segments",
-                "subroutineId": "TODO: Need persona development subroutine",
+                "subroutineId": "7829564732190849701",
                 "inputMap": {
                   "customerData": "audienceInsights",
                   "segmentationCriteria": "demographicFactors",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Map Journey Stages",
                 "description": "Identifies all touchpoints and interaction phases",
-                "subroutineId": "TODO: Need journey mapping subroutine",
+                "subroutineId": "7829564732190849704",
                 "inputMap": {
                   "detailedProfiles": "customerPersonas",
                   "businessProcess": "serviceFlow",

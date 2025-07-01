@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Design Workshop Framework",
                 "description": "Creates structure, objectives, and participant preparation",
-                "subroutineId": "TODO: Need workshop design subroutine",
+                "subroutineId": "7829564732190849662",
                 "inputMap": {
                   "innovationGoals": "workshopObjectives",
                   "participantProfiles": "attendeeCharacteristics",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Set Innovation Context",
                 "description": "Establishes challenge framing and creative environment",
-                "subroutineId": "TODO: Need context setting subroutine",
+                "subroutineId": "7829564732190849665",
                 "inputMap": {
                   "problemSpace": "challengeContext",
                   "marketInsights": "environmentalFactors",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Facilitate Ideation Sessions",
                 "description": "Guides structured brainstorming and creative techniques",
-                "subroutineId": "TODO: Need ideation facilitation subroutine",
+                "subroutineId": "7829564732190849668",
                 "inputMap": {
                   "sessionFramework": "workshopStructure",
                   "creativeStimuli": "inspirationCatalog",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Evaluate & Refine Concepts",
                 "description": "Assesses ideas and develops promising concepts further",
-                "subroutineId": "TODO: Need concept evaluation subroutine",
+                "subroutineId": "7829564732190849671",
                 "inputMap": {
                   "conceptGeneration": "rawIdeas",
                   "evaluationCriteria": "assessmentFramework",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Prototype & Test Ideas",
                 "description": "Creates rapid prototypes and validates concepts",
-                "subroutineId": "TODO: Need prototyping facilitation subroutine",
+                "subroutineId": "7829564732190849674",
                 "inputMap": {
                   "selectedIdeas": "prioritizedConcepts",
                   "prototypingResources": "buildingMaterials",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Plan Implementation & Next Steps",
                 "description": "Develops action plans and innovation roadmap",
-                "subroutineId": "TODO: Need implementation planning subroutine",
+                "subroutineId": "7829564732190848936",
                 "inputMap": {
                   "conceptValidation": "prototypeResults",
                   "organizationalCapacity": "resourceAssessment",

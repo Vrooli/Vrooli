@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Design Practice Sessions",
                 "description": "Creates engaging exercises for skill development",
-                "subroutineId": "TODO: Need practice design subroutine",
+                "subroutineId": "7829564732190849581",
                 "inputMap": {
                   "focusAreas": "prioritySkills",
                   "skillExercises": "practiceActivities",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Plan Cultural Integration",
                 "description": "Incorporates cultural context and real-world application",
-                "subroutineId": "TODO: Need cultural integration subroutine",
+                "subroutineId": "7829564732190849584",
                 "inputMap": {
                   "targetLanguage": "languageGoal",
                   "learningPurpose": "motivationFactors",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Establish Progress Tracking",
                 "description": "Creates system for monitoring advancement and motivation",
-                "subroutineId": "TODO: Need progress tracking subroutine",
+                "subroutineId": "7829564732190849182",
                 "inputMap": {
                   "progressMarkers": "milestones",
                   "learningPathway": "curriculumPlan",

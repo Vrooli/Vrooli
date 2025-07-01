@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849644",
+  "publicId": "activity-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849645",
+      "publicId": "activity-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Curates activities and attractions based on interests",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "destination",
+                "id": "destination_input",
+                "label": "Destination",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Travel destination"
+              },
+              {
+                "fieldName": "travelInterests",
+                "id": "travel_interests_input",
+                "label": "Travel Interests",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Preferred activity types and interests"
+              },
+              {
+                "fieldName": "activityLevel",
+                "id": "activity_level_input",
+                "label": "Activity Level",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "moderate",
+                "options": [
+                  "relaxed",
+                  "moderate",
+                  "active",
+                  "adventurous"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "attractionList",
+                "id": "attraction_list_output",
+                "label": "Attraction List",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "activityDetails",
+                "id": "activity_details_output",
+                "label": "Activity Details",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bookingRequirements",
+                "id": "booking_requirements_output",
+                "label": "Booking Requirements",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849646",
+          "language": "en",
+          "name": "Activity Planner",
+          "description": "Curates activities, attractions, and experiences based on interests.",
+          "instructions": "Provide destination and interests. The routine will plan activities."
+        }
+      ]
+    }
+  ]
+}

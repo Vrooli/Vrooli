@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849602",
+  "publicId": "academic-writer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847046",
+      "tag": "learning-education",
+      "translations": [
+        {
+          "id": "7829564732190847146",
+          "language": "en",
+          "description": "Learning and educational systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847097",
+      "tag": "generation",
+      "translations": [
+        {
+          "id": "7829564732190847197",
+          "language": "en",
+          "description": "Content generation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849603",
+      "publicId": "academic-writer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Writes academic paper sections with proper citations",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "sectionOutline",
+                "id": "section_outline_input",
+                "label": "Section Outline",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Detailed outline for section"
+              },
+              {
+                "fieldName": "researchContent",
+                "id": "research_content_input",
+                "label": "Research Content",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Research findings and evidence"
+              },
+              {
+                "fieldName": "citationStyle",
+                "id": "citation_style_input",
+                "label": "Citation Style",
+                "type": "Selector",
+                "isRequired": false,
+                "defaultValue": "APA",
+                "options": [
+                  "APA",
+                  "MLA",
+                  "Chicago",
+                  "Harvard"
+                ]
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "writtenSection",
+                "id": "written_section_output",
+                "label": "Written Section",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "citations",
+                "id": "citations_output",
+                "label": "Citations",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "revisionNotes",
+                "id": "revision_notes_output",
+                "label": "Revision Notes",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "conversational",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849604",
+          "language": "en",
+          "name": "Academic Writer",
+          "description": "Writes academic paper sections with proper structure and citations.",
+          "instructions": "Provide section outline and research. The routine will write content."
+        }
+      ]
+    }
+  ]
+}

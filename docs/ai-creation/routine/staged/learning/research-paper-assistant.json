@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Research Scope",
                 "description": "Clarifies research question, objectives, and methodology approach",
-                "subroutineId": "TODO: Need research scoping subroutine",
+                "subroutineId": "7829564732190849590",
                 "inputMap": {
                   "researchTopic": "initialTopic",
                   "academicLevel": "studyLevel",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Conduct Literature Review",
                 "description": "Identifies key sources, theories, and existing research",
-                "subroutineId": "TODO: Need literature review subroutine",
+                "subroutineId": "7829564732190849593",
                 "inputMap": {
                   "researchQuestion": "focusedQuestion",
                   "keywords": "searchTerms",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Create Paper Outline",
                 "description": "Structures paper with logical flow and section organization",
-                "subroutineId": "TODO: Need academic outline subroutine",
+                "subroutineId": "7829564732190849596",
                 "inputMap": {
                   "researchQuestion": "focusedQuestion",
                   "theoreticalFramework": "conceptualBasis",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Develop Thesis Statement",
                 "description": "Crafts strong, focused thesis with supporting arguments",
-                "subroutineId": "TODO: Need thesis development subroutine",
+                "subroutineId": "7829564732190849599",
                 "inputMap": {
                   "researchQuestion": "focusedQuestion",
                   "researchGaps": "knowledgeGaps",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Write Section Drafts",
                 "description": "Provides writing guidance and structure for each section",
-                "subroutineId": "TODO: Need academic writing subroutine",
+                "subroutineId": "7829564732190849602",
                 "inputMap": {
                   "paperStructure": "documentOutline",
                   "centralArgument": "thesisStatement",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Review and Refine",
                 "description": "Evaluates coherence, argument strength, and academic standards",
-                "subroutineId": "TODO: Need academic review subroutine",
+                "subroutineId": "7829564732190849605",
                 "inputMap": {
                   "completeDraft": "fullPaper",
                   "academicStandards": "qualityCriteria",

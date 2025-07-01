@@ -61,7 +61,7 @@
                 "id": "step-1",
                 "name": "Define Campaign Objectives",
                 "description": "Establishes clear goals, target metrics, and success criteria",
-                "subroutineId": "TODO: Need campaign objective setting subroutine",
+                "subroutineId": "7829564732190849683",
                 "inputMap": {
                   "businessGoals": "organizationalObjectives",
                   "campaignPurpose": "marketingIntent",
@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Research Target Audience",
                 "description": "Analyzes demographics, psychographics, and behavioral patterns",
-                "subroutineId": "TODO: Need audience research subroutine",
+                "subroutineId": "7829564732190849686",
                 "inputMap": {
                   "productService": "offeringDetails",
                   "marketSegments": "potentialAudiences",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Develop Campaign Strategy",
                 "description": "Creates overarching approach and positioning framework",
-                "subroutineId": "TODO: Need strategy development subroutine",
+                "subroutineId": "7829564732190849689",
                 "inputMap": {
                   "clarifiedObjectives": "campaignGoals",
                   "targetSegments": "audienceProfiles",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Select Marketing Channels",
                 "description": "Chooses optimal channels and platforms for audience reach",
-                "subroutineId": "TODO: Need channel selection subroutine",
+                "subroutineId": "7829564732190849692",
                 "inputMap": {
                   "idealCustomers": "buyerPersonas",
                   "resourceAllocation": "budgetParameters",
@@ -125,7 +125,7 @@
                 "id": "step-5",
                 "name": "Create Content Strategy",
                 "description": "Develops messaging, creative concepts, and content calendar",
-                "subroutineId": "TODO: Need content strategy subroutine",
+                "subroutineId": "7829564732190849695",
                 "inputMap": {
                   "coreMessage": "valueProposition",
                   "selectedPlatforms": "channelMix",
@@ -141,7 +141,7 @@
                 "id": "step-6",
                 "name": "Plan Execution & Measurement",
                 "description": "Creates implementation timeline and tracking framework",
-                "subroutineId": "TODO: Need execution planning subroutine",
+                "subroutineId": "7829564732190849698",
                 "inputMap": {
                   "strategicApproach": "campaignStrategy",
                   "publishingSchedule": "contentCalendar",

@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849698",
+  "publicId": "execution-planner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847030",
+      "tag": "business",
+      "translations": [
+        {
+          "id": "7829564732190847130",
+          "language": "en",
+          "description": "Business and enterprise"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849699",
+      "publicId": "execution-planner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates implementation timeline and tracking framework",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "strategicApproach",
+                "id": "strategic_approach_input",
+                "label": "Strategic Approach",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Campaign strategy and positioning"
+              },
+              {
+                "fieldName": "contentPlan",
+                "id": "content_plan_input",
+                "label": "Content Plan",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Content strategy and calendar"
+              },
+              {
+                "fieldName": "executionConstraints",
+                "id": "execution_constraints_input",
+                "label": "Execution Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Timeline, budget, and resource limitations"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "implementationPlan",
+                "id": "implementation_plan_output",
+                "label": "Implementation Plan",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "trackingFramework",
+                "id": "tracking_framework_output",
+                "label": "Tracking Framework",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "executionTimeline",
+                "id": "execution_timeline_output",
+                "label": "Execution Timeline",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849700",
+          "language": "en",
+          "name": "Execution Planner",
+          "description": "Creates implementation timeline and comprehensive tracking framework.",
+          "instructions": "Provide strategy and content plan. The routine will plan execution."
+        }
+      ]
+    }
+  ]
+}

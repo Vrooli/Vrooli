@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849638",
+  "publicId": "transportation-researcher-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847057",
+      "tag": "lifestyle",
+      "translations": [
+        {
+          "id": "7829564732190847157",
+          "language": "en",
+          "description": "Lifestyle and personal"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847088",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847188",
+          "language": "en",
+          "description": "Research and analysis"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849639",
+      "publicId": "transportation-researcher-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Finds optimal transportation options for travel",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "travelSpecs",
+                "id": "travel_specs_input",
+                "label": "Travel Specifications",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Origin, destination, dates, preferences"
+              },
+              {
+                "fieldName": "budgetConstraints",
+                "id": "budget_constraints_input",
+                "label": "Budget Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Maximum budget for transportation"
+              },
+              {
+                "fieldName": "transportPreferences",
+                "id": "transport_preferences_input",
+                "label": "Transport Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Preferred modes of transport"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "transportOptions",
+                "id": "transport_options_output",
+                "label": "Transport Options",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "priceComparison",
+                "id": "price_comparison_output",
+                "label": "Price Comparison",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "bookingDetails",
+                "id": "booking_details_output",
+                "label": "Booking Details",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849640",
+          "language": "en",
+          "name": "Transportation Researcher",
+          "description": "Researches and compares optimal transportation options for travel.",
+          "instructions": "Provide travel specifications and preferences. The routine will find transportation options."
+        }
+      ]
+    }
+  ]
+}

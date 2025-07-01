@@ -1,0 +1,117 @@
+{
+  "id": "7829564732190849599",
+  "publicId": "academic-thesis-developer-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847046",
+      "tag": "learning-education",
+      "translations": [
+        {
+          "id": "7829564732190847146",
+          "language": "en",
+          "description": "Learning and educational systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849600",
+      "publicId": "academic-thesis-developer-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Develops academic thesis statements and arguments",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchGaps",
+                "id": "research_gaps_input",
+                "label": "Research Gaps",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Identified gaps in existing research"
+              },
+              {
+                "fieldName": "researchQuestion",
+                "id": "research_question_input",
+                "label": "Research Question",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Primary research question"
+              },
+              {
+                "fieldName": "theoreticalFramework",
+                "id": "theoretical_framework_input",
+                "label": "Theoretical Framework",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Relevant theories and frameworks"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "thesisStatement",
+                "id": "thesis_statement_output",
+                "label": "Thesis Statement",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "argumentStructure",
+                "id": "argument_structure_output",
+                "label": "Argument Structure",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contributionStatement",
+                "id": "contribution_statement_output",
+                "label": "Contribution Statement",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849601",
+          "language": "en",
+          "name": "Academic Thesis Developer",
+          "description": "Develops strong thesis statements and academic arguments for research papers.",
+          "instructions": "Provide research gaps and question. The routine will develop thesis."
+        }
+      ]
+    }
+  ]
+}

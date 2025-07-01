@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849590",
+  "publicId": "research-scoper-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847046",
+      "tag": "learning-education",
+      "translations": [
+        {
+          "id": "7829564732190847146",
+          "language": "en",
+          "description": "Learning and educational systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847075",
+      "tag": "research",
+      "translations": [
+        {
+          "id": "7829564732190847175",
+          "language": "en",
+          "description": "Research and investigation"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849591",
+      "publicId": "research-scoper-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Scopes academic research topics and questions",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchTopic",
+                "id": "research_topic_input",
+                "label": "Research Topic",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Initial topic or area of interest"
+              },
+              {
+                "fieldName": "academicLevel",
+                "id": "academic_level_input",
+                "label": "Academic Level",
+                "type": "Selector",
+                "isRequired": true,
+                "defaultValue": "undergraduate",
+                "options": [
+                  "undergraduate",
+                  "graduate",
+                  "doctoral",
+                  "professional"
+                ]
+              },
+              {
+                "fieldName": "researchConstraints",
+                "id": "research_constraints_input",
+                "label": "Research Constraints",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Time, resources, scope limitations"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchQuestion",
+                "id": "research_question_output",
+                "label": "Research Question",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "scopeDefinition",
+                "id": "scope_definition_output",
+                "label": "Scope Definition",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "methodologyOptions",
+                "id": "methodology_options_output",
+                "label": "Methodology Options",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849592",
+          "language": "en",
+          "name": "Research Scoper",
+          "description": "Defines focused research questions and appropriate scope for academic papers.",
+          "instructions": "Provide research topic and academic level. The routine will scope the research."
+        }
+      ]
+    }
+  ]
+}

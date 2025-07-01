@@ -77,7 +77,7 @@
                 "id": "step-2",
                 "name": "Analyze Each Option",
                 "description": "Evaluates each option against the identified criteria",
-                "subroutineId": "TODO: Need reasoning subroutine for option analysis",
+                "subroutineId": "7829564732190849533",
                 "inputMap": {
                   "clarifiedOptions": "refinedOptions",
                   "identifiedCriteria": "evaluationCriteria",
@@ -93,7 +93,7 @@
                 "id": "step-3",
                 "name": "Check for Biases",
                 "description": "Identifies potential cognitive biases affecting the decision",
-                "subroutineId": "TODO: Need reasoning subroutine for bias detection",
+                "subroutineId": "7829564732190849656",
                 "inputMap": {
                   "structuredContext": "organizedContext",
                   "optionScores": "criteriaScores",
@@ -109,7 +109,7 @@
                 "id": "step-4",
                 "name": "Generate Recommendation",
                 "description": "Synthesizes analysis into final recommendation with rationale",
-                "subroutineId": "TODO: Need reasoning subroutine for recommendation synthesis",
+                "subroutineId": "7829564732190849659",
                 "inputMap": {
                   "optionScores": "criteriaScores",
                   "strengthsWeaknesses": "swotAnalysis",

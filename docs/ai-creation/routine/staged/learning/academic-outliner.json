@@ -1,0 +1,123 @@
+{
+  "id": "7829564732190849596",
+  "publicId": "academic-outliner-v1",
+  "resourceType": "Routine",
+  "isPrivate": false,
+  "permissions": "{}",
+  "isInternal": false,
+  "tags": [
+    {
+      "id": "7829564732190847046",
+      "tag": "learning-education",
+      "translations": [
+        {
+          "id": "7829564732190847146",
+          "language": "en",
+          "description": "Learning and educational systems"
+        }
+      ]
+    },
+    {
+      "id": "7829564732190847094",
+      "tag": "planning",
+      "translations": [
+        {
+          "id": "7829564732190847194",
+          "language": "en",
+          "description": "Planning and organization"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "id": "7829564732190849597",
+      "publicId": "academic-outliner-v1-0",
+      "versionLabel": "1.0.0",
+      "versionNotes": "Initial version - Creates structured academic paper outlines",
+      "isComplete": true,
+      "isPrivate": false,
+      "versionIndex": 0,
+      "isAutomatable": true,
+      "resourceSubType": "RoutineGenerate",
+      "config": {
+        "__version": "1.0",
+        "formInput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "researchFindings",
+                "id": "research_findings_input",
+                "label": "Research Findings",
+                "type": "JSON",
+                "isRequired": true,
+                "placeholder": "Literature review and research results"
+              },
+              {
+                "fieldName": "paperType",
+                "id": "paper_type_input",
+                "label": "Paper Type",
+                "type": "Selector",
+                "isRequired": true,
+                "defaultValue": "research-article",
+                "options": [
+                  "research-article",
+                  "review-paper",
+                  "thesis",
+                  "dissertation"
+                ]
+              },
+              {
+                "fieldName": "structurePreferences",
+                "id": "structure_preferences_input",
+                "label": "Structure Preferences",
+                "type": "JSON",
+                "isRequired": false,
+                "placeholder": "Preferred organization and sections"
+              }
+            ]
+          }
+        },
+        "formOutput": {
+          "__version": "1.0",
+          "schema": {
+            "containers": [],
+            "elements": [
+              {
+                "fieldName": "paperOutline",
+                "id": "paper_outline_output",
+                "label": "Paper Outline",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "sectionStructure",
+                "id": "section_structure_output",
+                "label": "Section Structure",
+                "type": "JSON"
+              },
+              {
+                "fieldName": "contentMapping",
+                "id": "content_mapping_output",
+                "label": "Content Mapping",
+                "type": "JSON"
+              }
+            ]
+          }
+        },
+        "executionStrategy": "reasoning",
+        "allowStrategyOverride": false
+      },
+      "translations": [
+        {
+          "id": "7829564732190849598",
+          "language": "en",
+          "name": "Academic Outliner",
+          "description": "Creates comprehensive outlines for academic papers and research articles.",
+          "instructions": "Provide research findings and paper type. The routine will create outline."
+        }
+      ]
+    }
+  ]
+}
