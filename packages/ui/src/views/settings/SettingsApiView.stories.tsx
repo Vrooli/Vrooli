@@ -1,7 +1,8 @@
 /* eslint-disable no-magic-numbers */
 import { ApiKeyPermission, generatePK, type ApiKey, type Session, type SessionUser, type User, type Resource, type ResourceVersion, type ResourceTranslation, type ResourceSearchResult, type ApiKeyCreated } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
-import { API_URL, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
+import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession, signedInPremiumNoCreditsSession } from "../../__test/storybookConsts.js";
+import { getMockApiUrl } from "../../__test/helpers/storybookMocking.js";
 import { PERMISSION_PRESETS, SettingsApiView } from "./SettingsApiView.js";
 
 // Session data
@@ -43,9 +44,9 @@ const mockApiResources: ResourceSearchResult = {
                                     clientId: "openai-client-id",
                                     authUrl: "https://openai.com/oauth/authorize",
                                     tokenUrl: "https://openai.com/oauth/token",
-                                    scopes: ["read", "write"]
-                                }
-                            }
+                                    scopes: ["read", "write"],
+                                },
+                            },
                         }),
                         translations: [
                             {
@@ -53,12 +54,12 @@ const mockApiResources: ResourceSearchResult = {
                                 id: generatePK().toString(),
                                 language: "en",
                                 name: "OpenAI API",
-                                description: "Official OpenAI API for GPT models"
-                            }
-                        ]
-                    }
-                ]
-            } as Resource
+                                description: "Official OpenAI API for GPT models",
+                            },
+                        ],
+                    },
+                ],
+            } as Resource,
         },
         {
             __typename: "ResourceEdge", 
@@ -82,9 +83,9 @@ const mockApiResources: ResourceSearchResult = {
                             authentication: {
                                 type: "apikey",
                                 settings: {
-                                    headerName: "x-api-key"
-                                }
-                            }
+                                    headerName: "x-api-key",
+                                },
+                            },
                         }),
                         translations: [
                             {
@@ -92,12 +93,12 @@ const mockApiResources: ResourceSearchResult = {
                                 id: generatePK().toString(),
                                 language: "en",
                                 name: "Anthropic API",
-                                description: "Anthropic Claude API"
-                            }
-                        ]
-                    }
-                ]
-            } as Resource
+                                description: "Anthropic Claude API",
+                            },
+                        ],
+                    },
+                ],
+            } as Resource,
         },
         {
             __typename: "ResourceEdge",
@@ -119,8 +120,8 @@ const mockApiResources: ResourceSearchResult = {
                         callLink: "https://api.github.com",
                         configCallData: JSON.stringify({
                             authentication: {
-                                type: "none"
-                            }
+                                type: "none",
+                            },
                         }),
                         translations: [
                             {
@@ -128,21 +129,21 @@ const mockApiResources: ResourceSearchResult = {
                                 id: generatePK().toString(),
                                 language: "en",
                                 name: "GitHub API",
-                                description: "GitHub REST API v4"
-                            }
-                        ]
-                    }
-                ]
-            } as Resource
-        }
+                                description: "GitHub REST API v4",
+                            },
+                        ],
+                    },
+                ],
+            } as Resource,
+        },
     ],
     pageInfo: {
         __typename: "PageInfo",
         hasNextPage: false,
         hasPreviousPage: false,
         startCursor: "1",
-        endCursor: "3"
-    }
+        endCursor: "3",
+    },
 };
 
 const noKeysOrIntegrationData: Partial<User> = {
@@ -244,19 +245,19 @@ const withKeysAndIntegrationsData: Partial<User> = {
 // Common MSW handlers for API operations
 const createCommonHandlers = (userData: Partial<User>) => [
     // Profile endpoint
-    http.get(`${API_URL}/v2/profile`, () => {
+    http.get(getMockApiUrl("/profile"), () => {
         console.log("Intercepted profile request, returning:", userData);
         return HttpResponse.json(userData);
     }),
     
     // Resources endpoint for loading external services
-    http.post(`${API_URL}/v2/resources`, () => {
+    http.post(getMockApiUrl("/resources"), () => {
         console.log("Intercepted resources request");
         return HttpResponse.json(mockApiResources);
     }),
     
     // Create internal API key
-    http.post(`${API_URL}/v2/apiKey`, async ({ request }) => {
+    http.post(getMockApiUrl("/apiKey"), async ({ request }) => {
         const body = await request.json() as any;
         const newKey: ApiKeyCreated = {
             __typename: "ApiKey",
@@ -268,7 +269,7 @@ const createCommonHandlers = (userData: Partial<User>) => [
             name: body.name || "New API Key",
             stopAtLimit: body.stopAtLimit ?? true,
             permissions: body.permissions || JSON.stringify(PERMISSION_PRESETS.READ_ONLY.permissions),
-            key: `sk-test-${generatePK().toString().slice(0, 16)}` // Simulated API key
+            key: `sk-test-${generatePK().toString().slice(0, 16)}`, // Simulated API key
         };
         
         console.log("Created new API key:", newKey);
@@ -276,7 +277,7 @@ const createCommonHandlers = (userData: Partial<User>) => [
     }),
     
     // Update internal API key
-    http.put(`${API_URL}/v2/apiKey/:id`, async ({ request, params }) => {
+    http.put(getMockApiUrl("/apiKey/:id"), async ({ request, params }) => {
         const body = await request.json() as any;
         const updatedKey: ApiKey = {
             __typename: "ApiKey",
@@ -295,13 +296,13 @@ const createCommonHandlers = (userData: Partial<User>) => [
     }),
     
     // Delete API key (internal or external)
-    http.post(`${API_URL}/v2/deleteOne`, () => {
+    http.post(getMockApiUrl("/deleteOne"), () => {
         console.log("Deleting API key");
         return HttpResponse.json({ success: true });
     }),
     
     // Create external API key
-    http.post(`${API_URL}/v2/apiKeyExternal`, async ({ request }) => {
+    http.post(getMockApiUrl("/apiKeyExternal"), async ({ request }) => {
         const body = await request.json() as any;
         const newExternalKey = {
             __typename: "ApiKeyExternal",
@@ -319,7 +320,7 @@ const createCommonHandlers = (userData: Partial<User>) => [
     }),
     
     // Update external API key
-    http.put(`${API_URL}/v2/apiKeyExternal/:id`, async ({ request, params }) => {
+    http.put(getMockApiUrl("/apiKeyExternal/:id"), async ({ request, params }) => {
         const body = await request.json() as any;
         const updatedExternalKey = {
             __typename: "ApiKeyExternal", 
@@ -337,21 +338,21 @@ const createCommonHandlers = (userData: Partial<User>) => [
     }),
     
     // OAuth initiate
-    http.post(`${API_URL}/v2/auth/oauth/initiate`, async ({ request }) => {
+    http.post(getMockApiUrl("/auth/oauth/initiate"), async ({ request }) => {
         const body = await request.json() as any;
         const result = {
             authUrl: `https://openai.com/oauth/authorize?client_id=test&redirect_uri=${encodeURIComponent(body.redirectUri)}&state=test-state-123`,
-            state: "test-state-123"
+            state: "test-state-123",
         };
         console.log("OAuth initiate:", result);
         return HttpResponse.json(result);
     }),
     
     // OAuth callback
-    http.post(`${API_URL}/v2/auth/oauth/callback`, () => {
+    http.post(getMockApiUrl("/auth/oauth/callback"), () => {
         const result = {
             success: true,
-            provider: "openai"
+            provider: "openai",
         };
         console.log("OAuth callback:", result);
         return HttpResponse.json(result);
@@ -372,12 +373,12 @@ NoKeysOrIntegrations.parameters = {
     msw: {
         handlers: [
             // Override the profile endpoint for this specific story
-            http.get(`${API_URL}/v2/profile`, () => {
+            http.get(getMockApiUrl("/profile"), () => {
                 console.log("Returning no keys data");
                 return HttpResponse.json(noKeysOrIntegrationData);
             }),
             // Include other handlers but filter out the default profile handler
-            ...createCommonHandlers(noKeysOrIntegrationData).filter(handler => !handler.info.path.includes('/v2/profile')),
+            ...createCommonHandlers(noKeysOrIntegrationData).filter(handler => !handler.info.path.includes("/v2/profile")),
         ],
     },
     session,
@@ -406,10 +407,10 @@ SignedInNoPremiumNoCredits.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/profile`, () => {
+            http.get(getMockApiUrl("/profile"), () => {
                 return HttpResponse.json(noKeysOrIntegrationData);
             }),
-            ...createCommonHandlers(noKeysOrIntegrationData).filter(handler => !handler.info.path.includes('/v2/profile')),
+            ...createCommonHandlers(noKeysOrIntegrationData).filter(handler => !handler.info.path.includes("/v2/profile")),
         ],
     },
 };
@@ -462,10 +463,10 @@ WithNewlyCreatedKey.parameters = {
     session,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/profile`, () => {
+            http.get(getMockApiUrl("/profile"), () => {
                 return HttpResponse.json(newKeyData);
             }),
-            ...createCommonHandlers(newKeyData).filter(handler => !handler.info.path.includes('/v2/profile')),
+            ...createCommonHandlers(newKeyData).filter(handler => !handler.info.path.includes("/v2/profile")),
         ],
     },
 };
@@ -512,10 +513,10 @@ HighCreditUsage.parameters = {
     session,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/profile`, () => {
+            http.get(getMockApiUrl("/profile"), () => {
                 return HttpResponse.json(highUsageData);
             }),
-            ...createCommonHandlers(highUsageData).filter(handler => !handler.info.path.includes('/v2/profile')),
+            ...createCommonHandlers(highUsageData).filter(handler => !handler.info.path.includes("/v2/profile")),
         ],
     },
 };
@@ -568,10 +569,10 @@ ExternalKeysOnly.parameters = {
     session,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/profile`, () => {
+            http.get(getMockApiUrl("/profile"), () => {
                 return HttpResponse.json(externalOnlyData);
             }),
-            ...createCommonHandlers(externalOnlyData).filter(handler => !handler.info.path.includes('/v2/profile')),
+            ...createCommonHandlers(externalOnlyData).filter(handler => !handler.info.path.includes("/v2/profile")),
         ],
     },
 };
@@ -648,7 +649,7 @@ LoadingState.parameters = {
     session,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/profile`, () => {
+            http.get(getMockApiUrl("/profile"), () => {
                 // Simulate slow loading
                 return new Promise(resolve => {
                     setTimeout(() => {
@@ -657,7 +658,7 @@ LoadingState.parameters = {
                 });
             }),
             // Include other common handlers but override profile
-            ...createCommonHandlers(withKeysAndIntegrationsData).filter(handler => !handler.info.path.includes('/v2/profile')),
+            ...createCommonHandlers(withKeysAndIntegrationsData).filter(handler => !handler.info.path.includes("/v2/profile")),
         ],
     },
 };
@@ -676,14 +677,14 @@ ErrorState.parameters = {
     session,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/profile`, () => {
+            http.get(getMockApiUrl("/profile"), () => {
                 return HttpResponse.json(
                     { error: "Failed to fetch API keys" },
-                    { status: 500 }
+                    { status: 500 },
                 );
             }),
             // Include other common handlers but override profile
-            ...createCommonHandlers(withKeysAndIntegrationsData).filter(handler => !handler.info.path.includes('/v2/profile')),
+            ...createCommonHandlers(withKeysAndIntegrationsData).filter(handler => !handler.info.path.includes("/v2/profile")),
         ],
     },
 };
@@ -751,10 +752,10 @@ CustomPermissions.parameters = {
     session,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/profile`, () => {
+            http.get(getMockApiUrl("/profile"), () => {
                 return HttpResponse.json(customPermissionsData);
             }),
-            ...createCommonHandlers(customPermissionsData).filter(handler => !handler.info.path.includes('/v2/profile')),
+            ...createCommonHandlers(customPermissionsData).filter(handler => !handler.info.path.includes("/v2/profile")),
         ],
     },
 };
@@ -849,10 +850,10 @@ MixedKeyStates.parameters = {
     session,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2/profile`, () => {
+            http.get(getMockApiUrl("/profile"), () => {
                 return HttpResponse.json(mixedStatesData);
             }),
-            ...createCommonHandlers(mixedStatesData).filter(handler => !handler.info.path.includes('/v2/profile')),
+            ...createCommonHandlers(mixedStatesData).filter(handler => !handler.info.path.includes("/v2/profile")),
         ],
     },
 };

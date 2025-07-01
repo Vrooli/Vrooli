@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
+import { type PermissionsFilter } from "../../components/buttons/PermissionsButton.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
@@ -84,7 +85,7 @@ export function SearchView({
     display,
 }: SearchViewProps) {
     const session = useContext(SessionContext);
-    const [, setLocation] = useLocation();
+    const [location, setLocation] = useLocation();
     const { t } = useTranslation();
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
@@ -92,6 +93,13 @@ export function SearchView({
 
     // Track if header has been hidden at least once during this session
     const [headerHidden, setHeaderHidden] = useState(false);
+    
+    // Get permissions filter from URL params
+    const urlParams = new URLSearchParams(location.search);
+    const initialPermissionsFilter = (urlParams.get("permissionsFilter") as PermissionsFilter) || "All";
+    
+    // Track permissions filter state
+    const [permissionsFilter, setPermissionsFilter] = useState<PermissionsFilter>(initialPermissionsFilter);
 
     const {
         currTab,
@@ -118,11 +126,38 @@ export function SearchView({
         return () => clearTimeout(timer);
     }, [searchType]);
 
+    // Modify where clause based on permissions filter
+    const whereWithPermissions = useMemo(() => {
+        const baseWhere = where(undefined);
+        
+        // Add permissions filtering based on the selected filter
+        switch (permissionsFilter) {
+            case "Own":
+                return {
+                    ...baseWhere,
+                    createdBy: { id: userId || undefined },
+                };
+            case "Team":
+                return {
+                    ...baseWhere,
+                    team: { members: { some: { user: { id: userId || undefined } } } },
+                };
+            case "Public":
+                return {
+                    ...baseWhere,
+                    isPrivate: false,
+                };
+            case "All":
+            default:
+                return baseWhere;
+        }
+    }, [where, permissionsFilter, userId]);
+
     const findManyData = useFindMany<ListObject>({
         controlsUrl: display === "Page",
         searchType,
         take: 20,
-        where: where(undefined),
+        where: whereWithPermissions,
     });
 
     const onCreateStart = useCallback(function onCreateStartCallback() {
@@ -270,9 +305,11 @@ export function SearchView({
                     {searchType && <SearchList
                         {...findManyData}
                         display={display}
+                        permissionsFilter={permissionsFilter}
                         scrollContainerId={scrollContainerId}
                         searchBarVariant="paper"
                         searchPlaceholder={t(searchPlaceholder)}
+                        setPermissionsFilter={setPermissionsFilter}
                         onSearchFocus={handleSearchFocus}
                         onSearchBlur={handleSearchBlur}
                     />}

@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { renderHook } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";

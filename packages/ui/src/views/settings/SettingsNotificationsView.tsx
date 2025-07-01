@@ -1,7 +1,8 @@
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Divider from "@mui/material/Divider";
-import Stack from "@mui/material/Stack";
+// AI_CHECK: TYPE_SAFETY=fixed-mui-component-jsx-errors | LAST: 2025-06-30
+import { Box } from "../../components/layout/Box.js";
+import { Button } from "../../components/buttons/Button.js";
+import { Divider } from "../../components/layout/Divider.js";
+import { Stack } from "../../components/layout/Stack.js";
 import { endpointsNotification, type Email, type NotificationSettings, type NotificationSettingsCategory, type NotificationSettingsUpdateInput, type PushDevice } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback } from "react";
@@ -67,21 +68,15 @@ function SettingsNotificationForm({
         >
             <Stack
                 direction="column"
-                spacing={4}
-                m="auto"
-                pl={2}
-                pr={2}
-                sx={{
-                    maxWidth: "min(100%, 700px)",
-                    width: "100%",
-                }}
+                spacing="lg"
+                className="tw-mx-auto tw-pl-2 tw-pr-2 tw-max-w-full tw-w-full"
+                style={{ maxWidth: "min(100%, 700px)" }}
             >
                 <Box>
                     <Title
                         iconInfo={notificationsAllIconInfo}
                         title={t("Notification", { count: 2 })}
                         variant="subheader"
-                        sxs={{ stack: { marginBottom: 2 } }}
                     />
                     <ListContainer sx={{ marginBottom: 6 }}>
                         <SettingsToggleListItem
@@ -106,23 +101,17 @@ function SettingsNotificationForm({
                             marginRight: 1,
                         }}
                     /> */}
-                    <Box sx={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+                    <Box className="tw-flex tw-items-center tw-mb-4">
                         <IntegerInput
                             disabled={!values.enabled}
                             label={t("DailyLimit")}
                             min={0}
                             name="dailyLimit"
-                            sx={{
-                                justifyContent: "flex-start",
-                                marginLeft: 1,
-                                marginRight: 1,
-                                width: "auto", // ensure the input doesn't stretch
-                                flexGrow: 1,
-                            }}
+                            className="tw-justify-start tw-ml-1 tw-mr-1 tw-w-auto tw-flex-grow"
                         />
                         <Button
                             variant="outlined"
-                            sx={{ ml: 2 }}
+                            className="tw-ml-2"
                             onClick={() => { /* Logic to disable the daily limit */ }}
                             disabled={!values.enabled}
                         >
@@ -136,7 +125,6 @@ function SettingsNotificationForm({
                         iconInfo={phoneIconInfo}
                         title={t("Device", { count: 2 })}
                         variant="subheader"
-                        sxs={{ stack: { marginBottom: 2 } }}
                     />
                     <PushList
                         handleUpdate={updatePushDevices}
@@ -158,7 +146,6 @@ function SettingsNotificationForm({
                         iconInfo={emailIconInfo}
                         title={t("Email", { count: 2 })}
                         variant="subheader"
-                        sxs={{ stack: { marginBottom: 2 } }}
                     />
                     <EmailList
                         handleUpdate={updateEmails}

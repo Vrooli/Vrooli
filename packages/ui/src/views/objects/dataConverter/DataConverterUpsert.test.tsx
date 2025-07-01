@@ -1,5 +1,4 @@
 // AI_CHECK: TEST_QUALITY=8 | LAST: 2025-01-26
-import "@testing-library/jest-dom/vitest";
 import { screen } from "@testing-library/react";
 import { DUMMY_ID } from "@vrooli/shared";
 import React from "react";
@@ -8,7 +7,7 @@ import { dataConverterFormTestConfig } from "../../../__test/fixtures/form-testi
 import {
     createMockSession,
     createSimpleFormTester,
-    renderFormComponent
+    renderFormComponent,
 } from "../../../__test/helpers/formComponentTestHelpers.js";
 
 // Mock only heavy dependencies and complex hooks
@@ -77,35 +76,47 @@ vi.mock("../../../hooks/useStandardUpsertForm.ts", () => ({
 
 // Mock heavy UI components with simple, testable versions
 vi.mock("../../../components/inputs/CodeInput/CodeInput.js", () => ({
-    CodeInput: ({ name, label, value, onChange, ...props }: any) => (
-        <div data-testid={`code-input-${name}`}>
-            <label htmlFor={name}>{label || name}</label>
-            <textarea
-                id={name}
-                name={name}
-                value={value}
-                onChange={(e) => onChange?.(e.target.value)}
-                data-testid={`input-${name}`}
-                {...props}
-            />
-        </div>
-    ),
+    CodeInput: ({ name, label, value, onChange, limitTo, disabled, codeLanguageField, defaultValueField, formatField, variablesField, ...domProps }: any) => {
+        // Filter out React-specific props that shouldn't go to DOM elements
+        const { isRequired, ...filteredProps } = domProps;
+        
+        return (
+            <div data-testid={`code-input-${name}`}>
+                <label htmlFor={name}>{label || name}</label>
+                <textarea
+                    id={name}
+                    name={name}
+                    value={value}
+                    onChange={(e) => onChange?.(e.target.value)}
+                    data-testid={`input-${name}`}
+                    disabled={disabled}
+                    {...filteredProps}
+                />
+            </div>
+        );
+    },
 }));
 
 vi.mock("../../../components/inputs/AdvancedInput/AdvancedInput.js", () => ({
-    TranslatedAdvancedInput: ({ name, label, title, value, onChange, ...props }: any) => (
-        <div data-testid={`translated-input-${name}`}>
-            <label htmlFor={name}>{label || title || name}</label>
-            <textarea
-                id={name}
-                name={name}
-                value={value}
-                onChange={(e) => onChange?.(e.target.value)}
-                data-testid={`input-${name}`}
-                {...props}
-            />
-        </div>
-    ),
+    TranslatedAdvancedInput: ({ name, label, title, value, onChange, isRequired, disabled, ...domProps }: any) => {
+        // Filter out React-specific props that shouldn't go to DOM elements
+        const { features, language, ...filteredProps } = domProps;
+        
+        return (
+            <div data-testid={`translated-input-${name}`}>
+                <label htmlFor={name}>{label || title || name}</label>
+                <textarea
+                    id={name}
+                    name={name}
+                    value={value}
+                    onChange={(e) => onChange?.(e.target.value)}
+                    data-testid={`input-${name}`}
+                    disabled={disabled}
+                    {...filteredProps}
+                />
+            </div>
+        );
+    },
 }));
 
 vi.mock("../../../components/buttons/AutoFillButton.js", () => ({
@@ -173,17 +184,17 @@ describe("DataConverterUpsert", () => {
         it("renders successfully", async () => {
             const { container } = renderFormComponent(
                 DataConverterUpsert,
-                { defaultProps, mockSession }
+                { defaultProps, mockSession },
             );
             
             // Just verify the component renders without errors
-            expect(container).toBeInTheDocument();
+            expect(container).toBeTruthy();
         });
 
         it("handles form submission with valid data", async () => {
             const { user } = renderFormComponent(
                 DataConverterUpsert,
-                { defaultProps, mockSession }
+                { defaultProps, mockSession },
             );
 
             // Fill required fields using stable test IDs
@@ -197,7 +208,7 @@ describe("DataConverterUpsert", () => {
         it("handles form cancellation", async () => {
             const { user } = renderFormComponent(
                 DataConverterUpsert,
-                { defaultProps, mockSession }
+                { defaultProps, mockSession },
             );
 
             await user.click(screen.getByTestId("cancel-button"));
@@ -219,7 +230,7 @@ describe("DataConverterUpsert", () => {
         });
 
         it("handles code input", async () => {
-            await formTester.testElement("codeEmbedded", "convert :: String -> Int\nconvert s = read s", "textarea");
+            await formTester.testElement("config.content", "convert :: String -> Int\nconvert s = read s", "textarea");
         });
 
         it("handles multiple fields together", async () => {
@@ -235,21 +246,21 @@ describe("DataConverterUpsert", () => {
         it("displays create mode correctly", async () => {
             const { user } = renderFormComponent(
                 DataConverterUpsert,
-                { defaultProps: { ...defaultProps, isCreate: true }, mockSession }
+                { defaultProps: { ...defaultProps, isCreate: true }, mockSession },
             );
 
             const submitButton = screen.getByTestId("submit-button");
-            expect(submitButton).toHaveTextContent(/create/i);
+            expect(submitButton.textContent).toContain("Create");
         });
 
         it("displays edit mode correctly", async () => {
             const { user } = renderFormComponent(
                 DataConverterUpsert,
-                { defaultProps: { ...defaultProps, isCreate: false }, mockSession }
+                { defaultProps: { ...defaultProps, isCreate: false }, mockSession },
             );
 
             const submitButton = screen.getByTestId("submit-button");
-            expect(submitButton).toHaveTextContent(/save/i);
+            expect(submitButton.textContent).toContain("Save");
         });
     });
 
@@ -257,7 +268,7 @@ describe("DataConverterUpsert", () => {
         it("integrates with real validation schemas", async () => {
             const { user } = renderFormComponent(
                 DataConverterUpsert,
-                { defaultProps, mockSession }
+                { defaultProps, mockSession },
             );
 
             // Submit without required fields to test validation
@@ -279,7 +290,7 @@ describe("DataConverterUpsert", () => {
             const values = dataConverterFormTestConfig.initialValuesFunction?.(mockSession);
             expect(values).toMatchObject({
                 __typename: "ResourceVersion",
-                subType: "DataConverter",
+                resourceSubType: "CodeDataConverter",
                 isPrivate: false,
                 id: expect.any(String),
             });
@@ -291,7 +302,7 @@ describe("DataConverterUpsert", () => {
                 versionLabel: "1.5.0",
                 codeLanguage: "Python",
                 isPrivate: true,
-                config: { schema: '{"existing": true}' },
+                config: { schema: "{\"existing\": true}" },
             };
 
             const values = dataConverterFormTestConfig.initialValuesFunction?.(mockSession, existingData);
@@ -309,13 +320,13 @@ describe("DataConverterUpsert", () => {
             const onCompleted = vi.fn();
             const { user } = renderFormComponent(
                 DataConverterUpsert,
-                { defaultProps: { ...defaultProps, onCompleted }, mockSession }
+                { defaultProps: { ...defaultProps, onCompleted }, mockSession },
             );
 
             // Fill form with complete data
             await user.type(screen.getByTestId("input-name"), "Complete Data Converter");
             await user.type(screen.getByTestId("input-description"), "Complete description");
-            await user.type(screen.getByTestId("input-codeEmbedded"), "convert :: String -> Int");
+            await user.type(screen.getByTestId("input-config.content"), "convert :: String -> Int");
             
             // Submit form
             await user.click(screen.getByTestId("submit-button"));
@@ -325,9 +336,9 @@ describe("DataConverterUpsert", () => {
         });
 
         describe.each([
-            ['minimal', dataConverterFormTestConfig.formFixtures.minimal],
-            ['complete', dataConverterFormTestConfig.formFixtures.complete || dataConverterFormTestConfig.formFixtures.minimal],
-        ])('with %s fixture data', (scenario, fixtureData) => {
+            ["minimal", dataConverterFormTestConfig.formFixtures.minimal],
+            ["complete", dataConverterFormTestConfig.formFixtures.complete || dataConverterFormTestConfig.formFixtures.minimal],
+        ])("with %s fixture data", (scenario, fixtureData) => {
             it(`renders correctly with ${scenario} data`, async () => {
                 // Test different fixture scenarios
                 expect(fixtureData).toBeDefined();

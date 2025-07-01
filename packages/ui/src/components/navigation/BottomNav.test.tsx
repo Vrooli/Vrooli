@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=replaced-6-any-types-with-specific-interfaces | LAST: 2025-06-28
 import { LINKS } from "@vrooli/shared";
 import { act, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -8,15 +9,27 @@ import { mockUseTranslation } from "../../__test/mocks/libraries/react-i18next.j
 import { createRouterMock } from "../../__test/mocks/utils/router.js";
 
 // Mock dependencies
+interface MockSession {
+    id?: string;
+    theme?: string;
+    isLoggedIn?: boolean;
+    users?: Array<{ id: string; name: string }>;
+}
+
+interface MockIconInfo {
+    name: string;
+    type?: string;
+}
+
 const mockSetLocation = vi.fn();
 let mockKeyboardOpen = false;
-let mockSession: any = null;
+let mockSession: MockSession | null = null;
 let mockPathname = "/";
 
 // Create router mock with custom pathname
 const routerMock = createRouterMock({
     pathname: mockPathname,
-    setLocation: mockSetLocation
+    setLocation: mockSetLocation,
 });
 
 // Override the translation mock to use our controlled mockT
@@ -29,7 +42,7 @@ mockUseTranslation.mockReturnValue({
 vi.mock("../../contexts/session.js", () => ({
     SessionContext: {
         Provider: ({ children }: { children: React.ReactNode }) => children,
-        Consumer: ({ children }: { children: (value: any) => React.ReactNode }) => children(mockSession),
+        Consumer: ({ children }: { children: (value: MockSession | null) => React.ReactNode }) => children(mockSession),
     },
 }));
 
@@ -55,7 +68,7 @@ vi.mock("../../route/openLink.js", () => ({
 }));
 
 vi.mock("../../utils/navigation/userActions.js", () => ({
-    getUserActions: ({ session }: { session: any }) => {
+    getUserActions: ({ session }: { session: MockSession | null }) => {
         const isLoggedIn = Boolean(session?.id);
         return isLoggedIn
             ? [
@@ -77,7 +90,7 @@ vi.mock("../../utils/navigation/userActions.js", () => ({
 
 // Custom Icon mock for this test
 vi.mock("../../icons/Icons.js", () => ({
-    Icon: ({ info, size, className }: { info: any; size: number; className: string }) => (
+    Icon: ({ info, size, className }: { info: MockIconInfo; size: number; className: string }) => (
         <div data-testid="mock-icon" data-icon-name={info.name} data-size={size} className={className} />
     ),
 }));
@@ -92,15 +105,15 @@ describe("BottomNav", () => {
         mockT.mockImplementation((key: string) => key);
         
         // Mock scrollTo
-        Object.defineProperty(window, 'scrollTo', {
+        Object.defineProperty(window, "scrollTo", {
             value: vi.fn(),
-            writable: true
+            writable: true,
         });
         
         // Mock location pathname
-        Object.defineProperty(window, 'location', {
+        Object.defineProperty(window, "location", {
             value: { pathname: "/" },
-            writable: true
+            writable: true,
         });
     });
 
@@ -296,8 +309,8 @@ describe("BottomNav", () => {
             render(<BottomNav />);
             
             const homeAction = screen.getByTestId("nav-action-home");
-            const clickEvent = new Event('click');
-            const preventDefaultSpy = vi.spyOn(clickEvent, 'preventDefault');
+            const clickEvent = new Event("click");
+            const preventDefaultSpy = vi.spyOn(clickEvent, "preventDefault");
             
             // Simulate click event
             homeAction.dispatchEvent(clickEvent);
@@ -349,7 +362,7 @@ describe("BottomNav", () => {
         beforeEach(() => {
             // Override the mock for this specific test suite
             vi.doMock("../../utils/navigation/userActions.js", () => ({
-                getUserActions: ({ session }: { session: any }) => {
+                getUserActions: ({ session }: { session: MockSession | null }) => {
                     const isLoggedIn = Boolean(session?.id);
                     return isLoggedIn
                         ? [

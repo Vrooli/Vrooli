@@ -1,3 +1,4 @@
+// AI_CHECK: TYPE_SAFETY=fixed-18-type-assertions-in-api-settings | LAST: 2025-06-30
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
@@ -5,14 +6,13 @@ import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
 import FormHelperText from "@mui/material/FormHelperText";
 import FormLabel from "@mui/material/FormLabel";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../../components/buttons/IconButton.js";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Radio from "@mui/material/Radio";
@@ -21,13 +21,14 @@ import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
-import { ApiKeyPermission, DeleteType, FormStructureType, ResourceType, ResourceSearchInput, ResourceSearchResult, Resource, ApiVersionConfig, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsResource, endpointsAuth, noop, type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, type ApiKeyUpdateInput, type DeleteOneInput, type Success, type User, type OAuthInitiateInput, type OAuthInitiateResult } from "@vrooli/shared";
+import { ApiKeyPermission, DeleteType, FormStructureType, ResourceType, type ResourceSearchInput, type ResourceSearchResult, type Resource, ApiVersionConfig, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsResource, endpointsAuth, noop, type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, type ApiKeyUpdateInput, type DeleteOneInput, type Success, type User, type OAuthInitiateInput, type OAuthInitiateResult } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { type LazyRequestWithResult } from "../../api/types.js";
 import { PageContainer } from "../../components/Page/Page.js";
+import { DialogTitle } from "../../components/dialogs/DialogTitle/DialogTitle.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { FormTip } from "../../components/inputs/form/FormTip.js";
@@ -162,7 +163,7 @@ function extractPermissions(apiKey: ApiKey | null): ApiKeyPermission[] {
 
     try {
         // 'permissions' is a stringified JSON array of permission strings
-        const permissionsStr = (apiKey as any).permissions;
+        const permissionsStr = (apiKey as { permissions?: string }).permissions;
         if (!permissionsStr) return [];
 
         const parsedPermissions = JSON.parse(permissionsStr);
@@ -272,7 +273,7 @@ export function ApiKeyPermissionsSelector({
                 <FormLabel>API Key Permissions</FormLabel>
                 <Select
                     value={selectedPreset}
-                    onChange={(e) => handlePresetChange({ target: { value: e.target.value } } as any)}
+                    onChange={(e) => handlePresetChange({ target: { value: e.target.value } } as React.ChangeEvent<HTMLInputElement>)}
                     fullWidth
                     sx={{ mt: 1 }}
                 >
@@ -319,7 +320,7 @@ export function ApiKeyPermissionsSelector({
                     {Object.entries(PERMISSION_PRESETS).map(([key, preset]) => (
                         <Box
                             key={key}
-                            onClick={() => handlePresetChange({ target: { value: key } } as any)}
+                            onClick={() => handlePresetChange({ target: { value: key } } as React.ChangeEvent<HTMLInputElement>)}
                             sx={{
                                 border: 1,
                                 borderColor: selectedPreset === key ? "primary.main" : "divider",
@@ -354,8 +355,8 @@ export function ApiKeyPermissionsSelector({
                     <Box
                         onClick={(e) => {
                             // Don't trigger if clicking on a child checkbox
-                            if ((e.target as HTMLElement).type !== 'checkbox') {
-                                handlePresetChange({ target: { value: "custom" } } as any);
+                            if ((e.target as HTMLElement).type !== "checkbox") {
+                                handlePresetChange({ target: { value: "custom" } } as React.ChangeEvent<HTMLInputElement>);
                             }
                         }}
                         sx={{
@@ -504,19 +505,20 @@ function ApiKeyViewDialog({
         >
             <DialogTitle 
                 id="api-key-view-dialog"
-                sx={{ 
-                    bgcolor: "success.main", 
-                    color: "success.contrastText",
-                    borderRadius: "12px 12px 0 0",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
+                sxs={{ 
+                    root: {
+                        bgcolor: "success.main", 
+                        color: "success.contrastText",
+                        borderRadius: "12px 12px 0 0",
+                    },
                 }}
             >
-                <IconCommon name="Success" size={24} />
-                <Typography variant="h5" component="h2" fontWeight={600}>
-                    Your New API Key
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <IconCommon name="Success" size={24} />
+                    <Typography variant="h5" component="h2" fontWeight={600}>
+                        Your New API Key
+                    </Typography>
+                </Box>
             </DialogTitle>
             <DialogContent sx={{ p: 4 }}>
                 <Box display="flex" flexDirection="column" gap={3}>
@@ -687,7 +689,7 @@ export function ApiKeyDialog({
                         inputs: input,
                         onSuccess: (updatedKey) => {
                             const updatedKeys = profile?.apiKeys?.map(k => k.id === updatedKey.id ? updatedKey : k) ?? [];
-                            onProfileUpdate({ ...profile, apiKeys: updatedKeys } as User);
+                            onProfileUpdate({ ...(profile as User), apiKeys: updatedKeys });
                             onClose();
                         },
                     });
@@ -735,18 +737,22 @@ export function ApiKeyDialog({
             maxWidth="lg"
             fullWidth
         >
-            <DialogTitle sx={{ 
-                bgcolor: "primary.main", 
-                color: "primary.contrastText",
-                borderRadius: "12px 12px 0 0",
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-            }}>
-                <IconCommon name={isEditMode ? "Edit" : "Key"} size={24} />
-                <Typography variant="h5" component="h2" fontWeight={600}>
-                    {isEditMode ? t("ApiKeyUpdate") : t("ApiKeyAdd")}
-                </Typography>
+            <DialogTitle 
+                id="api-key-edit-dialog"
+                sxs={{ 
+                    root: {
+                        bgcolor: "primary.main", 
+                        color: "primary.contrastText",
+                        borderRadius: "12px 12px 0 0",
+                    },
+                }}
+            >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <IconCommon name={isEditMode ? "Edit" : "Key"} size={24} />
+                    <Typography variant="h5" component="h2" fontWeight={600}>
+                        {isEditMode ? t("ApiKeyUpdate") : t("ApiKeyAdd")}
+                    </Typography>
+                </Box>
             </DialogTitle>
             <DialogContent sx={{ p: 0 }}>
                 <Formik
@@ -922,23 +928,23 @@ function ExternalKeyDialog({
                 key: values.key,
                 resourceId: values.resourceId,
             } : {
-                id: (keyData as ApiKeyExternal).id,
+                id: keyData.id,
                 service,
                 name: values.name,
                 key: values.key,
                 resourceId: values.resourceId,
             };
             const fetchFunc = isCreate ? createExternalKey : updateExternalKey;
-            fetchLazyWrapper<ApiKeyExternalCreateInput | ApiKeyExternalUpdateInput, ApiKeyExternal>({
-                fetch: fetchFunc as LazyRequestWithResult<ApiKeyExternalCreateInput | ApiKeyExternalUpdateInput, ApiKeyExternal>,
+            fetchLazyWrapper<typeof input, ApiKeyExternal>({
+                fetch: fetchFunc as LazyRequestWithResult<typeof input, ApiKeyExternal>,
                 inputs: input,
                 onSuccess: (data) => {
                     if (isCreate) {
                         const updatedKeys = [...(profile?.apiKeysExternal ?? []), data];
-                        onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys } as User);
+                        onProfileUpdate({ ...(profile as User), apiKeysExternal: updatedKeys });
                     } else {
                         const updatedKeys = profile?.apiKeysExternal?.map(k => k.id === data.id ? data : k) ?? [];
-                        onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys } as User);
+                        onProfileUpdate({ ...(profile as User), apiKeysExternal: updatedKeys });
                     }
                     setIsSubmitting(false);
                     onClose();
@@ -967,18 +973,22 @@ function ExternalKeyDialog({
             maxWidth="sm"
             fullWidth
         >
-            <DialogTitle sx={{ 
-                bgcolor: "primary.main", 
-                color: "primary.contrastText",
-                borderRadius: "12px 12px 0 0",
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-            }}>
-                <IconCommon name={isCreate ? "Key" : "Edit"} size={24} />
-                <Typography variant="h5" component="h2" fontWeight={600}>
-                    {isCreate ? "Add External API Key" : "Update External API Key"}
-                </Typography>
+            <DialogTitle 
+                id="external-api-key-dialog"
+                sxs={{ 
+                    root: {
+                        bgcolor: "primary.main", 
+                        color: "primary.contrastText",
+                        borderRadius: "12px 12px 0 0",
+                    },
+                }}
+            >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <IconCommon name={isCreate ? "Key" : "Edit"} size={24} />
+                    <Typography variant="h5" component="h2" fontWeight={600}>
+                        {isCreate ? "Add External API Key" : "Update External API Key"}
+                    </Typography>
+                </Box>
             </DialogTitle>
             <DialogContent sx={{ p: 0 }}>
                 <Formik initialValues={initialValues} onSubmit={handleSubmit}>
@@ -1215,7 +1225,7 @@ export function SettingsApiView({
             inputs: input,
             onSuccess: (updatedKey) => {
                 const updatedKeys = profile?.apiKeys?.map(k => k.id === updatedKey.id ? updatedKey : k) ?? [];
-                onProfileUpdate({ ...profile, apiKeys: updatedKeys } as User);
+                onProfileUpdate({ ...(profile as User), apiKeys: updatedKeys });
                 setApiKeyDialogOpen(false);
                 setEditingInternalKey(null);
             },
@@ -1243,7 +1253,7 @@ export function SettingsApiView({
             inputs: { id, objectType: DeleteType.ApiKeyExternal },
             onSuccess: () => {
                 const updatedKeys = profile?.apiKeysExternal?.filter(k => k.id !== id) ?? [];
-                onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys } as User);
+                onProfileUpdate({ ...(profile as User), apiKeysExternal: updatedKeys });
             },
         });
     }, [deleteOne, onProfileUpdate, profile]);
@@ -1273,7 +1283,7 @@ export function SettingsApiView({
                 onError: () => {
                     PubSub.get().publish("snack", { 
                         messageKey: "FailedToLoadServices", 
-                        severity: "Error" 
+                        severity: "Error", 
                     });
                 },
             });
@@ -1301,7 +1311,7 @@ export function SettingsApiView({
             onError: () => {
                 PubSub.get().publish("snack", { 
                     messageKey: "FailedToInitiateOAuth", 
-                    severity: "Error" 
+                    severity: "Error", 
                 });
             },
         });
@@ -1483,7 +1493,7 @@ export function SettingsApiView({
                                                         name: "",
                                                         service: translation.name,
                                                         resourceId: resource.id,
-                                                    } as ApiKeyExternal);
+                                                    });
                                                     setIsCreatingExternalKey(true);
                                                 } else if (baseUrl) {
                                                     // For services without auth, just open the URL
@@ -1502,7 +1512,7 @@ export function SettingsApiView({
                                                         position: "relative",
                                                         "&:hover .auth-type-chip": {
                                                             opacity: 1,
-                                                        }
+                                                        },
                                                     }}
                                                 >
                                                     {translation.name}

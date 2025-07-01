@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=1 | TEST_QUALITY=1 | LAST: 2025-06-19
 import { DUMMY_ID } from "@vrooli/shared";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { defaultYou, getYou, placeholderColor, placeholderColors, simpleHash } from "./listTools.js";

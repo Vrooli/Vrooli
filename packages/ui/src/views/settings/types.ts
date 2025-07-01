@@ -36,6 +36,20 @@ export interface SettingsDataFormProps extends FormikProps<any>, SettingsFormBas
 export interface SettingsDisplayFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }
 export interface SettingsNotificationFormProps extends FormikProps<NotificationSettingsUpdateInput>, SettingsFormBaseProps { }
 export interface SettingsPrivacyFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }
-export interface SettingsProfileFormProps extends FormikProps<any>, SettingsFormBaseProps {
+export type SettingsProfileFormInput = {
+    bannerImage: string | File | null;
+    handle: string | null;
+    id: string;
+    name: string;
+    profileImage: string | File | null;
+    translations: Array<{
+        id: string;
+        language: string;
+        bio: string;
+    }>;
+    updatedAt: string | null;
+};
+
+export interface SettingsProfileFormProps extends FormikProps<SettingsProfileFormInput>, SettingsFormBaseProps {
     numVerifiedWallets: number;
 }

@@ -1,4 +1,4 @@
-import InputAdornment from "@mui/material/InputAdornment";
+import { InputAdornment } from "@mui/material";
 import { DUMMY_ID, endpointsUser, profileValidation, shapeProfile, userTranslationValidation, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext, useMemo } from "react";
@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
+import { TranslatedAdvancedInput } from "../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput.js";
 import { ProfilePictureInput } from "../../components/inputs/ProfilePictureInput/ProfilePictureInput.js";
-import { TranslatedRichInput } from "../../components/inputs/RichInput/RichInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
@@ -20,9 +20,10 @@ import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { useTranslatedFields } from "../../hooks/useTranslatedFields.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { FormSection, ScrollBox } from "../../styles.js";
+import { ViewDisplayType } from "../../types.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { type SettingsProfileFormProps, type SettingsProfileViewProps } from "./types.js";
+import { type SettingsProfileFormInput, type SettingsProfileFormProps, type SettingsProfileViewProps } from "./types.js";
 
 // Input adornments for form fields
 const nameInputProps = {
@@ -123,9 +124,9 @@ function SettingsProfileForm({
                         error={props.touched.handle && Boolean(props.errors.handle)}
                         helperText={props.touched.handle && props.errors.handle}
                     />
-                    <TranslatedRichInput
+                    <TranslatedAdvancedInput
                         language={language}
-                        maxChars={2048}
+                        features={{ maxChars: 2048 }}
                         name="bio"
                         placeholder={t("Bio")}
                     />
@@ -176,10 +177,10 @@ export function SettingsProfileView({
             bio: "",
         }],
         updatedAt: profile?.updatedAt ?? null, // Used for cache busting on profile image
-    } as const), [profile, session]);
+    } as SettingsProfileFormInput), [profile, session]);
 
     // Form submission handler
-    const handleSubmit = useCallback((values: ProfileUpdateInput, helpers: FormikHelpers<ProfileUpdateInput>) => {
+    const handleSubmit = useCallback((values: SettingsProfileFormInput, helpers: FormikHelpers<SettingsProfileFormInput>) => {
         if (!profile) {
             PubSub.get().publish("snack", { message: t("CouldNotReadProfile", { ns: "error" }), severity: "Error" });
             return;
@@ -188,16 +189,6 @@ export function SettingsProfileView({
         const inputs = shapeProfile.update(profile, {
             ...values,
             id: profile.id,
-            isPrivate: values.isPrivate ?? undefined,
-            isPrivateBookmarks: values.isPrivateBookmarks ?? undefined,
-            isPrivateMemberships: values.isPrivateMemberships ?? undefined,
-            isPrivatePullRequests: values.isPrivatePullRequests ?? undefined,
-            isPrivateResources: values.isPrivateResources ?? undefined,
-            isPrivateResourcesCreated: values.isPrivateResourcesCreated ?? undefined,
-            isPrivateTeamsCreated: values.isPrivateTeamsCreated ?? undefined,
-            isPrivateVotes: values.isPrivateVotes ?? undefined,
-            name: values.name ?? undefined,
-            theme: values.theme ?? undefined,
             __typename: "User",
         });
 
@@ -206,7 +197,6 @@ export function SettingsProfileView({
             return;
         }
 
-        inputs.id = profile.id;
         fetchLazyWrapper<ProfileUpdateInput, User>({
             fetch,
             inputs,
@@ -222,7 +212,7 @@ export function SettingsProfileView({
                 <Navbar title={t("Profile")} />
                 <SettingsContent>
                     <SettingsList />
-                    <Formik
+                    <Formik<SettingsProfileFormInput>
                         enableReinitialize={true}
                         initialValues={initialValues}
                         onSubmit={handleSubmit}
@@ -232,7 +222,7 @@ export function SettingsProfileView({
                             <SettingsProfileForm
                                 display={display}
                                 isLoading={isProfileLoading || isUpdating}
-                                numVerifiedWallets={profile?.wallets?.filter(w => w.verified)?.length ?? 0}
+                                numVerifiedWallets={profile?.wallets?.filter(w => w.verifiedAt)?.length ?? 0}
                                 onCancel={formik.resetForm}
                                 {...formik}
                             />

@@ -1,7 +1,7 @@
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Grid from "@mui/material/Grid";
-import Typography from "@mui/material/Typography";
+import { Box } from "../../components/layout/Box.js";
+import { Button } from "../../components/buttons/Button.js";
+import { Grid } from "../../components/layout/Grid.js";
+import { Typography } from "../../components/text/Typography.js";
 import { styled, useTheme } from "@mui/material";
 import { endpointsUser, profileValidation, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { Formik, type FormikHelpers } from "formik";
@@ -27,31 +27,41 @@ import { PubSub } from "../../utils/pubsub.js";
 import { SearchHistory } from "../../utils/search/searchHistory.js";
 import { type SettingsDisplayFormProps, type SettingsDisplayViewProps } from "./types.js";
 
-const ClearSettingBox = styled(Box)(({ theme }) => ({
-    background: theme.palette.background.paper,
-    color: theme.palette.background.textPrimary,
-    borderRadius: theme.spacing(1),
-    padding: theme.spacing(1),
-}));
+// Custom styled component replacement
+const ClearSettingBox = ({ children, ...props }) => {
+    const theme = useTheme();
+    return (
+        <Box
+            variant="paper"
+            padding="sm"
+            borderRadius="md"
+            style={{
+                color: theme.palette.text.primary,
+            }}
+            {...props}
+        >
+            {children}
+        </Box>
+    );
+};
 
 function ClearSettingButton({ onClick, title, description }) {
     return (
         <ClearSettingBox>
-            <Grid container spacing={2} alignItems="center">
-                <Grid item xs>
+            <div className="tw-flex tw-items-center tw-gap-4">
+                <div className="tw-flex-1">
                     <Typography variant="subtitle1">{title}</Typography>
                     <Typography variant="body2">{description}</Typography>
-                </Grid>
-                <Grid item>
+                </div>
+                <div>
                     <Button
-                        variant="outlined"
-                        color="secondary"
+                        variant="outline"
                         onClick={onClick}
                     >
                         Clear
                     </Button>
-                </Grid>
-            </Grid>
+                </div>
+            </div>
         </ClearSettingBox>
     );
 }
@@ -159,7 +169,7 @@ export function SettingsDisplayView({
             />
             <SettingsContent>
                 <SettingsList />
-                <Box display="flex" flexDirection="column" p={1} margin="auto" width="100%">
+                <Box className="tw-flex tw-flex-col tw-p-1 tw-mx-auto tw-w-full">
                     <Formik
                         enableReinitialize={true}
                         initialValues={{

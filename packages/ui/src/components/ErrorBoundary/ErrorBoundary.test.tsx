@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary.js";
+import { server } from "../../__test/mocks/server.js";
+import { http, HttpResponse } from "msw";
 
 // AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 
@@ -26,18 +28,15 @@ const ThrowMalformedError = () => {
 };
 
 // Lightweight mocking for performance
-const mockFetch = vi.fn();
 const mockLocalStorage = { getItem: vi.fn(), setItem: vi.fn() };
-const mockLocation = { href: 'http://test.example.com/test-page', assign: vi.fn(), reload: vi.fn() };
+const mockLocation = { href: "http://test.example.com/test-page", assign: vi.fn(), reload: vi.fn() };
 
-vi.stubGlobal('fetch', mockFetch);
-vi.stubGlobal('localStorage', mockLocalStorage); 
-vi.stubGlobal('location', mockLocation);
-vi.stubGlobal('navigator', { userAgent: 'Test User Agent' });
+vi.stubGlobal("localStorage", mockLocalStorage); 
+vi.stubGlobal("location", mockLocation);
+vi.stubGlobal("navigator", { userAgent: "Test User Agent" });
 
 describe("ErrorBoundary", () => {
     beforeEach(() => {
-        mockFetch.mockClear().mockResolvedValue({ ok: true });
         mockLocalStorage.getItem.mockClear().mockReturnValue(null);
         mockLocalStorage.setItem.mockClear();
         mockLocation.assign.mockClear();
@@ -50,11 +49,11 @@ describe("ErrorBoundary", () => {
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={false} />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // THEN: The child component should be displayed normally
-        expect(screen.getByText("No error")).toBeInTheDocument();
+        expect(screen.getByText("No error")).toBeDefined();
     });
 
     it("displays error UI with recovery options when a child component crashes", () => {
@@ -63,13 +62,13 @@ describe("ErrorBoundary", () => {
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // THEN: The user should see an error message and recovery options
-        expect(screen.getByText(/Something went wrong/)).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Go to Home" })).toBeInTheDocument();
+        expect(screen.getByText(/Something went wrong/)).toBeDefined();
+        expect(screen.getByRole("button", { name: "Refresh" })).toBeDefined();
+        expect(screen.getByRole("button", { name: "Go to Home" })).toBeDefined();
     });
 
     it("remembers user's error reporting preference across sessions", () => {
@@ -80,12 +79,12 @@ describe("ErrorBoundary", () => {
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // THEN: The checkbox should reflect the saved preference
         const checkbox = screen.getByRole("checkbox");
-        expect(checkbox).not.toBeChecked();
+        expect(checkbox.getAttribute("checked")).toBeNull();
     });
 
     it("allows user to opt out of automatic error reporting", () => {
@@ -93,7 +92,7 @@ describe("ErrorBoundary", () => {
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // WHEN: User unchecks the error reporting checkbox
@@ -105,11 +104,28 @@ describe("ErrorBoundary", () => {
     });
 
     it("automatically reports errors and refreshes page when user chooses to refresh", async () => {
+        // Track if the error report was sent
+        let errorReportSent = false;
+        server.use(
+            http.post("*/api/error-reports", async ({ request }) => {
+                const body = await request.json();
+                // Verify the error report contains expected data
+                expect(body).toMatchObject({
+                    error: expect.stringContaining("Test error message"),
+                    userAgent: "Test User Agent",
+                    url: "http://test.example.com/test-page",
+                    timestamp: expect.any(String),
+                });
+                errorReportSent = true;
+                return HttpResponse.json({ success: true });
+            }),
+        );
+
         // GIVEN: An error has occurred with error reporting enabled (default)
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // WHEN: User clicks the refresh button to try again
@@ -118,11 +134,7 @@ describe("ErrorBoundary", () => {
 
         // THEN: The error should be reported and page should refresh
         await waitFor(() => {
-            expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: expect.stringContaining("Test error message"),
-            }));
+            expect(errorReportSent).toBe(true);
         });
 
         await waitFor(() => {
@@ -131,11 +143,27 @@ describe("ErrorBoundary", () => {
     });
 
     it("navigates user to home page with error reporting when home button is clicked", async () => {
+        // Track if the error report was sent
+        let errorReportSent = false;
+        server.use(
+            http.post("*/api/error-reports", async ({ request }) => {
+                const body = await request.json();
+                expect(body).toMatchObject({
+                    error: expect.stringContaining("Test error message"),
+                    userAgent: "Test User Agent",
+                    url: "http://test.example.com/test-page",
+                    timestamp: expect.any(String),
+                });
+                errorReportSent = true;
+                return HttpResponse.json({ success: true });
+            }),
+        );
+
         // GIVEN: An error has occurred with error reporting enabled
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // WHEN: User clicks "Go to Home" to escape the error
@@ -144,11 +172,7 @@ describe("ErrorBoundary", () => {
 
         // THEN: Error should be reported and user navigated home
         await waitFor(() => {
-            expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: expect.stringContaining("Test error message"),
-            }));
+            expect(errorReportSent).toBe(true);
         });
 
         await waitFor(() => {
@@ -157,13 +181,22 @@ describe("ErrorBoundary", () => {
     });
 
     it("respects user privacy by not sending error reports when opted out", async () => {
+        // Track if any error report was sent
+        let errorReportSent = false;
+        server.use(
+            http.post("*/api/error-reports", () => {
+                errorReportSent = true;
+                return HttpResponse.json({ success: true });
+            }),
+        );
+
         // GIVEN: User has opted out of error reporting
         mockLocalStorage.getItem.mockReturnValue("false");
 
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // WHEN: User clicks refresh to recover from error
@@ -175,15 +208,32 @@ describe("ErrorBoundary", () => {
             expect(mockLocation.reload).toHaveBeenCalled();
         });
 
-        expect(mockFetch).not.toHaveBeenCalled();
+        expect(errorReportSent).toBe(false);
     });
 
-    it("gracefully handles all types of JavaScript errors including those with stack traces", () => {
+    it("gracefully handles all types of JavaScript errors including those with stack traces", async () => {
+        // Track if the error report was sent with stack trace
+        let errorReportSent = false;
+        server.use(
+            http.post("*/api/error-reports", async ({ request }) => {
+                const body = await request.json();
+                expect(body).toMatchObject({
+                    error: expect.stringContaining("Test error with stack"),
+                    stack: expect.stringContaining("at ThrowErrorWithStack"),
+                    userAgent: "Test User Agent",
+                    url: "http://test.example.com/test-page",
+                    timestamp: expect.any(String),
+                });
+                errorReportSent = true;
+                return HttpResponse.json({ success: true });
+            }),
+        );
+
         // GIVEN: An error with full stack trace information occurs
         render(
             <ErrorBoundary>
                 <ThrowErrorWithStack />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // WHEN: User attempts to recover
@@ -191,19 +241,33 @@ describe("ErrorBoundary", () => {
         fireEvent.click(refreshButton);
 
         // THEN: The error report should include the stack trace for debugging
-        expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: expect.stringContaining("Test error with stack"),
-        }));
+        await waitFor(() => {
+            expect(errorReportSent).toBe(true);
+        });
     });
 
-    it("provides fallback error handling for unusual error objects", () => {
+    it("provides fallback error handling for unusual error objects", async () => {
+        // Track if the error report was sent
+        let errorReportSent = false;
+        server.use(
+            http.post("*/api/error-reports", async ({ request }) => {
+                const body = await request.json();
+                expect(body).toMatchObject({
+                    error: expect.stringContaining("Malformed error"),
+                    userAgent: "Test User Agent",
+                    url: "http://test.example.com/test-page",
+                    timestamp: expect.any(String),
+                });
+                errorReportSent = true;
+                return HttpResponse.json({ success: true });
+            }),
+        );
+
         // GIVEN: A non-standard error object is thrown
         render(
             <ErrorBoundary>
                 <ThrowMalformedError />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // WHEN: User attempts to recover
@@ -211,22 +275,24 @@ describe("ErrorBoundary", () => {
         fireEvent.click(refreshButton);
 
         // THEN: The error should still be reported with available information
-        expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: expect.stringContaining("Malformed error"),
-        }));
+        await waitFor(() => {
+            expect(errorReportSent).toBe(true);
+        });
     });
 
     it("continues to function when error reporting service is unavailable", async () => {
         // GIVEN: The error reporting service is down
-        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        mockFetch.mockRejectedValue(new Error("Network error"));
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        server.use(
+            http.post("*/api/error-reports", () => {
+                return HttpResponse.error();
+            }),
+        );
 
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
+            </ErrorBoundary>,
         );
 
         // WHEN: User attempts to refresh after an error

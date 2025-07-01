@@ -12,9 +12,9 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Formik } from "formik";
 import React from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { themes } from "../../../utils/display/theme.js";
-import { PasswordTextInput } from "./PasswordTextInput.js";
+import { PasswordTextInput, PasswordTextInputBase } from "./PasswordTextInput.js";
 
 // All mocks are now centralized in setup.vitest.ts
 // The zxcvbn mock returns password strength based on password length
@@ -25,7 +25,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
         <ThemeProvider theme={themes.light}>
             <Formik
                 initialValues={{ password: "" }}
-                onSubmit={() => {}}
+                onSubmit={() => { }}
             >
                 {children}
             </Formik>
@@ -33,7 +33,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
     );
 }
 
-describe("PasswordTextInput", () => {
+describe("PasswordTextInputBase", () => {
     let user: ReturnType<typeof userEvent.setup>;
 
     beforeEach(() => {
@@ -41,11 +41,248 @@ describe("PasswordTextInput", () => {
     });
 
     it("renders with default props", async () => {
+        const onChange = vi.fn();
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        name="password"
+                        value=""
+                        onChange={onChange}
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        await waitFor(() => {
+            expect(screen.getByLabelText("Password")).toBeDefined();
+            expect(screen.getByPlaceholderText("PasswordPlaceholder")).toBeDefined();
+        });
+    });
+
+    it("renders with custom label", async () => {
+        const onChange = vi.fn();
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        name="password"
+                        label="Custom Password"
+                        value=""
+                        onChange={onChange}
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        await waitFor(() => {
+            expect(screen.getByLabelText("Custom Password")).toBeDefined();
+        });
+    });
+
+    it("toggles password visibility", async () => {
+        const onChange = vi.fn();
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        name="password"
+                        value="test123"
+                        onChange={onChange}
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        await waitFor(() => {
+            const passwordInput = screen.getByLabelText("Password") as HTMLInputElement;
+            const toggleButton = screen.getByLabelText("toggle password visibility");
+
+            // Initially password should be hidden
+            expect(passwordInput.type).toBe("password");
+        });
+
+        const passwordInput = screen.getByLabelText("Password") as HTMLInputElement;
+        const toggleButton = screen.getByLabelText("toggle password visibility");
+
+        // Click to show password
+        await act(async () => {
+            await user.click(toggleButton);
+        });
+        expect(passwordInput.type).toBe("text");
+
+        // Click again to hide password
+        await act(async () => {
+            await user.click(toggleButton);
+        });
+        expect(passwordInput.type).toBe("password");
+    });
+
+    it("calls onChange when typing", async () => {
+        const onChange = vi.fn();
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        name="password"
+                        value=""
+                        onChange={onChange}
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        const passwordInput = screen.getByLabelText("Password") as HTMLInputElement;
+
+        await act(async () => {
+            await user.type(passwordInput, "newpassword");
+        });
+
+        // onChange should be called for each character typed
+        expect(onChange).toHaveBeenCalled();
+    });
+
+    it("shows error state with helper text", async () => {
+        const onChange = vi.fn();
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        name="password"
+                        value=""
+                        onChange={onChange}
+                        error={true}
+                        helperText="Password is required"
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText("Password is required")).toBeDefined();
+        });
+    });
+
+    it("shows password strength indicator for new passwords", async () => {
+        const onChange = vi.fn();
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        name="password"
+                        autoComplete="new-password"
+                        value=""
+                        onChange={onChange}
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        // Initially no progress bar should be visible
+        expect(screen.queryByRole("progressbar")).toBeNull();
+
+        // Update to have a value
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        name="password"
+                        autoComplete="new-password"
+                        value="pass"
+                        onChange={onChange}
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        await waitFor(() => {
+            const progressBar = screen.getByRole("progressbar", { name: "Password strength" });
+            expect(progressBar).toBeDefined();
+            expect(progressBar.getAttribute("aria-valuenow")).toBeDefined();
+        });
+    });
+
+    it("does not show password strength indicator for current passwords", async () => {
+        const onChange = vi.fn();
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        name="password"
+                        autoComplete="current-password"
+                        value="password123"
+                        onChange={onChange}
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        // Progress bar should not be visible for current-password
+        expect(screen.queryByRole("progressbar")).toBeNull();
+    });
+
+    it("forwards refs correctly", async () => {
+        const onChange = vi.fn();
+        const ref = React.createRef<HTMLInputElement>();
+        
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        ref={ref}
+                        name="password"
+                        value=""
+                        onChange={onChange}
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        expect(ref.current).toBeDefined();
+        expect(ref.current?.type).toBe("password");
+    });
+
+    it("calls onBlur when focus is lost", async () => {
+        const onChange = vi.fn();
+        const onBlur = vi.fn();
+        
+        await act(async () => {
+            render(
+                <ThemeProvider theme={themes.light}>
+                    <PasswordTextInputBase 
+                        name="password"
+                        value=""
+                        onChange={onChange}
+                        onBlur={onBlur}
+                    />
+                </ThemeProvider>,
+            );
+        });
+
+        const passwordInput = screen.getByLabelText("Password");
+
+        await act(async () => {
+            await user.click(passwordInput);
+            await user.tab(); // Move focus away
+        });
+
+        expect(onBlur).toHaveBeenCalled();
+    });
+});
+
+describe("PasswordTextInput (Formik Integration)", () => {
+    let user: ReturnType<typeof userEvent.setup>;
+
+    beforeEach(() => {
+        user = userEvent.setup();
+    });
+
+    it("renders with default props in Formik", async () => {
         await act(async () => {
             render(
                 <TestWrapper>
                     <PasswordTextInput name="password" />
-                </TestWrapper>
+                </TestWrapper>,
             );
         });
 
@@ -60,7 +297,7 @@ describe("PasswordTextInput", () => {
             render(
                 <TestWrapper>
                     <PasswordTextInput name="password" label="Custom Password" />
-                </TestWrapper>
+                </TestWrapper>,
             );
         });
 
@@ -74,7 +311,7 @@ describe("PasswordTextInput", () => {
             render(
                 <TestWrapper>
                     <PasswordTextInput name="password" />
-                </TestWrapper>
+                </TestWrapper>,
             );
         });
 
@@ -107,7 +344,7 @@ describe("PasswordTextInput", () => {
             render(
                 <TestWrapper>
                     <PasswordTextInput name="password" autoComplete="new-password" />
-                </TestWrapper>
+                </TestWrapper>,
             );
         });
 
@@ -134,7 +371,7 @@ describe("PasswordTextInput", () => {
             render(
                 <TestWrapper>
                     <PasswordTextInput name="password" autoComplete="current-password" />
-                </TestWrapper>
+                </TestWrapper>,
             );
         });
 
@@ -150,7 +387,7 @@ describe("PasswordTextInput", () => {
             const result = render(
                 <TestWrapper>
                     <PasswordTextInput name="password" autoComplete="new-password" />
-                </TestWrapper>
+                </TestWrapper>,
             );
             container = result.container;
         });
@@ -202,11 +439,11 @@ describe("PasswordTextInput", () => {
                         initialValues={{ password: "" }}
                         initialErrors={{ password: "Password is required" }}
                         initialTouched={{ password: true }}
-                        onSubmit={() => {}}
+                        onSubmit={() => { }}
                     >
                         <PasswordTextInput name="password" />
                     </Formik>
-                </ThemeProvider>
+                </ThemeProvider>,
             );
         });
 
@@ -221,13 +458,13 @@ describe("PasswordTextInput", () => {
             const result = render(
                 <TestWrapper>
                     <PasswordTextInput name="password" fullWidth={false} />
-                </TestWrapper>
+                </TestWrapper>,
             );
             container = result.container;
         });
 
         await waitFor(() => {
-            // With TailwindTextInput, check that the component renders correctly with fullWidth=false
+            // With TextInput, check that the component renders correctly with fullWidth=false
             const passwordInput = screen.getByLabelText("Password");
             expect(passwordInput).toBeDefined();
             // The input should still be present and functional
@@ -240,7 +477,7 @@ describe("PasswordTextInput", () => {
             render(
                 <TestWrapper>
                     <PasswordTextInput name="password" autoFocus />
-                </TestWrapper>
+                </TestWrapper>,
             );
         });
 
@@ -255,7 +492,7 @@ describe("PasswordTextInput", () => {
             render(
                 <TestWrapper>
                     <PasswordTextInput name="password" autoComplete="new-password" />
-                </TestWrapper>
+                </TestWrapper>,
             );
         });
 
@@ -267,7 +504,7 @@ describe("PasswordTextInput", () => {
 
     it("integrates with Formik field state", async () => {
         let formValues: any = {};
-        
+
         act(() => {
             render(
                 <ThemeProvider theme={themes.light}>
@@ -284,7 +521,7 @@ describe("PasswordTextInput", () => {
                             </form>
                         )}
                     </Formik>
-                </ThemeProvider>
+                </ThemeProvider>,
             );
         });
 

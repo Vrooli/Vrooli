@@ -143,7 +143,7 @@ const createMockSession = () => ({
 const renderHookWithProviders = <T extends TestShape, R extends TestResult>(
     config: StandardUpsertFormConfig<T, any, any, R>,
     props: UseStandardUpsertFormProps<T, R>,
-    sessionOverride?: any
+    sessionOverride?: any,
 ) => {
     const session = sessionOverride || createMockSession();
     
@@ -153,13 +153,20 @@ const renderHookWithProviders = <T extends TestShape, R extends TestResult>(
     return renderHook(() => useStandardUpsertForm(config, props), { wrapper });
 };
 
+// Import mocked functions
+import { useSubmitHelper } from "../api/fetchWrapper.js";
+import { useSaveToCache, useUpsertActions } from "./forms.js";
+import { useTranslatedFields } from "./useTranslatedFields.js";
+import { useUpsertFetch } from "./useUpsertFetch.js";
+import { validateFormValues } from "../utils/validateFormValues.js";
+
 describe("useStandardUpsertForm", () => {
-    const mockUseSubmitHelper = vi.mocked(require("../api/fetchWrapper.js").useSubmitHelper);
-    const mockUseSaveToCache = vi.mocked(require("./forms.js").useSaveToCache);
-    const mockUseUpsertActions = vi.mocked(require("./forms.js").useUpsertActions);
-    const mockUseTranslatedFields = vi.mocked(require("./useTranslatedFields.js").useTranslatedFields);
-    const mockUseUpsertFetch = vi.mocked(require("./useUpsertFetch.js").useUpsertFetch);
-    const mockValidateFormValues = vi.mocked(require("../utils/validateFormValues.js").validateFormValues);
+    const mockUseSubmitHelper = vi.mocked(useSubmitHelper);
+    const mockUseSaveToCache = vi.mocked(useSaveToCache);
+    const mockUseUpsertActions = vi.mocked(useUpsertActions);
+    const mockUseTranslatedFields = vi.mocked(useTranslatedFields);
+    const mockUseUpsertFetch = vi.mocked(useUpsertFetch);
+    const mockValidateFormValues = vi.mocked(validateFormValues);
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -248,7 +255,7 @@ describe("useStandardUpsertForm", () => {
             expect(result.current.isMutate).toBe(true);
             expect(mockUseSaveToCache).toHaveBeenCalled();
             expect(mockUseUpsertFetch).toHaveBeenCalledWith(
-                expect.objectContaining({ isMutate: true })
+                expect.objectContaining({ isMutate: true }),
             );
         });
 
@@ -262,7 +269,7 @@ describe("useStandardUpsertForm", () => {
             expect(result.current.isCreateLoading).toBe(false);
             expect(result.current.isUpdateLoading).toBe(false);
             expect(mockUseUpsertFetch).toHaveBeenCalledWith(
-                expect.objectContaining({ isMutate: false })
+                expect.objectContaining({ isMutate: false }),
             );
         });
 
@@ -287,7 +294,7 @@ describe("useStandardUpsertForm", () => {
                     ...props.values,
                     createdAt: expect.any(String),
                     updatedAt: expect.any(String),
-                })
+                }),
             );
             expect(mockSetSubmitting).toHaveBeenCalledWith(false);
         });
@@ -372,7 +379,7 @@ describe("useStandardUpsertForm", () => {
                     isCreate: false,
                     onSuccess: expect.any(Function),
                     onCompleted: expect.any(Function),
-                })
+                }),
             );
             expect(mockSubmitHelper).toHaveBeenCalled();
         });
@@ -435,7 +442,7 @@ describe("useStandardUpsertForm", () => {
                 props.existing,
                 false, // isCreate
                 config.transformFunction,
-                config.validation
+                config.validation,
             );
         });
 
@@ -454,7 +461,7 @@ describe("useStandardUpsertForm", () => {
                 props.existing,
                 true, // isCreate
                 config.transformFunction,
-                config.validation
+                config.validation,
             );
         });
     });
@@ -507,7 +514,7 @@ describe("useStandardUpsertForm", () => {
             expect(mockUseTranslatedFields).toHaveBeenCalledWith(
                 expect.objectContaining({
                     defaultLanguage: "es",
-                })
+                }),
             );
         });
     });
@@ -603,7 +610,7 @@ describe("useStandardUpsertForm", () => {
             const { result } = renderHookWithProviders(config, props);
 
             await expect(
-                result.current.validateValues(props.values)
+                result.current.validateValues(props.values),
             ).rejects.toThrow("Validation failed");
         });
     });

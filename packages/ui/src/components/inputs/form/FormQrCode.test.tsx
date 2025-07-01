@@ -28,7 +28,7 @@ describe("FormQrCode", () => {
                     isEditing={false}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Check that display container is present
@@ -58,7 +58,7 @@ describe("FormQrCode", () => {
                     isEditing={false}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Check that QR code is displayed
@@ -80,7 +80,7 @@ describe("FormQrCode", () => {
                     isEditing={false}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Check that display container is present
@@ -99,7 +99,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Check that edit container is present
@@ -127,7 +127,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             const deleteButton = screen.getByTestId("qr-code-delete-button");
@@ -143,7 +143,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             const editButton = screen.getByTestId("qr-code-edit-button");
@@ -167,7 +167,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Click edit button to enter editing state
@@ -206,7 +206,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Click edit button to enter editing state
@@ -223,7 +223,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Click edit button to enter editing state
@@ -245,7 +245,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Click edit button to enter editing state
@@ -271,7 +271,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Click edit button to enter editing state
@@ -309,7 +309,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Click edit button to enter editing state
@@ -351,7 +351,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Click edit button to enter editing state
@@ -372,7 +372,7 @@ describe("FormQrCode", () => {
                     isEditing={false}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Initially in non-editing mode
@@ -386,7 +386,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Now in editing mode
@@ -401,7 +401,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Initially in editing mode
@@ -415,7 +415,7 @@ describe("FormQrCode", () => {
                     isEditing={false}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Now in non-editing mode
@@ -430,7 +430,7 @@ describe("FormQrCode", () => {
                     isEditing={false}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Check initial description
@@ -449,7 +449,7 @@ describe("FormQrCode", () => {
                     isEditing={false}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Check updated description
@@ -463,7 +463,7 @@ describe("FormQrCode", () => {
                     isEditing={true}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Click edit button to enter editing state
@@ -485,7 +485,7 @@ describe("FormQrCode", () => {
                     isEditing={false}
                     onUpdate={mockOnUpdate}
                     onDelete={mockOnDelete}
-                />
+                />,
             );
 
             // Should be in display mode

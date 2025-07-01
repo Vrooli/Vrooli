@@ -146,7 +146,7 @@ describe("FormHeader", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const container = screen.getByTestId("form-header");
@@ -170,7 +170,7 @@ describe("FormHeader", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const markdownContent = screen.getByTestId("header-content-markdown");
@@ -189,7 +189,7 @@ describe("FormHeader", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const helpButton = screen.getByTestId("help-button");
@@ -208,7 +208,7 @@ describe("FormHeader", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             expect(screen.queryByTestId("help-button")).toBeNull();
@@ -222,7 +222,7 @@ describe("FormHeader", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             expect(screen.queryByTestId("delete-button")).toBeNull();
@@ -241,7 +241,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const container = screen.getByTestId("form-header");
@@ -265,7 +265,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const textInput = screen.getByTestId("header-text-input");
@@ -286,7 +286,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const markdownInput = screen.getByTestId("header-markdown-input");
@@ -306,7 +306,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={onDelete}
-                />
+                />,
             );
 
             const deleteButton = screen.getByTestId("delete-button");
@@ -327,7 +327,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const sizeButton = screen.getByTestId("size-button");
@@ -357,7 +357,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Open size popover
@@ -383,7 +383,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const colorButton = screen.getByTestId("color-button");
@@ -411,7 +411,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Open color popover
@@ -438,7 +438,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const markdownToggle = screen.getByTestId("markdown-toggle");
@@ -462,7 +462,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const textInput = screen.getByTestId("header-text-input");
@@ -488,7 +488,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const sizeButton = screen.getByTestId("size-button");
@@ -504,7 +504,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const textInput = screen.getByTestId("header-text-input");
@@ -521,7 +521,7 @@ describe("FormHeader", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Verify non-editing mode
@@ -536,7 +536,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Verify editing mode
@@ -552,7 +552,7 @@ describe("FormHeader", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             expect(screen.getByTestId("header-content").textContent).toBe("Original");
@@ -564,7 +564,7 @@ describe("FormHeader", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             expect(screen.getByTestId("header-content").textContent).toBe("Updated");
@@ -580,7 +580,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Type in text input
@@ -602,7 +602,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Verify markdown input has the modified value
@@ -621,7 +621,7 @@ describe("FormHeader", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Open color popover

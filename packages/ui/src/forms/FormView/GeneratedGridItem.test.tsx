@@ -11,7 +11,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={1} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -30,7 +30,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={1} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -42,7 +42,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={2} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -54,7 +54,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={3} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -66,7 +66,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={4} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -78,7 +78,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={6} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -92,7 +92,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={3} isInGrid={false}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -111,7 +111,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={5} isInGrid={false}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -126,7 +126,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={1} isInGrid={true}>
                     {null}
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -138,7 +138,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={1} isInGrid={true}>
                     {undefined}
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -153,7 +153,7 @@ describe("GeneratedGridItem", () => {
                         <div data-testid="child-1">Child 1</div>
                         <div data-testid="child-2">Child 2</div>
                     </>
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             expect(screen.getByTestId("child-1")).toBeDefined();
@@ -164,7 +164,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={0} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -177,7 +177,7 @@ describe("GeneratedGridItem", () => {
             render(
                 <GeneratedGridItem fieldsInGrid={-1} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             const wrapper = screen.getByTestId("generated-grid-item");
@@ -192,7 +192,7 @@ describe("GeneratedGridItem", () => {
             const { rerender } = render(
                 <GeneratedGridItem fieldsInGrid={2} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             // Start in grid mode
@@ -204,7 +204,7 @@ describe("GeneratedGridItem", () => {
             rerender(
                 <GeneratedGridItem fieldsInGrid={2} isInGrid={false}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             wrapper = screen.getByTestId("generated-grid-item");
@@ -216,7 +216,7 @@ describe("GeneratedGridItem", () => {
             const { rerender } = render(
                 <GeneratedGridItem fieldsInGrid={1} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             // Start with 1 field
@@ -228,7 +228,7 @@ describe("GeneratedGridItem", () => {
             rerender(
                 <GeneratedGridItem fieldsInGrid={3} isInGrid={true}>
                     <TestChild />
-                </GeneratedGridItem>
+                </GeneratedGridItem>,
             );
 
             wrapper = screen.getByTestId("generated-grid-item");

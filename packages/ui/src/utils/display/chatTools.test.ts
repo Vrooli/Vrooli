@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 import { type AITaskInfo } from "@vrooli/shared";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { isTaskStale, STALE_TASK_THRESHOLD_MS } from "./chatTools.js";
@@ -43,7 +44,7 @@ describe("isTaskStale", () => {
             label: "Test Task",
             task: "Start",
             taskId: "task-123",
-            properties: null
+            properties: null,
         } as AITaskInfo;
         expect(isTaskStale(taskInfo)).toBe(false);
     });
@@ -54,7 +55,7 @@ describe("isTaskStale", () => {
             label: "Test Task",
             task: "Start",
             taskId: "task-123",
-            properties: null
+            properties: null,
         } as any;
         expect(isTaskStale(taskInfo)).toBe(false);
     });
@@ -67,7 +68,7 @@ describe("isTaskStale", () => {
             label: "Test Task",
             task: "Start",
             taskId: "task-123",
-            properties: null
+            properties: null,
         } as AITaskInfo;
         expect(isTaskStale(taskInfo)).toBe(true);
     });
@@ -80,7 +81,7 @@ describe("isTaskStale", () => {
             label: "Test Task",
             task: "Start",
             taskId: "task-123",
-            properties: null
+            properties: null,
         } as AITaskInfo;
         expect(isTaskStale(taskInfo)).toBe(false);
     });
@@ -93,7 +94,7 @@ describe("isTaskStale", () => {
             label: "Test Task",
             task: "Start",
             taskId: "task-123",
-            properties: null
+            properties: null,
         } as AITaskInfo;
         expect(isTaskStale(taskInfo)).toBe(true);
     });
@@ -106,7 +107,7 @@ describe("isTaskStale", () => {
             label: "Test Task",
             task: "Start",
             taskId: "task-123",
-            properties: null
+            properties: null,
         } as AITaskInfo;
         expect(isTaskStale(taskInfo)).toBe(false);
     });

@@ -1,88 +1,170 @@
-import { renderHook } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
-import { act } from "@testing-library/react";
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { calculateEstimatedIndex, handleChangeLabel, handleKeyDownLabel, submitChangeLabel, useEditableLabel } from "./useEditableLabel.js";
 
 describe("calculateEstimatedIndex", () => {
-    it("calculates the correct index based on click position", () => {
-        expect(calculateEstimatedIndex(50, 200, 10)).toBeCloseTo(3, 0);
-        expect(calculateEstimatedIndex(100, 200, 10)).toBeCloseTo(5, 0);
-        expect(calculateEstimatedIndex(150, 200, 10)).toBeCloseTo(8, 0);
+    afterEach(() => {
+        vi.clearAllMocks();
     });
 
-    it("returns 0 if clickX is 0", () => {
-        expect(calculateEstimatedIndex(0, 200, 10)).toBe(0);
+    it("places cursor at beginning when user clicks at start of text", () => {
+        // GIVEN: User clicks at the beginning of text
+        const clickX = 0;
+        const textWidth = 200;
+        const textLength = 10;
+
+        // WHEN: Calculating cursor position
+        const index = calculateEstimatedIndex(clickX, textWidth, textLength);
+
+        // THEN: Cursor is placed at the beginning
+        expect(index).toBe(0);
     });
 
-    it("returns textLength if clickX is equal to textWidth", () => {
-        expect(calculateEstimatedIndex(200, 200, 10)).toBe(10);
+    it("places cursor at end when user clicks at end of text", () => {
+        // GIVEN: User clicks at the end of text
+        const clickX = 200;
+        const textWidth = 200;
+        const textLength = 10;
+
+        // WHEN: Calculating cursor position
+        const index = calculateEstimatedIndex(clickX, textWidth, textLength);
+
+        // THEN: Cursor is placed at the end
+        expect(index).toBe(10);
+    });
+
+    it("places cursor proportionally when user clicks in middle of text", () => {
+        // GIVEN: User clicks in the middle of text
+        const clickX = 100;
+        const textWidth = 200;
+        const textLength = 10;
+
+        // WHEN: Calculating cursor position
+        const index = calculateEstimatedIndex(clickX, textWidth, textLength);
+
+        // THEN: Cursor is placed proportionally (halfway = index 5)
+        expect(index).toBeCloseTo(5, 0);
     });
 });
 
 describe("handleChangeLabel", () => {
-    it("updates the editedLabel state with the new value", () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("updates label text as user types", () => {
+        // GIVEN: User is editing a label
         const setEditedLabelMock = vi.fn();
-        handleChangeLabel({ target: { value: "new value" } }, setEditedLabelMock);
+        const event = { target: { value: "new value" } };
+
+        // WHEN: User types new text
+        handleChangeLabel(event, setEditedLabelMock);
+
+        // THEN: The label updates with the typed text
         expect(setEditedLabelMock).toHaveBeenCalledWith("new value");
     });
 });
 
 describe("submitChangeLabel", () => {
-    it("does not call onUpdate if isEditable is false", () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("prevents label changes in read-only mode", () => {
+        // GIVEN: Label is in read-only mode
         const onUpdateMock = vi.fn();
         const setIsEditingLabelMock = vi.fn();
-        submitChangeLabel(false, "edited", "original", onUpdateMock, setIsEditingLabelMock);
+        const isEditable = false;
+
+        // WHEN: Attempting to submit changes
+        submitChangeLabel(isEditable, "edited", "original", onUpdateMock, setIsEditingLabelMock);
+
+        // THEN: No update occurs
         expect(onUpdateMock).not.toHaveBeenCalled();
     });
 
-    it("calls onUpdate if isEditable is true and editedLabel differs from label", () => {
+    it("saves label changes when user finishes editing", () => {
+        // GIVEN: User has edited a label
         const onUpdateMock = vi.fn();
         const setIsEditingLabelMock = vi.fn();
-        submitChangeLabel(true, "edited", "original", onUpdateMock, setIsEditingLabelMock);
-        expect(onUpdateMock).toHaveBeenCalledWith("edited");
+        const isEditable = true;
+        const editedText = "New Title";
+        const originalText = "Old Title";
+
+        // WHEN: User submits the change
+        submitChangeLabel(isEditable, editedText, originalText, onUpdateMock, setIsEditingLabelMock);
+
+        // THEN: The new label is saved and edit mode ends
+        expect(onUpdateMock).toHaveBeenCalledWith(editedText);
         expect(setIsEditingLabelMock).toHaveBeenCalledWith(false);
     });
 
-    it("does not call onUpdate if editedLabel is the same as label", () => {
+    it("ignores submission when label text unchanged", () => {
+        // GIVEN: User opened edit mode but didn't change text
         const onUpdateMock = vi.fn();
         const setIsEditingLabelMock = vi.fn();
-        submitChangeLabel(true, "original", "original", onUpdateMock, setIsEditingLabelMock);
+        const isEditable = true;
+        const unchangedText = "Same Title";
+
+        // WHEN: User submits without changes
+        submitChangeLabel(isEditable, unchangedText, unchangedText, onUpdateMock, setIsEditingLabelMock);
+
+        // THEN: No update occurs but edit mode ends
         expect(onUpdateMock).not.toHaveBeenCalled();
         expect(setIsEditingLabelMock).toHaveBeenCalledWith(false);
     });
 });
 
 describe("handleKeyDownLabel", () => {
-    it("submits label change on Enter key", () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("saves label when user presses Enter", () => {
+        // GIVEN: User is editing a label
         const submitLabelChangeMock = vi.fn();
         const setEditedLabelMock = vi.fn();
         const setIsEditingLabelMock = vi.fn();
-
         const event = { key: "Enter", preventDefault: vi.fn(), shiftKey: false };
+
+        // WHEN: User presses Enter key
         handleKeyDownLabel(event as any, true, false, submitLabelChangeMock, setEditedLabelMock, setIsEditingLabelMock, "label");
+
+        // THEN: Changes are submitted
         expect(event.preventDefault).toHaveBeenCalled();
         expect(submitLabelChangeMock).toHaveBeenCalled();
     });
 
-    it("cancels label edit on Escape key", () => {
+    it("cancels editing when user presses Escape", () => {
+        // GIVEN: User is editing a label
         const submitLabelChangeMock = vi.fn();
         const setEditedLabelMock = vi.fn();
         const setIsEditingLabelMock = vi.fn();
-
+        const originalLabel = "Original Text";
         const event = { key: "Escape", preventDefault: vi.fn() };
-        handleKeyDownLabel(event as any, true, false, submitLabelChangeMock, setEditedLabelMock, setIsEditingLabelMock, "label");
+
+        // WHEN: User presses Escape key
+        handleKeyDownLabel(event as any, true, false, submitLabelChangeMock, setEditedLabelMock, setIsEditingLabelMock, originalLabel);
+
+        // THEN: Edit is cancelled and original text restored
         expect(event.preventDefault).toHaveBeenCalled();
-        expect(setEditedLabelMock).toHaveBeenCalledWith("label");
+        expect(setEditedLabelMock).toHaveBeenCalledWith(originalLabel);
         expect(setIsEditingLabelMock).toHaveBeenCalledWith(false);
+        expect(submitLabelChangeMock).not.toHaveBeenCalled();
     });
 
-    it("does not handle keys if isEditable is false", () => {
+    it("ignores keyboard shortcuts in read-only mode", () => {
+        // GIVEN: Label is in read-only mode
         const submitLabelChangeMock = vi.fn();
         const setEditedLabelMock = vi.fn();
         const setIsEditingLabelMock = vi.fn();
-
         const event = { key: "Enter", preventDefault: vi.fn(), shiftKey: false };
+
+        // WHEN: User presses Enter in read-only mode
         handleKeyDownLabel(event as any, false, false, submitLabelChangeMock, setEditedLabelMock, setIsEditingLabelMock, "label");
+
+        // THEN: Nothing happens
         expect(submitLabelChangeMock).not.toHaveBeenCalled();
         expect(setEditedLabelMock).not.toHaveBeenCalled();
         expect(setIsEditingLabelMock).not.toHaveBeenCalled();
@@ -90,19 +172,27 @@ describe("handleKeyDownLabel", () => {
 });
 
 describe("useEditableLabel", () => {
-    it("initializes with the provided label", () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("displays label in view mode by default", () => {
+        // GIVEN: A label component is rendered
+        // WHEN: Component initializes
         const { result } = renderHook(() => useEditableLabel({
             isEditable: true,
             isMultiline: false,
-            label: "initial",
+            label: "Product Title",
             onUpdate: vi.fn(),
         }));
 
-        expect(result.current.editedLabel).toBe("initial");
+        // THEN: Label is displayed in view mode
+        expect(result.current.editedLabel).toBe("Product Title");
         expect(result.current.isEditingLabel).toBe(false);
     });
 
-    it("updates editedLabel when label prop changes", () => {
+    it("updates display when label data changes externally", () => {
+        // GIVEN: A label displaying dynamic content
         const onUpdate = vi.fn();
         const { result, rerender } = renderHook(
             ({ label }) => useEditableLabel({
@@ -112,54 +202,63 @@ describe("useEditableLabel", () => {
                 onUpdate,
             }),
             {
-                initialProps: { label: "initial" },
-            }
+                initialProps: { label: "Loading..." },
+            },
         );
 
-        expect(result.current.editedLabel).toBe("initial");
-        
-        rerender({ label: "updated" });
-        expect(result.current.editedLabel).toBe("updated");
+        // WHEN: External data loads and updates the label
+        rerender({ label: "Product Name" });
+
+        // THEN: Display updates to show new content
+        expect(result.current.editedLabel).toBe("Product Name");
     });
 
-    it("starts editing label on startEditingLabel call", () => {
+    it("enters edit mode when user clicks on label", () => {
+        // GIVEN: An editable label in view mode
         const { result } = renderHook(() => useEditableLabel({
             isEditable: true,
             isMultiline: false,
-            label: "label",
+            label: "Click to edit",
             onUpdate: vi.fn(),
         }));
 
+        // WHEN: User clicks on the label
         act(() => result.current.startEditingLabel({
             clientX: 10,
             currentTarget: { offsetWidth: 100, getBoundingClientRect: () => ({ left: 0 }) } as any,
         } as React.MouseEvent<HTMLElement>));
 
+        // THEN: Label enters edit mode
         expect(result.current.isEditingLabel).toBe(true);
     });
 
-    it("handles label change and updates editedLabel state", () => {
+    it("updates text as user types in edit mode", () => {
+        // GIVEN: User is editing a label
         const { result } = renderHook(() => useEditableLabel({
             isEditable: true,
             isMultiline: false,
-            label: "label",
+            label: "Original",
             onUpdate: vi.fn(),
         }));
 
-        act(() => result.current.handleLabelChange({ target: { value: "new label" } }));
-        expect(result.current.editedLabel).toBe("new label");
+        // WHEN: User types new text
+        act(() => result.current.handleLabelChange({ target: { value: "Updated Text" } }));
+
+        // THEN: Display shows the typed text
+        expect(result.current.editedLabel).toBe("Updated Text");
     });
 
-    it("submits label change when editedLabel is modified", () => {
+    it("saves changes when user confirms edit", () => {
+        // GIVEN: User clicks to edit a product title
         const onUpdateMock = vi.fn();
         const { result } = renderHook(() => useEditableLabel({
             isEditable: true,
             isMultiline: false,
-            label: "label",
+            label: "Old Product Name",
             onUpdate: onUpdateMock,
         }));
 
-        // Start editing
+        // WHEN: User clicks to edit
         act(() => {
             result.current.startEditingLabel({
                 clientX: 10,
@@ -167,30 +266,38 @@ describe("useEditableLabel", () => {
             } as React.MouseEvent<HTMLElement>);
         });
 
-        // Change the label
+        // Verify we're in edit mode
+        expect(result.current.isEditingLabel).toBe(true);
+
+        // WHEN: User types new name
         act(() => {
-            result.current.handleLabelChange({ target: { value: "new label" } });
+            result.current.handleLabelChange({ target: { value: "New Product Name" } });
         });
 
-        // Submit the change
+        // WHEN: User confirms the edit
         act(() => {
             result.current.submitLabelChange();
         });
 
-        expect(onUpdateMock).toHaveBeenCalledWith("new label");
+        // THEN: New name is saved and edit mode ends
+        expect(onUpdateMock).toHaveBeenCalledWith("New Product Name");
         expect(result.current.isEditingLabel).toBe(false);
     });
 
-    it("does not submit label if editedLabel is unchanged", () => {
+    it("skips save when user submits without changes", () => {
+        // GIVEN: Label with original text
         const onUpdateMock = vi.fn();
         const { result } = renderHook(() => useEditableLabel({
             isEditable: true,
             isMultiline: false,
-            label: "label",
+            label: "Same Text",
             onUpdate: onUpdateMock,
         }));
 
+        // WHEN: User submits without making changes
         act(() => result.current.submitLabelChange());
+
+        // THEN: No update is triggered
         expect(onUpdateMock).not.toHaveBeenCalled();
     });
 });

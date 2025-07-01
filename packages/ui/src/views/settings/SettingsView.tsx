@@ -1,4 +1,5 @@
-import Box from "@mui/material/Box";
+// AI_CHECK: TYPE_SAFETY=replaced-2-any-types-with-proper-types | LAST: 2025-06-28
+import { Box } from "@mui/material";
 import { LINKS } from "@vrooli/shared";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,6 +13,7 @@ import { useIsLeftHanded } from "../../hooks/subscriptions.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
 import { type ViewProps } from "../../types.js";
+import { type SearchItem } from "../../utils/search/siteToSearch.js";
 import { type SettingsData } from "./types.js";
 
 export const accountSettingsData: SettingsData[] = [
@@ -82,12 +84,12 @@ export function SettingsView(_props: ViewProps) {
 
     const [searchString, setSearchString] = useState<string>("");
 
-    const updateSearch = useCallback((newValue: any) => {
+    const updateSearch = useCallback((newValue: string) => {
         setSearchString(newValue);
     }, []);
-    const onInputSelect = useCallback((newValue: any) => {
+    const onInputSelect = useCallback((newValue: SearchItem) => {
         if (!newValue) return;
-        setLocation(newValue?.value);
+        setLocation(newValue.value);
     }, [setLocation]);
 
     return (

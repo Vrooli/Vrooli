@@ -1,6 +1,7 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
+// AI_CHECK: TYPE_SAFETY=eliminated-5-ts-ignore-comments | LAST: 2025-06-28
 import { InputType, type FormSchema, type UrlPrimitive } from "@vrooli/shared";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { arrayToSearch, convertFormikForSearch, convertSearchForFormik, inputTypeToSearch, nonEmptyString, nonZeroNumber, searchToArray, searchToInputType, stringToTagObject, tagObjectToString, validBoolean, validPrimitive } from "./inputToSearch.js";
 
 describe("arrayToSearch", () => {
@@ -55,8 +56,7 @@ describe("searchToArray", () => {
     }
 
     it("should return undefined for non-array inputs", () => {
-        // @ts-ignore: Testing runtime scenario
-        expect(searchToArray(null, convertString)).toBeUndefined();
+        expect(searchToArray(null as unknown as UrlPrimitive[], convertString)).toBeUndefined();
         expect(searchToArray("string", convertString)).toBeUndefined();
         expect(searchToArray(123, convertNumber)).toBeUndefined();
         expect(searchToArray({}, convertNumber)).toBeUndefined();
@@ -100,8 +100,7 @@ describe("arrayToSearch and searchToArray", () => {
     it("should correctly round-trip convert numbers", () => {
         const numbersArray = [1, 2.3, 4.7, 0, -1];
         const converted = arrayToSearch(numbersArray, convertNumber);
-        // @ts-ignore: Testing runtime scenario
-        const reverted = searchToArray(converted, convertNumber);
+        const reverted = searchToArray(converted as UrlPrimitive[], convertNumber);
         expect(reverted).toEqual([1, 2, 5]);
     });
 
@@ -113,8 +112,7 @@ describe("arrayToSearch and searchToArray", () => {
             { notTag: "Angular" }, // should be filtered out
         ];
         const converted = arrayToSearch(tagArray, tagObjectToString);
-        // @ts-ignore: Testing runtime scenario
-        const reverted = searchToArray(converted, stringToTagObject);
+        const reverted = searchToArray(converted as UrlPrimitive[], stringToTagObject);
         expect(reverted).toEqual([
             { __typename: "Tag", tag: "JavaScript" },
             { __typename: "Tag", tag: "React" },
@@ -128,8 +126,7 @@ describe("arrayToSearch and searchToArray", () => {
             { noTag: "VueJS" },
         ];
         const converted = arrayToSearch(mixedArray, tagObjectToString);
-        // @ts-ignore: Testing runtime scenario
-        const reverted = searchToArray(converted, stringToTagObject);
+        const reverted = searchToArray(converted as UrlPrimitive[], stringToTagObject);
         expect(reverted).toEqual([{ __typename: "Tag", tag: "NodeJS" }]);
     });
 
@@ -141,8 +138,7 @@ describe("arrayToSearch and searchToArray", () => {
             undefined,
         ];
         const converted = arrayToSearch(invalidTags, tagObjectToString);
-        // @ts-ignore: Testing runtime scenario
-        const reverted = searchToArray(converted, stringToTagObject);
+        const reverted = searchToArray(converted as UrlPrimitive[], stringToTagObject);
         expect(reverted).toEqual([]);
     });
 });

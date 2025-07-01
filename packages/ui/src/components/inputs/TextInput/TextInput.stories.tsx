@@ -1,16 +1,16 @@
+import Box from "@mui/material/Box";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormLabel from "@mui/material/FormLabel";
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import type { Meta, StoryObj } from "@storybook/react";
 import React, { useState } from "react";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import FormControl from "@mui/material/FormControl";
-import FormLabel from "@mui/material/FormLabel";
-import RadioGroup from "@mui/material/RadioGroup";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Radio from "@mui/material/Radio";
-import TextField from "@mui/material/TextField";
-import { TailwindTextInputBase } from "./TailwindTextInput.js";
-import type { TextInputVariant, TextInputSize } from "./types.js";
 import { Switch } from "../Switch/Switch.js";
+import { TextInputBase } from "./TextInput.js";
+import type { TextInputSize, TextInputVariant } from "./types.js";
 
 // Simple adornment components for the showcase
 const SearchIcon = () => (
@@ -38,9 +38,9 @@ const SendIcon = () => (
     </svg>
 );
 
-const meta: Meta<typeof TailwindTextInputBase> = {
-    title: "Components/Inputs/TailwindTextInput",
-    component: TailwindTextInputBase,
+const meta: Meta<typeof TextInputBase> = {
+    title: "Components/Inputs/TextInput",
+    component: TextInputBase,
     parameters: {
         layout: "fullscreen",
     },
@@ -105,7 +105,7 @@ export const TextInputShowcase: Story = {
             if (!showEndAdornment) return undefined;
             if (endAdornmentType === "icon") {
                 return (
-                    <button 
+                    <button
                         type="button"
                         className="tw-flex tw-items-center tw-justify-center hover:tw-text-primary-main tw-transition-colors tw-cursor-pointer tw-p-0 tw-m-0 tw-border-0 tw-bg-transparent tw-text-current"
                     >
@@ -117,34 +117,34 @@ export const TextInputShowcase: Story = {
         };
 
         return (
-            <Box sx={{ 
-                p: 2, 
-                height: "100vh", 
+            <Box sx={{
+                p: 2,
+                height: "100vh",
                 overflow: "auto",
-                bgcolor: "background.default", 
+                bgcolor: "background.default",
             }}>
-                <Box sx={{ 
-                    display: "flex", 
-                    gap: 2, 
+                <Box sx={{
+                    display: "flex",
+                    gap: 2,
                     flexDirection: "column",
-                    maxWidth: 1400, 
-                    mx: "auto", 
+                    maxWidth: 1400,
+                    mx: "auto",
                 }}>
                     {/* Controls Section */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
+                    <Box sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: 2,
                         boxShadow: 1,
                         height: "fit-content",
                         width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>TextInput Controls</Typography>
-                        
-                        <Box sx={{ 
-                            display: "grid", 
+
+                        <Box sx={{
+                            display: "grid",
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(5, 1fr)" },
-                            gap: 3, 
+                            gap: 3,
                         }}>
                             {/* Variant Control */}
                             <FormControl component="fieldset" size="small">
@@ -332,17 +332,17 @@ export const TextInputShowcase: Story = {
                     </Box>
 
                     {/* Live Preview */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
+                    <Box sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: 2,
                         boxShadow: 1,
                         width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Live Preview</Typography>
-                        
+
                         <Box sx={{ maxWidth: fullWidth ? "100%" : 400, mx: "auto" }}>
-                            <TailwindTextInputBase
+                            <TextInputBase
                                 variant={variant}
                                 size={size}
                                 error={error}
@@ -363,33 +363,33 @@ export const TextInputShowcase: Story = {
                     </Box>
 
                     {/* All Variants Display */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
+                    <Box sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: 2,
                         boxShadow: 1,
                         width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>All Variants</Typography>
-                        
-                        <Box sx={{ 
-                            display: "grid", 
-                            gridTemplateColumns: { 
-                                xs: "1fr", 
+
+                        <Box sx={{
+                            display: "grid",
+                            gridTemplateColumns: {
+                                xs: "1fr",
                                 sm: "repeat(2, 1fr)",
                                 md: "repeat(3, 1fr)",
-                            }, 
-                            gap: 3, 
+                            },
+                            gap: 3,
                         }}>
                             {variants.map(v => (
                                 <Box key={v} sx={{ textAlign: "center" }}>
-                                    <Typography 
-                                        variant="subtitle2" 
+                                    <Typography
+                                        variant="subtitle2"
                                         sx={{ mb: 2, textTransform: "capitalize" }}
                                     >
                                         {v}
                                     </Typography>
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant={v}
                                         size="md"
                                         label={`${v} input`}
@@ -404,17 +404,17 @@ export const TextInputShowcase: Story = {
                     </Box>
 
                     {/* Size Comparison */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
+                    <Box sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: 2,
                         boxShadow: 1,
                         width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Size Comparison</Typography>
-                        
-                        <Box sx={{ 
-                            display: "flex", 
+
+                        <Box sx={{
+                            display: "flex",
                             flexDirection: "column",
                             gap: 3,
                             alignItems: "center",
@@ -424,7 +424,7 @@ export const TextInputShowcase: Story = {
                                     <Typography variant="subtitle2" sx={{ mb: 1 }}>
                                         Size: {s.toUpperCase()}
                                     </Typography>
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="outline"
                                         size={s}
                                         label={`${s.toUpperCase()} size input`}
@@ -439,25 +439,25 @@ export const TextInputShowcase: Story = {
                     </Box>
 
                     {/* Multiline Examples */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
+                    <Box sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: 2,
                         boxShadow: 1,
                         width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Multiline Examples</Typography>
-                        
-                        <Box sx={{ 
-                            display: "grid", 
-                            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" }, 
-                            gap: 3, 
+
+                        <Box sx={{
+                            display: "grid",
+                            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+                            gap: 3,
                         }}>
                             <Box>
                                 <Typography variant="subtitle2" sx={{ mb: 2 }}>
                                     Standard Textarea
                                 </Typography>
-                                <TailwindTextInputBase
+                                <TextInputBase
                                     variant="outline"
                                     multiline
                                     label="Message"
@@ -472,7 +472,7 @@ export const TextInputShowcase: Story = {
                                 <Typography variant="subtitle2" sx={{ mb: 2 }}>
                                     Error State Textarea
                                 </Typography>
-                                <TailwindTextInputBase
+                                <TextInputBase
                                     variant="filled"
                                     multiline
                                     error
@@ -487,40 +487,40 @@ export const TextInputShowcase: Story = {
                     </Box>
 
                     {/* Adornment Examples */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
+                    <Box sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: 2,
                         boxShadow: 1,
                         width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Adornment Examples</Typography>
-                        
-                        <Box sx={{ 
-                            display: "grid", 
-                            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" }, 
-                            gap: 3, 
+
+                        <Box sx={{
+                            display: "grid",
+                            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+                            gap: 3,
                         }}>
                             <Box>
                                 <Typography variant="subtitle2" sx={{ mb: 2 }}>
                                     Start Adornments
                                 </Typography>
                                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="filled"
                                         label="Search"
                                         placeholder="Search for anything..."
                                         startAdornment={<SearchIcon />}
                                         fullWidth
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="filled"
                                         label="User Account"
                                         placeholder="Enter username..."
                                         startAdornment={<UserIcon />}
                                         fullWidth
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="filled"
                                         label="Price"
                                         placeholder="0.00"
@@ -534,13 +534,13 @@ export const TextInputShowcase: Story = {
                                     End Adornments
                                 </Typography>
                                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="filled"
                                         label="Password"
                                         type="password"
                                         placeholder="Enter password..."
                                         endAdornment={
-                                            <button 
+                                            <button
                                                 type="button"
                                                 className="tw-flex tw-items-center tw-justify-center hover:tw-text-primary-main tw-transition-colors tw-cursor-pointer tw-p-0 tw-m-0 tw-border-0 tw-bg-transparent tw-text-current"
                                             >
@@ -549,12 +549,12 @@ export const TextInputShowcase: Story = {
                                         }
                                         fullWidth
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="filled"
                                         label="Message"
                                         placeholder="Type your message..."
                                         endAdornment={
-                                            <button 
+                                            <button
                                                 type="button"
                                                 className="tw-flex tw-items-center tw-justify-center hover:tw-text-primary-main tw-transition-colors tw-cursor-pointer tw-p-0 tw-m-0 tw-border-0 tw-bg-transparent tw-text-current"
                                             >
@@ -563,7 +563,7 @@ export const TextInputShowcase: Story = {
                                         }
                                         fullWidth
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="filled"
                                         label="Website"
                                         placeholder="mysite"
@@ -576,21 +576,21 @@ export const TextInputShowcase: Story = {
                     </Box>
 
                     {/* Common Use Cases */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
+                    <Box sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: 2,
                         boxShadow: 1,
                         width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Common Use Cases</Typography>
-                        
+
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
                             {/* Contact Form */}
                             <Box>
                                 <Typography variant="h6" sx={{ mb: 2 }}>Contact Form</Typography>
                                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" }, gap: 2, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="outline"
                                         size="md"
                                         label="First Name"
@@ -599,7 +599,7 @@ export const TextInputShowcase: Story = {
                                         value={inputValues.form1}
                                         onChange={(e) => handleInputChange("form1", e.target.value)}
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="outline"
                                         size="md"
                                         label="Last Name"
@@ -608,7 +608,7 @@ export const TextInputShowcase: Story = {
                                         value={inputValues.form2}
                                         onChange={(e) => handleInputChange("form2", e.target.value)}
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="outline"
                                         size="md"
                                         type="email"
@@ -619,7 +619,7 @@ export const TextInputShowcase: Story = {
                                         onChange={(e) => handleInputChange("form3", e.target.value)}
                                         helperText="We'll never share your email"
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="outline"
                                         size="md"
                                         type="tel"
@@ -635,14 +635,14 @@ export const TextInputShowcase: Story = {
                             <Box>
                                 <Typography variant="h6" sx={{ mb: 2 }}>Different States</Typography>
                                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="outline"
                                         size="md"
                                         label="Normal Input"
                                         placeholder="Type here..."
                                         fullWidth
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="outline"
                                         size="md"
                                         label="Error Input"
@@ -651,7 +651,7 @@ export const TextInputShowcase: Story = {
                                         helperText="Please enter a valid value"
                                         fullWidth
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="outline"
                                         size="md"
                                         label="Disabled Input"
@@ -660,7 +660,7 @@ export const TextInputShowcase: Story = {
                                         value="Disabled value"
                                         fullWidth
                                     />
-                                    <TailwindTextInputBase
+                                    <TextInputBase
                                         variant="outline"
                                         size="md"
                                         label="Required Input"

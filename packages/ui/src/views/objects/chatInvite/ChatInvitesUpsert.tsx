@@ -1,32 +1,30 @@
+import { useTheme } from "@mui/material";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material";
-import { chatInviteValidation, endpointsChatInvite, noop, noopSubmit, shapeChatInvite, validateAndGetYupErrors, type ChatInvite, type ChatInviteCreateInput, type ChatInviteShape, type ChatInviteUpdateInput } from "@vrooli/shared";
+import { chatInviteFormConfig, noop, noopSubmit, validateAndGetYupErrors, type ChatInvite, type ChatInviteShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
-import { RichInputBase } from "../../../components/inputs/RichInput/RichInput.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
+import { AdvancedInputBase } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
-import { useUpsertActions } from "../../../hooks/forms.js";
 import { useHistoryState } from "../../../hooks/useHistoryState.js";
-import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
+import { useStandardBatchUpsertForm } from "../../../hooks/useStandardBatchUpsertForm.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { PubSub } from "../../../utils/pubsub.js";
 import { type ChatInvitesFormProps, type ChatInvitesUpsertProps } from "./types.js";
 
-function transformChatInviteValues(values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) {
+export function transformChatInviteValues(values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) {
     return isCreate ?
-        values.map((value) => shapeChatInvite.create(value)) :
-        values.map((value, index) => shapeChatInvite.update(existing[index], value)); // Assumes the dialog doesn't change the order or remove items
+        values.map((value) => chatInviteFormConfig.transformations.shapeToInput.create?.(value)) :
+        values.map((value, index) => chatInviteFormConfig.transformations.shapeToInput.update?.(existing[index], value)); // Assumes the dialog doesn't change the order or remove items
 }
 
 async function validateChatInviteValues(values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) {
     const transformedValues = transformChatInviteValues(values, existing, isCreate);
-    const validationSchema = chatInviteValidation[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
+    const validationSchema = chatInviteFormConfig.validation.schema[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await Promise.all(transformedValues.map(async (value) => await validateAndGetYupErrors(validationSchema, value)));
 
     // Filter and combine the result into one object with only error results
@@ -57,63 +55,54 @@ function ChatInvitesForm({
     values,
     ...props
 }: ChatInvitesFormProps) {
-    console.log("chatinvitesupsert render!", props.errors, values);
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [message, setMessage] = useHistoryState("chat-invite-message", "");
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isMobile = useIsMobile();
+    const isMobileOld = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<ChatInvite[]>({
-        display,
-        isCreate,
-        objectType: "ChatInvite",
-        ...props,
-    });
+    // Use the standardized batch form hook
     const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<ChatInvite[], ChatInviteCreateInput[], ChatInviteUpdateInput[]>({
+        isLoading,
+        handleCancel,
+        handleCompleted,
+        onSubmit,
+    } = useStandardBatchUpsertForm({
+        objectType: "ChatInvite",
+        transformFunction: transformChatInviteValues,
+        validateFunction: validateChatInviteValues,
+        endpoints: {
+            create: chatInviteFormConfig.endpoints.createOne,
+            update: chatInviteFormConfig.endpoints.updateOne,
+        },
+    }, {
+        values,
+        existing,
         isCreate,
-        isMutate: true,
-        endpointCreate: endpointsChatInvite.createOne,
-        endpointUpdate: endpointsChatInvite.updateOne,
+        display,
+        disabled,
+        isMutate,
+        isReadLoading,
+        isSubmitting: props.isSubmitting,
+        handleUpdate,
+        setSubmitting: props.setSubmitting,
+        onCancel,
+        onCompleted,
+        onDeleted,
+        onClose,
     });
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useCallback(() => {
-        if (disabled) {
-            PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
-            return;
-        }
-        if (!isCreate && !existing) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
-            return;
-        }
+    const handleSubmit = useCallback(() => {
         setMessage("");
-        if (isMutate) {
-            fetchLazyWrapper<ChatInviteCreateInput[] | ChatInviteUpdateInput[], ChatInvite[]>({
-                fetch,
-                inputs: transformChatInviteValues(values, existing, isCreate) as ChatInviteCreateInput[] | ChatInviteUpdateInput[],
-                onSuccess: (data) => { handleCompleted(data); },
-                onCompleted: () => { props.setSubmitting(false); },
-            });
-        } else {
-            handleCompleted(values as ChatInvite[]);
-        }
-    }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, props, setMessage, values]);
+        onSubmit();
+    }, [setMessage, onSubmit]);
 
     const [inputFocused, setInputFocused] = useState(false);
     const onFocus = useCallback(() => { setInputFocused(true); }, []);
     const onBlur = useCallback(() => { setInputFocused(false); }, []);
 
-    return (
-        <MaybeLargeDialog
-            display={display}
-            id="chat-invite-upsert-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
-        >
+    const dialogContent = (
+        <>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -145,12 +134,9 @@ function ChatInvitesForm({
                 </Box>
                 <Box mt={4}>
                     <Typography variant="h6" p={2}>{t("Message", { count: 1 })}</Typography>
-                    <RichInputBase
+                    <AdvancedInputBase
                         disabled={values.length <= 0}
-                        fullWidth
-                        maxChars={4096}
-                        maxRows={inputFocused ? 10 : 2}
-                        minRows={1}
+                        features={{ maxChars: 4096, maxRowsCollapsed: 2, maxRowsExpanded: 10, minRowsCollapsed: 1 }}
                         onBlur={onBlur}
                         onChange={setMessage}
                         onFocus={onFocus}
@@ -164,8 +150,8 @@ function ChatInvitesForm({
                                 width: "-webkit-fill-available",
                                 margin: "0",
                             },
-                            topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                            bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
+                            topBar: { borderRadius: 0, paddingLeft: isMobileOld ? "20px" : 0, paddingRight: isMobileOld ? "20px" : 0 },
+                            bottomBar: { paddingLeft: isMobileOld ? "20px" : 0, paddingRight: isMobileOld ? "20px" : 0 },
                             inputRoot: {
                                 border: "none",
                                 background: palette.background.paper,
@@ -182,16 +168,27 @@ function ChatInvitesForm({
                     loading={isLoading}
                     onCancel={handleCancel}
                     onSetSubmitting={props.setSubmitting}
-                    onSubmit={onSubmit}
+                    onSubmit={handleSubmit}
                 />
             </Box>
-        </MaybeLargeDialog>
+        </>
+    );
+
+    return (
+        <Dialog
+            isOpen={isOpen}
+            onClose={onClose}
+            size={isMobile ? "full" : "lg"}
+        >
+            {dialogContent}
+        </Dialog>
     );
 }
 
 export function ChatInvitesUpsert({
     invites,
     isCreate,
+    isMutate,
     isOpen,
     ...props
 }: ChatInvitesUpsertProps) {
@@ -212,6 +209,7 @@ export function ChatInvitesUpsert({
                 existing={invites}
                 handleUpdate={() => { }}
                 isCreate={isCreate}
+                isMutate={isMutate}
                 isReadLoading={false}
                 isOpen={isOpen}
                 {...props}

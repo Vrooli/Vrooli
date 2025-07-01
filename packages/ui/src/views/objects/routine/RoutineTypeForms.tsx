@@ -1,5 +1,4 @@
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
@@ -12,7 +11,7 @@ const LATEST_ROUTINE_CONFIG_VERSION = "1.0";
 import { memo, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getAvailableModels, getExistingAIConfig } from "../../../api/ai.js";
-import { LoadableButton } from "../../../components/buttons/LoadableButton.js";
+import { Button } from "../../../components/buttons/Button.js";
 import { RunPickerMenu } from "../../../components/buttons/RunButton.js";
 import { ContentCollapse } from "../../../components/containers/ContentCollapse.js";
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
@@ -583,13 +582,13 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
                 />
                 {display !== "edit" && (
                     <Box onClick={handleRunStep}>
-                        <LoadableButton
+                        <Button
                             disabled={isRunStepDisabled}
                             fullWidth
                             isLoading={isRunningStep}
                             startIcon={<IconCommon name="Magic" />}
-                            variant="contained"
-                        >Generate</LoadableButton>
+                            variant="primary"
+                        >Generate</Button>
                     </Box>
                 )}
             </ContentCollapse>
@@ -692,14 +691,14 @@ export const RoutineInformationalForm = memo(function RoutineInformationalFormMe
                         {showFirstButton && (
                             <Grid item xs={12} sm={gridItemSm}>
                                 <Box onClick={handleCompleteStep}>
-                                    <LoadableButton
+                                    <Button
                                         aria-label={showComplete ? t("Complete") : t("Update")}
                                         disabled={showComplete && isCompleteStepDisabled}
                                         fullWidth
                                         isLoading={isRunningStep}
                                         startIcon={<IconCommon name={!isLoggedIn ? "Lock" : showComplete ? "Success" : "Save"} />}
-                                        variant="contained"
-                                    >{showComplete ? t("Complete") : t("Update")}</LoadableButton>
+                                        variant="primary"
+                                    >{showComplete ? t("Complete") : t("Update")}</Button>
                                 </Box>
                             </Grid>
                         )}

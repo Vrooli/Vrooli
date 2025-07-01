@@ -2,6 +2,7 @@
 import { DUMMY_ID, InputType, ResourceUsedFor, RunStatus, endpointsResource, endpointsRun, generatePK, getObjectUrl, type RoutineVersion, type Run, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockEndpoint, getMockUrl, getStoryRoutePath, getStoryRoutePathWithQuery } from "../../../__test/helpers/storybookMocking.js";
 import { RoutineSingleStepView } from "./RoutineSingleStepView.js";
 
 // Create simplified mock data for Routine responses
@@ -209,7 +210,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineSingleStepVersion.findOne.endpoint}`, async () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineSingleStepVersion), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockRoutineVersionData });
@@ -217,7 +218,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}`,
+        path: getStoryRoutePath(mockRoutineVersionData),
     },
 };
 
@@ -230,13 +231,13 @@ SignedInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineSingleStepVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineSingleStepVersion), () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}`,
+        path: getStoryRoutePath(mockRoutineVersionData),
     },
 };
 
@@ -249,13 +250,13 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineSingleStepVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineSingleStepVersion), () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}`,
+        path: getStoryRoutePath(mockRoutineVersionData),
     },
 };
 
@@ -268,16 +269,16 @@ WithActiveRun.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineSingleStepVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineSingleStepVersion), () => {
                 return HttpResponse.json({ data: mockRoutineVersionData });
             }),
-            http.get(`${API_URL}/v2${endpointsRun.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsRun.findOne), () => {
                 return HttpResponse.json({ data: mockRunData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}?runId=${generatePK().toString()}`,
+        path: getStoryRoutePathWithQuery(mockRoutineVersionData, { runId: generatePK().toString() }),
     },
 };
 
@@ -290,7 +291,7 @@ Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsResource.findRoutineSingleStepVersion.findOne.endpoint}`, () => {
+            http.get(getMockEndpoint(endpointsResource.findRoutineSingleStepVersion), () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockRoutineVersionData,
@@ -328,6 +329,6 @@ Own.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}`,
+        path: getStoryRoutePath(mockRoutineVersionData),
     },
 }; 

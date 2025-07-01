@@ -89,7 +89,7 @@ describe("FormVideo", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const wrapper = screen.getByTestId("form-video");
@@ -116,7 +116,7 @@ describe("FormVideo", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             expect(container.firstChild).toBeNull();
@@ -129,7 +129,7 @@ describe("FormVideo", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             expect(screen.queryByRole("button")).toBeNull();
@@ -151,7 +151,7 @@ describe("FormVideo", () => {
                         isEditing={false}
                         onUpdate={vi.fn()}
                         onDelete={vi.fn()}
-                    />
+                    />,
                 );
 
                 const iframe = screen.getByTestId("form-video-iframe");
@@ -170,7 +170,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const wrapper = screen.getByTestId("form-video");
@@ -193,7 +193,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const placeholder = screen.getByTestId("form-video-placeholder");
@@ -212,7 +212,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             const settingsButton = screen.getByTestId("form-video-settings-button");
@@ -252,7 +252,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={onDelete}
-                />
+                />,
             );
 
             const deleteButton = screen.getByTestId("form-video-delete-button");
@@ -274,7 +274,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Open settings
@@ -292,7 +292,7 @@ describe("FormVideo", () => {
 
             // Check that onUpdate was called with the new URL
             expect(onUpdate).toHaveBeenCalledWith({ 
-                url: newUrl 
+                url: newUrl, 
             });
         });
 
@@ -306,7 +306,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Open settings
@@ -324,7 +324,7 @@ describe("FormVideo", () => {
 
             // Check that onUpdate was called with the new label
             expect(onUpdate).toHaveBeenCalledWith({ 
-                label: newLabel 
+                label: newLabel, 
             });
         });
 
@@ -338,7 +338,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Open settings
@@ -356,7 +356,7 @@ describe("FormVideo", () => {
 
             // Check that onUpdate was called with the new description
             expect(onUpdate).toHaveBeenCalledWith({ 
-                description: newDescription 
+                description: newDescription, 
             });
         });
 
@@ -369,7 +369,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Open settings
@@ -399,7 +399,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Open settings
@@ -429,7 +429,7 @@ describe("FormVideo", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Start in non-editing mode
@@ -444,7 +444,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             expect(screen.getByTestId("form-video").getAttribute("data-editing")).toBe("true");
@@ -458,7 +458,7 @@ describe("FormVideo", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             expect(screen.getByTestId("form-video").getAttribute("data-editing")).toBe("false");
@@ -476,7 +476,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Open settings panel
@@ -493,7 +493,7 @@ describe("FormVideo", () => {
                     isEditing={true}
                     onUpdate={onUpdate}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Settings panel should remain open
@@ -514,7 +514,7 @@ describe("FormVideo", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             let iframe = screen.getByTestId("form-video-iframe");
@@ -530,7 +530,7 @@ describe("FormVideo", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             iframe = screen.getByTestId("form-video-iframe");
@@ -547,7 +547,7 @@ describe("FormVideo", () => {
                     isEditing={false}
                     onUpdate={vi.fn()}
                     onDelete={vi.fn()}
-                />
+                />,
             );
 
             // Should show placeholder instead of iframe for invalid URLs

@@ -1,8 +1,7 @@
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-import { useTheme, Divider, Paper, Slider, Switch, FormControlLabel, Tooltip, IconButton } from "@mui/material";
+// AI_CHECK: TYPE_SAFETY=fixed-mui-imports-to-named-imports-and-security-icon | LAST: 2025-06-30
+import { Box, Button, Stack, Typography, useTheme, Divider, Paper, Slider, Switch, FormControlLabel } from "@mui/material";
+import { Tooltip } from "../../components/Tooltip/Tooltip.js";
+import { IconButton } from "../../components/buttons/IconButton.js";
 import { API_CREDITS_PREMIUM, LINKS, PaymentType, CreditConfig, endpointsUser, type CreditConfigObject, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { useContext, useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -269,11 +268,11 @@ export function SettingsPaymentView({
                                                 max={100}
                                                 step={5}
                                                 marks={[
-                                                    { value: 0, label: '0%' },
-                                                    { value: 25, label: '25%' },
-                                                    { value: 50, label: '50%' },
-                                                    { value: 75, label: '75%' },
-                                                    { value: 100, label: '100%' },
+                                                    { value: 0, label: "0%" },
+                                                    { value: 25, label: "25%" },
+                                                    { value: 50, label: "50%" },
+                                                    { value: 75, label: "75%" },
+                                                    { value: 100, label: "100%" },
                                                 ]}
                                                 valueLabelDisplay="auto"
                                                 sx={{ mt: 2, mb: 1 }}
@@ -284,7 +283,7 @@ export function SettingsPaymentView({
                                             elevation={0} 
                                             sx={{ 
                                                 p: 2, 
-                                                backgroundColor: palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                                                backgroundColor: palette.mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
                                                 borderRadius: 1,
                                             }}
                                         >
@@ -313,7 +312,7 @@ export function SettingsPaymentView({
                                             alignItems="flex-start" 
                                             gap={1}
                                             p={2}
-                                            bgcolor={palette.mode === 'dark' ? 'rgba(46, 125, 50, 0.1)' : 'rgba(76, 175, 80, 0.1)'}
+                                            bgcolor={palette.mode === "dark" ? "rgba(46, 125, 50, 0.1)" : "rgba(76, 175, 80, 0.1)"}
                                             borderRadius={1}
                                         >
                                             <IconCommon name="Info" sx={{ fontSize: 20, color: palette.success.main, mt: 0.25 }} />
@@ -327,10 +326,10 @@ export function SettingsPaymentView({
                                             alignItems="flex-start" 
                                             gap={1}
                                             p={2}
-                                            bgcolor={palette.mode === 'dark' ? 'rgba(255, 193, 7, 0.1)' : 'rgba(255, 152, 0, 0.1)'}
+                                            bgcolor={palette.mode === "dark" ? "rgba(255, 193, 7, 0.1)" : "rgba(255, 152, 0, 0.1)"}
                                             borderRadius={1}
                                         >
-                                            <IconCommon name="Security" sx={{ fontSize: 20, color: palette.warning.main, mt: 0.25 }} />
+                                            <IconCommon name="Lock" size={20} fill={palette.warning.main} style={{ marginTop: 2 }} />
                                             <Typography variant="caption" color="text.secondary">
                                                 {t("DonationSafetyMessage", "Only your free monthly credits are donated—never your purchased credits. Donations are processed on the 2nd of each month.")}
                                             </Typography>
@@ -339,7 +338,7 @@ export function SettingsPaymentView({
                                 )}
                                 
                                 {isSavingSettings && (
-                                    <Typography variant="caption" color="primary" sx={{ fontStyle: 'italic' }}>
+                                    <Typography variant="caption" color="primary" sx={{ fontStyle: "italic" }}>
                                         {t("SavingSettings", "Saving settings")}...
                                     </Typography>
                                 )}

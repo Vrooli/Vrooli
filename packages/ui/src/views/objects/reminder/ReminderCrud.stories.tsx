@@ -4,6 +4,7 @@
 import { endpointsReminder, generatePK, getObjectUrl, type Reminder } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockUrl, getStoryRouteEditPath } from "../../../__test/helpers/storybookMocking.js";
 import { ReminderCrud } from "./ReminderCrud.js";
 
 // Create simplified mock data for Reminder responses
@@ -80,13 +81,13 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsReminder.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsReminder.findOne), () => {
                 return HttpResponse.json({ data: mockReminderData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockReminderData)}/edit`,
+        path: getStoryRouteEditPath(mockReminderData),
     },
 };
 
@@ -108,13 +109,13 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsReminder.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsReminder.findOne), () => {
                 return HttpResponse.json({ data: mockReminderData });
             }),
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockReminderData)}/edit`,
+        path: getStoryRouteEditPath(mockReminderData),
     },
 };
 
@@ -128,7 +129,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsReminder.findOne.endpoint}`, async () => {
+            http.get(getMockUrl(endpointsReminder.findOne), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockReminderData });
@@ -136,7 +137,7 @@ Loading.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockReminderData)}/edit`,
+        path: getStoryRouteEditPath(mockReminderData),
     },
 };
 

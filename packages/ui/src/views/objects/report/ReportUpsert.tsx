@@ -1,12 +1,11 @@
 import Box from "@mui/material/Box";
-import { DUMMY_ID, endpointsReport, getObjectSlug, getObjectUrlBase, noopSubmit, reportValidation, shapeReport, type Report, type ReportCreateInput, type ReportFor, type ReportShape, type ReportUpdateInput, type Session } from "@vrooli/shared";
+import { createTransformFunction, getObjectSlug, getObjectUrlBase, noopSubmit, reportFormConfig, type Report, type ReportFor, type ReportShape } from "@vrooli/shared";
 import { Formik, useField } from "formik";
-import { useContext, useMemo } from "react";
+import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { SearchExistingButton } from "../../../components/buttons/SearchExistingButton.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { Dialog } from "../../../components/dialogs/Dialog/Dialog.js";
 import { TranslatedAdvancedInput } from "../../../components/inputs/AdvancedInput/AdvancedInput.js";
 import { detailsInputFeatures, nameInputFeatures } from "../../../components/inputs/AdvancedInput/styles.js";
 import { LanguageInput } from "../../../components/inputs/LanguageInput/LanguageInput.js";
@@ -14,13 +13,9 @@ import { Selector } from "../../../components/inputs/Selector/Selector.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
-import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
+import { useStandardUpsertForm } from "../../../hooks/useStandardUpsertForm.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
-import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { FormContainer } from "../../../styles.js";
-import { getUserLanguages } from "../../../utils/display/translationTools.js";
-import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { type ReportFormProps, type ReportUpsertProps } from "./types.js";
 
 enum ReportOptions {
@@ -39,26 +34,6 @@ const ReportReasons = {
     [ReportOptions.Other]: "Other",
 };
 
-export function reportInitialValues(
-    session: Session | undefined,
-    existing: Omit<Partial<ReportShape>, "createdFor">,
-    createdFor: { __typename: ReportFor, id: string },
-): ReportShape {
-    return {
-        ...existing,
-        __typename: "Report" as const,
-        id: DUMMY_ID,
-        reason: "",
-        otherReason: "",
-        details: "",
-        language: getUserLanguages(session)[0],
-        createdFor,
-    };
-}
-
-export function transformReportValues(values: ReportShape, existing: ReportShape, isCreate: boolean) {
-    return isCreate ? shapeReport.create(values) : shapeReport.update(existing, values);
-}
 
 function getReasonLabel(reason: string) {
     return ReportReasons[reason] || "";
@@ -93,57 +68,50 @@ function ReportForm({
     ...props
 }: ReportFormProps) {
     const { t } = useTranslation();
-    const session = useContext(SessionContext);
 
+    // Use the standardized form hook with config
     const {
-        handleAddLanguage,
-        handleDeleteLanguage,
+        session,
+        isLoading,
+        handleCancel,
+        handleCompleted,
+        onSubmit,
+        validateValues,
         language,
         languages,
+        handleAddLanguage,
+        handleDeleteLanguage,
         setLanguage,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
+        translationErrors,
+    } = useStandardUpsertForm({
+        objectType: "Report",
+        validation: reportFormConfig.validation.schema,
+        translationValidation: reportFormConfig.validation.translationSchema,
+        transformFunction: createTransformFunction(reportFormConfig),
+        endpoints: reportFormConfig.endpoints,
+    }, {
+        values,
+        existing,
+        isCreate,
+        display,
+        disabled,
+        isReadLoading,
+        isSubmitting: props.isSubmitting,
+        handleUpdate: props.handleUpdate,
+        setSubmitting: props.setSubmitting,
+        onCancel: props.onCancel,
+        onCompleted: props.onCompleted,
+        onDeleted: props.onDeleted,
+        onClose,
     });
 
     const [reasonField] = useField("reason");
 
-    const { handleCancel, handleCompleted } = useUpsertActions<Report>({
-        display,
-        isCreate,
-        objectId: values.id,
-        objectType: "Report",
-        ...props,
-    });
-    const {
-        fetch,
-        isCreateLoading,
-        isUpdateLoading,
-    } = useUpsertFetch<Report, ReportCreateInput, ReportUpdateInput>({
-        isCreate,
-        isMutate: true,
-        endpointCreate: endpointsReport.createOne,
-        endpointUpdate: endpointsReport.updateOne,
-    });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Report" });
-
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-
-    const onSubmit = useSubmitHelper<ReportCreateInput | ReportUpdateInput, Report>({
-        disabled,
-        existing,
-        fetch,
-        inputs: transformReportValues(values, existing, isCreate),
-        isCreate,
-        onSuccess: (data) => { handleCompleted(data); },
-        onCompleted: () => { props.setSubmitting(false); },
-    });
-
-    return (
-        <MaybeLargeDialog
-            display={display}
-            id="report-upsert-dialog"
-            isOpen={isOpen}
-            onClose={onClose}
+    return display === "Dialog" ? (
+        <Dialog
+            isOpen={isOpen ?? false}
+            onClose={onClose ?? (() => console.warn("onClose not passed to dialog"))}
+            size="md"
         >
             <TopBar
                 display={display}
@@ -199,7 +167,7 @@ function ReportForm({
             </BaseForm>
             <BottomActionsButtons
                 display={display}
-                errors={props.errors}
+                errors={translationErrors}
                 hideButtons={disabled}
                 isCreate={isCreate}
                 loading={isLoading}
@@ -207,7 +175,72 @@ function ReportForm({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
             />
-        </MaybeLargeDialog>
+        </Dialog>
+    ) : (
+        <>
+            <TopBar
+                display={display}
+                onClose={onClose}
+                title={t("Report", { count: 1 })}
+                help={t("ReportsHelp")}
+            />
+            <SearchExistingButton
+                href={`/reports${getObjectUrlBase(values.createdFor)}/${getObjectSlug(values.createdFor)}`}
+                text={t("ViewExistingReports")}
+            />
+            <BaseForm
+                display={display}
+                isLoading={isLoading}
+            >
+                <FormContainer p={2}>
+                    <Box display="flex" flexDirection="column" gap={4}>
+                        <Selector
+                            name="reason"
+                            disabled={isLoading}
+                            options={Object.keys(ReportReasons)}
+                            getOptionLabel={getReasonLabel}
+                            fullWidth
+                            label={t("Reason")}
+                        />
+                        {reasonField.value === ReportOptions.Other && (
+                            <TranslatedAdvancedInput
+                                features={nameInputFeatures}
+                                isRequired={true}
+                                language={language}
+                                name="otherReason"
+                                title={t("ReasonCustom")}
+                                placeholder={"Incorrect information, outdated content..."}
+                            />
+                        )}
+                        <TranslatedAdvancedInput
+                            features={detailsInputFeatures}
+                            isRequired={false}
+                            language={language}
+                            name="details"
+                            title={t("Details")}
+                            placeholder={getDetailsPlaceholder(reasonField.value)}
+                        />
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                        />
+                    </Box>
+                </FormContainer>
+            </BaseForm>
+            <BottomActionsButtons
+                display={display}
+                errors={translationErrors}
+                hideButtons={disabled}
+                isCreate={isCreate}
+                loading={isLoading}
+                onCancel={handleCancel}
+                onSetSubmitting={props.setSubmitting}
+                onSubmit={onSubmit}
+            />
+        </>
     );
 }
 
@@ -221,29 +254,33 @@ export function ReportUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Report, ReportShape>({
-        ...endpointsReport.findOne,
+        ...reportFormConfig.endpoints.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         objectType: "Report",
-        transform: (existing) => reportInitialValues(session, existing, createdFor),
+        transform: (existing) => reportFormConfig.transformations.getInitialValues(session.session, existing, createdFor),
     });
 
-    async function validateValues(values: ReportShape) {
-        if (!existing) return;
-        return await validateFormValues(values, { ...existing, createdFor }, isCreate, transformReportValues, reportValidation);
-    }
+    // Ensure we always have valid initial values for new reports
+    const formValues = existing || reportFormConfig.transformations.getInitialValues(session.session, {}, createdFor);
+
+    // Simple validation for the wrapper Formik (the actual validation happens in useStandardUpsertForm)
+    const validateValues = useCallback(async (values: ReportShape) => {
+        // This is just a placeholder - the real validation happens in ReportForm via useStandardUpsertForm
+        return {};
+    }, []);
 
     return (
         <Formik
             enableReinitialize={true}
-            initialValues={existing}
+            initialValues={formValues}
             onSubmit={noopSubmit}
             validate={validateValues}
         >
             {(formik) => <ReportForm
                 disabled={!(isCreate || permissions.canUpdate)}
                 display={display}
-                existing={existing}
+                existing={formValues}
                 handleUpdate={setExisting}
                 isCreate={isCreate}
                 isReadLoading={isReadLoading}

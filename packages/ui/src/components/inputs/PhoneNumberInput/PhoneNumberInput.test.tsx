@@ -27,7 +27,7 @@ vi.mock("libphonenumber-js", () => ({
         if (number.startsWith("+") && number.length > 5) {
             return {
                 country: "US",
-                number: number,
+                number,
             };
         }
         throw new Error("NOT_A_NUMBER");
@@ -41,7 +41,7 @@ vi.mock("libphonenumber-js", () => ({
         }
         return {
             country: "US",
-            number: number,
+            number,
         };
     }),
     isValidPhoneNumber: vi.fn((number: string, country?: string) => {
@@ -106,7 +106,7 @@ describe("PhoneNumberInputBase", () => {
             await waitFor(() => {
                 const inputWrapper = screen.getByTestId("phone-number-input");
                 expect(inputWrapper).toBeDefined();
-                const input = inputWrapper.querySelector('input');
+                const input = inputWrapper.querySelector("input");
                 expect(input?.type).toBe("tel");
                 expect(input?.name).toBe("phone");
 
@@ -134,7 +134,7 @@ describe("PhoneNumberInputBase", () => {
 
             await waitFor(() => {
                 const inputWrapper = screen.getByTestId("phone-number-input");
-                const input = inputWrapper.querySelector('input');
+                const input = inputWrapper.querySelector("input");
                 expect(input?.getAttribute("aria-invalid")).toBe("true");
                 expect(screen.getByText("Invalid phone number")).toBeDefined();
             });
@@ -147,7 +147,7 @@ describe("PhoneNumberInputBase", () => {
 
             await waitFor(() => {
                 const inputWrapper = screen.getByTestId("phone-number-input");
-                const input = inputWrapper.querySelector('input') as HTMLInputElement;
+                const input = inputWrapper.querySelector("input") as HTMLInputElement;
                 // Check that the input element has the value attribute or defaultValue
                 expect(input?.value || input?.defaultValue || input?.getAttribute("value")).toBeTruthy();
             });
@@ -263,7 +263,7 @@ describe("PhoneNumberInputBase", () => {
             render(<PhoneNumberInputBase {...defaultProps} />);
 
             const inputWrapper = screen.getByTestId("phone-number-input");
-            const input = inputWrapper.querySelector('input') as HTMLInputElement;
+            const input = inputWrapper.querySelector("input") as HTMLInputElement;
 
             await act(async () => {
                 await user.click(input);
@@ -279,7 +279,7 @@ describe("PhoneNumberInputBase", () => {
 
             await waitFor(() => {
                 const inputWrapper = screen.getByTestId("phone-number-input");
-                const input = inputWrapper.querySelector('input') as HTMLInputElement;
+                const input = inputWrapper.querySelector("input") as HTMLInputElement;
                 expect(input?.type).toBe("tel");
                 expect(input?.name).toBe("phone");
             });
@@ -290,7 +290,7 @@ describe("PhoneNumberInputBase", () => {
             render(<PhoneNumberInputBase {...defaultProps} />);
 
             const inputWrapper = screen.getByTestId("phone-number-input");
-            const input = inputWrapper.querySelector('input') as HTMLInputElement;
+            const input = inputWrapper.querySelector("input") as HTMLInputElement;
 
             // Test that we can focus the input
             await act(async () => {
@@ -307,7 +307,7 @@ describe("PhoneNumberInputBase", () => {
 
             await waitFor(() => {
                 const inputWrapper = screen.getByTestId("phone-number-input");
-                const input = inputWrapper.querySelector('input') as HTMLInputElement;
+                const input = inputWrapper.querySelector("input") as HTMLInputElement;
                 // Input should be rendered with some form of value handling
                 expect(input).toBeDefined();
                 expect(input?.type).toBe("tel");
@@ -382,7 +382,7 @@ describe("PhoneNumberInputBase", () => {
 
             await waitFor(() => {
                 const inputWrapper = screen.getByTestId("phone-number-input");
-                const input = inputWrapper.querySelector('input') as HTMLInputElement;
+                const input = inputWrapper.querySelector("input") as HTMLInputElement;
                 expect(input?.name).toBe("phone");
                 expect(input?.type).toBe("tel");
                 
@@ -409,10 +409,10 @@ describe("PhoneNumberInputBase", () => {
 
             await waitFor(() => {
                 const inputWrapper = screen.getByTestId("phone-number-input");
-                const input = inputWrapper.querySelector('input') as HTMLInputElement;
+                const input = inputWrapper.querySelector("input") as HTMLInputElement;
                 expect(input).toBeDefined();
                 // MUI components may render autofocus differently
-                expect(input?.autofocus !== undefined || input?.hasAttribute('autofocus')).toBeTruthy();
+                expect(input?.autofocus !== undefined || input?.hasAttribute("autofocus")).toBeTruthy();
             });
         });
 
@@ -423,9 +423,9 @@ describe("PhoneNumberInputBase", () => {
 
             await waitFor(() => {
                 const inputWrapper = screen.getByTestId("phone-number-input");
-                const input = inputWrapper.querySelector('input') as HTMLInputElement;
+                const input = inputWrapper.querySelector("input") as HTMLInputElement;
                 expect(input).toBeDefined();
-                expect(input?.getAttribute('autocomplete')).toBe("tel-national");
+                expect(input?.getAttribute("autocomplete")).toBe("tel-national");
             });
         });
     });
@@ -473,7 +473,7 @@ describe("PhoneNumberInputBase", () => {
                 rerender(<PhoneNumberInputBase {...defaultProps} helperText={{ complex: "object" }} />);
             });
             await waitFor(() => {
-                expect(screen.getByText('{"complex":"object"}')).toBeDefined();
+                expect(screen.getByText("{\"complex\":\"object\"}")).toBeDefined();
             });
         });
     });
@@ -500,7 +500,7 @@ describe("PhoneNumberInput (Formik integration)", () => {
 
             await waitFor(() => {
                 const inputWrapper = screen.getByTestId("phone-number-input");
-                const input = inputWrapper.querySelector('input') as HTMLInputElement;
+                const input = inputWrapper.querySelector("input") as HTMLInputElement;
                 // Check that the input exists and can be used
                 expect(input).toBeDefined();
                 expect(input?.type).toBe("tel");
@@ -512,7 +512,7 @@ describe("PhoneNumberInput (Formik integration)", () => {
             render(<TestForm />);
 
             const inputWrapper = screen.getByTestId("phone-number-input");
-            const input = inputWrapper.querySelector('input') as HTMLInputElement;
+            const input = inputWrapper.querySelector("input") as HTMLInputElement;
 
             await act(async () => {
                 await user.click(input);
@@ -545,7 +545,7 @@ describe("PhoneNumberInput (Formik integration)", () => {
             render(<TestFormWithValidation />);
 
             const inputWrapper = screen.getByTestId("phone-number-input");
-            const input = inputWrapper.querySelector('input') as HTMLInputElement;
+            const input = inputWrapper.querySelector("input") as HTMLInputElement;
 
             // Trigger validation by touching and blurring
             await act(async () => {
@@ -572,7 +572,7 @@ describe("PhoneNumberInput (Formik integration)", () => {
             render(<TestFormWithOnChange />);
 
             const inputWrapper = screen.getByTestId("phone-number-input");
-            const input = inputWrapper.querySelector('input') as HTMLInputElement;
+            const input = inputWrapper.querySelector("input") as HTMLInputElement;
 
             await act(async () => {
                 await user.click(input);
@@ -608,7 +608,7 @@ describe("PhoneNumberInput (Formik integration)", () => {
             render(<TestForm />);
 
             const inputWrapper = screen.getByTestId("phone-number-input");
-            const input = inputWrapper.querySelector('input') as HTMLInputElement;
+            const input = inputWrapper.querySelector("input") as HTMLInputElement;
 
             // Type an invalid number
             await act(async () => {
@@ -628,7 +628,7 @@ describe("PhoneNumberInput (Formik integration)", () => {
             render(<TestForm />);
 
             const inputWrapper = screen.getByTestId("phone-number-input");
-            const input = inputWrapper.querySelector('input') as HTMLInputElement;
+            const input = inputWrapper.querySelector("input") as HTMLInputElement;
 
             // First type invalid number
             await act(async () => {
@@ -739,7 +739,7 @@ describe("PhoneNumberInput edge cases", () => {
             render(<PhoneNumberInputBase name="phone" value="" onChange={vi.fn()} setError={vi.fn()} />);
 
             const inputWrapper = screen.getByTestId("phone-number-input");
-            const input = inputWrapper.querySelector('input') as HTMLInputElement;
+            const input = inputWrapper.querySelector("input") as HTMLInputElement;
 
             await act(async () => {
                 await user.type(input, longValue);

@@ -4,12 +4,12 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import * as yup from "yup";
 import { renderWithFormik, formInteractions, formAssertions } from "../../__test/helpers/formTestHelpers";
-import { Radio, PrimaryRadio, SecondaryRadio, DangerRadio, CustomRadio } from "./Radio.js";
+import { Radio, RadioBase, RadioFactory, RadioFactoryBase, PrimaryRadio, SecondaryRadio, DangerRadio, CustomRadio } from "./Radio.js";
 
-describe("Radio", () => {
+describe("RadioBase", () => {
     describe("Basic rendering", () => {
         it("renders as an unchecked radio by default", () => {
-            render(<Radio name="test-radio" />);
+            render(<RadioBase name="test-radio" />);
 
             const radioInput = screen.getByTestId("radio-input");
             expect(radioInput).toBeDefined();
@@ -19,7 +19,7 @@ describe("Radio", () => {
         });
 
         it("renders with required prop", () => {
-            render(<Radio name="test-radio" required />);
+            render(<RadioBase name="test-radio" required />);
 
             const radioInput = screen.getByTestId("radio-input");
             expect(radioInput.getAttribute("required")).toBe("");
@@ -27,7 +27,7 @@ describe("Radio", () => {
 
         it("renders with aria attributes", () => {
             render(
-                <Radio 
+                <RadioBase 
                     name="test-radio"
                     aria-label="Test radio"
                     aria-labelledby="label-id"
@@ -44,17 +44,17 @@ describe("Radio", () => {
 
     describe("Controlled vs Uncontrolled", () => {
         it("works as controlled component with checked prop", () => {
-            const { rerender } = render(<Radio name="test-radio" checked={false} onChange={vi.fn()} />);
+            const { rerender } = render(<RadioBase name="test-radio" checked={false} onChange={vi.fn()} />);
 
             const radioInput = screen.getByTestId("radio-input") as HTMLInputElement;
             expect(radioInput.checked).toBe(false);
 
-            rerender(<Radio name="test-radio" checked={true} onChange={vi.fn()} />);
+            rerender(<RadioBase name="test-radio" checked={true} onChange={vi.fn()} />);
             expect(radioInput.checked).toBe(true);
         });
 
         it("works as uncontrolled component with defaultChecked", () => {
-            render(<Radio name="test-radio" defaultChecked={true} />);
+            render(<RadioBase name="test-radio" defaultChecked={true} />);
 
             const radioInput = screen.getByTestId("radio-input") as HTMLInputElement;
             expect(radioInput.checked).toBe(true);
@@ -67,7 +67,7 @@ describe("Radio", () => {
             const onClick = vi.fn();
             const user = userEvent.setup();
 
-            render(<Radio name="test-radio" onChange={onChange} onClick={onClick} />);
+            render(<RadioBase name="test-radio" onChange={onChange} onClick={onClick} />);
 
             const radioInput = screen.getByTestId("radio-input");
 
@@ -82,7 +82,7 @@ describe("Radio", () => {
         it("handles click on visual wrapper for ripple effect", async () => {
             const user = userEvent.setup();
 
-            render(<Radio name="test-radio" />);
+            render(<RadioBase name="test-radio" />);
 
             const radioWrapper = screen.getByTestId("radio-wrapper");
 
@@ -100,7 +100,7 @@ describe("Radio", () => {
             const onClick = vi.fn();
             const user = userEvent.setup();
 
-            render(<Radio name="test-radio" disabled onChange={onChange} onClick={onClick} />);
+            render(<RadioBase name="test-radio" disabled onChange={onChange} onClick={onClick} />);
 
             const radioInput = screen.getByTestId("radio-input");
             const radioLabel = screen.getByTestId("radio-label");
@@ -119,7 +119,7 @@ describe("Radio", () => {
             const onBlur = vi.fn();
             const user = userEvent.setup();
 
-            render(<Radio name="test-radio" onFocus={onFocus} onBlur={onBlur} />);
+            render(<RadioBase name="test-radio" onFocus={onFocus} onBlur={onBlur} />);
 
             const radioInput = screen.getByTestId("radio-input");
 
@@ -144,9 +144,9 @@ describe("Radio", () => {
 
             render(
                 <>
-                    <Radio name="group" value="option1" onChange={onChange} />
-                    <Radio name="group" value="option2" onChange={onChange} />
-                    <Radio name="group" value="option3" onChange={onChange} />
+                    <RadioBase name="group" value="option1" onChange={onChange} />
+                    <RadioBase name="group" value="option2" onChange={onChange} />
+                    <RadioBase name="group" value="option3" onChange={onChange} />
                 </>,
             );
 
@@ -170,7 +170,7 @@ describe("Radio", () => {
         });
 
         it("assigns proper name and value attributes", () => {
-            render(<Radio name="test-group" value="test-value" />);
+            render(<RadioBase name="test-group" value="test-value" />);
 
             const radioInput = screen.getByTestId("radio-input");
             expect(radioInput.getAttribute("name")).toBe("test-group");
@@ -180,41 +180,41 @@ describe("Radio", () => {
 
     describe("Visual states", () => {
         it("updates data attributes based on state", () => {
-            const { rerender } = render(<Radio name="test-radio" checked={false} onChange={vi.fn()} />);
+            const { rerender } = render(<RadioBase name="test-radio" checked={false} onChange={vi.fn()} />);
 
             const radioLabel = screen.getByTestId("radio-label");
             expect(radioLabel.getAttribute("data-checked")).toBe("false");
 
-            rerender(<Radio name="test-radio" checked={true} onChange={vi.fn()} />);
+            rerender(<RadioBase name="test-radio" checked={true} onChange={vi.fn()} />);
             expect(radioLabel.getAttribute("data-checked")).toBe("true");
         });
 
         it("renders with different sizes", () => {
-            const { rerender } = render(<Radio name="test-radio" size="sm" />);
+            const { rerender } = render(<RadioBase name="test-radio" size="sm" />);
 
             let radioLabel = screen.getByTestId("radio-label");
             expect(radioLabel).toBeDefined();
 
-            rerender(<Radio name="test-radio" size="md" />);
+            rerender(<RadioBase name="test-radio" size="md" />);
             radioLabel = screen.getByTestId("radio-label");
             expect(radioLabel).toBeDefined();
 
-            rerender(<Radio name="test-radio" size="lg" />);
+            rerender(<RadioBase name="test-radio" size="lg" />);
             radioLabel = screen.getByTestId("radio-label");
             expect(radioLabel).toBeDefined();
         });
 
         it("renders with different color variants", () => {
-            const { rerender } = render(<Radio name="test-radio" color="primary" />);
+            const { rerender } = render(<RadioBase name="test-radio" color="primary" />);
 
             let radioLabel = screen.getByTestId("radio-label");
             expect(radioLabel).toBeDefined();
 
-            rerender(<Radio name="test-radio" color="secondary" />);
+            rerender(<RadioBase name="test-radio" color="secondary" />);
             radioLabel = screen.getByTestId("radio-label");
             expect(radioLabel).toBeDefined();
 
-            rerender(<Radio name="test-radio" color="danger" />);
+            rerender(<RadioBase name="test-radio" color="danger" />);
             radioLabel = screen.getByTestId("radio-label");
             expect(radioLabel).toBeDefined();
         });
@@ -222,7 +222,7 @@ describe("Radio", () => {
 
     describe("Custom color functionality", () => {
         it("applies custom color styles when color is custom", () => {
-            render(<Radio name="test-radio" color="custom" customColor="#ff0000" />);
+            render(<RadioBase name="test-radio" color="custom" customColor="#ff0000" />);
 
             const radioOuter = screen.getByTestId("radio-outer");
             const radioInner = screen.getByTestId("radio-inner");
@@ -234,7 +234,7 @@ describe("Radio", () => {
         it("handles hover state for custom colors", async () => {
             const user = userEvent.setup();
 
-            render(<Radio name="test-radio" color="custom" customColor="#ff0000" />);
+            render(<RadioBase name="test-radio" color="custom" customColor="#ff0000" />);
 
             const radioWrapper = screen.getByTestId("radio-wrapper");
 
@@ -255,7 +255,7 @@ describe("Radio", () => {
         it("does not apply hover effects when disabled", async () => {
             const user = userEvent.setup();
 
-            render(<Radio name="test-radio" color="custom" customColor="#ff0000" disabled />);
+            render(<RadioBase name="test-radio" color="custom" customColor="#ff0000" disabled />);
 
             const radioWrapper = screen.getByTestId("radio-wrapper");
 
@@ -299,7 +299,7 @@ describe("Radio", () => {
 
     describe("Accessibility", () => {
         it("maintains proper ARIA roles", () => {
-            render(<Radio name="test-radio" />);
+            render(<RadioBase name="test-radio" />);
 
             const radioInput = screen.getByTestId("radio-input");
             expect(radioInput.getAttribute("type")).toBe("radio");
@@ -311,7 +311,7 @@ describe("Radio", () => {
             render(
                 <>
                     <input type="text" data-testid="before" />
-                    <Radio name="test-radio" />
+                    <RadioBase name="test-radio" />
                     <input type="text" data-testid="after" />
                 </>,
             );
@@ -340,9 +340,9 @@ describe("Radio", () => {
 
             render(
                 <>
-                    <Radio name="group" value="1" defaultChecked />
-                    <Radio name="group" value="2" />
-                    <Radio name="group" value="3" />
+                    <RadioBase name="group" value="1" defaultChecked />
+                    <RadioBase name="group" value="2" />
+                    <RadioBase name="group" value="3" />
                 </>,
             );
 
@@ -378,7 +378,7 @@ describe("Radio", () => {
             const onChange = vi.fn();
             const user = userEvent.setup();
 
-            render(<Radio name="test-radio" onChange={onChange} />);
+            render(<RadioBase name="test-radio" onChange={onChange} />);
 
             const radioInput = screen.getByTestId("radio-input");
 
@@ -393,7 +393,7 @@ describe("Radio", () => {
         it("cleans up ripple effects after animation", async () => {
             const user = userEvent.setup();
 
-            render(<Radio name="test-radio" />);
+            render(<RadioBase name="test-radio" />);
 
             const radioWrapper = screen.getByTestId("radio-wrapper");
 
@@ -416,7 +416,7 @@ describe("Radio", () => {
         });
 
         it("handles missing props gracefully", () => {
-            render(<Radio />);
+            render(<RadioBase />);
 
             const radioInput = screen.getByTestId("radio-input");
             expect(radioInput.getAttribute("name")).toBeNull();
@@ -426,7 +426,7 @@ describe("Radio", () => {
         it("forwards refs correctly", () => {
             const ref = React.createRef<HTMLInputElement>();
             
-            render(<Radio name="test-radio" ref={ref} />);
+            render(<RadioBase name="test-radio" ref={ref} />);
 
             expect(ref.current).toBeDefined();
             expect(ref.current?.type).toBe("radio");
@@ -434,7 +434,7 @@ describe("Radio", () => {
 
         it("spreads additional props to input element", () => {
             render(
-                <Radio 
+                <RadioBase 
                     name="test-radio" 
                     data-custom="custom-value"
                     id="custom-id"
@@ -451,13 +451,13 @@ describe("Radio", () => {
         it("works as a controlled component within Formik", async () => {
             const { user, getFormValues } = renderWithFormik(
                 <>
-                    <Radio name="choice" value="option1" />
-                    <Radio name="choice" value="option2" />
-                    <Radio name="choice" value="option3" />
+                    <RadioBase name="choice" value="option1" />
+                    <RadioBase name="choice" value="option2" />
+                    <RadioBase name="choice" value="option3" />
                 </>,
                 {
                     initialValues: { choice: "" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
@@ -479,14 +479,14 @@ describe("Radio", () => {
         it("submits selected radio value correctly", async () => {
             const { user, onSubmit, submitForm } = renderWithFormik(
                 <>
-                    <Radio name="plan" value="basic" />
-                    <Radio name="plan" value="premium" />
-                    <Radio name="plan" value="enterprise" />
+                    <RadioBase name="plan" value="basic" />
+                    <RadioBase name="plan" value="premium" />
+                    <RadioBase name="plan" value="enterprise" />
                     <button type="submit">Submit</button>
                 </>,
                 {
                     initialValues: { plan: "" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input");
@@ -508,14 +508,14 @@ describe("Radio", () => {
 
             const { user, onSubmit } = renderWithFormik(
                 <>
-                    <Radio name="agreement" value="yes" />
-                    <Radio name="agreement" value="no" />
+                    <RadioBase name="agreement" value="yes" />
+                    <RadioBase name="agreement" value="no" />
                     <button type="submit">Submit</button>
                 </>,
                 {
                     initialValues: { agreement: "" },
                     formikConfig: { validationSchema },
-                }
+                },
             );
 
             const submitButton = screen.getByRole("button", { name: /submit/i });
@@ -531,13 +531,13 @@ describe("Radio", () => {
         it("respects initial values in radio groups", () => {
             const { getFormValues } = renderWithFormik(
                 <>
-                    <Radio name="size" value="small" />
-                    <Radio name="size" value="medium" />
-                    <Radio name="size" value="large" />
+                    <RadioBase name="size" value="small" />
+                    <RadioBase name="size" value="medium" />
+                    <RadioBase name="size" value="large" />
                 </>,
                 {
                     initialValues: { size: "medium" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
@@ -551,13 +551,13 @@ describe("Radio", () => {
         it("resets to initial value on form reset", async () => {
             const { user, resetForm } = renderWithFormik(
                 <>
-                    <Radio name="frequency" value="daily" />
-                    <Radio name="frequency" value="weekly" />
-                    <Radio name="frequency" value="monthly" />
+                    <RadioBase name="frequency" value="daily" />
+                    <RadioBase name="frequency" value="weekly" />
+                    <RadioBase name="frequency" value="monthly" />
                 </>,
                 {
                     initialValues: { frequency: "weekly" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
@@ -582,20 +582,20 @@ describe("Radio", () => {
                 <>
                     <fieldset>
                         <legend>Color</legend>
-                        <Radio name="color" value="red" />
-                        <Radio name="color" value="blue" />
-                        <Radio name="color" value="green" />
+                        <RadioBase name="color" value="red" />
+                        <RadioBase name="color" value="blue" />
+                        <RadioBase name="color" value="green" />
                     </fieldset>
                     <fieldset>
                         <legend>Size</legend>
-                        <Radio name="size" value="s" />
-                        <Radio name="size" value="m" />
-                        <Radio name="size" value="l" />
+                        <RadioBase name="size" value="s" />
+                        <RadioBase name="size" value="m" />
+                        <RadioBase name="size" value="l" />
                     </fieldset>
                 </>,
                 {
                     initialValues: { color: "", size: "" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input");
@@ -621,12 +621,12 @@ describe("Radio", () => {
         it("updates field touched state on blur", async () => {
             const { user, isFieldTouched } = renderWithFormik(
                 <>
-                    <Radio name="preference" value="email" />
-                    <Radio name="preference" value="phone" />
+                    <RadioBase name="preference" value="email" />
+                    <RadioBase name="preference" value="phone" />
                 </>,
                 {
                     initialValues: { preference: "" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input");
@@ -644,13 +644,13 @@ describe("Radio", () => {
         it("preserves disabled state in Formik context", async () => {
             const { user } = renderWithFormik(
                 <>
-                    <Radio name="status" value="active" />
-                    <Radio name="status" value="inactive" disabled />
-                    <Radio name="status" value="pending" />
+                    <RadioBase name="status" value="active" />
+                    <RadioBase name="status" value="inactive" disabled />
+                    <RadioBase name="status" value="pending" />
                 </>,
                 {
                     initialValues: { status: "inactive" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
@@ -676,7 +676,7 @@ describe("Radio", () => {
                 </>,
                 {
                     initialValues: { theme: "" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input");
@@ -692,13 +692,13 @@ describe("Radio", () => {
         it("handles programmatic value changes", async () => {
             const { setFieldValue, getFormValues } = renderWithFormik(
                 <>
-                    <Radio name="priority" value="low" />
-                    <Radio name="priority" value="medium" />
-                    <Radio name="priority" value="high" />
+                    <RadioBase name="priority" value="low" />
+                    <RadioBase name="priority" value="medium" />
+                    <RadioBase name="priority" value="high" />
                 </>,
                 {
                     initialValues: { priority: "low" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
@@ -721,14 +721,14 @@ describe("Radio", () => {
 
             const { user, onSubmit } = renderWithFormik(
                 <>
-                    <Radio name="consent" value="yes" />
-                    <Radio name="consent" value="no" />
+                    <RadioBase name="consent" value="yes" />
+                    <RadioBase name="consent" value="no" />
                     <button type="submit">Submit</button>
                 </>,
                 {
                     initialValues: { consent: "" },
                     formikConfig: { validationSchema },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input");
@@ -755,15 +755,15 @@ describe("Radio", () => {
         it("maintains proper keyboard navigation within Formik", async () => {
             const { user, getFormValues } = renderWithFormik(
                 <>
-                    <Radio name="rating" value="1" />
-                    <Radio name="rating" value="2" />
-                    <Radio name="rating" value="3" />
-                    <Radio name="rating" value="4" />
-                    <Radio name="rating" value="5" />
+                    <RadioBase name="rating" value="1" />
+                    <RadioBase name="rating" value="2" />
+                    <RadioBase name="rating" value="3" />
+                    <RadioBase name="rating" value="4" />
+                    <RadioBase name="rating" value="5" />
                 </>,
                 {
                     initialValues: { rating: "3" },
-                }
+                },
             );
 
             const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
@@ -784,6 +784,107 @@ describe("Radio", () => {
 
             expect(document.activeElement).toBe(radios[1]);
             expect(getFormValues().rating).toBe("2");
+        });
+    });
+});
+
+describe("Radio (Formik Integration)", () => {
+    describe("Formik integration", () => {
+        it("works as a controlled component within Formik", async () => {
+            const { user, getFormValues } = renderWithFormik(
+                <>
+                    <Radio name="choice" value="option1" label="Option 1" />
+                    <Radio name="choice" value="option2" label="Option 2" />
+                    <Radio name="choice" value="option3" label="Option 3" />
+                </>,
+                {
+                    initialValues: { choice: "" },
+                },
+            );
+
+            const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
+            
+            expect(radios[0].checked).toBe(false);
+            expect(radios[1].checked).toBe(false);
+            expect(radios[2].checked).toBe(false);
+
+            await act(async () => {
+                await user.click(radios[1]);
+            });
+
+            expect(radios[0].checked).toBe(false);
+            expect(radios[1].checked).toBe(true);
+            expect(radios[2].checked).toBe(false);
+            expect(getFormValues().choice).toBe("option2");
+        });
+
+        it("respects initial values", () => {
+            const { getFormValues } = renderWithFormik(
+                <>
+                    <Radio name="size" value="small" label="Small" />
+                    <Radio name="size" value="medium" label="Medium" />
+                    <Radio name="size" value="large" label="Large" />
+                </>,
+                {
+                    initialValues: { size: "medium" },
+                },
+            );
+
+            const radios = screen.getAllByTestId("radio-input") as HTMLInputElement[];
+            
+            expect(radios[0].checked).toBe(false);
+            expect(radios[1].checked).toBe(true);
+            expect(radios[2].checked).toBe(false);
+            expect(getFormValues().size).toBe("medium");
+        });
+
+        it("shows validation errors", async () => {
+            const validationSchema = yup.object({
+                agreement: yup.string()
+                    .required("Please select an option"),
+            });
+
+            const { user, onSubmit } = renderWithFormik(
+                <>
+                    <Radio name="agreement" value="yes" label="Yes" />
+                    <Radio name="agreement" value="no" label="No" />
+                    <button type="submit">Submit</button>
+                </>,
+                {
+                    initialValues: { agreement: "" },
+                    formikConfig: { validationSchema },
+                },
+            );
+
+            const submitButton = screen.getByRole("button", { name: /submit/i });
+
+            await act(async () => {
+                await user.click(submitButton);
+            });
+
+            expect(onSubmit).not.toHaveBeenCalled();
+            formAssertions.expectFieldError("Please select an option");
+        });
+
+        it("uses factory components", async () => {
+            const { user, getFormValues } = renderWithFormik(
+                <>
+                    <RadioFactory.Primary name="theme" value="light" label="Light" />
+                    <RadioFactory.Secondary name="theme" value="dark" label="Dark" />
+                    <RadioFactory.Danger name="theme" value="danger" label="Danger" />
+                </>,
+                {
+                    initialValues: { theme: "" },
+                },
+            );
+
+            const radios = screen.getAllByTestId("radio-input");
+
+            await act(async () => {
+                await user.click(radios[2]);
+            });
+
+            expect(getFormValues().theme).toBe("danger");
         });
     });
 });

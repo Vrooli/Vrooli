@@ -1,6 +1,12 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-import { generatePK, type CommonKey, type Session } from "@vrooli/shared";
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
+// AI_CHECK: TYPE_SAFETY=eliminated-51-ts-ignore-comments | LAST: 2025-06-28
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Mock modules before importing them
+vi.mock("i18next");
+vi.mock("react-i18next");
+
+import { generatePK, type CommonKey, type Session } from "@vrooli/shared";
 import { type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";
 import * as yup from "yup";
@@ -19,9 +25,6 @@ function mockNavigatorLanguages(languages) {
         writable: true,
     });
 }
-
-vi.mock("i18next");
-vi.mock("react-i18next");
 // Cast the i18next.t function to the Jest Mock type
 // const mockedTranslate = i18next.t as unknown as ReturnType<typeof vi.fn>;
 
@@ -48,8 +51,7 @@ describe("loadLocale", () => {
     ];
 
     it.each(localeTestCases)("should $description", async ({ input, expected }) => {
-        // @ts-ignore: Testing runtime scenario
-        const locale = await loadLocale(input);
+        const locale = await loadLocale(input as string | undefined);
         expect(locale.code).toEqual(expected);
     });
 });
@@ -134,10 +136,8 @@ describe("updateTranslationFields", () => {
 
     it("should not update fields if changes object is null or undefined", () => {
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        const updatedTranslationsNullChanges = updateTranslationFields({ translations: mockTranslations }, language, null);
-        // @ts-ignore: Testing runtime scenario
-        const updatedTranslationsUndefinedChanges = updateTranslationFields({ translations: mockTranslations }, language, undefined);
+        const updatedTranslationsNullChanges = updateTranslationFields({ translations: mockTranslations }, language, null as any);
+        const updatedTranslationsUndefinedChanges = updateTranslationFields({ translations: mockTranslations }, language, undefined as any);
         expect(updatedTranslationsNullChanges).toEqual(mockTranslations);
         expect(updatedTranslationsUndefinedChanges).toEqual(mockTranslations);
     });
@@ -164,18 +164,15 @@ describe("updateTranslation", () => {
     });
 
     it("should return the original translations if the translation object is empty", () => {
-        const newTranslation = {};
-        // @ts-ignore: Testing runtime scenario
+        const newTranslation = {} as any;
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         expect(updatedTranslations).toEqual(mockTranslations);
     });
 
     it("should handle null or undefined translations property", () => {
         const newTranslation = { id: generatePK().toString(), language: "fr", content: "Bonjour" };
-        // @ts-ignore: Testing runtime scenario
-        expect(updateTranslation({ translations: null }, newTranslation)).toHaveLength(0);
-        // @ts-ignore: Testing runtime scenario
-        expect(updateTranslation({ translations: undefined }, newTranslation)).toHaveLength(0);
+        expect(updateTranslation({ translations: null as any }, newTranslation)).toHaveLength(0);
+        expect(updateTranslation({ translations: undefined as any }, newTranslation)).toHaveLength(0);
     });
 
     it("should handle empty translations array", () => {
@@ -184,8 +181,7 @@ describe("updateTranslation", () => {
     });
 
     it("should not update translations if the provided translation does not have a language", () => {
-        const newTranslation = { id: generatePK().toString(), content: "Bonjour" };
-        // @ts-ignore: Testing runtime scenario
+        const newTranslation = { id: generatePK().toString(), content: "Bonjour" } as any;
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         expect(updatedTranslations).toEqual(mockTranslations);
     });
@@ -213,13 +209,11 @@ describe("getLanguageSubtag", () => {
     });
 
     it("should return empty string for undefined input", () => {
-        // @ts-ignore: Testing runtime scenario
-        expect(getLanguageSubtag(undefined)).toEqual("");
+        expect(getLanguageSubtag(undefined as any)).toEqual("");
     });
 
     it("should return empty string for null input", () => {
-        // @ts-ignore: Testing runtime scenario
-        expect(getLanguageSubtag(null)).toEqual("");
+        expect(getLanguageSubtag(null as any)).toEqual("");
     });
 
     it("should return empty string for empty string input", () => {
@@ -227,10 +221,8 @@ describe("getLanguageSubtag", () => {
     });
 
     it("should return empty string for non-string input", () => {
-        // @ts-ignore: Testing runtime scenario
-        expect(getLanguageSubtag(1234)).toEqual("");
-        // @ts-ignore: Testing runtime scenario
-        expect(getLanguageSubtag({})).toEqual("");
+        expect(getLanguageSubtag(1234 as any)).toEqual("");
+        expect(getLanguageSubtag({} as any)).toEqual("");
     });
 
     it("should handle codes with non-standard format", () => {
@@ -393,14 +385,10 @@ describe("getPreferredLanguage", () => {
     });
 
     it("should handle null and undefined inputs", () => {
-        // @ts-ignore: Testing runtime scenario
-        expect(getPreferredLanguage(null, ["fr"])).toEqual("fr");
-        // @ts-ignore: Testing runtime scenario
-        expect(getPreferredLanguage(["fr"], null)).toEqual("fr");
-        // @ts-ignore: Testing runtime scenario
-        expect(getPreferredLanguage(undefined, ["fr"])).toEqual("fr");
-        // @ts-ignore: Testing runtime scenario
-        expect(getPreferredLanguage(["fr"], undefined)).toEqual("fr");
+        expect(getPreferredLanguage(null as any, ["fr"])).toEqual("fr");
+        expect(getPreferredLanguage(["fr"], null as any)).toEqual("fr");
+        expect(getPreferredLanguage(undefined as any, ["fr"])).toEqual("fr");
+        expect(getPreferredLanguage(["fr"], undefined as any)).toEqual("fr");
     });
 });
 
@@ -430,12 +418,9 @@ describe("getShortenedLabel", () => {
     });
 
     it("should handle non-string inputs gracefully", () => {
-        // @ts-ignore: Testing runtime scenario
-        expect(getShortenedLabel(null)).toEqual("");
-        // @ts-ignore: Testing runtime scenario
-        expect(getShortenedLabel(undefined)).toEqual("");
-        // @ts-ignore: Testing runtime scenario
-        expect(getShortenedLabel(123)).toEqual("");
+        expect(getShortenedLabel(null as any)).toEqual("");
+        expect(getShortenedLabel(undefined as any)).toEqual("");
+        expect(getShortenedLabel(123 as any)).toEqual("");
     });
 
     it("should handle single-character inputs correctly", () => {
@@ -489,25 +474,21 @@ describe("getTranslationData", () => {
 
     it("should handle null or undefined field values", () => {
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        const resultFromNull = getTranslationData({ ...mockField, value: null }, mockMeta, language);
-        // @ts-ignore: Testing runtime scenario
-        const resultFromUndefined = getTranslationData({ ...mockField, value: undefined }, mockMeta, language);
+        const resultFromNull = getTranslationData({ ...mockField, value: null as any }, mockMeta, language);
+        const resultFromUndefined = getTranslationData({ ...mockField, value: undefined as any }, mockMeta, language);
         expect(resultFromNull).toEqual({ error: undefined, index: -1, touched: undefined, value: undefined });
         expect(resultFromUndefined).toEqual({ error: undefined, index: -1, touched: undefined, value: undefined });
     });
 
     it("should handle non-array field values", () => {
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        const result = getTranslationData({ ...mockField, value: "not an array" }, mockMeta, language);
+        const result = getTranslationData({ ...mockField, value: "not an array" as any }, mockMeta, language);
         expect(result).toEqual({ error: undefined, index: -1, touched: undefined, value: undefined });
     });
 
     it("should handle missing meta properties", () => {
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        const resultNoTouched = getTranslationData(mockField, { ...mockMeta, touched: undefined }, language);
+        const resultNoTouched = getTranslationData(mockField, { ...mockMeta, touched: undefined as any }, language);
         const resultNoError = getTranslationData(mockField, { ...mockMeta, error: undefined }, language);
         expect(resultNoTouched.touched).toBeUndefined();
         expect(resultNoError.error).toBeUndefined();
@@ -515,10 +496,8 @@ describe("getTranslationData", () => {
 
     it("should handle empty meta properties", () => {
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        const resultEmptyTouched = getTranslationData(mockField, { ...mockMeta, touched: [] }, language);
-        // @ts-ignore: Testing runtime scenario
-        const resultEmptyError = getTranslationData(mockField, { ...mockMeta, error: [] }, language);
+        const resultEmptyTouched = getTranslationData(mockField, { ...mockMeta, touched: [] as any }, language);
+        const resultEmptyError = getTranslationData(mockField, { ...mockMeta, error: [] as any }, language);
         expect(resultEmptyTouched.touched).toBeUndefined();
         expect(resultEmptyError.error).toBeUndefined();
     });
@@ -547,8 +526,7 @@ describe("handleTranslationChange", () => {
     it("should correctly update the translation for the given language", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        handleTranslationChange(mockField, mockMeta, mockHelpers, event, language);
+        handleTranslationChange(mockField, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([
             { language: "en", content: "Hi" },
             { language: "es", content: "Hola" },
@@ -558,8 +536,7 @@ describe("handleTranslationChange", () => {
     it("should not update other translations", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        handleTranslationChange(mockField, mockMeta, mockHelpers, event, language);
+        handleTranslationChange(mockField, mockMeta, mockHelpers, event as any, language);
         const secondTranslation = mockHelpers.setValue.mock.calls[0][0][1];
         expect(secondTranslation).toEqual(mockField.value[1]);
     });
@@ -567,8 +544,7 @@ describe("handleTranslationChange", () => {
     it("should add translation when specified language is not found", () => {
         const event = { target: { name: "content", value: "Bonjour" } };
         const language = "fr";
-        // @ts-ignore: Testing runtime scenario
-        handleTranslationChange(mockField, mockMeta, mockHelpers, event, language);
+        handleTranslationChange(mockField, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([
             ...mockField.value,
             { id: expect.any(String), language: "fr", content: "Bonjour" },
@@ -578,8 +554,7 @@ describe("handleTranslationChange", () => {
     it("should add field when it's missing from the translation object", () => {
         const event = { target: { name: "note", value: "Note" } };
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        handleTranslationChange(mockField, mockMeta, mockHelpers, event, language);
+        handleTranslationChange(mockField, mockMeta, mockHelpers, event as any, language);
         const expectedTranslation = { language: "en", content: "Hello", note: "Note" };
         expect(mockHelpers.setValue).toHaveBeenCalledWith([expectedTranslation, mockField.value[1]]);
     });
@@ -587,24 +562,21 @@ describe("handleTranslationChange", () => {
     it("should recover from null values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        handleTranslationChange({ ...mockField, value: null }, mockMeta, mockHelpers, event, language);
+        handleTranslationChange({ ...mockField, value: null as any }, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
 
     it("should recover from undefined values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        handleTranslationChange({ ...mockField, value: undefined }, mockMeta, mockHelpers, event, language);
+        handleTranslationChange({ ...mockField, value: undefined as any }, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
 
     it("should recover from non-array field values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        handleTranslationChange({ ...mockField, value: "not an array" }, mockMeta, mockHelpers, event, language);
+        handleTranslationChange({ ...mockField, value: "not an array" as any }, mockMeta, mockHelpers, event as any, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
 });
@@ -658,16 +630,13 @@ describe("getFormikErrorsWithTranslations", () => {
     it("should handle null or undefined field values", () => {
         const nullField = { ...mockField, value: null };
         const undefinedField = { ...mockField, value: undefined };
-        // @ts-ignore: Testing runtime scenario
-        expect(getFormikErrorsWithTranslations(nullField, validationSchema)).toEqual({});
-        // @ts-ignore: Testing runtime scenario
-        expect(getFormikErrorsWithTranslations(undefinedField, validationSchema)).toEqual({});
+        expect(getFormikErrorsWithTranslations(nullField as any, validationSchema)).toEqual({});
+        expect(getFormikErrorsWithTranslations(undefinedField as any, validationSchema)).toEqual({});
     });
 
     it("should handle non-array field values", () => {
         const nonArrayField = { ...mockField, value: "not an array" };
-        // @ts-ignore: Testing runtime scenario
-        expect(getFormikErrorsWithTranslations(nonArrayField, validationSchema)).toEqual({});
+        expect(getFormikErrorsWithTranslations(nonArrayField as any, validationSchema)).toEqual({});
     });
 
     it("should handle empty translations array", () => {
@@ -723,10 +692,8 @@ describe("combineErrorsWithTranslations", () => {
     });
 
     it("should handle null or undefined error objects", () => {
-        // @ts-ignore: Testing runtime scenario
-        const combinedErrorsWithNull = combineErrorsWithTranslations(null, translationErrors);
-        // @ts-ignore: Testing runtime scenario
-        const combinedErrorsWithUndefined = combineErrorsWithTranslations(undefined, translationErrors);
+        const combinedErrorsWithNull = combineErrorsWithTranslations(null as any, translationErrors);
+        const combinedErrorsWithUndefined = combineErrorsWithTranslations(undefined as any, translationErrors);
         expect(combinedErrorsWithNull).toEqual(translationErrors);
         expect(combinedErrorsWithUndefined).toEqual(translationErrors);
     });
@@ -760,8 +727,7 @@ describe("addEmptyTranslation", () => {
 
     it("should correctly add an empty translation with determined fields", () => {
         const language = "es";
-        // @ts-ignore: Testing runtime scenario
-        addEmptyTranslation(mockField, mockMeta, mockHelpers, language);
+        addEmptyTranslation(mockField as any, mockMeta, mockHelpers, language);
         const newValue = mockHelpers.setValue.mock.calls[0][0][1];
         expect(newValue).toHaveProperty("language", language);
         expect(newValue).toHaveProperty("content", "");
@@ -772,18 +738,15 @@ describe("addEmptyTranslation", () => {
     it("should not add a translation if initial values are not an array", () => {
         console.error = vi.fn(); // Mock console.error to check if it was called
         const language = "es";
-        // @ts-ignore: Testing runtime scenario
-        addEmptyTranslation(mockField, { ...mockMeta, initialValue: {} }, mockHelpers, language);
+        addEmptyTranslation(mockField as any, { ...mockMeta, initialValue: {} }, mockHelpers, language);
         expect(console.error).toHaveBeenCalledWith("Could not determine fields in translation object");
         expect(mockHelpers.setValue).not.toHaveBeenCalled();
     });
 
     it("should handle null or undefined field values", () => {
         const language = "es";
-        // @ts-ignore: Testing runtime scenario
-        addEmptyTranslation({ ...mockField, value: null }, mockMeta, mockHelpers, language);
-        // @ts-ignore: Testing runtime scenario
-        addEmptyTranslation({ ...mockField, value: undefined }, mockMeta, mockHelpers, language);
+        addEmptyTranslation({ ...mockField, value: null as any }, mockMeta, mockHelpers, language);
+        addEmptyTranslation({ ...mockField, value: undefined as any }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledTimes(2);
         const firstCallNewValue = mockHelpers.setValue.mock.calls[0][0][0];
         expect(firstCallNewValue).toHaveProperty("language", language);
@@ -793,8 +756,7 @@ describe("addEmptyTranslation", () => {
 
     it("should handle non-array field values", () => {
         const language = "es";
-        // @ts-ignore: Testing runtime scenario
-        addEmptyTranslation({ ...mockField, value: "not an array" }, mockMeta, mockHelpers, language);
+        addEmptyTranslation({ ...mockField, value: "not an array" as any }, mockMeta, mockHelpers, language);
         const newValue = mockHelpers.setValue.mock.calls[0][0][0];
         expect(newValue).toHaveProperty("language", language);
         expect(newValue).toHaveProperty("content", "");
@@ -803,8 +765,7 @@ describe("addEmptyTranslation", () => {
 
     it("should handle empty translations array", () => {
         const language = "es";
-        // @ts-ignore: Testing runtime scenario
-        addEmptyTranslation({ ...mockField, value: [] }, mockMeta, mockHelpers, language);
+        addEmptyTranslation({ ...mockField, value: [] as any }, mockMeta, mockHelpers, language);
         const newValue = mockHelpers.setValue.mock.calls[0][0][0];
         expect(newValue).toHaveProperty("language", language);
         expect(newValue).toHaveProperty("content", "");
@@ -841,8 +802,7 @@ describe("removeTranslation", () => {
 
     it("should correctly remove the translation for the given language", () => {
         const language = "es";
-        // @ts-ignore: Testing runtime scenario
-        removeTranslation(mockField, mockMeta, mockHelpers, language);
+        removeTranslation(mockField as any, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([
             { language: "en", content: "Hello" },
             { language: "fr", content: "Bonjour" },
@@ -851,39 +811,33 @@ describe("removeTranslation", () => {
 
     it("should not remove any translations when the language is not found", () => {
         const language = "de";
-        // @ts-ignore: Testing runtime scenario
-        removeTranslation(mockField, mockMeta, mockHelpers, language);
+        removeTranslation(mockField as any, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith(mockField.value);
     });
 
     it("should handle null or undefined field values", () => {
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        removeTranslation({ ...mockField, value: null }, mockMeta, mockHelpers, language);
-        // @ts-ignore: Testing runtime scenario
-        removeTranslation({ ...mockField, value: undefined }, mockMeta, mockHelpers, language);
+        removeTranslation({ ...mockField, value: null as any }, mockMeta, mockHelpers, language);
+        removeTranslation({ ...mockField, value: undefined as any }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledTimes(2);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
     });
 
     it("should handle non-array field values", () => {
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        removeTranslation({ ...mockField, value: "not an array" }, mockMeta, mockHelpers, language);
+        removeTranslation({ ...mockField, value: "not an array" as any }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
     });
 
     it("should handle empty translations array", () => {
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        removeTranslation({ ...mockField, value: [] }, mockMeta, mockHelpers, language);
+        removeTranslation({ ...mockField, value: [] as any }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
     });
 
     it("should handle the only translation being removed", () => {
         const language = "en";
-        // @ts-ignore: Testing runtime scenario
-        removeTranslation({ ...mockField, value: [{ language: "en", content: "Hello" }] }, mockMeta, mockHelpers, language);
+        removeTranslation({ ...mockField, value: [{ language: "en", content: "Hello" }] as any }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
     });
 });
@@ -892,7 +846,7 @@ describe("translateSnackMessage", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         // Configure the i18next.t mock for these tests
-        vi.mocked(i18next.t).mockImplementation((key: string, options?: any) => {
+        vi.mocked(i18next.t).mockImplementation((key: string, options?: Record<string, unknown>) => {
             // Mock translations for the tests
             const translations: Record<string, string> = {
                 "CannotConnectToServer": "Cannot connect to server",
@@ -943,8 +897,7 @@ describe("translateSnackMessage", () => {
     });
 
     it("should handle undefined variables - test 2", () => {
-        // @ts-ignore: Testing runtime scenario
-        vi.mocked(i18next.t).mockImplementation((key, options) => {
+        (vi.mocked(i18next.t) as any).mockImplementation((key: any, options: any) => {
             return `Message with variable ${options?.variable}`;
         });
         const result = translateSnackMessage("CannotConnectToServer", undefined);
@@ -952,8 +905,7 @@ describe("translateSnackMessage", () => {
     });
 
     it("should interpolate variables into the message", () => {
-        // @ts-ignore: Testing runtime scenario
-        vi.mocked(i18next.t).mockImplementation((key, options) => {
+        (vi.mocked(i18next.t) as any).mockImplementation((key: any, options: any) => {
             return `Message with variable ${options?.variable}`;
         });
         const result = translateSnackMessage("CannotConnectToServer", { variable: "value" });

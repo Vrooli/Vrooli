@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-perf/jsx-no-new-object-as-prop, @typescript-eslint/no-empty-function, func-style */
+// AI_CHECK: TYPE_SAFETY=replaced-14-any-types-with-specific-mock-interfaces | LAST: 2025-06-28
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { InputType } from "@vrooli/shared";
@@ -13,7 +14,7 @@ vi.mock("react-i18next", () => ({
     useTranslation: () => ({
         t: (key: string, options?: object) => 
             options && typeof options === "object" && "count" in options 
-                ? `${key}_${(options as any).count}` 
+                ? `${key}_${(options as Record<string, unknown>).count}` 
                 : key,
     }),
 }));
@@ -36,87 +37,91 @@ Object.defineProperty(navigator, "clipboard", {
 });
 
 // Mock the sub-components
+interface MockFieldData {
+    fieldName: string;
+}
+
 vi.mock("./FormInputText", () => ({
-    FormInputText: ({ fieldData }: any) => (
+    FormInputText: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-text-input-${fieldData.fieldName}`}>Text Input</div>
     ),
 }));
 
 vi.mock("./FormInputCheckbox", () => ({
-    FormInputCheckbox: ({ fieldData }: any) => (
+    FormInputCheckbox: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-checkbox-input-${fieldData.fieldName}`}>Checkbox Input</div>
     ),
 }));
 
 vi.mock("./FormInputInteger", () => ({
-    FormInputInteger: ({ fieldData }: any) => (
+    FormInputInteger: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-integerinput-input-${fieldData.fieldName}`}>Integer Input</div>
     ),
 }));
 
 vi.mock("./FormInputSelector", () => ({
-    FormInputSelector: ({ fieldData }: any) => (
+    FormInputSelector: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-selector-input-${fieldData.fieldName}`}>Selector Input</div>
     ),
 }));
 
 vi.mock("./FormInputRadio", () => ({
-    FormInputRadio: ({ fieldData }: any) => (
+    FormInputRadio: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-radio-input-${fieldData.fieldName}`}>Radio Input</div>
     ),
 }));
 
 vi.mock("./FormInputSwitch", () => ({
-    FormInputSwitch: ({ fieldData }: any) => (
+    FormInputSwitch: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-switch-input-${fieldData.fieldName}`}>Switch Input</div>
     ),
 }));
 
 vi.mock("./FormInputSlider", () => ({
-    FormInputSlider: ({ fieldData }: any) => (
+    FormInputSlider: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-slider-input-${fieldData.fieldName}`}>Slider Input</div>
     ),
 }));
 
 vi.mock("./FormInputTagSelector", () => ({
-    FormInputTagSelector: ({ fieldData }: any) => (
+    FormInputTagSelector: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-tagselector-input-${fieldData.fieldName}`}>Tag Selector Input</div>
     ),
 }));
 
 vi.mock("./FormInputLanguage", () => ({
-    FormInputLanguage: ({ fieldData }: any) => (
+    FormInputLanguage: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-languageinput-input-${fieldData.fieldName}`}>Language Input</div>
     ),
 }));
 
 vi.mock("./FormInputLinkItem", () => ({
-    FormInputLinkItem: ({ fieldData }: any) => (
+    FormInputLinkItem: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-linkitem-input-${fieldData.fieldName}`}>Link Item Input</div>
     ),
 }));
 
 vi.mock("./FormInputLinkUrl", () => ({
-    FormInputLinkUrl: ({ fieldData }: any) => (
+    FormInputLinkUrl: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-linkurl-input-${fieldData.fieldName}`}>Link URL Input</div>
     ),
 }));
 
 vi.mock("./FormInputCode", () => ({
-    FormInputCode: ({ fieldData }: any) => (
+    FormInputCode: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-json-input-${fieldData.fieldName}`}>Code Input</div>
     ),
 }));
 
 vi.mock("./FormInputDropzone", () => ({
-    FormInputDropzone: ({ fieldData }: any) => (
+    FormInputDropzone: ({ fieldData }: { fieldData: MockFieldData }) => (
         <div data-testid={`mock-dropzone-input-${fieldData.fieldName}`}>Dropzone Input</div>
     ),
 }));
 
 // Mock HelpButton
 vi.mock("../../buttons/HelpButton", () => ({
-    HelpButton: ({ markdown }: any) => (
+    HelpButton: ({ markdown }: { markdown?: string }) => (
         <button aria-label="Help">Help{markdown ? " text" : ""}</button>
     ),
 }));

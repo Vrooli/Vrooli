@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 import { type FormikProps } from "formik";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
@@ -55,7 +56,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             expect(useDebounce).toHaveBeenCalledWith(expect.any(Function), 2000);
@@ -67,7 +68,7 @@ describe("useAutoSave", () => {
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
                     debounceMs: 5000,
-                })
+                }),
             );
 
             expect(useDebounce).toHaveBeenCalledWith(expect.any(Function), 5000);
@@ -80,7 +81,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 250);
@@ -95,7 +96,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             // Simulate value change
@@ -114,7 +115,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             act(() => {
@@ -133,7 +134,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             act(() => {
@@ -152,7 +153,7 @@ describe("useAutoSave", () => {
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
                     disabled: true,
-                })
+                }),
             );
 
             act(() => {
@@ -178,7 +179,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: nullFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             act(() => {
@@ -202,7 +203,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             // Get the maybeSave function that was passed to useDebounce
@@ -226,7 +227,7 @@ describe("useAutoSave", () => {
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
                     disabled: true,
-                })
+                }),
             );
 
             const maybeSaveFunction = useDebounce.mock.calls[0][0];
@@ -248,7 +249,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             const maybeSaveFunction = useDebounce.mock.calls[0][0];
@@ -271,7 +272,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             const maybeSaveFunction = useDebounce.mock.calls[0][0];
@@ -292,7 +293,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             act(() => {
@@ -314,7 +315,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             // Simulate saving current values
@@ -345,7 +346,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             // Simulate rapid changes
@@ -373,7 +374,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             expect(addEventListenerSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function));
@@ -386,7 +387,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             // Trigger a change and let interval update isDirtyRef
@@ -418,7 +419,7 @@ describe("useAutoSave", () => {
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
                     disabled: true,
-                })
+                }),
             );
 
             const beforeUnloadEvent = new Event("beforeunload") as any;
@@ -440,7 +441,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             unmount();
@@ -458,7 +459,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             act(() => {
@@ -478,7 +479,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             unmount();
@@ -494,7 +495,7 @@ describe("useAutoSave", () => {
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
                     disabled: true,
-                })
+                }),
             );
 
             unmount();
@@ -510,7 +511,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             unmount();
@@ -527,7 +528,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             unmount();
@@ -542,7 +543,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             // Set formik ref to null
@@ -566,7 +567,7 @@ describe("useAutoSave", () => {
                     }),
                 {
                     initialProps: { handleSave: mockHandleSave },
-                }
+                },
             );
 
             // Change the handleSave function
@@ -594,7 +595,7 @@ describe("useAutoSave", () => {
                 useAutoSave({
                     formikRef: mockFormikRef,
                     handleSave: mockHandleSave,
-                })
+                }),
             );
 
             act(() => {

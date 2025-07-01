@@ -63,7 +63,7 @@ describe("PopoverListItem", () => {
                     {...defaultProps}
                     type={FormStructureType.Header}
                     tag="h1"
-                />
+                />,
             );
 
             const listItem = screen.getByTestId("popover-list-item");
@@ -81,7 +81,7 @@ describe("PopoverListItem", () => {
                     {...defaultProps}
                     type={InputType.Text}
                     onAddInput={onAddInput}
-                />
+                />,
             );
 
             const listItem = screen.getByTestId("popover-list-item");
@@ -119,7 +119,7 @@ describe("PopoverListItem", () => {
                         {...defaultProps}
                         type={inputType}
                         onAddInput={onAddInput}
-                    />
+                    />,
                 );
 
                 const listItem = screen.getByTestId("popover-list-item");
@@ -146,7 +146,7 @@ describe("PopoverListItem", () => {
                     type={FormStructureType.Header}
                     tag="h1"
                     onAddHeader={onAddHeader}
-                />
+                />,
             );
 
             const listItem = screen.getByTestId("popover-list-item");
@@ -170,7 +170,7 @@ describe("PopoverListItem", () => {
                     {...defaultProps}
                     type={FormStructureType.Header}
                     tag={undefined}
-                />
+                />,
             );
 
             const listItem = screen.getByTestId("popover-list-item");
@@ -198,7 +198,7 @@ describe("PopoverListItem", () => {
                         type={FormStructureType.Header}
                         tag={tag}
                         onAddHeader={onAddHeader}
-                    />
+                    />,
                 );
 
                 const listItem = screen.getByTestId("popover-list-item");
@@ -224,7 +224,7 @@ describe("PopoverListItem", () => {
                     {...defaultProps}
                     type={FormStructureType.Divider}
                     onAddStructure={onAddStructure}
-                />
+                />,
             );
 
             const listItem = screen.getByTestId("popover-list-item");
@@ -257,7 +257,7 @@ describe("PopoverListItem", () => {
                         {...defaultProps}
                         type={type}
                         onAddStructure={onAddStructure}
-                    />
+                    />,
                 );
 
                 const listItem = screen.getByTestId("popover-list-item");
@@ -295,7 +295,7 @@ describe("PopoverListItem", () => {
                     {...defaultProps}
                     type={InputType.Text}
                     onAddInput={onAddInput}
-                />
+                />,
             );
 
             const listItem = screen.getByTestId("popover-list-item");
@@ -323,7 +323,7 @@ describe("PopoverListItem", () => {
                     {...defaultProps}
                     type={InputType.Text}
                     onAddInput={onAddInput}
-                />
+                />,
             );
 
             const listItem = screen.getByTestId("popover-list-item");
@@ -353,7 +353,7 @@ describe("PopoverListItem", () => {
                     {...defaultProps}
                     type={InputType.Text}
                     onAddInput={onAddInput}
-                />
+                />,
             );
 
             const listItem = screen.getByTestId("popover-list-item");
@@ -375,7 +375,7 @@ describe("PopoverListItem", () => {
                 <PopoverListItem
                     {...defaultProps}
                     onAddInput={initialOnAddInput}
-                />
+                />,
             );
 
             // Change the callback
@@ -383,7 +383,7 @@ describe("PopoverListItem", () => {
                 <PopoverListItem
                     {...defaultProps}
                     onAddInput={newOnAddInput}
-                />
+                />,
             );
 
             // Component should still be rendered correctly

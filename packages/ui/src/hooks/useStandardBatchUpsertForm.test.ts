@@ -151,7 +151,7 @@ const createMockSession = () => ({
 const renderHookWithProviders = <T extends TestInviteShapeArray, R extends TestInviteResultArray>(
     config: StandardBatchUpsertFormConfig<T, any, any, R>,
     props: UseStandardBatchUpsertFormProps<T, R>,
-    sessionOverride?: any
+    sessionOverride?: any,
 ) => {
     const session = sessionOverride || createMockSession();
     
@@ -161,10 +161,15 @@ const renderHookWithProviders = <T extends TestInviteShapeArray, R extends TestI
     return renderHook(() => useStandardBatchUpsertForm(config, props), { wrapper });
 };
 
+// Import mocked functions
+import { useSubmitHelper } from "../api/fetchWrapper.js";
+import { useUpsertActions } from "./forms.js";
+import { useUpsertFetch } from "./useUpsertFetch.js";
+
 describe("useStandardBatchUpsertForm", () => {
-    const mockUseSubmitHelper = vi.mocked(require("../api/fetchWrapper.js").useSubmitHelper);
-    const mockUseUpsertActions = vi.mocked(require("./forms.js").useUpsertActions);
-    const mockUseUpsertFetch = vi.mocked(require("./useUpsertFetch.js").useUpsertFetch);
+    const mockUseSubmitHelper = vi.mocked(useSubmitHelper);
+    const mockUseUpsertActions = vi.mocked(useUpsertActions);
+    const mockUseUpsertFetch = vi.mocked(useUpsertFetch);
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -235,7 +240,7 @@ describe("useStandardBatchUpsertForm", () => {
 
             expect(result.current.isMutate).toBe(true);
             expect(mockUseUpsertFetch).toHaveBeenCalledWith(
-                expect.objectContaining({ isMutate: true })
+                expect.objectContaining({ isMutate: true }),
             );
         });
 
@@ -249,7 +254,7 @@ describe("useStandardBatchUpsertForm", () => {
             expect(result.current.isCreateLoading).toBe(false);
             expect(result.current.isUpdateLoading).toBe(false);
             expect(mockUseUpsertFetch).toHaveBeenCalledWith(
-                expect.objectContaining({ isMutate: false })
+                expect.objectContaining({ isMutate: false }),
             );
         });
 
@@ -314,7 +319,7 @@ describe("useStandardBatchUpsertForm", () => {
             expect(config.transformFunction).toHaveBeenCalledWith(
                 props.values,
                 props.existing,
-                false // isCreate
+                false, // isCreate
             );
         });
     });
@@ -333,7 +338,7 @@ describe("useStandardBatchUpsertForm", () => {
             expect(config.validateFunction).toHaveBeenCalledWith(
                 props.values,
                 props.existing,
-                false // isCreate
+                false, // isCreate
             );
         });
 
@@ -350,7 +355,7 @@ describe("useStandardBatchUpsertForm", () => {
             expect(config.validateFunction).toHaveBeenCalledWith(
                 props.values,
                 props.existing,
-                true // isCreate
+                true, // isCreate
             );
         });
 
@@ -453,7 +458,7 @@ describe("useStandardBatchUpsertForm", () => {
                     isCreate: false,
                     onSuccess: expect.any(Function),
                     onCompleted: expect.any(Function),
-                })
+                }),
             );
             expect(mockSubmitHelper).toHaveBeenCalled();
         });
@@ -517,7 +522,7 @@ describe("useStandardBatchUpsertForm", () => {
             expect(config.transformFunction).toHaveBeenCalledWith(
                 props.values,
                 props.existing,
-                true // isCreate
+                true, // isCreate
             );
         });
 
@@ -537,7 +542,7 @@ describe("useStandardBatchUpsertForm", () => {
             expect(config.transformFunction).toHaveBeenCalledWith(
                 props.values,
                 props.existing,
-                false // isCreate
+                false, // isCreate
             );
         });
     });
@@ -567,7 +572,7 @@ describe("useStandardBatchUpsertForm", () => {
             const { result } = renderHookWithProviders(config, props);
 
             await expect(
-                result.current.validateValues(props.values)
+                result.current.validateValues(props.values),
             ).rejects.toThrow("Validation failed");
         });
 

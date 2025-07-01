@@ -1,8 +1,8 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 import { renderHook } from "@testing-library/react";
 import { DUMMY_ID, type ChatMessage } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { act } from "react";
-
 import { MessageTree, useMessageTree, type MessageNode, type MinimumChatMessage } from "./messages.js";
 
 const MessageTreeProperty = {
@@ -871,22 +871,22 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
 
 describe("useMessageTree", () => {
     const chatId = DUMMY_ID;
-    let consoleErrorStub: sinon.SinonStub;
-    let consoleWarnStub: sinon.SinonStub;
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+    let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
     beforeAll(() => {
-        consoleErrorStub = sinon.stub(console, "error");
-        consoleWarnStub = sinon.stub(console, "warn");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
-        consoleWarnStub.resetHistory();
+        consoleErrorSpy.mockClear();
+        consoleWarnSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
-        consoleWarnStub.restore();
+        consoleErrorSpy.mockRestore();
+        consoleWarnSpy.mockRestore();
     });
 
     describe("Test cases have proper structure", () => {
@@ -1250,7 +1250,7 @@ describe("useMessageTree", () => {
 
             // Update branches
             act(() => {
-                result.current.setBranches({ "1": "3" }); // Select version 2
+                result.current.updateBranchesAndLocation("1", "3"); // Select version 2
             });
 
             // Verify branch selection

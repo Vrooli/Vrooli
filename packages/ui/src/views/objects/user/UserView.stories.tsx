@@ -2,6 +2,7 @@
 import { endpointsUser, generatePK, getObjectUrl, type User, type UserTranslation } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
+import { getMockUrl, getStoryRoutePath } from "../../../__test/helpers/storybookMocking.js";
 import { UserView } from "./UserView.js";
 
 // Create simplified mock data for User responses
@@ -91,7 +92,7 @@ NoResult.parameters = {
     msw: {
         handlers: [
             // Ensure it returns a 404 or empty response for any user findOne request
-            http.get(`${API_URL}/v2${endpointsUser.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsUser.findOne), () => {
                 return new HttpResponse(null, { status: 404 });
             }),
         ],
@@ -110,7 +111,7 @@ export function Loading() {
 Loading.parameters = {
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsUser.findOne.endpoint}`, async () => {
+            http.get(getMockUrl(endpointsUser.findOne), async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 // Return regular user data after delay
@@ -132,7 +133,7 @@ SignInWithRegularUser.parameters = {
     session: signedInPremiumWithCreditsSession, // User is signed in
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsUser.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsUser.findOne), () => {
                 return HttpResponse.json({ data: mockUserDataRegular });
             }),
         ],
@@ -151,7 +152,7 @@ SignInWithBotUser.parameters = {
     session: signedInPremiumWithCreditsSession, // User is signed in
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsUser.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsUser.findOne), () => {
                 return HttpResponse.json({ data: mockUserDataBot });
             }),
         ],
@@ -171,7 +172,7 @@ LoggedOutWithRegularUser.parameters = {
     session: loggedOutSession, // User is logged out
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsUser.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsUser.findOne), () => {
                 return HttpResponse.json({ data: mockUserDataRegular });
             }),
         ],
@@ -192,12 +193,12 @@ OwnProfile.parameters = {
         handlers: [
             // Mock the /profile endpoint specificially if UserView uses it
             // Otherwise, mock findOne with owner data
-            http.get(`${API_URL}/v2${endpointsUser.profile.endpoint}`, () => {
+            http.get(getMockUrl(endpointsUser.profile), () => {
                 // Assuming profile endpoint returns the owner's data
                 return HttpResponse.json({ data: mockUserDataOwner });
             }),
             // Fallback for findOne if needed, returning owner data
-            http.get(`${API_URL}/v2${endpointsUser.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsUser.findOne), () => {
                 return HttpResponse.json({ data: mockUserDataOwner });
             }),
         ],
@@ -221,7 +222,7 @@ DialogDisplay.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsUser.findOne.endpoint}`, () => {
+            http.get(getMockUrl(endpointsUser.findOne), () => {
                 return HttpResponse.json({ data: mockUserDataBot }); // Show a bot in the dialog
             }),
         ],

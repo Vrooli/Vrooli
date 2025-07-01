@@ -26,10 +26,10 @@ describe("<IconCommon />", () => {
                 name="User" 
                 size={48} 
                 fill="blue" 
-                decorative={false}
+                decorative="false"
                 aria-label="User Icon"
                 data-testid="icon-common" 
-            />
+            />,
         );
         
         const icon = screen.getByTestId("icon-common");
@@ -72,7 +72,7 @@ describe("<IconRoutine />", () => {
                 size={16} 
                 fill="green" 
                 data-testid="icon-routine" 
-            />
+            />,
         );
         
         const icon = screen.getByTestId("icon-routine");
@@ -113,7 +113,7 @@ describe("<IconService />", () => {
                 size={20} 
                 fill="purple" 
                 data-testid="icon-service" 
-            />
+            />,
         );
         
         const icon = screen.getByTestId("icon-service");
@@ -154,7 +154,7 @@ describe("<IconText />", () => {
                 size={14} 
                 fill="orange" 
                 data-testid="icon-text" 
-            />
+            />,
         );
         
         const icon = screen.getByTestId("icon-text");
@@ -243,16 +243,16 @@ describe("<Icon />", () => {
         const { container: container1 } = render(<Icon info={null as any} data-testid="icon" />);
         // The Icon component returns null, but it's wrapped in theme providers
         // Check that no SVG element was rendered
-        expect(container1.querySelector('svg')).toBeNull();
+        expect(container1.querySelector("svg")).toBeNull();
         expect(console.error).toHaveBeenCalledWith("Invalid icon info", null, "Stack:", expect.stringContaining("Error"));
 
         // Test with undefined
         const { container: container2 } = render(<Icon info={undefined as any} data-testid="icon" />);
-        expect(container2.querySelector('svg')).toBeNull();
+        expect(container2.querySelector("svg")).toBeNull();
 
         // Test with invalid object
         const { container: container3 } = render(<Icon info={{ invalid: "object" } as any} data-testid="icon" />);
-        expect(container3.querySelector('svg')).toBeNull();
+        expect(container3.querySelector("svg")).toBeNull();
         expect(console.error).toHaveBeenCalledWith("Invalid icon info", { invalid: "object" }, "Stack:", expect.stringContaining("Error"));
     });
 
@@ -262,10 +262,10 @@ describe("<Icon />", () => {
                 info={{ name: "User", type: "Common" }}
                 size={36} 
                 fill="pink" 
-                decorative={false}
+                decorative="false"
                 aria-label="User Profile"
                 data-testid="icon" 
-            />
+            />,
         );
         
         const icon = screen.getByTestId("icon");
@@ -324,10 +324,10 @@ describe("Icon Components - Additional Behavioral Tests", () => {
             render(
                 <IconCommon 
                     name="User" 
-                    decorative={false} 
+                    decorative="false" 
                     aria-label="User profile"
                     data-testid="icon" 
-                />
+                />,
             );
             
             const icon = screen.getByTestId("icon");
@@ -339,11 +339,11 @@ describe("Icon Components - Additional Behavioral Tests", () => {
             render(
                 <IconCommon 
                     name="User" 
-                    decorative={true}
+                    decorative="true"
                     aria-hidden={false}
                     aria-label="This should be ignored"
                     data-testid="icon" 
-                />
+                />,
             );
             
             const icon = screen.getByTestId("icon");
@@ -434,7 +434,7 @@ describe("Icon Components - Additional Behavioral Tests", () => {
                     <IconService name="GitHub" data-testid="service-icon" />
                     <IconText name="Quote" data-testid="text-icon" />
                     <Icon info={{ name: "User", type: "Common" }} data-testid="unified-icon" />
-                </div>
+                </div>,
             );
 
             const commonIcon = screen.getByTestId("common-icon");
@@ -464,19 +464,19 @@ describe("Icon Components - Additional Behavioral Tests", () => {
                     <IconCommon name="User" />
                     <IconService name="GitHub" />
                     <IconText name="Quote" />
-                </div>
+                </div>,
             );
 
             // Test that we can select icons by their data attributes
-            const userIcon = document.querySelector('[data-icon-type="common"][data-icon-name="User"]');
+            const userIcon = document.querySelector("[data-icon-type=\"common\"][data-icon-name=\"User\"]");
             expect(userIcon).toBeDefined();
             expect(userIcon?.tagName.toLowerCase()).toBe("svg");
 
-            const githubIcon = document.querySelector('[data-icon-type="service"][data-icon-name="GitHub"]');
+            const githubIcon = document.querySelector("[data-icon-type=\"service\"][data-icon-name=\"GitHub\"]");
             expect(githubIcon).toBeDefined();
             expect(githubIcon?.tagName.toLowerCase()).toBe("svg");
 
-            const quoteIcon = document.querySelector('[data-icon-type="text"][data-icon-name="Quote"]');
+            const quoteIcon = document.querySelector("[data-icon-type=\"text\"][data-icon-name=\"Quote\"]");
             expect(quoteIcon).toBeDefined();
             expect(quoteIcon?.tagName.toLowerCase()).toBe("svg");
         });
@@ -573,7 +573,7 @@ describe("<IconFavicon />", () => {
         render(
             <IconFavicon
                 href="https://example.com"
-                decorative={false}
+                decorative="false"
                 aria-label="Website Icon"
                 data-testid={testId}
             />,
@@ -634,7 +634,7 @@ describe("<IconFavicon />", () => {
                 href="https://example.com" 
                 ref={ref as React.Ref<HTMLElement>}
                 data-testid="favicon-icon" 
-            />
+            />,
         );
         
         expect(ref.current).toBeDefined();
@@ -648,7 +648,7 @@ describe("<IconFavicon />", () => {
                 href="invalid-url" 
                 ref={ref as React.Ref<HTMLElement>}
                 data-testid="favicon-icon" 
-            />
+            />,
         );
         
         expect(ref.current).toBeDefined();
@@ -658,7 +658,7 @@ describe("<IconFavicon />", () => {
     it("handles edge case URL protocols", () => {
         const invalidProtocols = [
             "data:text/plain,hello",
-            "javascript:void(0)"
+            "javascript:void(0)",
         ];
 
         invalidProtocols.forEach((url, index) => {

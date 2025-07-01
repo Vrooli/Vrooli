@@ -119,7 +119,7 @@ describe("LinkInputBase", () => {
                     helperText="Error message"
                     autoFocus={true}
                     fullWidth={true}
-                />
+                />,
             );
 
             const textField = screen.getByLabelText("Custom Link") as HTMLInputElement;
@@ -127,7 +127,7 @@ describe("LinkInputBase", () => {
             expect(textField.value).toBe("https://test.com");
             expect(textField.disabled).toBe(true);
             
-            const helperText = screen.getByTestId("link-helper-text");
+            const helperText = screen.getByTestId("input-container-helper-text");
             expect(helperText.textContent).toBe("Error message");
         });
     });
@@ -191,7 +191,7 @@ describe("LinkInputBase", () => {
                     value=""
                     onChange={onChange}
                     onObjectData={onObjectData}
-                />
+                />,
             );
 
             // Open search dialog
@@ -250,7 +250,7 @@ describe("LinkInputBase", () => {
             (window.localStorage.getItem as any).mockReturnValue(JSON.stringify(mockData));
 
             const { rerender } = render(
-                <LinkInputBase name="link" value="" onChange={onChange} />
+                <LinkInputBase name="link" value="" onChange={onChange} />,
             );
 
             // Update with a URL from the same origin
@@ -259,7 +259,7 @@ describe("LinkInputBase", () => {
                     name="link"
                     value="https://example.com/page"
                     onChange={onChange}
-                />
+                />,
             );
 
             await waitFor(() => {
@@ -280,7 +280,7 @@ describe("LinkInputBase", () => {
                     name="link"
                     value="https://example.com/page"
                     onChange={onChange}
-                />
+                />,
             );
 
             await waitFor(() => {
@@ -296,7 +296,7 @@ describe("LinkInputBase", () => {
                     name="link"
                     value="https://external.com/page"
                     onChange={onChange}
-                />
+                />,
             );
 
             expect(localStorage.getItem).not.toHaveBeenCalled();
@@ -312,7 +312,7 @@ describe("LinkInputBase", () => {
                     name="link"
                     value="https://example.com/page"
                     onChange={onChange}
-                />
+                />,
             );
 
             // Should not crash and should not display any title/subtitle
@@ -332,7 +332,7 @@ describe("LinkInputBase", () => {
                     value=""
                     onChange={onChange}
                     onObjectData={onObjectData}
-                />
+                />,
             );
 
             // Open and select from dialog
@@ -356,7 +356,7 @@ describe("LinkInputBase", () => {
                     value="https://example.com/selected"
                     onChange={onChange}
                     onObjectData={onObjectData}
-                />
+                />,
             );
 
             // Wait for state updates and effect to run
@@ -378,7 +378,7 @@ describe("LinkInputBase", () => {
                     value=""
                     onChange={onChange}
                     limitTo={["Project", "Routine"]}
-                />
+                />,
             );
 
             // The FindObjectDialog should receive the limitTo prop
@@ -398,7 +398,7 @@ describe("LinkInputBase", () => {
                     value=""
                     onChange={onChange}
                     sxs={customStyles}
-                />
+                />,
             );
 
             const rootBox = screen.getByTestId("link-input-root");
@@ -424,7 +424,7 @@ describe("LinkInput (Formik integration)", () => {
                         <button type="submit">Submit</button>
                     </form>
                 )}
-            </Formik>
+            </Formik>,
         );
 
         const textField = screen.getByLabelText("Link") as HTMLInputElement;
@@ -444,7 +444,7 @@ describe("LinkInput (Formik integration)", () => {
         await waitFor(() => {
             expect(onSubmit).toHaveBeenCalledWith(
                 { website: "https://updated.com" },
-                expect.any(Object)
+                expect.any(Object),
             );
         });
     });
@@ -468,7 +468,7 @@ describe("LinkInput (Formik integration)", () => {
                         <button type="submit">Submit</button>
                     </form>
                 )}
-            </Formik>
+            </Formik>,
         );
 
         const textField = screen.getByLabelText("Link");
@@ -480,7 +480,7 @@ describe("LinkInput (Formik integration)", () => {
         });
 
         await waitFor(() => {
-            const helperText = screen.getByTestId("link-helper-text");
+            const helperText = screen.getByTestId("input-container-helper-text");
             expect(helperText.textContent).toBe("URL is required");
         });
     });
@@ -497,7 +497,7 @@ describe("LinkInput (Formik integration)", () => {
                     disabled={true}
                     onObjectData={onObjectData}
                 />
-            </Formik>
+            </Formik>,
         );
 
         const textField = screen.getByLabelText("Website URL") as HTMLInputElement;

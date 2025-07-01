@@ -3,6 +3,8 @@ import { userEvent } from "@testing-library/user-event";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import React from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import * as yup from "yup";
+import { renderWithFormik, formInteractions, formAssertions } from "../../../__test/helpers/formTestHelpers";
 import { Dropzone } from "./Dropzone";
 import { PubSub } from "../../../utils/pubsub.js";
 
@@ -27,7 +29,7 @@ const renderWithTheme = (component: React.ReactElement) => {
     return render(
         <ThemeProvider theme={theme}>
             {component}
-        </ThemeProvider>
+        </ThemeProvider>,
     );
 };
 
@@ -63,7 +65,7 @@ describe("Dropzone", () => {
                     dropzoneText="Custom drop text"
                     uploadText="Custom upload"
                     cancelText="Custom cancel"
-                />
+                />,
             );
 
             expect(screen.getByTestId("dropzone-text").textContent).toBe("Custom drop text");
@@ -162,7 +164,7 @@ describe("Dropzone", () => {
                 <Dropzone 
                     onUpload={onUploadMock} 
                     acceptedFileTypes={[".pdf", ".doc"]} 
-                />
+                />,
             );
 
             const input = screen.getByTestId("dropzone-input") as HTMLInputElement;
@@ -175,7 +177,7 @@ describe("Dropzone", () => {
                         onUpload={onUploadMock} 
                         acceptedFileTypes={[]} 
                     />
-                </ThemeProvider>
+                </ThemeProvider>,
             );
 
             expect(input.getAttribute("accept")).toBeNull();
@@ -207,7 +209,7 @@ describe("Dropzone", () => {
                         type: "image/png",
                         preview: "mocked-url",
                     }),
-                ])
+                ]),
             );
         });
 
@@ -327,7 +329,7 @@ describe("Dropzone", () => {
             renderWithTheme(
                 <div onClick={onParentClick}>
                     <Dropzone onUpload={onUploadMock} />
-                </div>
+                </div>,
             );
 
             const file = new File(["test content"], "test.png", { type: "image/png" });
@@ -515,7 +517,7 @@ describe("Dropzone", () => {
             renderWithTheme(
                 <div onClick={onParentClick}>
                     <Dropzone onUpload={onUploadMock} />
-                </div>
+                </div>,
             );
 
             const file = new File(["test content"], "test.png", { type: "image/png" });
@@ -532,6 +534,493 @@ describe("Dropzone", () => {
             });
 
             expect(onParentClick).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("Formik integration", () => {
+        it("works as a controlled component within Formik", async () => {
+            const { user, getFormValues } = renderWithFormik(
+                <Dropzone 
+                    name="documents" 
+                    onUpload={(files) => {
+                        // In real usage, you'd handle file upload here
+                        console.log("Files to upload:", files);
+                    }}
+                />,
+                {
+                    initialValues: { documents: [] },
+                    customRender: (formikProps) => (
+                        <ThemeProvider theme={theme}>
+                            <Dropzone 
+                                name="documents"
+                                onUpload={(files) => {
+                                    // Set files in Formik state
+                                    formikProps.setFieldValue("documents", files);
+                                }}
+                            />
+                        </ThemeProvider>
+                    ),
+                },
+            );
+
+            const file = new File(["test content"], "test.pdf", { type: "application/pdf" });
+            const input = screen.getByTestId("dropzone-input") as HTMLInputElement;
+
+            await act(async () => {
+                await user.upload(input, file);
+            });
+
+            const uploadButton = screen.getByTestId("dropzone-upload-button");
+            
+            await act(async () => {
+                await user.click(uploadButton);
+            });
+
+            // Files should be in Formik state after upload
+            expect(getFormValues().documents).toHaveLength(1);
+            expect(getFormValues().documents[0]).toMatchObject({
+                name: "test.pdf",
+                type: "application/pdf",
+            });
+        });
+
+        it("submits form with uploaded files", async () => {
+            const { user, onSubmit, submitForm } = renderWithFormik(
+                <>
+                    <input name="title" placeholder="Title" />
+                    <Dropzone 
+                        name="attachments"
+                        onUpload={(files) => {
+                            // Handle file upload
+                        }}
+                    />
+                    <button type="submit">Submit</button>
+                </>,
+                {
+                    initialValues: { 
+                        title: "",
+                        attachments: [],
+                    },
+                    customRender: (formikProps) => (
+                        <ThemeProvider theme={theme}>
+                            <form onSubmit={formikProps.handleSubmit}>
+                                <input 
+                                    name="title" 
+                                    placeholder="Title"
+                                    value={formikProps.values.title}
+                                    onChange={formikProps.handleChange}
+                                />
+                                <Dropzone 
+                                    name="attachments"
+                                    onUpload={(files) => {
+                                        formikProps.setFieldValue("attachments", files);
+                                    }}
+                                />
+                                <button type="submit">Submit</button>
+                            </form>
+                        </ThemeProvider>
+                    ),
+                },
+            );
+
+            const titleInput = screen.getByPlaceholderText("Title");
+            await act(async () => {
+                await user.type(titleInput, "My Document");
+            });
+
+            const file = new File(["content"], "document.pdf", { type: "application/pdf" });
+            const dropzoneInput = screen.getByTestId("dropzone-input") as HTMLInputElement;
+
+            await act(async () => {
+                await user.upload(dropzoneInput, file);
+            });
+
+            const uploadButton = screen.getByTestId("dropzone-upload-button");
+            await act(async () => {
+                await user.click(uploadButton);
+            });
+
+            await submitForm();
+
+            formAssertions.expectFormSubmitted(onSubmit, {
+                title: "My Document",
+                attachments: expect.arrayContaining([
+                    expect.objectContaining({
+                        name: "document.pdf",
+                        type: "application/pdf",
+                    }),
+                ]),
+            });
+        });
+
+        it("validates file requirements", async () => {
+            const validationSchema = yup.object({
+                resume: yup.array()
+                    .min(1, "Please upload your resume")
+                    .max(1, "Only one file allowed")
+                    .required("Resume is required"),
+            });
+
+            const { user, onSubmit } = renderWithFormik(
+                <>
+                    <Dropzone 
+                        name="resume"
+                        onUpload={(files) => {
+                            // Handle upload
+                        }}
+                        maxFiles={1}
+                        acceptedFileTypes={[".pdf", ".doc", ".docx"]}
+                    />
+                    <button type="submit">Submit</button>
+                </>,
+                {
+                    initialValues: { resume: [] },
+                    formikConfig: { validationSchema },
+                    customRender: (formikProps) => (
+                        <ThemeProvider theme={theme}>
+                            <form onSubmit={formikProps.handleSubmit}>
+                                <Dropzone 
+                                    name="resume"
+                                    onUpload={(files) => {
+                                        formikProps.setFieldValue("resume", files);
+                                    }}
+                                    maxFiles={1}
+                                    acceptedFileTypes={[".pdf", ".doc", ".docx"]}
+                                />
+                                <button type="submit">Submit</button>
+                                {formikProps.errors.resume && formikProps.touched.resume && (
+                                    <div>{formikProps.errors.resume}</div>
+                                )}
+                            </form>
+                        </ThemeProvider>
+                    ),
+                },
+            );
+
+            const submitButton = screen.getByRole("button", { name: /submit/i });
+            
+            // Try to submit without files
+            await act(async () => {
+                await user.click(submitButton);
+            });
+
+            expect(onSubmit).not.toHaveBeenCalled();
+            await waitFor(() => {
+                expect(screen.getByText("Please upload your resume")).toBeDefined();
+            });
+        });
+
+        it("handles multiple files in Formik", async () => {
+            const { user, getFormValues } = renderWithFormik(
+                <Dropzone 
+                    name="gallery"
+                    onUpload={(files) => {
+                        // Handle upload
+                    }}
+                    maxFiles={5}
+                    showThumbs={true}
+                />,
+                {
+                    initialValues: { gallery: [] },
+                    customRender: (formikProps) => (
+                        <ThemeProvider theme={theme}>
+                            <Dropzone 
+                                name="gallery"
+                                onUpload={(files) => {
+                                    formikProps.setFieldValue("gallery", files);
+                                }}
+                                maxFiles={5}
+                                showThumbs={true}
+                            />
+                        </ThemeProvider>
+                    ),
+                },
+            );
+
+            const files = [
+                new File(["content1"], "image1.jpg", { type: "image/jpeg" }),
+                new File(["content2"], "image2.jpg", { type: "image/jpeg" }),
+                new File(["content3"], "image3.jpg", { type: "image/jpeg" }),
+            ];
+
+            const input = screen.getByTestId("dropzone-input") as HTMLInputElement;
+
+            await act(async () => {
+                await user.upload(input, files);
+            });
+
+            const uploadButton = screen.getByTestId("dropzone-upload-button");
+            
+            await act(async () => {
+                await user.click(uploadButton);
+            });
+
+            expect(getFormValues().gallery).toHaveLength(3);
+            expect(getFormValues().gallery[0].name).toBe("image1.jpg");
+            expect(getFormValues().gallery[1].name).toBe("image2.jpg");
+            expect(getFormValues().gallery[2].name).toBe("image3.jpg");
+        });
+
+        it("clears files on form reset", async () => {
+            const { user, resetForm, getFormValues } = renderWithFormik(
+                <Dropzone 
+                    name="files"
+                    onUpload={(files) => {
+                        // Handle upload
+                    }}
+                />,
+                {
+                    initialValues: { files: [] },
+                    customRender: (formikProps) => (
+                        <ThemeProvider theme={theme}>
+                            <Dropzone 
+                                name="files"
+                                onUpload={(files) => {
+                                    formikProps.setFieldValue("files", files);
+                                }}
+                            />
+                        </ThemeProvider>
+                    ),
+                },
+            );
+
+            const file = new File(["content"], "test.txt", { type: "text/plain" });
+            const input = screen.getByTestId("dropzone-input") as HTMLInputElement;
+
+            await act(async () => {
+                await user.upload(input, file);
+            });
+
+            const uploadButton = screen.getByTestId("dropzone-upload-button");
+            
+            await act(async () => {
+                await user.click(uploadButton);
+            });
+
+            expect(getFormValues().files).toHaveLength(1);
+
+            resetForm();
+
+            expect(getFormValues().files).toHaveLength(0);
+        });
+
+        it("preserves disabled state in Formik context", async () => {
+            const onUploadMock = vi.fn();
+            
+            const { user } = renderWithFormik(
+                <Dropzone 
+                    name="protected"
+                    onUpload={onUploadMock}
+                    disabled={true}
+                />,
+                {
+                    initialValues: { protected: [] },
+                    customRender: () => (
+                        <ThemeProvider theme={theme}>
+                            <Dropzone 
+                                name="protected"
+                                onUpload={onUploadMock}
+                                disabled={true}
+                            />
+                        </ThemeProvider>
+                    ),
+                },
+            );
+
+            const file = new File(["content"], "test.pdf", { type: "application/pdf" });
+            const input = screen.getByTestId("dropzone-input") as HTMLInputElement;
+
+            await act(async () => {
+                await user.upload(input, file);
+            });
+
+            const uploadButton = screen.getByTestId("dropzone-upload-button");
+            expect(uploadButton.disabled).toBe(true);
+
+            // Try to click anyway
+            await act(async () => {
+                fireEvent.click(uploadButton);
+            });
+
+            expect(onUploadMock).not.toHaveBeenCalled();
+        });
+
+        it("handles file type restrictions in Formik", async () => {
+            const mockPublish = vi.fn();
+            vi.mocked(PubSub.get).mockReturnValue({ publish: mockPublish });
+
+            const { user, getFormValues } = renderWithFormik(
+                <Dropzone 
+                    name="images"
+                    onUpload={(files) => {
+                        // Handle upload
+                    }}
+                    acceptedFileTypes={["image/*"]}
+                />,
+                {
+                    initialValues: { images: [] },
+                    customRender: (formikProps) => (
+                        <ThemeProvider theme={theme}>
+                            <Dropzone 
+                                name="images"
+                                onUpload={(files) => {
+                                    formikProps.setFieldValue("images", files);
+                                }}
+                                acceptedFileTypes={["image/*"]}
+                            />
+                        </ThemeProvider>
+                    ),
+                },
+            );
+
+            // Upload valid image file
+            const imageFile = new File(["image"], "photo.jpg", { type: "image/jpeg" });
+            const input = screen.getByTestId("dropzone-input") as HTMLInputElement;
+
+            await act(async () => {
+                await user.upload(input, imageFile);
+            });
+
+            const uploadButton = screen.getByTestId("dropzone-upload-button");
+            
+            await act(async () => {
+                await user.click(uploadButton);
+            });
+
+            expect(getFormValues().images).toHaveLength(1);
+        });
+
+        it("integrates with other form fields", async () => {
+            const validationSchema = yup.object({
+                projectName: yup.string().required("Project name is required"),
+                description: yup.string(),
+                files: yup.array().min(1, "At least one file is required"),
+            });
+
+            const { user, onSubmit, submitForm } = renderWithFormik(
+                <>
+                    <input name="projectName" placeholder="Project Name" />
+                    <textarea name="description" placeholder="Description" />
+                    <Dropzone 
+                        name="files"
+                        onUpload={(files) => {
+                            // Handle upload
+                        }}
+                    />
+                    <button type="submit">Submit</button>
+                </>,
+                {
+                    initialValues: { 
+                        projectName: "",
+                        description: "",
+                        files: [],
+                    },
+                    formikConfig: { validationSchema },
+                    customRender: (formikProps) => (
+                        <ThemeProvider theme={theme}>
+                            <form onSubmit={formikProps.handleSubmit}>
+                                <input 
+                                    name="projectName" 
+                                    placeholder="Project Name"
+                                    value={formikProps.values.projectName}
+                                    onChange={formikProps.handleChange}
+                                />
+                                <textarea 
+                                    name="description" 
+                                    placeholder="Description"
+                                    value={formikProps.values.description}
+                                    onChange={formikProps.handleChange}
+                                />
+                                <Dropzone 
+                                    name="files"
+                                    onUpload={(files) => {
+                                        formikProps.setFieldValue("files", files);
+                                    }}
+                                />
+                                <button type="submit">Submit</button>
+                            </form>
+                        </ThemeProvider>
+                    ),
+                },
+            );
+
+            // Fill in form fields
+            const nameInput = screen.getByPlaceholderText("Project Name");
+            const descriptionInput = screen.getByPlaceholderText("Description");
+            
+            await act(async () => {
+                await user.type(nameInput, "My Project");
+                await user.type(descriptionInput, "This is a test project");
+            });
+
+            // Upload file
+            const file = new File(["content"], "project.zip", { type: "application/zip" });
+            const dropzoneInput = screen.getByTestId("dropzone-input") as HTMLInputElement;
+
+            await act(async () => {
+                await user.upload(dropzoneInput, file);
+            });
+
+            const uploadButton = screen.getByTestId("dropzone-upload-button");
+            await act(async () => {
+                await user.click(uploadButton);
+            });
+
+            // Submit form
+            await submitForm();
+
+            formAssertions.expectFormSubmitted(onSubmit, {
+                projectName: "My Project",
+                description: "This is a test project",
+                files: expect.arrayContaining([
+                    expect.objectContaining({
+                        name: "project.zip",
+                        type: "application/zip",
+                    }),
+                ]),
+            });
+        });
+
+        it("updates field touched state", async () => {
+            const { user, isFieldTouched } = renderWithFormik(
+                <Dropzone 
+                    name="upload"
+                    onUpload={(files) => {
+                        // Handle upload
+                    }}
+                />,
+                {
+                    initialValues: { upload: [] },
+                    customRender: (formikProps) => (
+                        <ThemeProvider theme={theme}>
+                            <Dropzone 
+                                name="upload"
+                                onUpload={(files) => {
+                                    formikProps.setFieldValue("upload", files);
+                                    formikProps.setFieldTouched("upload", true);
+                                }}
+                            />
+                        </ThemeProvider>
+                    ),
+                },
+            );
+
+            expect(isFieldTouched("upload")).toBe(false);
+
+            const file = new File(["content"], "test.txt", { type: "text/plain" });
+            const input = screen.getByTestId("dropzone-input") as HTMLInputElement;
+
+            await act(async () => {
+                await user.upload(input, file);
+            });
+
+            const uploadButton = screen.getByTestId("dropzone-upload-button");
+            
+            await act(async () => {
+                await user.click(uploadButton);
+            });
+
+            expect(isFieldTouched("upload")).toBe(true);
         });
     });
 });

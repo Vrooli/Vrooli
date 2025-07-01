@@ -130,12 +130,15 @@ describe("IntegerInput", () => {
             expect(screen.getByText("Helper text")).toBeDefined();
         });
 
-        it("applies error styling", () => {
+        it("shows error message when error prop is true", () => {
             render(<IntegerInputBase {...defaultProps} error={true} helperText="Error message" />);
 
-            // MUI might not add Mui-error class directly to FormControl
-            // Instead, check for the helper text which is shown when there's an error
+            // Check that the error message is displayed
             expect(screen.getByText("Error message")).toBeDefined();
+            
+            // Verify the input has aria-invalid attribute
+            const input = screen.getByTestId("integer-input");
+            expect(input.getAttribute("aria-invalid")).toBe("true");
         });
 
         it("handles value changes", async () => {
@@ -271,12 +274,12 @@ describe("IntegerInput", () => {
             expect(onChange).toHaveBeenCalledWith(8);
         });
 
-        it("respects fullWidth prop", () => {
-            const { container } = render(<IntegerInputBase {...defaultProps} fullWidth={false} />);
+        it("renders correctly with fullWidth prop", () => {
+            render(<IntegerInputBase {...defaultProps} fullWidth={false} />);
 
-            const formControl = container.querySelector(".MuiFormControl-root") as HTMLElement;
-            // Check the style is applied via CSS classes
-            expect(formControl).toBeDefined();
+            // Just verify the component renders without error when fullWidth is set
+            const input = screen.getByTestId("integer-input");
+            expect(input).toBeDefined();
         });
     });
 

@@ -1,3 +1,5 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-06-30 - Fixed 20 'as any' occurrences with proper types
 import { generatePK, type AutocompleteOption, type Session, type SessionUser } from "@vrooli/shared";
 import { describe, it, expect, afterAll, beforeEach } from "vitest";
 import { SearchHistory } from "./searchHistory.js";
@@ -20,12 +22,22 @@ const invalidSession: Partial<Session> = {};
 const SEARCH_HISTORY_PREFIX = SearchHistory["SEARCH_HISTORY_PREFIX"];
 const MAX_HISTORY_LENGTH = SearchHistory["MAX_HISTORY_LENGTH"];
 
+// Type-safe mock option creators
+function createMockOption(label: string, overrides?: Partial<AutocompleteOption>): AutocompleteOption {
+    return {
+        label,
+        __typename: "SomeType",
+        key: label,
+        ...overrides,
+    } as AutocompleteOption;
+}
+
 // Helper function to create a history with a specified number of items
 function createHistory(count: number): { [label: string]: { timestamp: number; option: AutocompleteOption } } {
     const history: { [label: string]: { timestamp: number; option: AutocompleteOption } } = {};
     for (let i = 1; i <= count; i++) {
         const label = `option${i}`;
-        history[label] = { timestamp: 100 + i, option: { label, __typename: "SomeType" } as unknown as AutocompleteOption };
+        history[label] = { timestamp: 100 + i, option: createMockOption(label) };
     }
     return history;
 }
@@ -42,7 +54,7 @@ describe("SearchHistory", () => {
     describe("getSearchHistory", () => {
         it("should retrieve search history from local storage", () => {
             const searchBarId = "bar1";
-            const history = { "option1": { timestamp: 123, option: { label: "option1", __typename: "SomeType" } } };
+            const history = { "option1": { timestamp: 123, option: createMockOption("option1") } };
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify(history));
             const result = SearchHistory.getSearchHistory(searchBarId, userId);
             expect(result).toEqual(history);
@@ -73,23 +85,23 @@ describe("SearchHistory", () => {
         it("should update bookmarks and isBookmarked across multiple search bars", () => {
             const searchBarId = "bar1"; // Not directly used in updates, but set for consistency
             const initialHistoryBar1 = {
-                "optionA": { timestamp: 100, option: { label: "optionA", __typename: "SomeType", bookmarks: 5, isBookmarked: true, description: "old" } },
-                "shortcut1": { timestamp: 150, option: { label: "shortcut1", __typename: "Shortcut", someProp: "value" } },
+                "optionA": { timestamp: 100, option: createMockOption("optionA", { bookmarks: 5, isBookmarked: true, description: "old" }) },
+                "shortcut1": { timestamp: 150, option: createMockOption("shortcut1", { __typename: "Shortcut", someProp: "value" }) },
             };
             const initialHistoryBar2 = {
-                "optionB": { timestamp: 200, option: { label: "optionB", __typename: "AnotherType", bookmarks: 10, isBookmarked: false } },
-                "action1": { timestamp: 250, option: { label: "action1", __typename: "Action", anotherProp: "value" } },
+                "optionB": { timestamp: 200, option: createMockOption("optionB", { __typename: "AnotherType", bookmarks: 10, isBookmarked: false }) },
+                "action1": { timestamp: 250, option: createMockOption("action1", { __typename: "Action", anotherProp: "value" }) },
             };
             // Set up localStorage with multiple search bar histories
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}bar1-${userId}`, JSON.stringify(initialHistoryBar1));
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}bar2-${userId}`, JSON.stringify(initialHistoryBar2));
             const options = [
-                { label: "optionA", __typename: "SomeType", bookmarks: 6, isBookmarked: true, description: "new" },
-                { label: "optionB", __typename: "AnotherType", bookmarks: 10, isBookmarked: true },
-                { label: "optionC", __typename: "SomeType", bookmarks: 0, isBookmarked: false },
-                { label: "shortcut1", __typename: "Shortcut", someProp: "newValue" },
-                { label: "action1", __typename: "Action", anotherProp: "newValue" },
-            ] as unknown as AutocompleteOption[];
+                createMockOption("optionA", { bookmarks: 6, isBookmarked: true, description: "new" }),
+                createMockOption("optionB", { __typename: "AnotherType", bookmarks: 10, isBookmarked: true }),
+                createMockOption("optionC", { bookmarks: 0, isBookmarked: false }),
+                createMockOption("shortcut1", { __typename: "Shortcut", someProp: "newValue" }),
+                createMockOption("action1", { __typename: "Action", anotherProp: "newValue" }),
+            ];
             SearchHistory.updateHistoryItems(searchBarId, userId, options);
             // Check updated history for bar1
             const updatedHistoryBar1 = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}bar1-${userId}`) as string);
@@ -113,12 +125,12 @@ describe("SearchHistory", () => {
         it("should not update if bookmarks and isBookmarked are unchanged", () => {
             const searchBarId = "bar1";
             const initialHistory = {
-                "optionA": { timestamp: 100, option: { label: "optionA", __typename: "SomeType", bookmarks: 5, isBookmarked: true } },
+                "optionA": { timestamp: 100, option: createMockOption("optionA", { bookmarks: 5, isBookmarked: true }) },
             };
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify(initialHistory));
             const options = [
-                { label: "optionA", __typename: "SomeType", bookmarks: 5, isBookmarked: true },
-            ] as unknown as AutocompleteOption[];
+                createMockOption("optionA", { bookmarks: 5, isBookmarked: true }),
+            ];
             SearchHistory.updateHistoryItems(searchBarId, userId, options);
             const updatedHistory = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
             expect(updatedHistory["optionA"]).toEqual(initialHistory["optionA"]);
@@ -169,8 +181,8 @@ describe("SearchHistory", () => {
         const labelToRemove = "option1";
         const otherLabel = "option2";
         const history = {
-            [labelToRemove]: { timestamp: 100, option: { label: labelToRemove, __typename: "SomeType" } },
-            [otherLabel]: { timestamp: 200, option: { label: otherLabel, __typename: "AnotherType" } },
+            [labelToRemove]: { timestamp: 100, option: createMockOption(labelToRemove) },
+            [otherLabel]: { timestamp: 200, option: createMockOption(otherLabel, { __typename: "AnotherType" }) },
         };
 
         it("should remove an existing item from history", () => {
@@ -195,7 +207,7 @@ describe("SearchHistory", () => {
         });
 
         it("should clear out the entry if it's the only one", () => {
-            localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify({ [labelToRemove]: { timestamp: 100, option: { label: labelToRemove, __typename: "SomeType" } } }));
+            localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify({ [labelToRemove]: { timestamp: 100, option: createMockOption(labelToRemove) } }));
             SearchHistory.removeSearchHistoryItem(searchBarId, userId, labelToRemove);
             const updatedHistory = localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`);
             expect(updatedHistory).toBeNull();
@@ -206,7 +218,7 @@ describe("SearchHistory", () => {
         const searchBarId = "bar1";
 
         it("should add a new item to history", () => {
-            const option = { label: "newOption", __typename: "SomeType" } as unknown as AutocompleteOption;
+            const option = createMockOption("newOption");
             SearchHistory.addSearchHistoryItem(searchBarId, userId, option);
             const history = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
             expect(history).toHaveProperty("newOption");
@@ -217,7 +229,7 @@ describe("SearchHistory", () => {
         it("should remove the oldest item when history exceeds max length", () => {
             const history = createHistory(MAX_HISTORY_LENGTH);
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify(history));
-            const newOption = { label: "newOption", __typename: "SomeType" } as unknown as AutocompleteOption;
+            const newOption = createMockOption("newOption");
             SearchHistory.addSearchHistoryItem(searchBarId, userId, newOption);
             const updatedHistory = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
             expect(updatedHistory).not.toHaveProperty("option1");
@@ -227,7 +239,7 @@ describe("SearchHistory", () => {
         });
 
         it("should update timestamp when adding an existing item", async () => {
-            const option = { label: "existingOption", __typename: "SomeType" } as unknown as AutocompleteOption;
+            const option = createMockOption("existingOption");
             SearchHistory.addSearchHistoryItem(searchBarId, userId, option);
             const firstHistory = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
             const firstTimestamp = firstHistory["existingOption"].timestamp;
@@ -240,7 +252,7 @@ describe("SearchHistory", () => {
         });
 
         it("should add item to empty history", () => {
-            const option = { label: "firstOption", __typename: "SomeType" } as unknown as AutocompleteOption;
+            const option = createMockOption("firstOption");
             SearchHistory.addSearchHistoryItem(searchBarId, userId, option);
             const history = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
             expect(history).toHaveProperty("firstOption");
@@ -250,9 +262,9 @@ describe("SearchHistory", () => {
 
     it("should add multiple items and remove one correctly", () => {
         const searchBarId = "bar1";
-        const option1 = { label: "option1", __typename: "SomeType" } as unknown as AutocompleteOption;
-        const option2 = { label: "option2", __typename: "SomeType" } as unknown as AutocompleteOption;
-        const option3 = { label: "option3", __typename: "SomeType" } as unknown as AutocompleteOption;
+        const option1 = createMockOption("option1");
+        const option2 = createMockOption("option2");
+        const option3 = createMockOption("option3");
 
         // Add three options
         SearchHistory.addSearchHistoryItem(searchBarId, userId, option1);
@@ -282,7 +294,7 @@ describe("SearchHistory", () => {
         for (let i = 1; i <= maxLength; i++) {
             fullHistory[`option${i}`] = {
                 timestamp: 100 + i, // option1 has oldest timestamp
-                option: { label: `option${i}`, __typename: "SomeType", isFromHistory: true } as unknown as AutocompleteOption
+                option: { ...createMockOption(`option${i}`), isFromHistory: true },
             };
         }
         
@@ -293,7 +305,7 @@ describe("SearchHistory", () => {
         const initialKeys = Object.keys(SearchHistory.getSearchHistory(searchBarId, userId));
 
         // Add 501st item - this is what we're actually testing
-        const newOption = { label: "newOption", __typename: "SomeType" } as unknown as AutocompleteOption;
+        const newOption = createMockOption("newOption");
         SearchHistory.addSearchHistoryItem(searchBarId, userId, newOption);
 
         // Verify history
@@ -307,31 +319,33 @@ describe("SearchHistory", () => {
 
     it("should add items and then update their bookmarks correctly", () => {
         const searchBarId = "bar1";
-        const option1 = { label: "option1", __typename: "SomeType", bookmarks: 5, isBookmarked: true } as unknown as AutocompleteOption;
-        const option2 = { label: "option2", __typename: "SomeType", bookmarks: 10, isBookmarked: false } as unknown as AutocompleteOption;
+        const option1 = createMockOption("option1", { bookmarks: 5, isBookmarked: true });
+        const option2 = createMockOption("option2", { bookmarks: 10, isBookmarked: false });
 
         // Add options
         SearchHistory.addSearchHistoryItem(searchBarId, userId, option1);
         SearchHistory.addSearchHistoryItem(searchBarId, userId, option2);
 
         // Update options
-        const updatedOption1 = { label: "option1", __typename: "SomeType", bookmarks: 6, isBookmarked: false } as unknown as AutocompleteOption;
-        const updatedOption2 = { label: "option2", __typename: "SomeType", bookmarks: 11, isBookmarked: true } as unknown as AutocompleteOption;
+        const updatedOption1 = createMockOption("option1", { bookmarks: 6, isBookmarked: false });
+        const updatedOption2 = createMockOption("option2", { bookmarks: 11, isBookmarked: true });
         SearchHistory.updateHistoryItems(searchBarId, userId, [updatedOption1, updatedOption2]);
 
         // Verify updates
         const history = SearchHistory.getSearchHistory(searchBarId, userId);
-        expect((history["option1"].option as any).bookmarks).toBe(6);
-        expect((history["option1"].option as any).isBookmarked).toBe(false);
-        expect((history["option2"].option as any).bookmarks).toBe(11);
-        expect((history["option2"].option as any).isBookmarked).toBe(true);
+        const option1History = history["option1"].option as { bookmarks?: number; isBookmarked?: boolean };
+        const option2History = history["option2"].option as { bookmarks?: number; isBookmarked?: boolean };
+        expect(option1History.bookmarks).toBe(6);
+        expect(option1History.isBookmarked).toBe(false);
+        expect(option2History.bookmarks).toBe(11);
+        expect(option2History.isBookmarked).toBe(true);
     });
 
     it("should add items to multiple search bars and clear all history", () => {
         const searchBarId1 = "bar1";
         const searchBarId2 = "bar2";
-        const option1 = { label: "option1", __typename: "SomeType" } as unknown as AutocompleteOption;
-        const option2 = { label: "option2", __typename: "SomeType" } as unknown as AutocompleteOption;
+        const option1 = createMockOption("option1");
+        const option2 = createMockOption("option2");
 
         // Add items to both search bars
         SearchHistory.addSearchHistoryItem(searchBarId1, userId, option1);
@@ -353,8 +367,8 @@ describe("SearchHistory", () => {
         const searchBarId = "bar1";
         const userId1 = generatePK().toString();
         const userId2 = generatePK().toString();
-        const option1 = { label: "option1", __typename: "SomeType" } as unknown as AutocompleteOption;
-        const option2 = { label: "option2", __typename: "SomeType" } as unknown as AutocompleteOption;
+        const option1 = createMockOption("option1");
+        const option2 = createMockOption("option2");
 
         // Add items for different users
         SearchHistory.addSearchHistoryItem(searchBarId, userId1, option1);

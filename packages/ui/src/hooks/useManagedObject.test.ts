@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 
@@ -58,16 +59,15 @@ import {
     useObjectData,
     useObjectCache,
     useObjectForm,
-    applyDataTransform
+    applyDataTransform,
 } from "./useManagedObject.js";
-
 // Import mocked dependencies
 import { ServerResponseParser } from "../api/responseParser.js";
 import { getYou } from "../utils/display/listTools.js";
 import { 
     getCookiePartialData, 
     removeCookiePartialData, 
-    setCookiePartialData 
+    setCookiePartialData, 
 } from "../utils/localStorage.js";
 import { PubSub } from "../utils/pubsub.js";
 import { useFormCacheStore } from "./forms.js";
@@ -100,14 +100,14 @@ describe("useManagedObject", () => {
             { 
                 data: null, 
                 loading: false, 
-                errors: null 
-            }
+                errors: null, 
+            },
         ]);
 
         (useFormCacheStore as unknown as Mock).mockReturnValue(mockGetFormCacheData);
         
         (PubSub.get as Mock).mockReturnValue({
-            publish: mockPubSubPublish
+            publish: mockPubSubPublish,
         });
 
         (ServerResponseParser.hasErrorCode as Mock).mockReturnValue(false);
@@ -160,13 +160,13 @@ describe("useManagedObject", () => {
         it("should return loading state when fetching", () => {
             (useLazyFetch as Mock).mockReturnValue([
                 mockFetchData,
-                { data: null, loading: true, errors: null }
+                { data: null, loading: true, errors: null },
             ]);
 
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
+                    pathname: "/test/123",
+                }),
             );
 
             expect(result.current.isLoading).toBe(true);
@@ -178,8 +178,8 @@ describe("useManagedObject", () => {
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
                     pathname: "/test/123",
-                    overrideObject
-                })
+                    overrideObject,
+                }),
             );
 
             expect(result.current.object).toEqual(overrideObject);
@@ -191,8 +191,8 @@ describe("useManagedObject", () => {
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
                     pathname: "/test/123",
-                    disabled: true
-                })
+                    disabled: true,
+                }),
             );
 
             expect(mockFetchData).not.toHaveBeenCalled();
@@ -201,8 +201,8 @@ describe("useManagedObject", () => {
         it("should update object when setObject is called", () => {
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
+                    pathname: "/test/123",
+                }),
             );
 
             const newData = { __typename: "Project" as string, id: "new", name: "New" };
@@ -220,14 +220,14 @@ describe("useManagedObject", () => {
 
             (useLazyFetch as Mock).mockReturnValue([
                 mockFetchData,
-                { data, loading: false, errors: null }
+                { data, loading: false, errors: null },
             ]);
 
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
                     pathname: "/test/123",
-                    transform
-                })
+                    transform,
+                }),
             );
 
             expect(result.current.object).toEqual({ ...data, transformed: true });
@@ -240,13 +240,13 @@ describe("useManagedObject", () => {
             mockGetYou.mockReturnValue(mockPermissions);
             (useLazyFetch as Mock).mockReturnValue([
                 mockFetchData,
-                { data, loading: false, errors: null }
+                { data, loading: false, errors: null },
             ]);
 
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
+                    pathname: "/test/123",
+                }),
             );
 
             expect(result.current.permissions).toEqual(mockPermissions);
@@ -256,8 +256,8 @@ describe("useManagedObject", () => {
         it("should handle empty pathname gracefully", () => {
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: ""
-                })
+                    pathname: "",
+                }),
             );
 
             expect(result.current.object).toEqual({});
@@ -267,8 +267,8 @@ describe("useManagedObject", () => {
         it("should maintain referential stability of setObject", () => {
             const { result, rerender } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
+                    pathname: "/test/123",
+                }),
             );
 
             const firstSetObject = result.current.setObject;
@@ -282,7 +282,7 @@ describe("useManagedObject", () => {
     describe("Data Management - useObjectData", () => {
         it("should not fetch when shouldFetch is false", () => {
             const { result } = renderHook(() => 
-                useObjectData(false, "/test/123", undefined, true)
+                useObjectData(false, "/test/123", undefined, true),
             );
 
             expect(mockFetchData).not.toHaveBeenCalled();
@@ -292,7 +292,7 @@ describe("useManagedObject", () => {
         it("should fetch data when shouldFetch is true", () => {
             const onError = vi.fn();
             const { result } = renderHook(() => 
-                useObjectData(true, "/test/123", onError, true)
+                useObjectData(true, "/test/123", onError, true),
             );
 
             act(() => {
@@ -308,7 +308,7 @@ describe("useManagedObject", () => {
 
         it("should respect max retry limit", () => {
             const { result } = renderHook(() => 
-                useObjectData(true, "/test/123", undefined, true)
+                useObjectData(true, "/test/123", undefined, true),
             );
 
             // Call fetchObjectData multiple times
@@ -327,7 +327,7 @@ describe("useManagedObject", () => {
             (ServerResponseParser.hasErrorCode as Mock).mockReturnValue(true);
             
             const { result } = renderHook(() => 
-                useObjectData(true, "/test/123", undefined, true)
+                useObjectData(true, "/test/123", undefined, true),
             );
 
             expect(result.current.hasUnauthorizedError).toBe(true);
@@ -340,7 +340,7 @@ describe("useManagedObject", () => {
             (getCookiePartialData as Mock).mockReturnValue(mockData);
 
             const { result } = renderHook(() => 
-                useObjectCache("/test/123")
+                useObjectCache("/test/123"),
             );
 
             const cachedData = result.current.getCachedData();
@@ -350,7 +350,7 @@ describe("useManagedObject", () => {
 
         it("should set cached data", () => {
             const { result } = renderHook(() => 
-                useObjectCache("/test/123")
+                useObjectCache("/test/123"),
             );
 
             const testData = { __typename: "Project" as string, id: "123", name: "Test" };
@@ -361,7 +361,7 @@ describe("useManagedObject", () => {
 
         it("should clear cache", () => {
             const { result } = renderHook(() => 
-                useObjectCache("/test/123")
+                useObjectCache("/test/123"),
             );
 
             result.current.clearCache();
@@ -375,7 +375,7 @@ describe("useManagedObject", () => {
             const initialData = { __typename: "Project" as string, id: "123", name: "Test" };
             
             const { result } = renderHook(() => 
-                useObjectForm("/test/123", false, initialData)
+                useObjectForm("/test/123", false, initialData),
             );
 
             expect(result.current.formData).toEqual(initialData);
@@ -388,7 +388,7 @@ describe("useManagedObject", () => {
             mockGetFormCacheData.mockReturnValue(storedData);
             
             const { result } = renderHook(() => 
-                useObjectForm("/test/create", true)
+                useObjectForm("/test/create", true),
             );
 
             expect(result.current.formData).toEqual(storedData);
@@ -400,7 +400,7 @@ describe("useManagedObject", () => {
             (parseSearchParams as Mock).mockReturnValue(searchParams);
             
             const { result } = renderHook(() => 
-                useObjectForm("/test/create", true)
+                useObjectForm("/test/create", true),
             );
 
             expect(result.current.formData).toEqual(expect.objectContaining({ name: "From URL" }));
@@ -415,7 +415,7 @@ describe("useManagedObject", () => {
             (isEqual as Mock).mockReturnValue(false);
             
             const { result } = renderHook(() => 
-                useObjectForm("/test/123", false, initialData)
+                useObjectForm("/test/123", false, initialData),
             );
 
             expect(result.current.hasDataConflict).toBe(true);
@@ -433,7 +433,7 @@ describe("useManagedObject", () => {
             (isEqual as Mock).mockReturnValue(false);
             
             renderHook(() => 
-                useObjectForm("/test/123", false, initialData)
+                useObjectForm("/test/123", false, initialData),
             );
 
             await waitFor(() => {
@@ -457,7 +457,7 @@ describe("useManagedObject", () => {
             (isEqual as Mock).mockReturnValue(false);
             
             const { result } = renderHook(() => 
-                useObjectForm("/test/123", false, initialData)
+                useObjectForm("/test/123", false, initialData),
             );
 
             act(() => {
@@ -477,8 +477,8 @@ describe("useManagedObject", () => {
 
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
+                    pathname: "/test/123",
+                }),
             );
 
             expect(result.current.object).toEqual(cachedData);
@@ -490,13 +490,13 @@ describe("useManagedObject", () => {
             
             (useLazyFetch as Mock).mockReturnValue([
                 mockFetchData,
-                { data: fetchedData, loading: false, errors: null }
+                { data: fetchedData, loading: false, errors: null },
             ]);
 
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
+                    pathname: "/test/123",
+                }),
             );
 
             expect(result.current.object).toEqual(fetchedData);
@@ -507,13 +507,13 @@ describe("useManagedObject", () => {
             (ServerResponseParser.hasErrorCode as Mock).mockReturnValue(true);
             (useLazyFetch as Mock).mockReturnValue([
                 mockFetchData,
-                { data: null, loading: false, errors: ["Unauthorized"] }
+                { data: null, loading: false, errors: ["Unauthorized"] },
             ]);
 
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
+                    pathname: "/test/123",
+                }),
             );
 
             expect(removeCookiePartialData).toHaveBeenCalledWith(null, "/test/123");
@@ -528,23 +528,23 @@ describe("useManagedObject", () => {
             (getCookiePartialData as Mock).mockReturnValue(cachedData);
             (useLazyFetch as Mock).mockReturnValue([
                 mockFetchData,
-                { data: fetchedData, loading: false, errors: null }
+                { data: fetchedData, loading: false, errors: null },
             ]);
 
             // Test with override (highest priority)
             const { result: withOverride } = renderHook(() => 
                 useManagedObject<TestObject>({
                     pathname: "/test/123",
-                    overrideObject
-                })
+                    overrideObject,
+                }),
             );
             expect(withOverride.current.object).toEqual(overrideObject);
 
             // Test without override (fetched data should win)
             const { result: withoutOverride } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
+                    pathname: "/test/123",
+                }),
             );
             expect(withoutOverride.current.object).toEqual(fetchedData);
         });
@@ -556,8 +556,8 @@ describe("useManagedObject", () => {
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
                     pathname: "/test/create",
-                    isCreate: true
-                })
+                    isCreate: true,
+                }),
             );
 
             expect(result.current.object).toEqual(storedFormData);
@@ -566,8 +566,8 @@ describe("useManagedObject", () => {
         it("should handle fetch data when no override and not disabled", async () => {
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
+                    pathname: "/test/123",
+                }),
             );
 
             await waitFor(() => {
@@ -579,8 +579,8 @@ describe("useManagedObject", () => {
             let pathname = "/test/123";
             const { result, rerender } = renderHook(() => 
                 useManagedObject<TestObject>({
-                    pathname
-                })
+                    pathname,
+                }),
             );
 
             // Change pathname
@@ -597,14 +597,14 @@ describe("useManagedObject", () => {
 
             (useLazyFetch as Mock).mockReturnValue([
                 mockFetchData,
-                { data: null, loading: false, errors }
+                { data: null, loading: false, errors },
             ]);
 
             renderHook(() => 
                 useManagedObject<TestObject>({
                     pathname: "/test/123",
-                    onError
-                })
+                    onError,
+                }),
             );
 
             // Error callback should be passed to fetchData
@@ -617,8 +617,8 @@ describe("useManagedObject", () => {
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
                     pathname: "/test/123",
-                    onInvalidUrlParams
-                })
+                    onInvalidUrlParams,
+                }),
             );
 
             // This test verifies the callback is stored - actual invocation would happen in URL parsing logic
@@ -635,8 +635,8 @@ describe("useManagedObject", () => {
             const { result } = renderHook(() => 
                 useManagedObject<TestObject>({
                     pathname: "/test/create",
-                    isCreate: true
-                })
+                    isCreate: true,
+                }),
             );
 
             // In create mode, form cache should be prioritized
@@ -645,7 +645,7 @@ describe("useManagedObject", () => {
             // The implementation may merge or transform the data, so let's be flexible
             expect(
                 result.current.object.name === "Form Cache" || 
-                result.current.object.name === "Partial Cache"
+                result.current.object.name === "Partial Cache",
             ).toBe(true);
         });
     });
