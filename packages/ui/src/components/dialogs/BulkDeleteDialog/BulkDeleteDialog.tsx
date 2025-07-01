@@ -1,6 +1,5 @@
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import DialogContent from "@mui/material/DialogContent";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
 import List from "@mui/material/List";
@@ -11,12 +10,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { IconCommon } from "../../../icons/Icons.js";
-import { pagePaddingBottom } from "../../../styles.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
-import { BottomActionsGrid } from "../../buttons/BottomActionsGrid.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
-import { TopBar } from "../../navigation/TopBar.js";
-import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { Dialog, DialogContent, DialogActions } from "../Dialog/Dialog.js";
 import { type BulkDeleteDialogProps } from "../types.js";
 
 // Delete confirmation prompt is 2 random bunny words
@@ -67,17 +63,14 @@ export function BulkDeleteDialog({
     }, [handleClose, selectedItems]);
 
     return (
-        <LargeDialog
-            id="delete-dialog"
+        <Dialog
             isOpen={isOpen}
             onClose={onCancel}
+            title={t("DeleteBulkConfirm")}
+            size="full"
+            variant="danger"
         >
-            <TopBar
-                display="Dialog"
-                onClose={onCancel}
-                title={t("DeleteBulkConfirm")}
-            />
-            <DialogContent sx={{ paddingBottom: isMobile ? pagePaddingBottom : 0, marginBottom: 2 }}>
+            <DialogContent>
                 <Typography variant="body2" color="error" mb={2}>{t("DeleteBulkWarning")}</Typography>
                 <FormControlLabel
                     control={
@@ -119,32 +112,28 @@ export function BulkDeleteDialog({
                     sx={{ marginBottom: 2 }}
                 />
             </DialogContent>
-            <BottomActionsGrid display="Dialog">
-                <Grid item xs={6}>
-                    <Button
-                        disabled={!isConfirmationValid}
-                        fullWidth
-                        startIcon={<IconCommon
-                            decorative
-                            name="Delete"
-                        />}
-                        type="submit"
-                        onClick={onDelete}
-                        variant="contained"
-                    >{t("Delete")}</Button>
-                </Grid>
-                <Grid item xs={6}>
-                    <Button
-                        fullWidth
-                        startIcon={<IconCommon
-                            decorative
-                            name="Cancel"
-                        />}
-                        onClick={onCancel}
-                        variant="outlined"
-                    >{t("Cancel")}</Button>
-                </Grid>
-            </BottomActionsGrid>
-        </LargeDialog>
+            <DialogActions variant="danger">
+                <Button
+                    fullWidth
+                    startIcon={<IconCommon
+                        decorative
+                        name="Cancel"
+                    />}
+                    onClick={onCancel}
+                    variant="outlined"
+                >{t("Cancel")}</Button>
+                <Button
+                    disabled={!isConfirmationValid}
+                    fullWidth
+                    startIcon={<IconCommon
+                        decorative
+                        name="Delete"
+                    />}
+                    type="submit"
+                    onClick={onDelete}
+                    variant="contained"
+                >{t("Delete")}</Button>
+            </DialogActions>
+        </Dialog>
     );
 }

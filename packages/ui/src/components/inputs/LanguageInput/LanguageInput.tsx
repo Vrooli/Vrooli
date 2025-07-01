@@ -3,7 +3,7 @@
  */
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useCallback, useContext } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { SessionContext } from "../../../contexts/session.js";
 import { getLanguageSubtag, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { SelectLanguageMenu } from "../../dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
@@ -11,7 +11,6 @@ import { type LanguageInputProps } from "../types.js";
 
 export function LanguageInput({
     currentLanguage,
-    disabled,
     flexDirection,
     handleAdd,
     handleDelete,
@@ -55,25 +54,34 @@ export function LanguageInput({
         handleDelete(language);
     }, [handleAdd, handleCurrent, handleDelete, session, languages]);
 
+    const selectLanguageMenuSxs = useMemo(() => ({
+        root: { marginLeft: 0.5, marginRight: 0.5 },
+    }), []);
+
+    const translationCountSx = useMemo(() => ({
+        display: "flex",
+        alignItems: "center",
+    }), []);
+
     return (
-        <Stack direction="row" spacing={1} flexDirection={flexDirection || "row"}>
+        <Stack direction="row" spacing={1} flexDirection={flexDirection || "row"} data-testid="language-input">
             <SelectLanguageMenu
                 currentLanguage={currentLanguage}
                 handleDelete={deleteLanguage}
                 handleCurrent={selectLanguage}
                 isEditing={true}
                 languages={languages}
-                sxs={{
-                    root: { marginLeft: 0.5, marginRight: 0.5 },
-                }}
+                sxs={selectLanguageMenuSxs}
             />
             {/* Display how many translations there are, besides currently selected */}
             {
                 languages.length > 1 && (
-                    <Typography variant="body1" color="text.secondary" sx={{
-                        display: "flex",
-                        alignItems: "center",
-                    }}>
+                    <Typography 
+                        variant="body1" 
+                        color="text.secondary" 
+                        data-testid="translation-count"
+                        sx={translationCountSx}
+                    >
                         +{languages.length - 1}
                     </Typography>
                 )

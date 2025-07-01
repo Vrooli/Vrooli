@@ -11,7 +11,7 @@ import {
     Select,
     MenuItem,
     Alert,
-    Stack
+    Stack,
 } from "@mui/material";
 import { Button } from "../../buttons/Button.js";
 import { DeleteDialog } from "./DeleteDialog.js";

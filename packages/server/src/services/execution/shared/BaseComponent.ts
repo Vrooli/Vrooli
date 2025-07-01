@@ -38,12 +38,11 @@ export abstract class BaseComponent implements IBaseComponent {
     protected disposed = false;
 
     constructor(
-        protected readonly logger: Logger,
         protected readonly eventBus: IEventBus,
         componentName?: string,
     ) {
         this.componentName = componentName || this.constructor.name;
-        this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler(this.componentName);
+        this.errorHandler = new ErrorHandler(this.eventPublisher).createComponentHandler(this.componentName);
 
         // Get unified event system for modern event publishing
         this.unifiedEventBus = getUnifiedEventSystem();

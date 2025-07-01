@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { type Logger } from "winston";
+import { logger } from "../../../events/logger.js";
 import { type IEventBus, EventUtils, getUnifiedEventSystem } from "../../events/index.js";
 
 export type Result<T, E = Error> =
@@ -44,7 +44,6 @@ export class ErrorHandler {
     private readonly unifiedEventBus: IEventBus | null;
 
     constructor(
-        private readonly logger: Logger,
         config: ErrorHandlerConfig = {},
     ) {
         this.unifiedEventBus = getUnifiedEventSystem();
@@ -133,7 +132,7 @@ export class ErrorHandler {
 
             if (result.success) {
                 if (attempt > 0) {
-                    this.logger.info(`[${context.component}] Operation succeeded after ${attempt} retries`, {
+                    logger.info(`[${context.component}] Operation succeeded after ${attempt} retries`, {
                         operation: context.operation,
                         attempts: attempt + 1,
                     });
@@ -159,7 +158,7 @@ export class ErrorHandler {
                 ? retryDelay * Math.pow(2, attempt)
                 : retryDelay;
 
-            this.logger.warn(`[${context.component}] Retrying operation after ${delay}ms`, {
+            logger.warn(`[${context.component}] Retrying operation after ${delay}ms`, {
                 operation: context.operation,
                 attempt: attempt + 1,
                 maxRetries,
@@ -199,7 +198,7 @@ export class ErrorHandler {
                 logData.stack = errorObj.stack;
             }
 
-            this.logger.error(`[${context.component}] ${context.operation} failed`, logData);
+            logger.error(`[${context.component}] ${context.operation} failed`, logData);
         }
 
         // Publish error event if enabled
@@ -224,14 +223,14 @@ export class ErrorHandler {
                     );
                     await this.unifiedEventBus.publish(event);
                 } catch (publishError) {
-                    this.logger.error(`[${context.component}] Failed to publish error event to unified system`, {
+                    logger.error(`[${context.component}] Failed to publish error event to unified system`, {
                         originalError: errorObj.message,
                         publishError: publishError instanceof Error ? publishError.message : String(publishError),
                     });
                 }
             } else {
                 // No event bus available, error will only be logged
-                this.logger.debug("[ErrorHandler] No unified event bus available for error event publication");
+                logger.debug("[ErrorHandler] No unified event bus available for error event publication");
             }
         }
 

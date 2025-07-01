@@ -497,14 +497,7 @@ export class TierThreeExecutor extends BaseTierExecutor implements TierCommunica
     async getCapabilities(): Promise<TierCapabilities> {
         return {
             tier: "tier3",
-            supportedInputTypes: ["StepExecutionInput"],
-            supportedStrategies: ["conversational", "reasoning", "deterministic"],
             maxConcurrency: 20,
-            estimatedLatency: {
-                p50: 5000,
-                p95: 30000,
-                p99: 120000,
-            },
             resourceLimits: {
                 maxCredits: "10000",
                 maxDurationMs: 1800000, // 30 minutes

@@ -1,5 +1,4 @@
-import { API_CREDITS_MULTIPLIER } from "@vrooli/shared";
-import { randomUUID } from "crypto";
+import { API_CREDITS_MULTIPLIER, nanoid } from "@vrooli/shared";
 import { CustomError } from "../../events/error.js";
 import { calculateMaxCredits } from "./credits.js";
 import { AIServiceRegistry } from "./registry.js";
@@ -150,7 +149,7 @@ export class FallbackRouter extends LlmRouter {
                     maxTokens,
                 };
 
-                const responseId = `${serviceId}:${randomUUID()}`;
+                const responseId = `${serviceId}:${nanoid()}`;
                 for await (const ev of service.generateResponseStreaming(svcOpts)) {
                     switch (ev.type) {
                         case "text":

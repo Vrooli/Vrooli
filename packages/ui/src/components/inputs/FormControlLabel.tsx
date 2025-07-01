@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, cloneElement, isValidElement } from "react";
-import { FormControlLabelProps } from "./types.js";
+import { type FormControlLabelProps } from "./types.js";
 import { cn } from "../../utils/tailwind-theme.js";
 import { getFormControlLabelStyles } from "./formControlLabelStyles.js";
 
@@ -57,10 +57,14 @@ export const FormControlLabel = forwardRef<HTMLLabelElement, FormControlLabelPro
             ref={ref}
             className={cn(styles.root, className)}
             style={style}
+            data-testid="form-control-label"
+            data-label-placement={labelPlacement}
+            data-disabled={disabled}
+            data-required={required}
             {...props}
         >
             {(labelPlacement === "start" || labelPlacement === "top") && labelContent}
-            <span className={styles.controlWrapper}>
+            <span className={styles.controlWrapper} data-testid="control-wrapper">
                 {controlElement}
             </span>
             {(labelPlacement === "end" || labelPlacement === "bottom") && labelContent}

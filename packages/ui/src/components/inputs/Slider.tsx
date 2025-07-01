@@ -93,6 +93,7 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
     "data-testid": testId,
     ...props
 }, ref) => {
+    
     const [internalValue, setInternalValue] = useState(defaultValue);
     const [isDragging, setIsDragging] = useState(false);
     const [showTooltip, setShowTooltip] = useState(false);
@@ -172,11 +173,12 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
         if (disabled) return;
 
         const rect = sliderRef.current?.getBoundingClientRect();
-        if (!rect) return;
+        if (!rect || rect.width === 0) return;
 
         const position = ((event.clientX - rect.left) / rect.width) * 100;
-        const newValue = calculateValueFromPosition(position, min, max, step);
+        if (isNaN(position) || !isFinite(position)) return;
         
+        const newValue = calculateValueFromPosition(position, min, max, step);
         updateValue(newValue);
     }, [disabled, min, max, step, updateValue]);
 
@@ -190,11 +192,12 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
         setShowTooltip(true);
 
         const rect = sliderRef.current?.getBoundingClientRect();
-        if (!rect) return;
+        if (!rect || rect.width === 0) return;
 
         const position = ((event.clientX - rect.left) / rect.width) * 100;
-        const newValue = calculateValueFromPosition(position, min, max, step);
+        if (isNaN(position) || !isFinite(position)) return;
         
+        const newValue = calculateValueFromPosition(position, min, max, step);
         updateValue(newValue);
         onChangeStart?.(newValue);
     }, [disabled, min, max, step, updateValue, onChangeStart]);
@@ -205,11 +208,12 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
         event.preventDefault();
         
         const rect = sliderRef.current?.getBoundingClientRect();
-        if (!rect) return;
+        if (!rect || rect.width === 0) return;
 
         const position = ((event.clientX - rect.left) / rect.width) * 100;
-        const newValue = calculateValueFromPosition(position, min, max, step);
+        if (isNaN(position) || !isFinite(position)) return;
         
+        const newValue = calculateValueFromPosition(position, min, max, step);
         updateValue(newValue);
     }, [isDragging, disabled, min, max, step, updateValue]);
 
@@ -249,6 +253,7 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(({
 
         let newValue = currentValue;
         const stepSize = step || 1;
+        
 
         switch (event.key) {
             case "ArrowLeft":

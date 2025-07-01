@@ -1,10 +1,15 @@
 import React, { forwardRef, useCallback, useMemo } from "react";
-import { type RadioProps } from "./types.js";
+import { useField } from "formik";
+import { type RadioProps, type RadioBaseProps, type RadioFormikProps } from "./types.js";
 import { cn } from "../../utils/tailwind-theme.js";
 import { getRadioStyles } from "./radioStyles.js";
 import { useRippleEffect } from "../../hooks/index.js";
 
-export const Radio = forwardRef<HTMLInputElement, RadioProps>(({
+/**
+ * Base radio button component without Formik integration.
+ * This is the pure visual component that handles all styling and interaction logic.
+ */
+export const RadioBase = forwardRef<HTMLInputElement, RadioBaseProps>(({
     className,
     color = "primary",
     customColor,
@@ -24,6 +29,9 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(({
     "aria-describedby": ariaDescribedBy,
     sx,
     style,
+    error = false,
+    helperText,
+    label,
     ...props
 }, ref) => {
     const { addRipple, ripples } = useRippleEffect();
@@ -56,7 +64,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(({
         }
     }, [disabled, onClick]);
 
-    return (
+    const radioElement = (
         <label 
             className={cn(styles.container, className)} 
             style={style}
@@ -130,27 +138,125 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(({
             </span>
         </label>
     );
+
+    // Return radio with optional label and helper text
+    return (
+        <div className={cn("tw-flex tw-flex-col tw-gap-1", error && "tw-text-red-500")}>
+            <div className="tw-flex tw-items-center tw-gap-2">
+                {radioElement}
+                {label && (
+                    <span className={cn(
+                        "tw-text-sm",
+                        disabled && "tw-opacity-50 tw-cursor-not-allowed",
+                    )}>
+                        {label}
+                    </span>
+                )}
+            </div>
+            {helperText && (
+                <div className={cn(
+                    "tw-text-sm tw-ml-1",
+                    error ? "tw-text-red-500" : "tw-text-gray-600",
+                )}>
+                    {helperText}
+                </div>
+            )}
+        </div>
+    );
+});
+
+RadioBase.displayName = "RadioBase";
+
+/**
+ * Formik-integrated radio button component.
+ * Automatically connects to Formik context using the field name.
+ * 
+ * @example
+ * ```tsx
+ * // Inside a Formik form
+ * <Radio name="plan" value="basic" label="Basic Plan" />
+ * <Radio name="plan" value="pro" label="Pro Plan" />
+ * <Radio name="plan" value="enterprise" label="Enterprise Plan" />
+ * ```
+ */
+export const Radio = forwardRef<HTMLInputElement, RadioFormikProps>(({
+    name,
+    validate,
+    id,
+    ...props
+}, ref) => {
+    const [field, meta] = useField({ name, validate });
+    
+    // Use provided id or fall back to name + value
+    const inputId = id || `${name}-${props.value}`;
+    
+    return (
+        <RadioBase
+            {...field}
+            {...props}
+            id={inputId}
+            error={meta.touched && Boolean(meta.error)}
+            helperText={meta.touched && meta.error}
+            data-testid={props["data-testid"] || `radio-${name}`}
+            ref={ref}
+        />
+    );
 });
 
 Radio.displayName = "Radio";
 
-// Factory functions for common variants
-export const PrimaryRadio = forwardRef<HTMLInputElement, Omit<RadioProps, "color">>((props, ref) => (
-    <Radio ref={ref} color="primary" {...props} />
-));
-PrimaryRadio.displayName = "PrimaryRadio";
+// Factory functions for Formik-integrated variants
+export const RadioFactory = {
+    Primary: (props: Omit<RadioFormikProps, "color">) => (
+        <Radio color="primary" {...props} />
+    ),
+    Secondary: (props: Omit<RadioFormikProps, "color">) => (
+        <Radio color="secondary" {...props} />
+    ),
+    Danger: (props: Omit<RadioFormikProps, "color">) => (
+        <Radio color="danger" {...props} />
+    ),
+    Success: (props: Omit<RadioFormikProps, "color">) => (
+        <Radio color="success" {...props} />
+    ),
+    Warning: (props: Omit<RadioFormikProps, "color">) => (
+        <Radio color="warning" {...props} />
+    ),
+    Info: (props: Omit<RadioFormikProps, "color">) => (
+        <Radio color="info" {...props} />
+    ),
+    Custom: (props: Omit<RadioFormikProps, "color"> & { customColor: string }) => (
+        <Radio color="custom" {...props} />
+    ),
+} as const;
 
-export const SecondaryRadio = forwardRef<HTMLInputElement, Omit<RadioProps, "color">>((props, ref) => (
-    <Radio ref={ref} color="secondary" {...props} />
-));
-SecondaryRadio.displayName = "SecondaryRadio";
+// Factory functions for base variants (no Formik)
+export const RadioFactoryBase = {
+    Primary: (props: Omit<RadioBaseProps, "color">) => (
+        <RadioBase color="primary" {...props} />
+    ),
+    Secondary: (props: Omit<RadioBaseProps, "color">) => (
+        <RadioBase color="secondary" {...props} />
+    ),
+    Danger: (props: Omit<RadioBaseProps, "color">) => (
+        <RadioBase color="danger" {...props} />
+    ),
+    Success: (props: Omit<RadioBaseProps, "color">) => (
+        <RadioBase color="success" {...props} />
+    ),
+    Warning: (props: Omit<RadioBaseProps, "color">) => (
+        <RadioBase color="warning" {...props} />
+    ),
+    Info: (props: Omit<RadioBaseProps, "color">) => (
+        <RadioBase color="info" {...props} />
+    ),
+    Custom: (props: Omit<RadioBaseProps, "color"> & { customColor: string }) => (
+        <RadioBase color="custom" {...props} />
+    ),
+} as const;
 
-export const DangerRadio = forwardRef<HTMLInputElement, Omit<RadioProps, "color">>((props, ref) => (
-    <Radio ref={ref} color="danger" {...props} />
-));
-DangerRadio.displayName = "DangerRadio";
-
-export const CustomRadio = forwardRef<HTMLInputElement, Omit<RadioProps, "color"> & { customColor: string }>((props, ref) => (
-    <Radio ref={ref} color="custom" {...props} />
-));
-CustomRadio.displayName = "CustomRadio";
+// Legacy factory exports for backward compatibility
+export const PrimaryRadio = RadioFactory.Primary;
+export const SecondaryRadio = RadioFactory.Secondary;
+export const DangerRadio = RadioFactory.Danger;
+export const CustomRadio = RadioFactory.Custom;

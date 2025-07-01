@@ -1,15 +1,9 @@
 import Box from "@mui/material/Box";
-import FormControl from "@mui/material/FormControl";
-import FormHelperText from "@mui/material/FormHelperText";
-import InputAdornment from "@mui/material/InputAdornment";
-import InputLabel from "@mui/material/InputLabel";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
-import OutlinedInput from "@mui/material/OutlinedInput";
 import Popover from "@mui/material/Popover";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import type { FormControlProps } from "@mui/material";
 import { useTheme } from "@mui/material";
 import { useField } from "formik";
 import { type CountryCallingCode, type CountryCode } from "libphonenumber-js";
@@ -18,6 +12,7 @@ import { useDebounce } from "../../../hooks/useDebounce.js";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { useStableCallback } from "../../../hooks/useStableCallback.js";
 import { IconCommon } from "../../../icons/Icons.js";
+import { InputContainer } from "../InputContainer/InputContainer.js";
 import { type PhoneNumberInputBaseProps, type PhoneNumberInputProps } from "../types.js";
 
 const anchorOrigin = {
@@ -36,6 +31,9 @@ export function PhoneNumberInputBase({
     onChange,
     setError,
     value,
+    variant = "filled",
+    size = "md",
+    disabled = false,
     ...props
 }: PhoneNumberInputBaseProps) {
     const { palette } = useTheme();
@@ -177,45 +175,43 @@ export function PhoneNumberInputBase({
 
     return (
         <>
-            <Box width="-webkit-fill-available">
-                <FormControl fullWidth={fullWidth} variant="outlined" error={!!error} {...props as FormControlProps}>
-                    <InputLabel htmlFor={name}>{label ?? "Phone Number"}</InputLabel>
-                    <OutlinedInput
-                        id={name}
-                        name={name}
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={handleImmediateChange}
-                        autoComplete={autoComplete}
-                        autoFocus={autoFocus}
-                        data-testid="phone-number-input"
-                        startAdornment={
-                            <InputAdornment position="start" onClick={openPopover} sx={{ cursor: "pointer" }} data-testid="country-selector-button">
-                                <IconCommon
-                                    decorative
-                                    name="Phone"
-                                    style={{ marginRight: "4px" }}
-                                />
-                                <Typography variant="body1" sx={{ marginRight: "4px" }} data-testid="selected-country">{selectedCountry}</Typography>
-                            </InputAdornment>
-                        }
-                        error={!!error}
-                        label={label ?? "Phone Number"}
-                        sx={{
-                            "& .MuiOutlinedInput-notchedOutline": {
-                                borderColor: error ? palette.error.main : "",
-                            },
-                            "&:hover .MuiOutlinedInput-notchedOutline": {
-                                borderColor: error ? palette.error.main : "",
-                            },
-                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                                borderColor: error ? palette.error.main : palette.primary.main, // Keep primary color on focus if not invalid
-                            },
-                        }}
-                    />
-                </FormControl>
-                {helperText && <FormHelperText id={`helper-text-${name}`}>{typeof helperText === "string" ? helperText : JSON.stringify(helperText)}</FormHelperText>}
-            </Box>
+            <InputContainer
+                variant={variant}
+                size={size}
+                error={!!error}
+                disabled={disabled}
+                fullWidth={fullWidth}
+                label={label ?? "Phone Number"}
+                helperText={helperText}
+                htmlFor={name}
+                startAdornment={
+                    <div 
+                        onClick={openPopover} 
+                        className="tw-cursor-pointer tw-flex tw-items-center tw-gap-1" 
+                        data-testid="country-selector-button"
+                    >
+                        <IconCommon
+                            decorative
+                            name="Phone"
+                        />
+                        <Typography variant="body1" data-testid="selected-country">{selectedCountry}</Typography>
+                    </div>
+                }
+                {...props}
+            >
+                <input
+                    id={name}
+                    name={name}
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={handleImmediateChange}
+                    autoComplete={autoComplete}
+                    autoFocus={autoFocus}
+                    disabled={disabled}
+                    data-testid="phone-number-input"
+                    className="tw-w-full tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-text-text-primary placeholder:tw-text-text-secondary"
+                />
+            </InputContainer>
             <Popover
                 open={Boolean(anchorEl)}
                 anchorEl={anchorEl}

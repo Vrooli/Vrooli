@@ -1,13 +1,7 @@
 import { McpToolName } from "@vrooli/shared";
 import type { Logger } from "winston";
 import { RequestService } from "../../auth/request.js";
-import defineToolSchemaJson from "../schemas/DefineTool/schema.json" with { type: "json" };
-import endSwarmSchemaJson from "../schemas/EndSwarm/schema.json" with { type: "json" };
-import resourceManageSchemaJson from "../schemas/ResourceManage/schema.json" with { type: "json" };
-import runRoutineSchemaJson from "../schemas/RunRoutine/schema.json" with { type: "json" };
-import sendMessageSchemaJson from "../schemas/SendMessage/schema.json" with { type: "json" };
-import spawnSwarmSchemaJson from "../schemas/SpawnSwarm/schema.json" with { type: "json" };
-import updateSwarmStateSchemaJson from "../schemas/UpdateSwarmSharedState/schema.json" with { type: "json" };
+import { loadSchema } from "./schemaLoader.js";
 import type { ResourceManageParams, RunRoutineParams } from "../types/tools.js";
 import { type DefineToolParams, type SendMessageParams, type SpawnSwarmParams } from "../types/tools.js";
 import { getCurrentMcpContext } from "./context.js";
@@ -22,6 +16,15 @@ type ToolArgsMap = {
     [McpToolName.RunRoutine]: RunRoutineParams;
     [McpToolName.SpawnSwarm]: SpawnSwarmParams;
 };
+
+// Load schemas using the schema loader utility
+const defineToolSchemaJson = loadSchema("DefineTool/schema.json");
+const endSwarmSchemaJson = loadSchema("EndSwarm/schema.json");
+const resourceManageSchemaJson = loadSchema("ResourceManage/schema.json");
+const runRoutineSchemaJson = loadSchema("RunRoutine/schema.json");
+const sendMessageSchemaJson = loadSchema("SendMessage/schema.json");
+const spawnSwarmSchemaJson = loadSchema("SpawnSwarm/schema.json");
+const updateSwarmStateSchemaJson = loadSchema("UpdateSwarmSharedState/schema.json");
 
 const BUILT_IN_TOOL_DEFINITIONS = [
     defineToolSchemaJson,

@@ -48,7 +48,7 @@
  * 
  * @see UnifiedSwarmContext - The unified context type system
  * @see ContextSubscriptionManager - Live update propagation system
- * @see ResourceFlowProtocol - Emergent resource allocation protocol
+ * @see SwarmContextManager - Centralized resource allocation and state management
  * @see /docs/architecture/execution/swarm-state-management-redesign.md - Complete architecture
  */
 

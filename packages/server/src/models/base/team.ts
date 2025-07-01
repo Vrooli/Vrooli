@@ -31,8 +31,8 @@ export const TeamModel: TeamModelLogic = ({
             get: ({ translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
                 return EmbeddingService.getEmbeddableString({
-                    bio: trans.bio,
-                    name: trans.name,
+                    bio: trans?.bio || "",
+                    name: trans?.name || "",
                 }, languages?.[0]);
             },
         },
@@ -52,12 +52,12 @@ export const TeamModel: TeamModelLogic = ({
                 return {
                     id: BigInt(data.id),
                     publicId: generatePublicId(),
-                    bannerImage: data.bannerImage,
+                    bannerImage: typeof data.bannerImage === "string" ? data.bannerImage : null,
                     config: noNull(data.config),
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: data.isPrivate,
-                    profileImage: data.profileImage,
+                    profileImage: typeof data.profileImage === "string" ? data.profileImage : null,
                     createdBy: { connect: { id: BigInt(rest.userData.id) } },
                     members: {
                         create: {
@@ -75,12 +75,12 @@ export const TeamModel: TeamModelLogic = ({
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as TeamPre;
                 return {
-                    bannerImage: noNull(data.bannerImage),
+                    bannerImage: typeof data.bannerImage === "string" ? data.bannerImage : (data.bannerImage === null ? null : undefined),
                     config: noNull(data.config),
                     handle: noNull(data.handle),
                     isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                     isPrivate: noNull(data.isPrivate),
-                    profileImage: noNull(data.profileImage),
+                    profileImage: typeof data.profileImage === "string" ? data.profileImage : (data.profileImage === null ? null : undefined),
                     members: await shapeHelper({ relation: "members", relTypes: ["Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "team", data, ...rest }),
                     memberInvites: await shapeHelper({ relation: "memberInvites", relTypes: ["Create", "Delete"], isOneToOne: false, objectType: "Member", parentRelationshipName: "team", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Team", data, ...rest }),

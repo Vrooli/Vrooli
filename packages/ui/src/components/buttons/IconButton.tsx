@@ -36,13 +36,20 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
 const ButtonIcon = ({ children, size, variant }: { children: ReactNode; size: number; variant: IconButtonVariant }) => {
     const { palette } = useTheme();
     
+    // Safety check for undefined children
+    if (!children) {
+        console.error("ButtonIcon received undefined children");
+        return null;
+    }
+    
     // Calculate icon size based on button size
     // Transparent variant gets larger icons (65% of button size) for better visibility
     const sizeMultiplier = variant === "transparent" ? 0.65 : 0.5;
     const iconSize = Math.max(16, Math.min(32, Math.round(size * sizeMultiplier)));
     
-    // Check if the icon has an explicit fill prop
-    const iconElement = children as React.ReactElement;
+    // Check if children is a React element that can be cloned
+    const isReactElement = React.isValidElement(children);
+    const iconElement = isReactElement ? children as React.ReactElement : null;
     const hasExplicitFill = iconElement?.props?.fill !== undefined;
     
     // Calculate dynamic icon color based on variant for proper contrast
@@ -78,7 +85,7 @@ const ButtonIcon = ({ children, size, variant }: { children: ReactNode; size: nu
             className={cn(
                 "tw-inline-flex tw-items-center tw-justify-center",
                 // Only force fill: currentColor if icon doesn't have explicit fill
-                !hasExplicitFill && "[&>svg]:tw-fill-current"
+                !hasExplicitFill && "[&>svg]:tw-fill-current",
             )}
             style={{
                 width: iconSize,
@@ -86,11 +93,16 @@ const ButtonIcon = ({ children, size, variant }: { children: ReactNode; size: nu
                 color: iconColor,
             }}
         >
-            {React.cloneElement(iconElement, {
-                size: iconSize,
-                // Preserve the original fill prop if it exists
-                ...(hasExplicitFill && { fill: iconElement.props.fill }),
-            })}
+            {isReactElement ? (
+                React.cloneElement(iconElement, {
+                    size: iconSize,
+                    // Preserve the original fill prop if it exists
+                    ...(hasExplicitFill && { fill: iconElement.props.fill }),
+                })
+            ) : (
+                // For non-React elements (like emoji strings), render them directly
+                children
+            )}
         </span>
     );
 };
@@ -102,7 +114,7 @@ const ButtonIcon = ({ children, size, variant }: { children: ReactNode; size: nu
 const RippleEffect = ({
     ripples,
     onRippleComplete,
-    color
+    color,
 }: {
     ripples: Array<{ id: number; x: number; y: number }>;
     onRippleComplete: (id: number) => void;
@@ -115,7 +127,7 @@ const RippleEffect = ({
                 className="tw-absolute tw-pointer-events-none tw-rounded-full"
                 style={{
                     ...createIconRippleStyle(ripple, color),
-                    animation: 'iconButtonRippleExpand 0.6s ease-out forwards',
+                    animation: "iconButtonRippleExpand 0.6s ease-out forwards",
                 }}
                 onAnimationEnd={() => onRippleComplete(ripple.id)}
             />
@@ -129,7 +141,7 @@ const RippleEffect = ({
  */
 const SpaceBackground = ({
     ripples,
-    onRippleComplete
+    onRippleComplete,
 }: {
     ripples: Array<{ id: number; x: number; y: number }>;
     onRippleComplete: (id: number) => void;
@@ -151,8 +163,8 @@ const SpaceBackground = ({
                 style={{
                     ...styles.main,
                     // Force hardware acceleration for smoother rendering
-                    willChange: 'transform',
-                    transform: 'translateZ(0)',
+                    willChange: "transform",
+                    transform: "translateZ(0)",
                 }}
             />
 
@@ -164,8 +176,8 @@ const SpaceBackground = ({
                 style={{
                     ...styles.sweep,
                     // Ensure smooth animation
-                    willChange: 'opacity, background-position',
-                    transform: 'translateZ(0)',
+                    willChange: "opacity, background-position",
+                    transform: "translateZ(0)",
                 }}
             />
 
@@ -185,7 +197,7 @@ const SpaceBackground = ({
  */
 const NeonBackground = ({
     ripples,
-    onRippleComplete
+    onRippleComplete,
 }: {
     ripples: Array<{ id: number; x: number; y: number }>;
     onRippleComplete: (id: number) => void;
@@ -243,7 +255,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
             onClick,
             ...props
         },
-        ref
+        ref,
     ) => {
         // Convert size to numeric value
         const numericSize = useMemo(() => getNumericSize(size), [size]);
@@ -264,7 +276,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
             disabled && "tw-opacity-50 tw-cursor-not-allowed tw-pointer-events-none",
             
             // Custom overrides
-            className
+            className,
         ), [variant, disabled, className]);
 
         // Memoize ripple color based on variant
@@ -284,7 +296,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                 width: `${numericSize}px`, 
                 height: `${numericSize}px`,
                 flexShrink: 0,
-                display: 'inline-block'
+                display: "inline-block",
             }}>
                 <button
                     ref={ref}
@@ -293,13 +305,13 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                     className={buttonClasses}
                     onClick={handleClick}
                     aria-disabled={disabled}
-                    aria-label={props['aria-label'] || 'Icon button'}
+                    aria-label={props["aria-label"] || "Icon button"}
                     {...props}
                     style={{
                         ...props.style,
-                        width: '100%',
-                        height: '100%',
-                        boxSizing: 'border-box',
+                        width: "100%",
+                        height: "100%",
+                        boxSizing: "border-box",
                     }}
                 >
                 {/* Space background for space variant - simplified to just sweep animation */}
@@ -338,7 +350,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                 {/* Icon content with proper z-index for space and neon variants */}
                 <span className={cn(
                     "tw-relative tw-flex tw-items-center tw-justify-center",
-                    (variant === "space" || variant === "neon") && "tw-z-10"
+                    (variant === "space" || variant === "neon") && "tw-z-10",
                 )}>
                     <ButtonIcon size={numericSize} variant={variant}>{children}</ButtonIcon>
                 </span>
@@ -352,7 +364,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                 </button>
             </div>
         );
-    }
+    },
 );
 
 IconButton.displayName = "IconButton";

@@ -9,13 +9,14 @@ import { readOneHelper } from "../../actions/reads.js";
 import type { RequestService } from "../../auth/request.js";
 import { logger } from "../../events/logger.js";
 import { Notify } from "../../notify/notify.js";
-import { SocketService } from "../../sockets/io.js";
+import { SocketService } from "../../sockets/io.js"; // Still needed for roomHasOpenConnections check
 import { type LLMCompletionTask } from "../../tasks/taskTypes.js";
 import { BusService } from "../bus.js";
+import { EventTypes, EventUtils, getUnifiedEventSystem, type IEventBus } from "../events/index.js";
+import { CompositeGraph, type AgentGraph } from "../execution/tier1/agentGraph.js";
 import { ToolRegistry } from "../mcp/registry.js";
 import { SwarmTools } from "../mcp/tools.js";
 import { type Tool } from "../mcp/types.js";
-import { CompositeGraph, type AgentGraph } from "./agentGraph.js";
 import { CachedConversationStateStore, PrismaChatStore, type ConversationStateStore } from "./chatStore.js";
 import { RedisContextBuilder, type ContextBuilder } from "./contextBuilder.js";
 import { RedisMessageStore, type MessageStore } from "./messageStore.js";
@@ -116,6 +117,8 @@ play‑nice horizontal scaling, and—critically— a clear *handoff point* to a
   • **credit:cost_incurred**       – Stores the cost incurred for response generation/tool use during event processing.  
 */
 export class ReasoningEngine {
+    private readonly unifiedEventBus: IEventBus | null;
+
     /**
      * @param contextBuilder     Collects all chat history that can fit into the context window of a bot turn.
      * @param llmRouter          Streams Responses‑API calls to chosen LLM provider (e.g. OpenAI, Anthropic).
@@ -125,7 +128,9 @@ export class ReasoningEngine {
         private readonly contextBuilder: ContextBuilder,
         private readonly llmRouter: LlmRouter,
         public readonly toolRunner: ToolRunner,
-    ) { }
+    ) {
+        this.unifiedEventBus = getUnifiedEventSystem();
+    }
 
     /**
      * Handles abort or timeout scenarios by emitting appropriate events and returning an error.
@@ -165,46 +170,80 @@ export class ReasoningEngine {
 
         logger.info(logMessage + (signalReason ? `. Reason: ${String(signalReason)}` : ""));
 
-        this._emitErrorEvents(context.chatId, context.botId, context.stage, errorMessage, errorCode, context.toolName);
+        // Fire-and-forget error events - don't await to avoid blocking
+        this._emitErrorEvents(context.chatId, context.botId, context.stage, errorMessage, errorCode, context.toolName).catch(err => {
+            logger.error("Failed to emit error events", { error: err });
+        });
         return errorToThrow;
     }
 
     /**
      * Emits appropriate error events based on the stage and context.
      */
-    private _emitErrorEvents(
+    private async _emitErrorEvents(
         chatId: string | undefined,
         botId: string,
         stage: string,
         errorMessage: string,
         errorCode: ResponseErrorCode,
         toolName?: string,
-    ): void {
-        if (!chatId) return;
+    ): Promise<void> {
+        if (!chatId || !this.unifiedEventBus) return;
 
         // Determine if the error is retryable based on error code and context
         const isRetryable = this._isErrorRetryable(errorCode, stage, toolName);
 
-        if (stage === "before-tool-call" || stage === "tool-call-processing") { // Specific for tool failures
-            SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
-                chatId,
-                botId,
-                status: "tool_failed",
-                toolInfo: { callId: "unknown", name: toolName || "unknown_tool", error: errorMessage }, // callId might not be available here
-                error: { message: errorMessage, code: errorCode, retryable: isRetryable },
-            });
-        } else { // General response stream error or bot status error
-            SocketService.get().emitSocketEvent("responseStream", chatId, {
-                __type: "error",
-                botId,
-                error: { message: errorMessage, code: errorCode, retryable: isRetryable },
-            });
-            SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
-                chatId,
-                botId,
-                status: "error_internal",
-                error: { message: errorMessage, code: errorCode, retryable: isRetryable },
-            });
+        const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+        const metadata = EventUtils.createEventMetadata("fire-and-forget", "high", {
+            conversationId: chatId,
+        });
+
+        if (stage === "before-tool-call" || stage === "tool-call-processing") {
+            // Specific for tool failures
+            await this.unifiedEventBus.publish(
+                EventUtils.createBaseEvent(
+                    EventTypes.BOT_STATUS_UPDATED,
+                    {
+                        chatId,
+                        botId,
+                        status: "tool_failed",
+                        toolInfo: { callId: "unknown", name: toolName || "unknown_tool", error: errorMessage },
+                        error: { message: errorMessage, code: errorCode, retryable: isRetryable },
+                    },
+                    eventSource,
+                    metadata,
+                ),
+            );
+        } else {
+            // General response stream error
+            await this.unifiedEventBus.publish(
+                EventUtils.createBaseEvent(
+                    EventTypes.BOT_RESPONSE_STREAM,
+                    {
+                        __type: "error",
+                        chatId,
+                        botId,
+                        error: { message: errorMessage, code: errorCode, retryable: isRetryable },
+                    },
+                    eventSource,
+                    metadata,
+                ),
+            );
+
+            // Bot status error
+            await this.unifiedEventBus.publish(
+                EventUtils.createBaseEvent(
+                    EventTypes.BOT_STATUS_UPDATED,
+                    {
+                        chatId,
+                        botId,
+                        status: "error_internal",
+                        error: { message: errorMessage, code: errorCode, retryable: isRetryable },
+                    },
+                    eventSource,
+                    metadata,
+                ),
+            );
         }
     }
 
@@ -368,23 +407,49 @@ export class ReasoningEngine {
                 // Append to draft message
                 updatedDraftMessage = ev.final ? ev.content : draftMessage + ev.content;
                 // Emit to client
-                if (chatId) {
-                    SocketService.get().emitSocketEvent("responseStream", chatId, {
-                        __type: ev.final ? "end" : "stream",
-                        botId: bot.id,
-                        chunk: ev.content,
+                if (chatId && this.unifiedEventBus) {
+                    const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+                    const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                        conversationId: chatId,
                     });
+
+                    this.unifiedEventBus.publish(
+                        EventUtils.createBaseEvent(
+                            EventTypes.BOT_RESPONSE_STREAM,
+                            {
+                                __type: ev.final ? "end" : "stream",
+                                chatId,
+                                botId: bot.id,
+                                chunk: ev.content,
+                            },
+                            eventSource,
+                            metadata,
+                        ),
+                    ).catch(err => logger.error("Failed to emit response stream event", { error: err }));
                 }
                 break;
 
             case "reasoning":
                 // Emit to client
-                if (chatId) {
-                    SocketService.get().emitSocketEvent("modelReasoningStream", chatId, {
-                        __type: "stream",
-                        botId: bot.id,
-                        chunk: ev.content,
+                if (chatId && this.unifiedEventBus) {
+                    const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+                    const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                        conversationId: chatId,
                     });
+
+                    this.unifiedEventBus.publish(
+                        EventUtils.createBaseEvent(
+                            EventTypes.BOT_MODEL_REASONING_STREAM,
+                            {
+                                __type: "stream",
+                                chatId,
+                                botId: bot.id,
+                                chunk: ev.content,
+                            },
+                            eventSource,
+                            metadata,
+                        ),
+                    ).catch(err => logger.error("Failed to emit reasoning stream event", { error: err }));
                 }
                 break;
 
@@ -435,12 +500,25 @@ export class ReasoningEngine {
                 const cost = BigInt(ev.cost);
                 responseStats.creditsUsed += cost; // Add LLM generation cost to cumulative response stats
                 // Emit to client
-                if (chatId) {
-                    SocketService.get().emitSocketEvent("responseStream", chatId, {
-                        __type: "end",
-                        botId: bot.id,
-                        finalMessage: updatedDraftMessage,
+                if (chatId && this.unifiedEventBus) {
+                    const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+                    const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                        conversationId: chatId,
                     });
+
+                    this.unifiedEventBus.publish(
+                        EventUtils.createBaseEvent(
+                            EventTypes.BOT_RESPONSE_STREAM,
+                            {
+                                __type: "end",
+                                chatId,
+                                botId: bot.id,
+                                finalMessage: updatedDraftMessage,
+                            },
+                            eventSource,
+                            metadata,
+                        ),
+                    ).catch(err => logger.error("Failed to emit response end event", { error: err }));
                 }
                 break;
             }
@@ -519,8 +597,23 @@ export class ReasoningEngine {
         abortSignal?: AbortSignal,
     ): Promise<{ finalMessage: MessageState; responseStats: ResponseStats }> {
         // Signal typing start
-        if (chatId) {
-            SocketService.get().emitSocketEvent("typing", chatId, { starting: [bot.id] });
+        if (chatId && this.unifiedEventBus) {
+            const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+            const metadata = EventUtils.createEventMetadata("fire-and-forget", "low", {
+                conversationId: chatId,
+            });
+
+            this.unifiedEventBus.publish(
+                EventUtils.createBaseEvent(
+                    EventTypes.BOT_TYPING_UPDATED,
+                    {
+                        chatId,
+                        starting: [bot.id],
+                    },
+                    eventSource,
+                    metadata,
+                ),
+            ).catch(err => logger.error("Failed to emit typing start event", { error: err }));
         }
 
         // Transform availableTools to OpenAI.Responses.Tool[] format for ContextBuilder and LlmRouter
@@ -557,8 +650,25 @@ export class ReasoningEngine {
 
         try {
             // Emit thinking status before starting the main loop
-            if (chatId) {
-                SocketService.get().emitSocketEvent("botStatusUpdate", chatId, { chatId, botId: bot.id, status: "thinking", message: "Processing request..." });
+            if (chatId && this.unifiedEventBus) {
+                const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+                const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                    conversationId: chatId,
+                });
+
+                this.unifiedEventBus.publish(
+                    EventUtils.createBaseEvent(
+                        EventTypes.BOT_STATUS_UPDATED,
+                        {
+                            chatId,
+                            botId: bot.id,
+                            status: "thinking",
+                            message: "Processing request...",
+                        },
+                        eventSource,
+                        metadata,
+                    ),
+                ).catch(err => logger.error("Failed to emit thinking status event", { error: err }));
             }
 
             while (inputs.length && !this._hasExceededLimits(responseStats, convoAllocatedToolCalls, convoAllocatedCredits, responseLimits)) {
@@ -615,13 +725,25 @@ export class ReasoningEngine {
             }
 
             // Emit processing_complete status if the loop finished without exhausting inputs
-            if (chatId && inputs.length === 0) {
-                SocketService.get().emitSocketEvent("botStatusUpdate", chatId, {
-                    chatId,
-                    botId: bot.id,
-                    status: "processing_complete",
-                    message: "Finished processing turn.",
+            if (chatId && inputs.length === 0 && this.unifiedEventBus) {
+                const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+                const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                    conversationId: chatId,
                 });
+
+                this.unifiedEventBus.publish(
+                    EventUtils.createBaseEvent(
+                        EventTypes.BOT_STATUS_UPDATED,
+                        {
+                            chatId,
+                            botId: bot.id,
+                            status: "processing_complete",
+                            message: "Finished processing turn.",
+                        },
+                        eventSource,
+                        metadata,
+                    ),
+                ).catch(err => logger.error("Failed to emit processing complete event", { error: err }));
             }
 
         } finally {
@@ -647,8 +769,23 @@ export class ReasoningEngine {
             });
 
             // Signal typing end
-            if (chatId) {
-                SocketService.get().emitSocketEvent("typing", chatId, { stopping: [bot.id] });
+            if (chatId && this.unifiedEventBus) {
+                const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+                const metadata = EventUtils.createEventMetadata("fire-and-forget", "low", {
+                    conversationId: chatId,
+                });
+
+                this.unifiedEventBus.publish(
+                    EventUtils.createBaseEvent(
+                        EventTypes.BOT_TYPING_UPDATED,
+                        {
+                            chatId,
+                            stopping: [bot.id],
+                        },
+                        eventSource,
+                        metadata,
+                    ),
+                ).catch(err => logger.error("Failed to emit typing stop event", { error: err }));
             }
         }
 
@@ -806,7 +943,7 @@ export class ReasoningEngine {
 
             // Emit socket events if approval is needed
             if (currentStatus === PendingToolCallStatus.PENDING_APPROVAL && conversationId && userData) {
-                this._emitToolApprovalEvents(
+                await this._emitToolApprovalEvents(
                     conversationId, callerBot, ev, pendingId,
                     approvalTimeoutTimestamp, userData, availableTools,
                     schedulingDecision.schedulingRules,
@@ -839,7 +976,7 @@ export class ReasoningEngine {
     /**
      * Emits socket events for tool approval notifications.
      */
-    private _emitToolApprovalEvents(
+    private async _emitToolApprovalEvents(
         conversationId: string,
         callerBot: BotParticipant,
         ev: FunctionCallStreamEvent,
@@ -848,21 +985,38 @@ export class ReasoningEngine {
         userData: SessionUser,
         availableTools?: Tool[],
         schedulingRules?: any,
-    ): void {
-        const hasActiveConnection = SocketService.get().roomHasOpenConnections(conversationId);
+    ): Promise<void> {
+        if (!this.unifiedEventBus) return;
 
-        if (hasActiveConnection) {
-            SocketService.get().emitSocketEvent("tool_approval_required", conversationId, {
-                pendingId,
-                toolCallId: ev.callId,
-                toolName: ev.name,
-                toolArguments: ev.arguments as Record<string, any>,
-                callerBotId: callerBot.id,
-                callerBotName: callerBot.name,
-                approvalTimeoutAt: approvalTimeoutTimestamp,
-                estimatedCost: availableTools?.find(t => t.name === ev.name)?.estimatedCost,
-            });
-        } else {
+        const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+        const metadata = EventUtils.createEventMetadata("reliable", "high", {
+            conversationId,
+            userId: userData.id,
+        });
+
+        // Emit tool approval required event
+        await this.unifiedEventBus.publish(
+            EventUtils.createBaseEvent(
+                EventTypes.TOOL_APPROVAL_REQUIRED,
+                {
+                    pendingId,
+                    toolCallId: ev.callId,
+                    toolName: ev.name,
+                    toolArguments: ev.arguments as Record<string, any>,
+                    callerBotId: callerBot.id,
+                    callerBotName: callerBot.name,
+                    approvalTimeoutAt: approvalTimeoutTimestamp,
+                    estimatedCost: availableTools?.find(t => t.name === ev.name)?.estimatedCost,
+                    conversationId,
+                },
+                eventSource,
+                metadata,
+            ),
+        );
+
+        // Check if we need to send push notification
+        const hasActiveConnection = SocketService.get().roomHasOpenConnections(conversationId);
+        if (!hasActiveConnection) {
             Notify(userData.languages)
                 .pushToolApprovalRequired(
                     conversationId,
@@ -878,13 +1032,21 @@ export class ReasoningEngine {
             logger.info(`Sent tool approval push notification for ${pendingId} to user ${userData.id} for conversation ${conversationId}.`);
         }
 
-        SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-            chatId: conversationId,
-            botId: callerBot.id,
-            status: "tool_pending_approval",
-            toolInfo: { callId: ev.callId, name: ev.name, pendingId },
-            message: `Tool ${ev.name} is awaiting user approval.`,
-        });
+        // Emit bot status update
+        await this.unifiedEventBus.publish(
+            EventUtils.createBaseEvent(
+                EventTypes.BOT_STATUS_UPDATED,
+                {
+                    chatId: conversationId,
+                    botId: callerBot.id,
+                    status: "tool_pending_approval",
+                    toolInfo: { callId: ev.callId, name: ev.name, pendingId },
+                    message: `Tool ${ev.name} is awaiting user approval.`,
+                },
+                eventSource,
+                metadata,
+            ),
+        );
     }
 
     /**
@@ -906,14 +1068,26 @@ export class ReasoningEngine {
         const _toolCost = BigInt(0); // Unused but kept for potential future use
 
         // Emit tool_calling status BEFORE executing
-        if (conversationId) {
-            SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                chatId: conversationId,
-                botId: callerBot.id,
-                status: "tool_calling",
-                toolInfo: { callId: ev.callId, name: ev.name, args: JSON.stringify(ev.arguments) },
-                message: `Using tool: ${ev.name}`,
+        if (conversationId && this.unifiedEventBus) {
+            const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+            const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                conversationId,
             });
+
+            this.unifiedEventBus.publish(
+                EventUtils.createBaseEvent(
+                    EventTypes.BOT_STATUS_UPDATED,
+                    {
+                        chatId: conversationId,
+                        botId: callerBot.id,
+                        status: "tool_calling",
+                        toolInfo: { callId: ev.callId, name: ev.name, args: JSON.stringify(ev.arguments) },
+                        message: `Using tool: ${ev.name}`,
+                    },
+                    eventSource,
+                    metadata,
+                ),
+            ).catch(err => logger.error("Failed to emit tool calling event", { error: err }));
         }
 
         const toolCallResponse = await this.toolRunner.run(ev.name, ev.arguments, {
@@ -948,13 +1122,25 @@ export class ReasoningEngine {
             toolCost = BigInt(toolCallResponse.data.creditsUsed);
             entry = { ...fnEntryBase, result: { success: true, output } };
 
-            if (conversationId) {
-                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                    chatId: conversationId,
-                    botId: callerBot.id,
-                    status: "tool_completed",
-                    toolInfo: { callId: ev.callId, name: ev.name, result: JSON.stringify(output) },
+            if (conversationId && this.unifiedEventBus) {
+                const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+                const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                    conversationId,
                 });
+
+                this.unifiedEventBus.publish(
+                    EventUtils.createBaseEvent(
+                        EventTypes.BOT_STATUS_UPDATED,
+                        {
+                            chatId: conversationId,
+                            botId: callerBot.id,
+                            status: "tool_completed",
+                            toolInfo: { callId: ev.callId, name: ev.name, result: JSON.stringify(output) },
+                        },
+                        eventSource,
+                        metadata,
+                    ),
+                ).catch(err => logger.error("Failed to emit tool completed event", { error: err }));
             }
         } else {
             // Tool call failed
@@ -965,18 +1151,30 @@ export class ReasoningEngine {
             // Determine if this tool error is retryable
             const isToolErrorRetryable = this._isToolErrorRetryable(toolCallResponse.error);
 
-            if (conversationId) {
-                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                    chatId: conversationId,
-                    botId: callerBot.id,
-                    status: "tool_failed",
-                    toolInfo: { callId: ev.callId, name: ev.name, error: JSON.stringify(toolCallResponse.error) },
-                    error: {
-                        message: toolCallResponse.error.message || "Tool execution failed",
-                        code: toolCallResponse.error.code || ResponseErrorCode.TOOL_EXECUTION_ERROR,
-                        retryable: isToolErrorRetryable,
-                    },
+            if (conversationId && this.unifiedEventBus) {
+                const eventSource = EventUtils.createEventSource("cross-cutting", "ReasoningEngine");
+                const metadata = EventUtils.createEventMetadata("fire-and-forget", "medium", {
+                    conversationId,
                 });
+
+                this.unifiedEventBus.publish(
+                    EventUtils.createBaseEvent(
+                        EventTypes.BOT_STATUS_UPDATED,
+                        {
+                            chatId: conversationId,
+                            botId: callerBot.id,
+                            status: "tool_failed",
+                            toolInfo: { callId: ev.callId, name: ev.name, error: JSON.stringify(toolCallResponse.error) },
+                            error: {
+                                message: toolCallResponse.error.message || "Tool execution failed",
+                                code: toolCallResponse.error.code || ResponseErrorCode.TOOL_EXECUTION_ERROR,
+                                retryable: isToolErrorRetryable,
+                            },
+                        },
+                        eventSource,
+                        metadata,
+                    ),
+                ).catch(err => logger.error("Failed to emit tool failed event", { error: err }));
             }
         }
 
@@ -1043,6 +1241,7 @@ export class ReasoningEngine {
  */
 export class CompletionService {
     private readonly activeControllers = new Map<string, AbortController>();
+    private readonly unifiedEventBus: IEventBus | null;
 
     /**
      * @param reasoningEngine    Low-level engine for generating responses.
@@ -1057,7 +1256,9 @@ export class CompletionService {
         private readonly conversationStore: ConversationStateStore,
         private readonly messageStore: MessageStore,
         private readonly toolRegistry: ToolRegistry,
-    ) { }
+    ) {
+        this.unifiedEventBus = getUnifiedEventSystem();
+    }
 
     public async getConversationState(conversationId: string): Promise<ConversationState | null> {
         return this.conversationStore.get(conversationId);
@@ -1719,11 +1920,25 @@ export class CompletionService {
                             currentResponseStats.push(botResponse.responseStats);
                         } catch (reEngageError: any) {
                             logger.error(`Error re-engaging bot ${callerBot.id} after approved tool execution`, { error: reEngageError });
-                            if (conversationId) {
-                                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                                    chatId: conversationId, botId: callerBot.id, status: "error_internal",
-                                    error: { message: reEngageError.message || "Failed to process tool result", code: "REENGAGE_FAILURE" },
+                            if (conversationId && this.unifiedEventBus) {
+                                const eventSource = EventUtils.createEventSource("cross-cutting", "CompletionService");
+                                const metadata = EventUtils.createEventMetadata("fire-and-forget", "high", {
+                                    conversationId,
                                 });
+
+                                this.unifiedEventBus.publish(
+                                    EventUtils.createBaseEvent(
+                                        EventTypes.BOT_STATUS_UPDATED,
+                                        {
+                                            chatId: conversationId,
+                                            botId: callerBot.id,
+                                            status: "error_internal",
+                                            error: { message: reEngageError.message || "Failed to process tool result", code: "REENGAGE_FAILURE" },
+                                        },
+                                        eventSource,
+                                        metadata,
+                                    ),
+                                ).catch(err => logger.error("Failed to emit re-engage error event", { error: err }));
                             }
                         }
                     } else {
@@ -1806,11 +2021,25 @@ export class CompletionService {
                             currentResponseStats.push(botResponse.responseStats);
                         } catch (reEngageError: any) {
                             logger.error(`Error re-engaging bot ${callerBot.id} after tool rejection`, { error: reEngageError });
-                            if (conversationId) {
-                                SocketService.get().emitSocketEvent("botStatusUpdate", conversationId, {
-                                    chatId: conversationId, botId: callerBot.id, status: "error_internal",
-                                    error: { message: reEngageError.message || "Failed to process tool rejection", code: "REENGAGE_FAILURE" },
+                            if (conversationId && this.unifiedEventBus) {
+                                const eventSource = EventUtils.createEventSource("cross-cutting", "CompletionService");
+                                const metadata = EventUtils.createEventMetadata("fire-and-forget", "high", {
+                                    conversationId,
                                 });
+
+                                this.unifiedEventBus.publish(
+                                    EventUtils.createBaseEvent(
+                                        EventTypes.BOT_STATUS_UPDATED,
+                                        {
+                                            chatId: conversationId,
+                                            botId: callerBot.id,
+                                            status: "error_internal",
+                                            error: { message: reEngageError.message || "Failed to process tool rejection", code: "REENGAGE_FAILURE" },
+                                        },
+                                        eventSource,
+                                        metadata,
+                                    ),
+                                ).catch(err => logger.error("Failed to emit rejection error event", { error: err }));
                             }
                         }
                     } else {

@@ -1,13 +1,10 @@
 import Box from "@mui/material/Box";
-import FormControl from "@mui/material/FormControl";
-import FormHelperText from "@mui/material/FormHelperText";
-import Input from "@mui/material/Input";
-import InputLabel from "@mui/material/InputLabel";
 import { Tooltip } from "../../Tooltip/Tooltip.js";
 import type { Palette } from "@mui/material";
 import { useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useMemo } from "react";
+import { InputContainer } from "../InputContainer/InputContainer.js";
 import { type IntegerInputBaseProps, type IntegerInputProps } from "../types.js";
 
 export function getNumberInRange(
@@ -74,6 +71,8 @@ export function IntegerInputBase({
     sx,
     tooltip = "",
     value,
+    variant = "filled",
+    size = "md",
     zeroText,
 }: IntegerInputBaseProps) {
     const { palette } = useTheme();
@@ -100,43 +99,34 @@ export function IntegerInputBase({
                     justifyContent: "flex-start",
                     ...sx,
                 }}>
-                <FormControl sx={{
-                    background: palette.background.paper,
-                    width: "100%",
-                    maxWidth: fullWidth ? "100%" : "12ch",
-                    height: "100%",
-                    borderRadius: "4px",
-                    border: `1px solid ${palette.divider}`,
-                }} error={!!error}>
-                    <InputLabel
-                        htmlFor={`quantity-box-${name}`}
-                        sx={{
-                            color: getColorForLabel(displayValue, min, max, palette, zeroText),
-                            paddingTop: "12px",
-                        }}
-                    >{label}</InputLabel>
-                    <Input
-                        autoFocus={autoFocus}
-                        disabled={disabled}
+                <InputContainer
+                    variant={variant}
+                    size={size}
+                    error={error}
+                    disabled={disabled}
+                    fullWidth={fullWidth}
+                    label={label}
+                    helperText={helperText}
+                    htmlFor={`quantity-box-${name}`}
+                    className={fullWidth ? undefined : "tw-max-w-[12ch]"}
+                >
+                    <input
                         id={`quantity-box-${name}`}
                         name={name}
-                        aria-describedby={`helper-text-${name}`}
                         type="number"
                         inputMode="numeric"
-                        inputProps={{
-                            ...inputProps,
-                            "data-testid": "integer-input",
-                        }}
+                        autoFocus={autoFocus}
+                        disabled={disabled}
                         value={displayValue}
                         onChange={(e) => onChange(calculateUpdatedNumber(e.target.value, max, min, allowDecimal))}
                         placeholder={zeroText}
-                        sx={{
-                            color: palette.background.textPrimary,
-                            marginLeft: 1,
-                        }}
+                        data-testid="integer-input"
+                        aria-invalid={error ? "true" : undefined}
+                        aria-describedby={helperText ? `helper-text-${name}` : undefined}
+                        {...inputProps}
+                        className="tw-w-full tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-text-text-primary placeholder:tw-text-text-secondary"
                     />
-                    {helperText && <FormHelperText id={`helper-text-${name}`}>{typeof helperText === "string" ? helperText : JSON.stringify(helperText)}</FormHelperText>}
-                </FormControl>
+                </InputContainer>
             </Box>
         </Tooltip >
     );

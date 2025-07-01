@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { forwardRef, useCallback, useMemo, useId } from "react";
+import { useField } from "formik";
 import { cn } from "../../../utils/tailwind-theme.js";
 import {
     SWITCH_TRACK_STYLES,
@@ -11,10 +12,12 @@ import {
     getThumbPosition,
     getCustomSwitchStyle,
 } from "./switchStyles.js";
-import type { SwitchProps, SwitchVariant, SwitchSize, LabelPosition } from "./types.js";
+import type { SwitchProps, SwitchVariant, SwitchSize, LabelPosition, SwitchBaseProps, SwitchFormikProps } from "./types.js";
+import { Icon } from "../../../icons/Icons.js";
+import { Tooltip } from "../../Tooltip/Tooltip.js";
 
 // Re-export types for backward compatibility
-export type { SwitchProps, SwitchVariant, SwitchSize, LabelPosition } from "./types.js";
+export type { SwitchProps, SwitchVariant, SwitchSize, LabelPosition, SwitchBaseProps, SwitchFormikProps } from "./types.js";
 
 /**
  * Label component that handles positioning and styling
@@ -46,7 +49,8 @@ const SwitchLabel = ({
 };
 
 /**
- * A performant, accessible Tailwind CSS switch component with multiple variants and sizes.
+ * Base switch component without Formik integration.
+ * This is the pure visual component that handles all styling and interaction logic.
  * 
  * Features:
  * - 7 variants including custom color support, space-themed, and neon glow
@@ -60,19 +64,19 @@ const SwitchLabel = ({
  * @example
  * ```tsx
  * // Basic switch
- * <Switch checked={isEnabled} onChange={setIsEnabled} label="Enable feature" />
+ * <SwitchBase checked={isEnabled} onChange={setIsEnabled} label="Enable feature" />
  * 
  * // Custom color variant
- * <Switch variant="custom" color="#9333EA" label="Custom purple switch" />
+ * <SwitchBase variant="custom" color="#9333EA" label="Custom purple switch" />
  * 
  * // Space-themed switch
- * <Switch variant="space" size="lg" label="Activate space mode" />
+ * <SwitchBase variant="space" size="lg" label="Activate space mode" />
  * 
  * // Left-positioned label
- * <Switch labelPosition="left" label="Show notifications" />
+ * <SwitchBase labelPosition="left" label="Show notifications" />
  * ```
  */
-export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
+export const SwitchBase = forwardRef<HTMLInputElement, SwitchBaseProps>(
     (
         {
             variant = "default",
@@ -84,10 +88,15 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
             disabled = false,
             className,
             onChange,
+            offIcon,
+            onIcon,
+            tooltip,
             id: providedId,
             "aria-label": ariaLabel,
             "aria-labelledby": ariaLabelledBy,
             "aria-describedby": ariaDescribedBy,
+            error = false,
+            helperText,
             ...props
         },
         ref,
@@ -157,7 +166,16 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
         // Determine aria-label
         const finalAriaLabel = ariaLabel || (typeof label === "string" ? label : "Toggle switch");
         
-        return (
+        // Get current icon based on checked state
+        const currentIcon = checked ? onIcon : offIcon;
+        
+        // Wrap in tooltip if provided
+        const wrapInTooltip = (content: ReactNode) => {
+            if (!tooltip) return content;
+            return <Tooltip title={tooltip}>{content}</Tooltip>;
+        };
+        
+        const switchElement = (
             <div 
                 className={cn(
                     "tw-inline-flex tw-items-center tw-gap-3",
@@ -269,6 +287,17 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
                                     </svg>
                                 </div>
                             )}
+                            
+                            {/* Custom icons inside thumb */}
+                            {currentIcon && variant !== "theme" && (
+                                <div className="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center">
+                                    <Icon
+                                        info={currentIcon}
+                                        fill="white"
+                                        sizeOverride={thumbDimensions.size * 0.6}
+                                    />
+                                </div>
+                            )}
                         </div>
                         
                         {/* Special effects for space variant */}
@@ -303,8 +332,73 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
                 </span>
             </div>
         );
+        
+        // Return switch with optional helper text
+        return wrapInTooltip(
+            <div className="tw-flex tw-flex-col tw-gap-1">
+                {switchElement}
+                {helperText && (
+                    <div className={cn(
+                        "tw-text-sm tw-ml-1",
+                        error ? "tw-text-red-500" : "tw-text-gray-600",
+                    )}>
+                        {helperText}
+                    </div>
+                )}
+            </div>,
+        );
     },
 );
+
+SwitchBase.displayName = "SwitchBase";
+
+/**
+ * Formik-integrated switch component.
+ * Automatically connects to Formik context using the field name.
+ * 
+ * @example
+ * ```tsx
+ * // Inside a Formik form
+ * <Switch name="notifications" label="Enable notifications" />
+ * 
+ * // With validation
+ * <Switch 
+ *   name="acceptTerms" 
+ *   label="I accept the terms and conditions"
+ *   validate={(value) => !value ? "You must accept the terms" : undefined}
+ * />
+ * ```
+ */
+export const Switch = forwardRef<HTMLInputElement, SwitchFormikProps>(({
+    name,
+    validate,
+    id,
+    ...props
+}, ref) => {
+    const [field, meta] = useField({ name, validate });
+    
+    // Use provided id or fall back to the field name
+    const inputId = id || name;
+    
+    // Convert Formik's onChange to our Switch onChange signature
+    const handleChange = useCallback((checked: boolean, event: React.ChangeEvent<HTMLInputElement>) => {
+        field.onChange(event);
+    }, [field]);
+    
+    return (
+        <SwitchBase
+            {...field}
+            {...props}
+            id={inputId}
+            checked={field.value || false}
+            onChange={handleChange}
+            error={meta.touched && Boolean(meta.error)}
+            helperText={meta.touched && meta.error}
+            data-testid={props["data-testid"] || `switch-${name}`}
+            ref={ref}
+        />
+    );
+});
 
 Switch.displayName = "Switch";
 
@@ -314,31 +408,66 @@ Switch.displayName = "Switch";
  */
 export const SwitchFactory = {
     /** Default blue switch */
-    Default: (props: Omit<SwitchProps, "variant">) => (
+    Default: (props: Omit<SwitchFormikProps, "variant">) => (
         <Switch variant="default" {...props} />
     ),
     /** Success/green switch */
-    Success: (props: Omit<SwitchProps, "variant">) => (
+    Success: (props: Omit<SwitchFormikProps, "variant">) => (
         <Switch variant="success" {...props} />
     ),
     /** Warning/orange switch */
-    Warning: (props: Omit<SwitchProps, "variant">) => (
+    Warning: (props: Omit<SwitchFormikProps, "variant">) => (
         <Switch variant="warning" {...props} />
     ),
     /** Danger/red switch */
-    Danger: (props: Omit<SwitchProps, "variant">) => (
+    Danger: (props: Omit<SwitchFormikProps, "variant">) => (
         <Switch variant="danger" {...props} />
     ),
     /** Space-themed switch */
-    Space: (props: Omit<SwitchProps, "variant">) => (
+    Space: (props: Omit<SwitchFormikProps, "variant">) => (
         <Switch variant="space" {...props} />
     ),
     /** Neon glowing green switch */
-    Neon: (props: Omit<SwitchProps, "variant">) => (
+    Neon: (props: Omit<SwitchFormikProps, "variant">) => (
         <Switch variant="neon" {...props} />
     ),
     /** Theme switch for light/dark mode */
-    Theme: (props: Omit<SwitchProps, "variant">) => (
+    Theme: (props: Omit<SwitchFormikProps, "variant">) => (
         <Switch variant="theme" {...props} />
+    ),
+} as const;
+
+/**
+ * Pre-configured base switch components for use outside Formik
+ * These are pure visual components without form integration
+ */
+export const SwitchFactoryBase = {
+    /** Default blue switch */
+    Default: (props: Omit<SwitchBaseProps, "variant">) => (
+        <SwitchBase variant="default" {...props} />
+    ),
+    /** Success/green switch */
+    Success: (props: Omit<SwitchBaseProps, "variant">) => (
+        <SwitchBase variant="success" {...props} />
+    ),
+    /** Warning/orange switch */
+    Warning: (props: Omit<SwitchBaseProps, "variant">) => (
+        <SwitchBase variant="warning" {...props} />
+    ),
+    /** Danger/red switch */
+    Danger: (props: Omit<SwitchBaseProps, "variant">) => (
+        <SwitchBase variant="danger" {...props} />
+    ),
+    /** Space-themed switch */
+    Space: (props: Omit<SwitchBaseProps, "variant">) => (
+        <SwitchBase variant="space" {...props} />
+    ),
+    /** Neon glowing green switch */
+    Neon: (props: Omit<SwitchBaseProps, "variant">) => (
+        <SwitchBase variant="neon" {...props} />
+    ),
+    /** Theme switch for light/dark mode */
+    Theme: (props: Omit<SwitchBaseProps, "variant">) => (
+        <SwitchBase variant="theme" {...props} />
     ),
 } as const;

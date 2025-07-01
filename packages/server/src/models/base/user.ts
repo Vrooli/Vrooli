@@ -37,7 +37,7 @@ export const UserModel: UserModelLogic = ({
             get: ({ name, handle, translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
                 return EmbeddingService.getEmbeddableString({
-                    bio: trans.bio,
+                    bio: trans?.bio || "",
                     handle,
                     name,
                 }, languages?.[0]);
@@ -60,18 +60,18 @@ export const UserModel: UserModelLogic = ({
                 const commonData = {
                     id: BigInt(data.id),
                     publicId: generatePublicId(),
-                    bannerImage: noNull(data.bannerImage),
+                    bannerImage: typeof data.bannerImage === "string" ? data.bannerImage : null,
                     handle: data.handle ?? null,
                     isPrivate: noNull(data.isPrivate),
                     name: data.name ?? "",
-                    profileImage: noNull(data.profileImage),
+                    profileImage: typeof data.profileImage === "string" ? data.profileImage : null,
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
                 if (!isUser) {
                     const botData = data as BotCreateInput;
                     return {
                         ...commonData,
-                        botSettings: botData.botSettings,
+                        botSettings: typeof botData.botSettings === "object" ? botData.botSettings : null,
                         isBot: true,
                         isBotDepictingPerson: botData.isBotDepictingPerson,
                         invitedByUser: { connect: { id: BigInt(rest.userData.id) } },
@@ -99,17 +99,17 @@ export const UserModel: UserModelLogic = ({
                 const preData = rest.preMap[__typename] as UserPre;
                 const isBot = rest.additionalData?.isBot ?? false;
                 const commonData = {
-                    bannerImage: data.bannerImage,
+                    bannerImage: typeof data.bannerImage === "string" ? data.bannerImage : (data.bannerImage === null ? null : undefined),
                     handle: data.handle ?? null,
                     isPrivate: noNull(data.isPrivate),
                     name: noNull(data.name),
-                    profileImage: data.profileImage,
+                    profileImage: typeof data.profileImage === "string" ? data.profileImage : (data.profileImage === null ? null : undefined),
                 };
                 if (isBot) {
                     const botData = data as BotUpdateInput;
                     return {
                         ...commonData,
-                        botSettings: botData.botSettings,
+                        botSettings: typeof botData.botSettings === "object" ? botData.botSettings : (botData.botSettings === null ? null : undefined),
                         isBotDepictingPerson: noNull(botData.isBotDepictingPerson),
                         translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                     };

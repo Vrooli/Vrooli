@@ -42,7 +42,7 @@ export const IconButtonShowcase: Story = {
             "Save", "Edit", "Delete", "Add", "Remove", 
             "Settings", "Search", "Close", "Info", "Home",
             "Download", "Upload", "Copy", "Refresh", "Play",
-            "Pause", "Filter", "Menu", "User", "Team"
+            "Pause", "Filter", "Menu", "User", "Team",
         ];
         
         // Determine final size based on size type
@@ -53,14 +53,14 @@ export const IconButtonShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1400, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -69,14 +69,14 @@ export const IconButtonShowcase: Story = {
                         borderRadius: 2, 
                         boxShadow: 1,
                         height: "fit-content",
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Icon Button Controls</Typography>
                         
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(5, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {/* Variant Control */}
                             <FormControl component="fieldset" size="small">
@@ -129,7 +129,7 @@ export const IconButtonShowcase: Story = {
                                         onChange={(e) => setCustomSize(Number(e.target.value))}
                                         size="small"
                                         inputProps={{ min: 16, max: 128, step: 4 }}
-                                        sx={{ width: '100%' }}
+                                        sx={{ width: "100%" }}
                                     />
                                 </FormControl>
                             )}
@@ -143,7 +143,7 @@ export const IconButtonShowcase: Story = {
                                     value={iconName}
                                     onChange={(e) => setIconName(e.target.value)}
                                     size="small"
-                                    sx={{ width: '100%' }}
+                                    sx={{ width: "100%" }}
                                 >
                                     {iconOptions.map(icon => (
                                         <option key={icon} value={icon}>{icon}</option>
@@ -170,7 +170,7 @@ export const IconButtonShowcase: Story = {
                                     value={customColor}
                                     onChange={(e) => setCustomColor(e.target.value)}
                                     size="small"
-                                    sx={{ width: '100%' }}
+                                    sx={{ width: "100%" }}
                                 />
                             </FormControl>
                             
@@ -183,7 +183,7 @@ export const IconButtonShowcase: Story = {
                                     onChange={(e) => setBorderRadius(e.target.value)}
                                     size="small"
                                     inputProps={{ min: 0, max: 50, step: 5 }}
-                                    sx={{ width: '100%' }}
+                                    sx={{ width: "100%" }}
                                 />
                             </FormControl>
                         </Box>
@@ -195,7 +195,7 @@ export const IconButtonShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>All Icon Button Variants</Typography>
                         
@@ -205,9 +205,9 @@ export const IconButtonShowcase: Story = {
                                 xs: "repeat(1, 1fr)", 
                                 sm: "repeat(2, 1fr)",
                                 md: "repeat(3, 1fr)",
-                                lg: "repeat(5, 1fr)"
+                                lg: "repeat(5, 1fr)",
                             }, 
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {variants.map(v => (
                                 <Box 
@@ -216,7 +216,7 @@ export const IconButtonShowcase: Story = {
                                         p: 3,
                                         borderRadius: 2,
                                         backgroundColor: (v === "space" || v === "neon") ? "#001122" : "transparent",
-                                        textAlign: "center"
+                                        textAlign: "center",
                                     }}
                                 >
                                     <Typography 
@@ -224,7 +224,7 @@ export const IconButtonShowcase: Story = {
                                         sx={{ 
                                             mb: 2, 
                                             textTransform: "capitalize",
-                                            color: (v === "space" || v === "neon") ? "#fff" : "inherit"
+                                            color: (v === "space" || v === "neon") ? "#fff" : "inherit",
                                         }}
                                     >
                                         {v === "solid" ? "Solid (3D)" : v === "custom" ? "Custom" : v === "neon" ? "Neon" : v}
@@ -255,7 +255,7 @@ export const IconButtonShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Common Use Cases</Typography>
                         

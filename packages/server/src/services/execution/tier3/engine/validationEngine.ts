@@ -290,18 +290,6 @@ export class ValidationEngine {
     }
 
     /**
-     * Legacy validation method for backward compatibility
-     */
-    async validate(
-        output: unknown,
-        schema?: Record<string, unknown> | yup.Schema,
-    ): Promise<ValidationResult> {
-        // Convert to object and delegate to validateOutputs
-        const outputs = this.normalizeToObject(output);
-        return this.validateOutputs(outputs, schema);
-    }
-
-    /**
      * Validates specific value types
      */
     async validateValue(

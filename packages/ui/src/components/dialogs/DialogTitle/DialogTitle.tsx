@@ -5,6 +5,7 @@ import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { IconButton } from "../../buttons/IconButton.js";
 import { HelpButton } from "../../buttons/HelpButton.js";
+import { Typography } from "../../text/Typography.js";
 import { useLocation } from "../../../route/router.js";
 import { tryOnClose } from "../../../utils/navigation/urlTools.js";
 import { type DialogTitleProps } from "../types.js";
@@ -38,6 +39,8 @@ interface EnhancedDialogTitleProps extends DialogTitleProps {
     maxLines?: number;
     /** Custom content to render instead of structured title/help props */
     children?: ReactNode;
+    /** Visual variant - "simple" for minimal styling, "prominent" for primary colored background */
+    variant?: "simple" | "prominent";
 }
 
 // Memoized action button to prevent unnecessary re-renders
@@ -46,16 +49,21 @@ const ActionButton = ({
     onClick, 
     ariaLabel, 
     palette, 
-    className = ""
+    className = "",
+    variant = "prominent",
 }: {
     icon: string;
     onClick: () => void;
     ariaLabel: string;
     palette: any;
     className?: string;
+    variant?: "simple" | "prominent";
 }) => {
+    const iconColor = variant === "prominent" ? palette.primary.contrastText : palette.text.primary;
+    const hoverBg = variant === "prominent" ? "hover:tw-bg-white/10" : "hover:tw-bg-gray-100 dark:hover:tw-bg-gray-800";
+    
     return (
-        <div className={`tw-flex tw-p-1 tw-transition-all tw-duration-200 tw-rounded hover:tw-bg-white/10 tw-group ${className}`}>
+        <div className={`tw-flex tw-p-1 tw-transition-all tw-duration-200 tw-rounded ${hoverBg} tw-group ${className}`}>
             <IconButton
                 aria-label={ariaLabel}
                 onClick={onClick}
@@ -65,7 +73,7 @@ const ActionButton = ({
             >
                 <IconCommon
                     decorative
-                    fill={palette.primary.contrastText}
+                    fill={iconColor}
                     name={icon as any}
                 />
             </IconButton>
@@ -83,6 +91,7 @@ export const DialogTitle = forwardRef<HTMLDivElement, EnhancedDialogTitleProps>(
     animate = true,
     maxLines = 2,
     children,
+    variant = "simple",
     ...titleData
 }, ref) => {
     const { t } = useTranslation();
@@ -96,42 +105,39 @@ export const DialogTitle = forwardRef<HTMLDivElement, EnhancedDialogTitleProps>(
 
     // Build class names for the outer container with enhanced styling
     const outerContainerClasses = useMemo(() => {
-        const baseClasses = "tw-sticky tw-top-0 tw-z-[2] tw-text-white tw-bg-primary-dark";
-        const shadowClasses = shadow ? "tw-shadow-lg" : "";
+        const isProminentVariant = variant === "prominent";
+        const baseClasses = isProminentVariant 
+            ? "tw-sticky tw-top-0 tw-z-[2] tw-text-white tw-bg-primary-dark"
+            : "tw-sticky tw-top-0 tw-z-[2] tw-border-b tw-border-gray-200 dark:tw-border-gray-700 tw-bg-background-paper";
+        const shadowClasses = shadow && isProminentVariant ? "tw-shadow-lg" : "";
         const animationClasses = animate ? "tw-transition-all tw-duration-300 tw-ease-out" : "";
         
         return `${baseClasses} ${shadowClasses} ${animationClasses}`;
-    }, [shadow, animate]);
+    }, [shadow, animate, variant]);
 
     // Build class names for the title container with enhanced interactions
     const titleContainerClasses = useMemo(() => {
         const baseClasses = `
-            tw-flex tw-items-center tw-justify-between tw-gap-2
+            tw-flex tw-items-center tw-gap-2
             tw-p-1 tw-px-3 tw-min-h-[3rem]
             tw-select-none tw-touch-none tw-relative
         `;
+        const justifyClasses = variant === "prominent" ? "tw-justify-between" : "tw-justify-start";
         const directionClasses = isLeftHanded ? "tw-flex-row-reverse" : "tw-flex-row";
         const enhancementClasses = animate ? "tw-transition-all tw-duration-300" : "";
         
-        return `${baseClasses} ${directionClasses} ${enhancementClasses}`;
-    }, [isLeftHanded, animate]);
+        return `${baseClasses} ${justifyClasses} ${directionClasses} ${enhancementClasses}`;
+    }, [isLeftHanded, animate, variant]);
 
-    // Title text with line clamping
-    const titleTextClasses = useMemo(() => {
-        return `
-            tw-text-lg sm:tw-text-xl tw-font-medium tw-text-center tw-flex-1
-            tw-overflow-hidden
-        `;
-    }, []);
 
     // Title text style with line clamping
     const titleTextStyle = useMemo(() => {
         return {
-            display: '-webkit-box',
+            display: "-webkit-box",
             WebkitLineClamp: maxLines,
-            WebkitBoxOrient: 'vertical' as const,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+            WebkitBoxOrient: "vertical" as const,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
         };
     }, [maxLines]);
 
@@ -199,7 +205,7 @@ export const DialogTitle = forwardRef<HTMLDivElement, EnhancedDialogTitleProps>(
                 {children ? (
                     <>
                         {/* Custom content */}
-                        <div className="tw-flex-1 tw-flex tw-items-center tw-justify-center">
+                        <div className={variant === "prominent" ? "tw-flex-1 tw-flex tw-items-center tw-justify-center" : "tw-flex-1"}>
                             {children}
                         </div>
                         
@@ -211,6 +217,7 @@ export const DialogTitle = forwardRef<HTMLDivElement, EnhancedDialogTitleProps>(
                                     onClick={handleClose}
                                     ariaLabel={t("Close")}
                                     palette={palette}
+                                    variant={variant}
                                 />
                             </div>
                         )}
@@ -227,7 +234,7 @@ export const DialogTitle = forwardRef<HTMLDivElement, EnhancedDialogTitleProps>(
                                         size="sm"
                                         className="tw-transition-transform tw-duration-200 hover:tw-scale-105"
                                         onClick={() => {}} // No action by default
-                                        style={{ cursor: 'default' }} // Remove pointer cursor if no action
+                                        style={{ cursor: "default" }} // Remove pointer cursor if no action
                                     >
                                         {startComponent}
                                     </IconButton>
@@ -240,9 +247,16 @@ export const DialogTitle = forwardRef<HTMLDivElement, EnhancedDialogTitleProps>(
                         )}
                         
                         {/* Title text with line clamping */}
-                        <div className={titleTextClasses} style={titleTextStyle}>
+                        <Typography
+                            variant={variant === "prominent" ? "h4" : "h6"}
+                            color={variant === "prominent" ? "inherit" : undefined}
+                            align={variant === "prominent" ? "center" : "left"}
+                            spacing="none"
+                            className={variant === "prominent" ? "tw-flex-1" : ""}
+                            style={titleTextStyle}
+                        >
                             {titleData.title}
-                        </div>
+                        </Typography>
                         
                         {/* Action buttons row - always stays in same row */}
                         <div className="tw-flex tw-items-center tw-gap-1">
@@ -263,6 +277,7 @@ export const DialogTitle = forwardRef<HTMLDivElement, EnhancedDialogTitleProps>(
                                     onClick={handleClose}
                                     ariaLabel={t("Close")}
                                     palette={palette}
+                                    variant={variant}
                                 />
                             )}
                         </div>

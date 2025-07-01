@@ -1,10 +1,15 @@
 import React, { forwardRef, useCallback, useEffect, useMemo, useRef } from "react";
-import { CheckboxProps } from "./types.js";
+import { useField } from "formik";
+import { type CheckboxProps, type CheckboxBaseProps, type CheckboxFormikProps } from "./types.js";
 import { cn } from "../../utils/tailwind-theme.js";
 import { getCheckboxStyles } from "./checkboxStyles.js";
 import { useRippleEffect } from "../../hooks/index.js";
 
-export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(({
+/**
+ * Base checkbox component without Formik integration.
+ * This is the pure visual component that handles all styling and interaction logic.
+ */
+export const CheckboxBase = forwardRef<HTMLInputElement, CheckboxBaseProps>(({
     className,
     color = "primary",
     customColor,
@@ -23,6 +28,9 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(({
     "aria-describedby": ariaDescribedBy,
     sx,
     style,
+    error = false,
+    helperText,
+    label,
     ...props
 }, ref) => {
     const { addRipple, ripples } = useRippleEffect();
@@ -65,8 +73,15 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(({
         }
     }, [disabled, onClick]);
 
-    return (
-        <label className={cn(styles.container, className)} style={style}>
+    const checkboxElement = (
+        <label 
+            className={cn(styles.container, className)} 
+            style={style}
+            data-testid="checkbox-container"
+            data-disabled={disabled}
+            data-checked={checked ?? defaultChecked ?? false}
+            data-indeterminate={indeterminate}
+        >
             <input
                 ref={checkboxRef}
                 type="checkbox"
@@ -83,6 +98,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(({
                 aria-labelledby={ariaLabelledBy}
                 aria-describedby={ariaDescribedBy}
                 aria-checked={indeterminate ? "mixed" : checked}
+                data-testid="checkbox-input"
                 {...props}
             />
             <span 
@@ -101,16 +117,19 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(({
                 style={color === "custom" && customColor && !disabled && styles.customStyles?.focus ? {
                     "--tw-ring-color": styles.customStyles.focus.ringColor,
                 } as React.CSSProperties : undefined}
+                data-testid="checkbox-visual"
             >
                 <span 
                     className={styles.checkboxBox}
                     style={color === "custom" && customColor ? styles.customStyles?.box : undefined}
+                    data-testid="checkbox-box"
                 >
                     {/* Checkmark icon */}
                     <svg 
                         className={styles.checkmark}
                         viewBox="0 0 24 24"
                         aria-hidden="true"
+                        data-testid="checkbox-icon"
                     >
                         <path
                             fill="currentColor"
@@ -132,37 +151,138 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(({
                             height: ripple.size,
                         }}
                         onAnimationEnd={() => ripple.onAnimationEnd()}
+                        data-testid={`checkbox-ripple-${ripple.id}`}
                     />
                 ))}
             </span>
         </label>
     );
+
+    // Return checkbox with optional label and helper text
+    return (
+        <div className={cn("tw-flex tw-flex-col tw-gap-1", error && "tw-text-red-500")}>
+            <div className="tw-flex tw-items-center tw-gap-2">
+                {checkboxElement}
+                {label && (
+                    <span className={cn(
+                        "tw-text-sm",
+                        disabled && "tw-opacity-50 tw-cursor-not-allowed",
+                    )}>
+                        {label}
+                    </span>
+                )}
+            </div>
+            {helperText && (
+                <div className={cn(
+                    "tw-text-sm tw-ml-1",
+                    error ? "tw-text-red-500" : "tw-text-gray-600",
+                )}>
+                    {helperText}
+                </div>
+            )}
+        </div>
+    );
+});
+
+CheckboxBase.displayName = "CheckboxBase";
+
+/**
+ * Formik-integrated checkbox component.
+ * Automatically connects to Formik context using the field name.
+ * 
+ * @example
+ * ```tsx
+ * // Inside a Formik form
+ * <Checkbox name="acceptTerms" label="I accept the terms and conditions" />
+ * 
+ * // With validation
+ * <Checkbox 
+ *   name="newsletter" 
+ *   label="Send me newsletters"
+ *   validate={(value) => !value ? "Required" : undefined}
+ * />
+ * ```
+ */
+export const Checkbox = forwardRef<HTMLInputElement, CheckboxFormikProps>(({
+    name,
+    validate,
+    id,
+    ...props
+}, ref) => {
+    const [field, meta] = useField({ name, validate });
+    
+    // Use provided id or fall back to the field name
+    const inputId = id || name;
+    
+    return (
+        <CheckboxBase
+            {...field}
+            {...props}
+            id={inputId}
+            checked={field.value || false}
+            error={meta.touched && Boolean(meta.error)}
+            helperText={meta.touched && meta.error}
+            data-testid={props["data-testid"] || `checkbox-${name}`}
+            ref={ref}
+        />
+    );
 });
 
 Checkbox.displayName = "Checkbox";
 
-// Factory functions for common variants
-export const PrimaryCheckbox = forwardRef<HTMLInputElement, Omit<CheckboxProps, "color">>((props, ref) => (
-    <Checkbox ref={ref} color="primary" {...props} />
-));
-PrimaryCheckbox.displayName = "PrimaryCheckbox";
+// Factory functions for Formik-integrated variants
+export const CheckboxFactory = {
+    Primary: (props: Omit<CheckboxFormikProps, "color">) => (
+        <Checkbox color="primary" {...props} />
+    ),
+    Secondary: (props: Omit<CheckboxFormikProps, "color">) => (
+        <Checkbox color="secondary" {...props} />
+    ),
+    Danger: (props: Omit<CheckboxFormikProps, "color">) => (
+        <Checkbox color="danger" {...props} />
+    ),
+    Success: (props: Omit<CheckboxFormikProps, "color">) => (
+        <Checkbox color="success" {...props} />
+    ),
+    Warning: (props: Omit<CheckboxFormikProps, "color">) => (
+        <Checkbox color="warning" {...props} />
+    ),
+    Info: (props: Omit<CheckboxFormikProps, "color">) => (
+        <Checkbox color="info" {...props} />
+    ),
+    Custom: (props: Omit<CheckboxFormikProps, "color"> & { customColor: string }) => (
+        <Checkbox color="custom" {...props} />
+    ),
+} as const;
 
-export const SecondaryCheckbox = forwardRef<HTMLInputElement, Omit<CheckboxProps, "color">>((props, ref) => (
-    <Checkbox ref={ref} color="secondary" {...props} />
-));
-SecondaryCheckbox.displayName = "SecondaryCheckbox";
+// Factory functions for base variants (no Formik)
+export const CheckboxFactoryBase = {
+    Primary: (props: Omit<CheckboxBaseProps, "color">) => (
+        <CheckboxBase color="primary" {...props} />
+    ),
+    Secondary: (props: Omit<CheckboxBaseProps, "color">) => (
+        <CheckboxBase color="secondary" {...props} />
+    ),
+    Danger: (props: Omit<CheckboxBaseProps, "color">) => (
+        <CheckboxBase color="danger" {...props} />
+    ),
+    Success: (props: Omit<CheckboxBaseProps, "color">) => (
+        <CheckboxBase color="success" {...props} />
+    ),
+    Warning: (props: Omit<CheckboxBaseProps, "color">) => (
+        <CheckboxBase color="warning" {...props} />
+    ),
+    Info: (props: Omit<CheckboxBaseProps, "color">) => (
+        <CheckboxBase color="info" {...props} />
+    ),
+    Custom: (props: Omit<CheckboxBaseProps, "color"> & { customColor: string }) => (
+        <CheckboxBase color="custom" {...props} />
+    ),
+} as const;
 
-export const DangerCheckbox = forwardRef<HTMLInputElement, Omit<CheckboxProps, "color">>((props, ref) => (
-    <Checkbox ref={ref} color="danger" {...props} />
-));
-DangerCheckbox.displayName = "DangerCheckbox";
-
-export const SuccessCheckbox = forwardRef<HTMLInputElement, Omit<CheckboxProps, "color">>((props, ref) => (
-    <Checkbox ref={ref} color="success" {...props} />
-));
-SuccessCheckbox.displayName = "SuccessCheckbox";
-
-export const CustomCheckbox = forwardRef<HTMLInputElement, Omit<CheckboxProps, "color"> & { customColor: string }>((props, ref) => (
-    <Checkbox ref={ref} color="custom" {...props} />
-));
-CustomCheckbox.displayName = "CustomCheckbox";
+// Legacy factory exports for backward compatibility
+export const PrimaryCheckbox = CheckboxFactory.Primary;
+export const SecondaryCheckbox = CheckboxFactory.Secondary;
+export const DangerCheckbox = CheckboxFactory.Danger;
+export const SuccessCheckbox = CheckboxFactory.Success;
+export const CustomCheckbox = CheckboxFactory.Custom;

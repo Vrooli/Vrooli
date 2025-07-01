@@ -52,19 +52,16 @@ export class SimpleStrategyProvider {
     private readonly logger: Logger;
     private readonly toolOrchestrator?: ToolOrchestrator;
     private readonly validationEngine?: ValidationEngine;
-    private readonly eventBus: IEventBus;
     private readonly unifiedEventBus: IEventBus | null;
 
     constructor(
         config: StrategyFactoryConfig,
         logger: Logger,
-        eventBus: IEventBus,
         toolOrchestrator?: ToolOrchestrator,
         validationEngine?: ValidationEngine,
     ) {
         this.config = config;
         this.logger = logger;
-        this.eventBus = eventBus;
         this.toolOrchestrator = toolOrchestrator;
         this.validationEngine = validationEngine;
         this.strategies = new Map();
@@ -88,12 +85,6 @@ export class SimpleStrategyProvider {
             tags?: string[];
         },
     ): Promise<void> {
-        if (!this.unifiedEventBus) {
-            this.logger.debug("[SimpleStrategyProvider] Unified event bus not available, falling back to legacy publisher");
-            await this.eventBus.publish(eventType, data);
-            return;
-        }
-
         try {
             const event = EventUtils.createBaseEvent(
                 eventType,
@@ -121,9 +112,6 @@ export class SimpleStrategyProvider {
                 eventType,
                 error: eventError instanceof Error ? eventError.message : String(eventError),
             });
-
-            // Fallback to legacy publisher
-            await this.eventBus.publish(eventType, data);
         }
     }
 

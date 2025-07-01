@@ -3,9 +3,9 @@
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import CircularProgress from "@mui/material/CircularProgress";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../buttons/IconButton.js";
 import Link from "@mui/material/Link";
-import Tooltip from "@mui/material/Tooltip";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
@@ -343,7 +343,8 @@ function CodeBlock({ children, className }) {
                     <Tooltip title={isWrapped ? t("WordWrapDisable") : t("WordWrapEnable")}>
                         <CodeBlockTopBarButton
                             aria-label={isWrapped ? t("WordWrapDisable") : t("WordWrapEnable")}
-                            size="small"
+                            size="sm"
+                            variant="transparent"
                             onClick={toggleWrap}
                         >
                             {
@@ -362,7 +363,8 @@ function CodeBlock({ children, className }) {
                     <Tooltip title={t("Copy")}>
                         <CodeBlockTopBarButton
                             aria-label={t("Copy")}
-                            size="small"
+                            size="sm"
+                            variant="transparent"
                             onClick={copyCode}
                         >
                             <IconCommon
@@ -374,7 +376,8 @@ function CodeBlock({ children, className }) {
                     <Tooltip title={isCollapsed ? t("Expand") : t("Collapse")}>
                         <CodeBlockTopBarButton
                             aria-label={isCollapsed ? t("Expand") : t("Collapse")}
-                            size="small"
+                            size="sm"
+                            variant="transparent"
                             onClick={toggleCollapse}
                         >
                             {

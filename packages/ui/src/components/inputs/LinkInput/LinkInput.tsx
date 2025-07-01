@@ -1,8 +1,6 @@
 import Box from "@mui/material/Box";
 import { IconButton } from "../../buttons/IconButton.js";
-import InputAdornment from "@mui/material/InputAdornment";
 import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
 import { Tooltip } from "../../Tooltip/Tooltip.js";
 import { useTheme } from "@mui/material";
 import { useField } from "formik";
@@ -12,20 +10,11 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
+import { InputContainer } from "../InputContainer/InputContainer.js";
 import { type LinkInputBaseProps, type LinkInputProps } from "../types.js";
 
 const MAX_LINK_TITLE_CHARS = 100;
 
-const linkInputProps = {
-    startAdornment: (
-        <InputAdornment position="start">
-            <IconCommon
-                decorative
-                name="Link"
-            />
-        </InputAdornment>
-    ),
-} as const;
 
 export function LinkInputBase({
     autoFocus,
@@ -43,6 +32,8 @@ export function LinkInputBase({
     sxs,
     tabIndex,
     value,
+    variant = "filled",
+    size = "md",
 }: LinkInputBaseProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -100,29 +91,35 @@ export function LinkInputBase({
                 handleComplete={closeSearch}
             />
             <Box sx={sxs?.root} data-testid="link-input-root">
-                {/* Text field with button to open search dialog */}
+                {/* Input field with button to open search dialog */}
                 <Stack direction="row" spacing={0}>
-                    <TextField
-                        autoFocus={autoFocus}
-                        disabled={disabled}
+                    <InputContainer
+                        variant={variant}
+                        size={size}
                         error={error}
+                        disabled={disabled}
                         fullWidth={fullWidth}
-                        helperText={helperText}
                         label={label ?? t("Link", { count: 1 })}
-                        name={name}
-                        placeholder={placeholder ?? "https://example.com"}
-                        onBlur={onBlur}
-                        onChange={(e) => onChange(e.target.value)}
-                        tabIndex={tabIndex}
-                        value={value}
-                        InputProps={linkInputProps}
-                        inputProps={{ "data-testid": "link-input-field" }}
-                        sx={{
-                            "& .MuiInputBase-root": {
-                                borderRadius: "5px 0 0 5px",
-                            },
-                        }}
-                    />
+                        helperText={helperText}
+                        htmlFor={name}
+                        startAdornment={<IconCommon decorative name="Link" />}
+                        className="tw-rounded-r-none"
+                    >
+                        <input
+                            id={name}
+                            name={name}
+                            type="url"
+                            value={value || ""}
+                            onChange={(e) => onChange(e.target.value)}
+                            onBlur={onBlur}
+                            autoFocus={autoFocus}
+                            disabled={disabled}
+                            tabIndex={tabIndex}
+                            placeholder={placeholder ?? "https://example.com"}
+                            data-testid="link-input-field"
+                            className="tw-w-full tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-text-text-primary placeholder:tw-text-text-secondary"
+                        />
+                    </InputContainer>
                     <IconButton
                         aria-label={t("SearchObjectLink")}
                         disabled={disabled}
@@ -148,11 +145,6 @@ export function LinkInputBase({
                             content={`${title}${subtitle ? " - " + subtitle : ""}`}
                         />
                     </Tooltip>
-                )}
-                {helperText && (
-                    <Box data-testid="link-helper-text" sx={{ paddingTop: "8px", color: palette.error.main, fontSize: "0.75rem" }}>
-                        {typeof helperText === "string" ? helperText : JSON.stringify(helperText)}
-                    </Box>
                 )}
             </Box>
         </>

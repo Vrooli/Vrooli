@@ -1,6 +1,6 @@
 import Box, { type BoxProps } from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
+import { IconButton } from "../buttons/IconButton.js";
+import { Tooltip } from "../Tooltip/Tooltip.js";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
@@ -112,7 +112,7 @@ export function Title({
                 {/* Additional options */}
                 {options?.filter(({ iconInfo }) => Boolean(iconInfo)).map(({ iconInfo, label, onClick }, index) => (
                     <Tooltip key={`title-option-${index}`} title={label}>
-                        <IconButton onClick={onClick}>
+                        <IconButton variant="transparent" size="md" onClick={onClick}>
                             <Icon
                                 decorative
                                 fill={palette.secondary.main}

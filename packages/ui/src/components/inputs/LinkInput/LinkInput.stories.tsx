@@ -41,7 +41,7 @@ export const LinkInputShowcase: Story = {
             "Notification", "Project", "ProjectVersion", "PullRequest", "Question", "QuestionAnswer", 
             "Quiz", "QuizAttempt", "QuizQuestion", "QuizQuestionResponse", "Reaction", "Report", 
             "Resource", "ResourceVersion", "Routine", "RoutineVersion", "Run", "RunProject", 
-            "RunRoutine", "Schedule", "Standard", "StandardVersion", "Tag", "Team", "User"
+            "RunRoutine", "Schedule", "Standard", "StandardVersion", "Tag", "Team", "User",
         ];
         
         const [selectedTypes, setSelectedTypes] = useState<FindObjectType[]>(["Project", "Routine", "Standard"]);
@@ -50,7 +50,7 @@ export const LinkInputShowcase: Story = {
             setSelectedTypes(prev => 
                 prev.includes(type) 
                     ? prev.filter(t => t !== type)
-                    : [...prev, type]
+                    : [...prev, type],
             );
         };
 

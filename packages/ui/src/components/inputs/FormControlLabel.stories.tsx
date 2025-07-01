@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
-import { FormControlLabel, FormControlLabelPlacement } from "./FormControlLabel.js";
+import { FormControlLabel, type FormControlLabelPlacement } from "./FormControlLabel.js";
 import { FormGroup } from "./FormGroup.js";
 import { Radio } from "./Radio.js";
 import { Checkbox } from "./Checkbox.js";
@@ -95,14 +95,14 @@ export const FormControlLabelShowcase: Story = {
                 p: 2, 
                 height: "100vh", 
                 overflow: "auto",
-                bgcolor: "background.default" 
+                bgcolor: "background.default", 
             }}>
                 <Box sx={{ 
                     display: "flex", 
                     gap: 2, 
                     flexDirection: "column",
                     maxWidth: 1200, 
-                    mx: "auto" 
+                    mx: "auto", 
                 }}>
                     {/* Controls Section */}
                     <Box sx={{ 
@@ -111,14 +111,14 @@ export const FormControlLabelShowcase: Story = {
                         borderRadius: 2, 
                         boxShadow: 1,
                         height: "fit-content",
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>FormControlLabel Controls</Typography>
                         
                         <Box sx={{ 
                             display: "grid", 
                             gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-                            gap: 3 
+                            gap: 3, 
                         }}>
                             {/* Label Placement Control */}
                             <FormControl component="fieldset">
@@ -210,7 +210,7 @@ export const FormControlLabelShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Label Placement Examples</Typography>
                         
@@ -218,9 +218,9 @@ export const FormControlLabelShowcase: Story = {
                             display: "grid", 
                             gridTemplateColumns: { 
                                 xs: "1fr", 
-                                sm: "repeat(2, 1fr)"
+                                sm: "repeat(2, 1fr)",
                             }, 
-                            gap: 4 
+                            gap: 4, 
                         }}>
                             {placements.map(placement => (
                                 <Box 
@@ -228,20 +228,20 @@ export const FormControlLabelShowcase: Story = {
                                     sx={{ 
                                         p: 2, 
                                         border: 1, 
-                                        borderColor: 'divider',
+                                        borderColor: "divider",
                                         borderRadius: 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        minHeight: 100
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        minHeight: 100,
                                     }}
                                 >
-                                    <Box sx={{ textAlign: 'center' }}>
+                                    <Box sx={{ textAlign: "center" }}>
                                         <Typography 
                                             variant="subtitle2" 
                                             sx={{ 
                                                 mb: 2, 
-                                                textTransform: "capitalize"
+                                                textTransform: "capitalize",
                                             }}
                                         >
                                             {placement}
@@ -265,7 +265,7 @@ export const FormControlLabelShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Different Control Types</Typography>
                         
@@ -318,7 +318,7 @@ export const FormControlLabelShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Long Label Example</Typography>
                         
@@ -345,7 +345,7 @@ export const FormControlLabelShowcase: Story = {
                         bgcolor: "background.paper", 
                         borderRadius: 2, 
                         boxShadow: 1,
-                        width: "100%"
+                        width: "100%",
                     }}>
                         <Typography variant="h5" sx={{ mb: 3 }}>Form Example</Typography>
                         

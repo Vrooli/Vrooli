@@ -706,14 +706,7 @@ export class UnifiedExecutor implements TierCommunicationInterface {
     async getCapabilities(): Promise<TierCapabilities> {
         return {
             tier: "tier3",
-            supportedInputTypes: ["StepExecutionInput"],
-            supportedStrategies: ["conversational", "reasoning", "deterministic"],
             maxConcurrency: 100,
-            estimatedLatency: {
-                p50: 1000,
-                p95: 5000,
-                p99: 10000,
-            },
             resourceLimits: {
                 maxCredits: "10000",
                 maxDurationMs: 300000,

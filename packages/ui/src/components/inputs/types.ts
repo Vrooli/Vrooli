@@ -8,11 +8,13 @@ import { type IconInfo } from "../../icons/Icons.js";
 import { type SxType } from "../../types.js";
 import { type FindObjectType } from "../dialogs/types.js";
 import { type ResourceListProps } from "../lists/types.js";
+import { type InputVariant, type InputSize } from "./InputContainer/types.js";
 
 export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
     label: string;
 };
 
+/** Base props for CodeInputBase component - no Formik dependencies */
 export interface CodeInputBaseProps {
     /**
      * The current language of the code input
@@ -87,10 +89,68 @@ export interface CodeInputBaseProps {
     variables?: { [x: string]: JSONVariable };
 }
 
-export type CodeInputProps = Omit<CodeInputBaseProps, "codeLanguage" | "content" | "defaultValue" | "format" | "handleCodeLanguageChange" | "handleContentChange" | "variables"> & {
+/** Props for Formik-integrated CodeInput component */
+export interface CodeInputFormikProps {
+    /** Name of the content field */
+    name?: string;
+    /** Name of the code language field (optional) */
     codeLanguageField?: string;
+    /** Name of the default value field (optional) */
+    defaultValueField?: string;
+    /** Name of the format field (optional) */
+    formatField?: string;
+    /** Name of the variables field (optional) */
+    variablesField?: string;
+    /** Whether the input is disabled */
+    disabled?: boolean;
+    /** Limit the languages that can be selected */
+    limitTo?: readonly CodeLanguage[];
 }
 
+/** Legacy CodeInputProps for backward compatibility */
+export type CodeInputProps = Omit<CodeInputBaseProps, "codeLanguage" | "content" | "defaultValue" | "format" | "handleCodeLanguageChange" | "handleContentChange" | "variables"> & {
+    codeLanguageField?: string;
+    disabled?: boolean;
+    limitTo?: readonly CodeLanguage[];
+}
+
+/** Base props for DateInputBase component - no Formik dependencies */
+export interface DateInputBaseProps {
+    /** Whether the input is required */
+    isRequired?: boolean;
+    /** Label for the date input */
+    label: string;
+    /** Name attribute for the input */
+    name: string;
+    /** Type of date input */
+    type?: "date" | "datetime-local";
+    /** Current value */
+    value: string;
+    /** Change handler */
+    onChange: (value: string) => void;
+    /** Blur handler */
+    onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Whether the input has an error */
+    error?: boolean;
+    /** Helper text to display below input */
+    helperText?: string | boolean | null | undefined;
+    /** Additional CSS classes */
+    className?: string;
+    /** MUI sx prop for custom styling */
+    sx?: SxType;
+    /** Disabled state */
+    disabled?: boolean;
+    /** Test ID for testing */
+    "data-testid"?: string;
+}
+
+/** Props for Formik-integrated DateInput component */
+export interface DateInputFormikProps extends Omit<DateInputBaseProps, "value" | "onChange" | "error" | "helperText" | "onBlur"> {
+    /** Optional validation function */
+    validate?: (value: unknown) => string | void | Promise<string | void>;
+}
+
+/** Legacy DateInputProps for backward compatibility */
 export interface DateInputProps {
     isRequired?: boolean;
     label: string;
@@ -104,7 +164,7 @@ export interface DropzoneProps {
     disabled?: boolean;
     dropzoneText?: string;
     maxFiles?: number;
-    onUpload: (files: any[]) => unknown;
+    onUpload: (files: File[]) => unknown;
     showThumbs?: boolean;
     uploadText?: string;
 }
@@ -125,10 +185,12 @@ export type IntegerInputBaseProps = {
     offset?: number;
     onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
     onChange: (newValue: number) => unknown;
+    size?: InputSize;
     step?: number;
     sx?: SxType;
     tooltip?: string;
     value: number;
+    variant?: InputVariant;
     /** If provided, displays this text instead of 0 */
     zeroText?: string;
 }
@@ -167,14 +229,51 @@ export interface LinkInputBaseProps {
     onChange: (newLink: string) => unknown;
     onObjectData?: ({ title, subtitle }: { title: string; subtitle: string }) => unknown;
     placeholder?: string;
+    size?: InputSize;
     sxs?: { root?: SxType };
     tabIndex?: number;
     value: string;
+    variant?: InputVariant;
 }
 
 export type LinkInputProps = Omit<LinkInputBaseProps, "onChange" | "value">;
 
 
+/** Base props for PasswordTextInputBase component - no Formik dependencies */
+export interface PasswordTextInputBaseProps {
+    /** Auto-complete attribute for the input */
+    autoComplete?: string;
+    /** Whether to focus on mount */
+    autoFocus?: boolean;
+    /** Whether the input takes full width */
+    fullWidth?: boolean;
+    /** Label for the password input */
+    label?: string;
+    /** Name attribute for the input */
+    name: string;
+    /** Current value */
+    value: string;
+    /** Change handler */
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    /** Blur handler */
+    onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Whether the input has an error */
+    error?: boolean;
+    /** Helper text to display below input */
+    helperText?: string | boolean | null | undefined;
+    /** ID for the input element */
+    id?: string;
+    /** Additional props to pass to TextInput */
+    [key: string]: unknown;
+}
+
+/** Props for Formik-integrated PasswordTextInput component */
+export interface PasswordTextInputFormikProps extends Omit<PasswordTextInputBaseProps, "value" | "onChange" | "error" | "helperText" | "onBlur"> {
+    /** Optional validation function */
+    validate?: (value: unknown) => string | void | Promise<string | void>;
+}
+
+/** Legacy PasswordTextInputProps for backward compatibility */
 export type PasswordTextInputProps = TextInputProps & {
     autoComplete?: string;
     autoFocus?: boolean;
@@ -195,10 +294,12 @@ export type PhoneNumberInputProps = TextInputProps & {
 export type PhoneNumberInputBaseProps = Omit<PhoneNumberInputProps, "onChange"> & {
     error?: boolean;
     helperText?: string | boolean | null | undefined;
-    onBlur?: (event: React.FocusEvent<any>) => unknown;
+    onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
     onChange: (value: string) => unknown;
     setError: (error: string | undefined) => unknown;
+    size?: InputSize;
     value: string;
+    variant?: InputVariant;
 }
 
 export type PreviewSwitchProps = Omit<BoxProps, "onChange"> & {
@@ -229,7 +330,10 @@ export type ResourceListInputProps = Pick<ResourceListProps, "sxs"> & {
     parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
 }
 
-export interface SelectorProps<T extends string | number | { [x: string]: any }> {
+export type SelectorVariant = "outline" | "filled" | "underline";
+export type SelectorSize = "sm" | "md" | "lg";
+
+export interface SelectorProps<T extends string | number | Record<string, unknown>> {
     addOption?: {
         label: string;
         onSelect: () => unknown;
@@ -250,14 +354,16 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     noneText?: string;
     onChange?: (value: T | null) => unknown;
     options: readonly T[];
+    size?: SelectorSize;
     sx?: SxType;
     tabIndex?: number;
+    variant?: SelectorVariant;
 }
 
-export interface SelectorBaseProps<T extends string | number | { [x: string]: any }> extends Omit<SelectorProps<T>, "onChange" | "sx"> {
+export interface SelectorBaseProps<T extends string | number | Record<string, unknown>> extends Omit<SelectorProps<T>, "onChange" | "sx"> {
     error?: boolean;
     helperText?: string | boolean | null | undefined;
-    onBlur?: (event: React.FocusEvent<any>) => unknown;
+    onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
     onChange: (value: T) => unknown;
     value: T | null;
     sxs?: {
@@ -301,6 +407,39 @@ export type TextInputProps = Omit<TextFieldProps, "ref"> & {
     ref?: RefObject<HTMLElement>;
 }
 
+/** Base props for TimezoneSelectorBase component - no Formik dependencies */
+export interface TimezoneSelectorBaseProps {
+    /** Current selected timezone value */
+    value: string;
+    /** Change handler */
+    onChange: (value: string) => void;
+    /** Blur handler */
+    onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Whether the input has an error */
+    error?: boolean;
+    /** Helper text to display below input */
+    helperText?: string | boolean | null | undefined;
+    /** Label for the timezone selector */
+    label?: string;
+    /** Whether the input is required */
+    isRequired?: boolean;
+    /** Whether the input is disabled */
+    disabled?: boolean;
+    /** Name attribute for the input */
+    name?: string;
+    /** Additional props to pass to TextInput */
+    [key: string]: unknown;
+}
+
+/** Props for Formik-integrated TimezoneSelector component */
+export interface TimezoneSelectorFormikProps extends Omit<TimezoneSelectorBaseProps, "value" | "onChange" | "error" | "helperText" | "onBlur"> {
+    /** Formik field name */
+    name: string;
+    /** Optional validation function */
+    validate?: (value: unknown) => string | void | Promise<string | void>;
+}
+
+/** Legacy TimezoneSelectorProps for backward compatibility */
 export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
 
 
@@ -318,6 +457,43 @@ export interface TranslatedTextInputProps {
     InputProps?: TextInputProps["InputProps"];
 }
 
+/** Base props for VersionInputBase component - no Formik dependencies */
+export interface VersionInputBaseProps {
+    /** Current version value */
+    value: string;
+    /** Change handler */
+    onChange: (value: string) => void;
+    /** Blur handler */
+    onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Whether the input has an error */
+    error?: boolean;
+    /** Helper text to display below input */
+    helperText?: string | boolean | null | undefined;
+    /** Label for input component, NOT the version label. */
+    label?: string;
+    /** Name attribute for the input */
+    name?: string;
+    /** Whether the input is required */
+    isRequired?: boolean;
+    /** Whether the input is disabled */
+    disabled?: boolean;
+    /** Existing versions of the object. Used to determine minimum version number. */
+    versions: string[];
+    /** Additional props from TextInput */
+    InputProps?: TextInputProps["InputProps"];
+    /** Additional styles */
+    sx?: SxType;
+}
+
+/** Props for Formik-integrated VersionInput component */
+export interface VersionInputFormikProps extends Omit<VersionInputBaseProps, "value" | "onChange" | "error" | "helperText" | "onBlur"> {
+    /** Formik field name */
+    name?: string;
+    /** Optional validation function */
+    validate?: (value: unknown) => string | void | Promise<string | void>;
+}
+
+/** Legacy VersionInputProps for backward compatibility */
 export type VersionInputProps = Omit<TextInputProps, "helperText" | "onBlur" | "onChange" | "value"> & {
     /** Label for input component, NOT the version label. */
     label?: string;
@@ -330,6 +506,57 @@ export type VersionInputProps = Omit<TextInputProps, "helperText" | "onBlur" | "
 export type RadioVariant = "primary" | "secondary" | "danger" | "success" | "warning" | "info" | "custom";
 export type RadioSize = "sm" | "md" | "lg";
 
+/** Base props for RadioBase component - no Formik dependencies */
+export interface RadioBaseProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "type" | "onChange"> {
+    /** Visual style variant */
+    color?: RadioVariant;
+    /** Custom color for the custom variant (hex, rgb, hsl, etc.) */
+    customColor?: string;
+    /** Size of the radio button */
+    size?: RadioSize;
+    /** Whether the radio is checked */
+    checked?: boolean;
+    /** Default checked state for uncontrolled component */
+    defaultChecked?: boolean;
+    /** Value of the radio button */
+    value?: string | number;
+    /** Name attribute for grouping radios */
+    name?: string;
+    /** Whether the radio is disabled */
+    disabled?: boolean;
+    /** Whether the radio is required */
+    required?: boolean;
+    /** Change handler */
+    onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    /** Click handler */
+    onClick?: (event: React.MouseEvent<HTMLInputElement>) => void;
+    /** Focus handler */
+    onFocus?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Blur handler */
+    onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Additional CSS classes */
+    className?: string;
+    /** Inline styles */
+    style?: React.CSSProperties;
+    /** MUI sx prop for custom styling */
+    sx?: SxType;
+    /** Error state */
+    error?: boolean;
+    /** Helper text to display below radio */
+    helperText?: React.ReactNode;
+    /** Label to display next to radio */
+    label?: React.ReactNode;
+}
+
+/** Props for Formik-integrated Radio component */
+export interface RadioFormikProps extends Omit<RadioBaseProps, "checked" | "defaultChecked" | "onChange" | "error" | "helperText" | "name"> {
+    /** Formik field name */
+    name: string;
+    /** Optional validation function */
+    validate?: (value: unknown) => string | void | Promise<string | void>;
+}
+
+/** Legacy RadioProps for backward compatibility */
 export interface RadioProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "type" | "onChange"> {
     /** Visual style variant */
     color?: RadioVariant;
@@ -369,6 +596,55 @@ export interface RadioProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
 export type CheckboxVariant = "primary" | "secondary" | "danger" | "success" | "warning" | "info" | "custom";
 export type CheckboxSize = "sm" | "md" | "lg";
 
+/** Base props for CheckboxBase component - no Formik dependencies */
+export interface CheckboxBaseProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "type" | "onChange"> {
+    /** Visual style variant */
+    color?: CheckboxVariant;
+    /** Custom color for the custom variant (hex, rgb, hsl, etc.) */
+    customColor?: string;
+    /** Size of the checkbox */
+    size?: CheckboxSize;
+    /** Whether the checkbox is checked */
+    checked?: boolean;
+    /** Default checked state for uncontrolled component */
+    defaultChecked?: boolean;
+    /** Whether the checkbox is in indeterminate state */
+    indeterminate?: boolean;
+    /** Whether the checkbox is disabled */
+    disabled?: boolean;
+    /** Whether the checkbox is required */
+    required?: boolean;
+    /** Change handler */
+    onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    /** Click handler */
+    onClick?: (event: React.MouseEvent<HTMLInputElement>) => void;
+    /** Focus handler */
+    onFocus?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Blur handler */
+    onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Additional CSS classes */
+    className?: string;
+    /** Inline styles */
+    style?: React.CSSProperties;
+    /** MUI sx prop for custom styling */
+    sx?: SxType;
+    /** Error state */
+    error?: boolean;
+    /** Helper text to display below checkbox */
+    helperText?: React.ReactNode;
+    /** Label to display next to checkbox */
+    label?: React.ReactNode;
+}
+
+/** Props for Formik-integrated Checkbox component */
+export interface CheckboxFormikProps extends Omit<CheckboxBaseProps, "checked" | "defaultChecked" | "onChange" | "error" | "helperText" | "name"> {
+    /** Formik field name */
+    name: string;
+    /** Optional validation function */
+    validate?: (value: unknown) => string | void | Promise<string | void>;
+}
+
+/** Legacy CheckboxProps for backward compatibility */
 export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "type" | "onChange"> {
     /** Visual style variant */
     color?: CheckboxVariant;
@@ -423,7 +699,7 @@ export interface FormControlLabelProps {
     /** MUI sx prop for custom styling */
     sx?: SxType;
     /** Value to be used in controlled forms */
-    value?: any;
+    value?: unknown;
     /** Change handler */
     onChange?: (event: React.SyntheticEvent, checked: boolean) => void;
 }

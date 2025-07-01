@@ -551,29 +551,7 @@ export class ConversationalStrategy extends MinimalStrategyBase {
         const config = context.config;
         return typeof config.creativity === "number" ? config.creativity : 0.7;
     }
-
-    /**
-     * LEGACY PATTERN: Format step as message for conversation history
-     */
-    private formatStepAsMessage(step: any): string {
-        return `Previous step ${step.stepId}: ${step.result || "completed"}`;
-    }
-
-    /**
-     * LEGACY PATTERN: Prepare tools for LLM request
-     */
-    private prepareTools(context: StrategyExecutionContext): any[] {
-        const tools = context.resources?.tools || [];
-        return tools.map(tool => ({
-            type: "function",
-            function: {
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.parameters,
-            },
-        }));
-    }
-
+    
     /**
      * Check if response requires tool execution
      */

@@ -1,5 +1,5 @@
 import { cn } from "../../utils/tailwind-theme.js";
-import { CheckboxProps } from "./types.js";
+import { type CheckboxProps } from "./types.js";
 
 interface CheckboxStyleOptions {
     color?: CheckboxProps["color"];
@@ -129,7 +129,7 @@ export function getCheckboxStyles({
         ...(isCustom && {
             customStyles: {
                 box: {
-                    borderColor: (checked || indeterminate) ? customColor : 'var(--text-secondary)',
+                    borderColor: (checked || indeterminate) ? customColor : "var(--text-secondary)",
                     ...((checked || indeterminate) && { 
                         backgroundColor: customColor,
                     }),

@@ -1,5 +1,5 @@
 import { cn } from "../../utils/tailwind-theme.js";
-import { FormControlLabelProps } from "./types.js";
+import { type FormControlLabelProps } from "./types.js";
 
 interface FormControlLabelStyleOptions {
     labelPlacement?: FormControlLabelProps["labelPlacement"];

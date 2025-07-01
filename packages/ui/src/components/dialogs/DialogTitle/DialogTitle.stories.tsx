@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import React, { useState } from "react";
-import { Box, Typography, FormControl, FormLabel, RadioGroup, FormControlLabel, Radio, TextField, Paper } from "@mui/material";
+import { InputType, type FormSchema } from "@vrooli/shared";
+import React from "react";
+import { showcaseDecorator, type ShowcaseDecoratorConfig } from "../../../__test/helpers/storybookDecorators.js";
 import { IconCommon } from "../../../icons/Icons.js";
-import { Switch } from "../../inputs/Switch/Switch.js";
+import { Box, Typography, Paper } from "@mui/material";
 import { DialogTitle } from "./DialogTitle.js";
 
 const meta: Meta<typeof DialogTitle> = {
@@ -22,31 +23,175 @@ const meta: Meta<typeof DialogTitle> = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// Interactive DialogTitle Showcase with all features
 export const Showcase: Story = {
     render: () => {
-        const [titleText, setTitleText] = useState("Enhanced Dialog Title");
-        const [helpText, setHelpText] = useState("This title showcases all the enhanced features and improvements");
-        const [showStartComponent, setShowStartComponent] = useState(true);
-        const [startComponentType, setStartComponentType] = useState<"Settings" | "User" | "Info" | "Warning">("Settings");
-        const [showBelowContent, setShowBelowContent] = useState(false);
-        const [belowContentType, setBelowContentType] = useState<"info" | "warning" | "success">("info");
-        const [isLoading, setIsLoading] = useState(false);
-        const [shadow, setShadow] = useState(true);
-        const [animate, setAnimate] = useState(true);
-        const [showCloseButton, setShowCloseButton] = useState(true);
-        const [isClosed, setIsClosed] = useState(false);
-        const [useCustomChildren, setUseCustomChildren] = useState(false);
-
-        const handleClose = () => {
-            setIsClosed(true);
+        // Define the form schema for controls
+        const controlsSchema: FormSchema = {
+            elements: [
+                {
+                    id: "titleText",
+                    type: InputType.Text,
+                    fieldName: "titleText",
+                    label: "Title Text",
+                    isRequired: false,
+                    props: {
+                        defaultValue: "Enhanced Dialog Title",
+                        placeholder: "Enter title text",
+                    },
+                },
+                {
+                    id: "helpText",
+                    type: InputType.Text,
+                    fieldName: "helpText",
+                    label: "Help Text",
+                    isRequired: false,
+                    props: {
+                        defaultValue: "This title showcases all the enhanced features and improvements",
+                        placeholder: "Enter help text",
+                    },
+                },
+                {
+                    id: "showStartComponent",
+                    type: InputType.Switch,
+                    fieldName: "showStartComponent",
+                    label: "Show Start Icon",
+                    isRequired: false,
+                    props: {
+                        defaultValue: true,
+                    },
+                },
+                {
+                    id: "startComponentType",
+                    type: InputType.Radio,
+                    fieldName: "startComponentType",
+                    label: "Start Icon Type",
+                    isRequired: false,
+                    props: {
+                        options: [
+                            { label: "Settings", value: "Settings" },
+                            { label: "User", value: "User" },
+                            { label: "Info", value: "Info" },
+                            { label: "Warning", value: "Warning" },
+                        ],
+                        defaultValue: "Settings",
+                        row: true,
+                    },
+                },
+                {
+                    id: "showBelowContent",
+                    type: InputType.Switch,
+                    fieldName: "showBelowContent",
+                    label: "Show Below Content",
+                    isRequired: false,
+                    props: {
+                        defaultValue: false,
+                    },
+                },
+                {
+                    id: "belowContentType",
+                    type: InputType.Radio,
+                    fieldName: "belowContentType",
+                    label: "Below Content Type",
+                    isRequired: false,
+                    props: {
+                        options: [
+                            { label: "Info", value: "info" },
+                            { label: "Warning", value: "warning" },
+                            { label: "Success", value: "success" },
+                        ],
+                        defaultValue: "info",
+                        row: true,
+                    },
+                },
+                {
+                    id: "isLoading",
+                    type: InputType.Switch,
+                    fieldName: "isLoading",
+                    label: "Loading State",
+                    isRequired: false,
+                    props: {
+                        defaultValue: false,
+                    },
+                },
+                {
+                    id: "shadow",
+                    type: InputType.Switch,
+                    fieldName: "shadow",
+                    label: "Shadow",
+                    isRequired: false,
+                    props: {
+                        defaultValue: true,
+                    },
+                },
+                {
+                    id: "animate",
+                    type: InputType.Switch,
+                    fieldName: "animate",
+                    label: "Animations",
+                    isRequired: false,
+                    props: {
+                        defaultValue: true,
+                    },
+                },
+                {
+                    id: "showCloseButton",
+                    type: InputType.Switch,
+                    fieldName: "showCloseButton",
+                    label: "Show Close Button",
+                    isRequired: false,
+                    props: {
+                        defaultValue: true,
+                    },
+                },
+                {
+                    id: "useCustomChildren",
+                    type: InputType.Switch,
+                    fieldName: "useCustomChildren",
+                    label: "Use Custom Children",
+                    isRequired: false,
+                    props: {
+                        defaultValue: false,
+                    },
+                },
+                {
+                    id: "variant",
+                    type: InputType.Radio,
+                    fieldName: "variant",
+                    label: "Variant",
+                    isRequired: false,
+                    props: {
+                        options: [
+                            { label: "Simple", value: "simple" },
+                            { label: "Prominent", value: "prominent" },
+                        ],
+                        defaultValue: "simple",
+                        row: true,
+                    },
+                },
+            ],
+            containers: [{
+                totalItems: 12,
+            }],
         };
 
-        const handleReset = () => {
-            setIsClosed(false);
+        // Initial values for the form
+        const initialValues = {
+            titleText: "Enhanced Dialog Title",
+            helpText: "This title showcases all the enhanced features and improvements",
+            showStartComponent: true,
+            startComponentType: "Settings",
+            showBelowContent: false,
+            belowContentType: "info",
+            isLoading: false,
+            shadow: true,
+            animate: true,
+            showCloseButton: true,
+            useCustomChildren: false,
+            variant: "simple",
         };
 
-        const getBelowContent = () => {
+        // Helper function to get below content
+        const getBelowContent = (showBelowContent: boolean, belowContentType: string) => {
             if (!showBelowContent) return undefined;
             
             const contentMap = {
@@ -54,23 +199,23 @@ export const Showcase: Story = {
                     bgcolor: "info.light",
                     color: "info.contrastText",
                     icon: "Info",
-                    text: "This is informational content below the title"
+                    text: "This is informational content below the title",
                 },
                 warning: {
                     bgcolor: "warning.light", 
                     color: "warning.contrastText",
                     icon: "Warning",
-                    text: "Warning: This action may have important consequences"
+                    text: "Warning: This action may have important consequences",
                 },
                 success: {
                     bgcolor: "success.light",
                     color: "success.contrastText", 
                     icon: "CheckCircle",
-                    text: "Success: Operation completed successfully"
-                }
+                    text: "Success: Operation completed successfully",
+                },
             };
 
-            const config = contentMap[belowContentType];
+            const config = contentMap[belowContentType as keyof typeof contentMap];
 
             return (
                 <Box sx={{ 
@@ -88,205 +233,42 @@ export const Showcase: Story = {
             );
         };
 
-        return (
-            <Box sx={{ 
-                p: 2, 
-                height: "100vh", 
-                overflow: "auto",
-                bgcolor: "background.default", 
-            }}>
-                <Box sx={{ 
-                    display: "flex", 
-                    gap: 2, 
-                    flexDirection: "column",
-                    maxWidth: 1400, 
-                    mx: "auto", 
-                }}>
-                    {/* Controls Section */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
-                        boxShadow: 1,
-                        height: "fit-content",
-                        width: "100%",
-                    }}>
-                        <Typography variant="h5" sx={{ mb: 3 }}>DialogTitle Controls</Typography>
-                        
-                        <Box sx={{ 
-                            display: "grid", 
-                            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" },
-                            gap: 3, 
-                        }}>
-                            {/* Title Text Control */}
-                            <FormControl component="fieldset" size="small">
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Title Text</FormLabel>
-                                <TextField
-                                    value={titleText}
-                                    onChange={(e) => setTitleText(e.target.value)}
-                                    size="small"
-                                    sx={{ width: "100%" }}
-                                    placeholder="Enter title text"
-                                />
-                            </FormControl>
+        // Showcase decorator configuration
+        const showcaseConfig: ShowcaseDecoratorConfig = {
+            componentName: "DialogTitle",
+            controlsSchema,
+            initialValues,
+            renderShowcase: (values) => {
+                const { 
+                    titleText, 
+                    helpText, 
+                    showStartComponent, 
+                    startComponentType, 
+                    showBelowContent, 
+                    belowContentType,
+                    isLoading,
+                    shadow,
+                    animate,
+                    showCloseButton,
+                    useCustomChildren,
+                    variant,
+                } = values;
 
-                            {/* Help Text Control */}
-                            <FormControl component="fieldset" size="small">
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Help Text</FormLabel>
-                                <TextField
-                                    value={helpText}
-                                    onChange={(e) => setHelpText(e.target.value)}
-                                    size="small"
-                                    sx={{ width: "100%" }}
-                                    placeholder="Enter help text"
-                                />
-                            </FormControl>
-
-                            {/* Start Component Control */}
-                            <FormControl component="fieldset" size="small">
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Start Component</FormLabel>
-                                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                                    <Switch
-                                        checked={showStartComponent}
-                                        onChange={(checked) => setShowStartComponent(checked)}
-                                        size="sm"
-                                        label="Show Icon"
-                                        labelPosition="right"
-                                    />
-                                    {showStartComponent && (
-                                        <RadioGroup
-                                            value={startComponentType}
-                                            onChange={(e) => setStartComponentType(e.target.value as any)}
-                                            sx={{ gap: 0.5 }}
-                                        >
-                                            <FormControlLabel value="Settings" control={<Radio size="small" />} label="Settings" sx={{ m: 0 }} />
-                                            <FormControlLabel value="User" control={<Radio size="small" />} label="User" sx={{ m: 0 }} />
-                                            <FormControlLabel value="Info" control={<Radio size="small" />} label="Info" sx={{ m: 0 }} />
-                                            <FormControlLabel value="Warning" control={<Radio size="small" />} label="Warning" sx={{ m: 0 }} />
-                                        </RadioGroup>
-                                    )}
-                                </Box>
-                            </FormControl>
-
-                            {/* Below Content Control */}
-                            <FormControl component="fieldset" size="small">
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Below Content</FormLabel>
-                                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                                    <Switch
-                                        checked={showBelowContent}
-                                        onChange={(checked) => setShowBelowContent(checked)}
-                                        size="sm"
-                                        label="Show Content"
-                                        labelPosition="right"
-                                    />
-                                    {showBelowContent && (
-                                        <RadioGroup
-                                            value={belowContentType}
-                                            onChange={(e) => setBelowContentType(e.target.value as any)}
-                                            sx={{ gap: 0.5 }}
-                                        >
-                                            <FormControlLabel value="info" control={<Radio size="small" />} label="Info" sx={{ m: 0 }} />
-                                            <FormControlLabel value="warning" control={<Radio size="small" />} label="Warning" sx={{ m: 0 }} />
-                                            <FormControlLabel value="success" control={<Radio size="small" />} label="Success" sx={{ m: 0 }} />
-                                        </RadioGroup>
-                                    )}
-                                </Box>
-                            </FormControl>
-
-                            {/* Loading State Control */}
-                            <FormControl component="fieldset" size="small">
-                                <Switch
-                                    checked={isLoading}
-                                    onChange={(checked) => setIsLoading(checked)}
-                                    size="sm"
-                                    label="Loading State"
-                                    labelPosition="right"
-                                />
-                            </FormControl>
-
-                            {/* Visual Enhancement Controls */}
-                            <FormControl component="fieldset" size="small">
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Visual Effects</FormLabel>
-                                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                                    <Switch
-                                        checked={shadow}
-                                        onChange={(checked) => setShadow(checked)}
-                                        size="sm"
-                                        label="Shadow"
-                                        labelPosition="right"
-                                    />
-                                    <Switch
-                                        checked={animate}
-                                        onChange={(checked) => setAnimate(checked)}
-                                        size="sm"
-                                        label="Animations"
-                                        labelPosition="right"
-                                    />
-                                </Box>
-                            </FormControl>
-
-                            {/* Close Button Control */}
-                            <FormControl component="fieldset" size="small">
-                                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                                    <Switch
-                                        checked={showCloseButton}
-                                        onChange={(checked) => setShowCloseButton(checked)}
-                                        size="sm"
-                                        label="Show Close Button"
-                                        labelPosition="right"
-                                    />
-                                    {isClosed && (
-                                        <button 
-                                            onClick={handleReset}
-                                            style={{ 
-                                                padding: "6px 12px", 
-                                                borderRadius: "4px", 
-                                                border: "1px solid #ccc",
-                                                background: "#007bff",
-                                                color: "white",
-                                                cursor: "pointer",
-                                                fontSize: "0.875rem",
-                                            }}
-                                        >
-                                            Reset
-                                        </button>
-                                    )}
-                                </Box>
-                            </FormControl>
-
-                            {/* Custom Children Control */}
-                            <FormControl component="fieldset" size="small">
-                                <Switch
-                                    checked={useCustomChildren}
-                                    onChange={(checked) => setUseCustomChildren(checked)}
-                                    size="sm"
-                                    label="Use Custom Children"
-                                    labelPosition="right"
-                                />
-                            </FormControl>
-                        </Box>
-                    </Box>
-
-                    {/* DialogTitle Preview */}
-                    <Box sx={{ 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
-                        boxShadow: 1,
-                        overflow: "hidden",
-                        width: "100%",
-                    }}>
-                        <Typography variant="h5" sx={{ p: 3, pb: 2 }}>Preview</Typography>
-                        
-                        {!isClosed ? (
-                            <Paper sx={{ overflow: "hidden", borderRadius: 0, boxShadow: 0 }}>
+                return (
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                        {/* Main Preview */}
+                        <Box>
+                            <Typography variant="h6" sx={{ mb: 2 }}>Preview</Typography>
+                            <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
                                 {useCustomChildren ? (
                                     <DialogTitle
                                         id="dialog-title-showcase"
-                                        onClose={showCloseButton ? handleClose : undefined}
+                                        onClose={showCloseButton ? () => {} : undefined}
                                         isLoading={isLoading}
                                         shadow={shadow}
                                         animate={animate}
-                                        below={getBelowContent()}
+                                        variant={variant as "simple" | "prominent"}
+                                        below={getBelowContent(showBelowContent, belowContentType)}
                                     >
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                                             <IconCommon name="Success" fill="currentColor" size={24} />
@@ -306,164 +288,165 @@ export const Showcase: Story = {
                                         title={titleText}
                                         help={helpText || undefined}
                                         startComponent={showStartComponent ? <IconCommon name={startComponentType} fill="currentColor" /> : undefined}
-                                        below={getBelowContent()}
-                                        onClose={showCloseButton ? handleClose : undefined}
+                                        below={getBelowContent(showBelowContent, belowContentType)}
+                                        onClose={showCloseButton ? () => {} : undefined}
                                         isLoading={isLoading}
                                         shadow={shadow}
                                         animate={animate}
+                                        variant={variant as "simple" | "prominent"}
                                     />
                                 )}
                             </Paper>
-                        ) : (
-                            <Box sx={{ 
-                                p: 4, 
-                                textAlign: "center", 
-                                bgcolor: "action.hover", 
-                                border: "2px dashed",
-                                borderColor: "divider",
-                                mx: 3,
-                                mb: 3,
-                                borderRadius: 2,
-                            }}>
-                                <Typography variant="body2" sx={{ opacity: 0.7 }}>
-                                    Dialog was closed. Click "Reset" above to show it again.
-                                </Typography>
-                            </Box>
-                        )}
-                    </Box>
+                        </Box>
 
-                    {/* Feature Showcase */}
-                    <Box sx={{ 
-                        p: 3, 
-                        bgcolor: "background.paper", 
-                        borderRadius: 2, 
-                        boxShadow: 1,
-                        width: "100%",
-                    }}>
-                        <Typography variant="h5" sx={{ mb: 3 }}>Feature Examples</Typography>
-                        
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                            {/* Basic Example */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 1 }}>Basic</Typography>
-                                <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
-                                    <DialogTitle
-                                        id="basic-example"
-                                        title="Simple Dialog Title"
-                                        onClose={() => {}}
-                                    />
-                                </Paper>
-                            </Box>
+                        {/* Feature Examples */}
+                        <Box>
+                            <Typography variant="h6" sx={{ mb: 2 }}>Feature Examples</Typography>
+                            
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" }, gap: 3 }}>
+                                {/* Simple Variant Example */}
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Simple Variant (Default)</Typography>
+                                    <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
+                                        <DialogTitle
+                                            id="simple-example"
+                                            title="Simple Dialog Title"
+                                            help="Clean and minimal for common dialogs"
+                                            onClose={() => {}}
+                                            variant="simple"
+                                        />
+                                    </Paper>
+                                </Box>
 
-                            {/* Loading Example */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 1 }}>Loading State</Typography>
-                                <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
-                                    <DialogTitle
-                                        id="loading-example"
-                                        title="Loading Dialog"
-                                        startComponent={<IconCommon name="Settings" fill="currentColor" />}
-                                        below={<Box sx={{ p: 2, bgcolor: "action.hover" }}>Additional content</Box>}
-                                        isLoading={true}
-                                        onClose={() => {}}
-                                    />
-                                </Paper>
-                            </Box>
+                                {/* Prominent Variant Example */}
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Prominent Variant</Typography>
+                                    <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
+                                        <DialogTitle
+                                            id="prominent-example"
+                                            title="Important Action"
+                                            help="Eye-catching for critical dialogs"
+                                            startComponent={<IconCommon name="Warning" fill="currentColor" />}
+                                            onClose={() => {}}
+                                            variant="prominent"
+                                        />
+                                    </Paper>
+                                </Box>
 
-                            {/* Enhanced Example */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 1 }}>Enhanced with Animations</Typography>
-                                <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
-                                    <DialogTitle
-                                        id="enhanced-example"
-                                        title="Enhanced Dialog Title"
-                                        help="With smooth animations and improved layout"
-                                        startComponent={<IconCommon name="Settings" fill="currentColor" />}
-                                        animate={true}
-                                        shadow={true}
-                                        onClose={() => {}}
-                                    />
-                                </Paper>
-                            </Box>
+                                {/* Loading Example */}
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Loading State</Typography>
+                                    <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
+                                        <DialogTitle
+                                            id="loading-example"
+                                            title="Loading Dialog"
+                                            startComponent={<IconCommon name="Settings" fill="currentColor" />}
+                                            below={<Box sx={{ p: 2, bgcolor: "action.hover" }}>Additional content</Box>}
+                                            isLoading={true}
+                                            onClose={() => {}}
+                                        />
+                                    </Paper>
+                                </Box>
 
-                            {/* Full Featured Example */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 1 }}>Full Featured</Typography>
-                                <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
-                                    <DialogTitle
-                                        id="full-example"
-                                        title="Advanced Configuration"
-                                        help="Complete example with all features enabled"
-                                        startComponent={<IconCommon name="Warning" fill="currentColor" />}
-                                        below={
-                                            <Box sx={{ 
-                                                p: 2, 
-                                                bgcolor: "warning.light", 
-                                                color: "warning.contrastText",
-                                                fontSize: "0.875rem",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 1,
-                                            }}>
-                                                <IconCommon name="Warning" size={16} />
-                                                Changes may affect system performance
+                                {/* Enhanced Example */}
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Enhanced with Animations</Typography>
+                                    <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
+                                        <DialogTitle
+                                            id="enhanced-example"
+                                            title="Enhanced Dialog Title"
+                                            help="With smooth animations and improved layout"
+                                            startComponent={<IconCommon name="Settings" fill="currentColor" />}
+                                            animate={true}
+                                            shadow={true}
+                                            onClose={() => {}}
+                                        />
+                                    </Paper>
+                                </Box>
+
+                                {/* Full Featured Example */}
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Full Featured</Typography>
+                                    <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
+                                        <DialogTitle
+                                            id="full-example"
+                                            title="Advanced Configuration"
+                                            help="Complete example with all features enabled"
+                                            startComponent={<IconCommon name="Warning" fill="currentColor" />}
+                                            below={
+                                                <Box sx={{ 
+                                                    p: 2, 
+                                                    bgcolor: "warning.light", 
+                                                    color: "warning.contrastText",
+                                                    fontSize: "0.875rem",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 1,
+                                                }}>
+                                                    <IconCommon name="Warning" size={16} />
+                                                    Changes may affect system performance
+                                                </Box>
+                                            }
+                                            animate={true}
+                                            shadow={true}
+                                            onClose={() => {}}
+                                        />
+                                    </Paper>
+                                </Box>
+
+                                {/* Custom Children Example */}
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Custom Children Content</Typography>
+                                    <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
+                                        <DialogTitle
+                                            id="children-example"
+                                            onClose={() => {}}
+                                            shadow={true}
+                                        >
+                                            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                                <IconCommon name="Success" fill="currentColor" size={24} />
+                                                <Box>
+                                                    <Typography variant="h5" component="h2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                                                        Custom Title Layout
+                                                    </Typography>
+                                                    <Typography variant="body2" sx={{ opacity: 0.7 }}>
+                                                        With subtitle and custom styling
+                                                    </Typography>
+                                                </Box>
                                             </Box>
-                                        }
-                                        animate={true}
-                                        shadow={true}
-                                        onClose={() => {}}
-                                    />
-                                </Paper>
-                            </Box>
+                                        </DialogTitle>
+                                    </Paper>
+                                </Box>
 
-                            {/* Custom Children Example */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 1 }}>Custom Children Content</Typography>
-                                <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
-                                    <DialogTitle
-                                        id="children-example"
-                                        onClose={() => {}}
-                                        shadow={true}
-                                    >
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                            <IconCommon name="Success" fill="currentColor" size={24} />
-                                            <Box>
-                                                <Typography variant="h5" component="h2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                                                    Custom Title Layout
+                                {/* Complex Custom Children Example */}
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Complex Custom Layout</Typography>
+                                    <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
+                                        <DialogTitle
+                                            id="complex-children-example"
+                                            onClose={() => {}}
+                                            animate={true}
+                                        >
+                                            <Box sx={{ textAlign: "center", width: "100%" }}>
+                                                <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
+                                                    Power Up Your AI Assistant 🚀
                                                 </Typography>
-                                                <Typography variant="body2" sx={{ opacity: 0.7 }}>
-                                                    With subtitle and custom styling
+                                                <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                                                    Get credits to run AI-powered tasks and automations
                                                 </Typography>
                                             </Box>
-                                        </Box>
-                                    </DialogTitle>
-                                </Paper>
-                            </Box>
-
-                            {/* Complex Custom Children Example */}
-                            <Box>
-                                <Typography variant="h6" sx={{ mb: 1 }}>Complex Custom Layout</Typography>
-                                <Paper sx={{ overflow: "hidden", borderRadius: 2 }}>
-                                    <DialogTitle
-                                        id="complex-children-example"
-                                        onClose={() => {}}
-                                        animate={true}
-                                    >
-                                        <Box sx={{ textAlign: "center", width: "100%" }}>
-                                            <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
-                                                Power Up Your AI Assistant 🚀
-                                            </Typography>
-                                            <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                                                Get credits to run AI-powered tasks and automations
-                                            </Typography>
-                                        </Box>
-                                    </DialogTitle>
-                                </Paper>
+                                        </DialogTitle>
+                                    </Paper>
+                                </Box>
                             </Box>
                         </Box>
                     </Box>
-                </Box>
-            </Box>
-        );
+                );
+            },
+        };
+
+        // Use the showcase decorator
+        const ShowcaseComponent = showcaseDecorator(showcaseConfig);
+        return <ShowcaseComponent />;
     },
 };

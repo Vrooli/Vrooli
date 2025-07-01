@@ -1,4 +1,4 @@
-import { MaxObjects, pushDeviceValidation } from "@vrooli/shared";
+import { generatePK, MaxObjects, pushDeviceValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../validators/permissions.js";
@@ -25,6 +25,7 @@ export const PushDeviceModel: PushDeviceModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, userData }) => ({
+                id: generatePK(),
                 endpoint: data.endpoint,
                 expires: noNull(data.expires),
                 auth: data.keys.auth,

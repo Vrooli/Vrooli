@@ -37,7 +37,7 @@ export const PhoneNumberInputShowcase: Story = {
             "tel-national",
             "tel-country-code",
             "tel-local",
-            "off"
+            "off",
         ];
 
         return (

@@ -35,7 +35,7 @@ export const PasswordTextInputShowcase: Story = {
         const autoCompleteOptions = [
             "current-password",
             "new-password", 
-            "off"
+            "off",
         ];
 
         return (

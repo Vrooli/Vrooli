@@ -1,4 +1,4 @@
-import { Typography } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
 import type { Meta, StoryObj } from "@storybook/react";
 import React, { useState } from "react";
 import { useIsMobile, useWindowDimensions } from "../../../hooks/useIsMobile.js";
@@ -220,7 +220,7 @@ export const Variants: Story = {
         const variants = ["default", "danger", "success", "space", "neon"] as const;
 
         return (
-            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                 {variants.map((variant) => (
                     <Button
                         key={variant}
@@ -265,7 +265,7 @@ export const Variants: Story = {
                         </DialogActions>
                     </Dialog>
                 ))}
-            </div>
+            </Box>
         );
     },
 };
@@ -277,7 +277,7 @@ export const Positions: Story = {
         const positions = ["center", "top", "bottom", "left", "right"] as const;
 
         return (
-            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                 {positions.map((position) => (
                     <Button
                         key={position}
@@ -308,7 +308,7 @@ export const Positions: Story = {
                         </DialogActions>
                     </Dialog>
                 ))}
-            </div>
+            </Box>
         );
     },
 };
@@ -632,6 +632,7 @@ export const AnchoredDialog: Story = {
         const [placement, setPlacement] = useState<"top" | "bottom" | "left" | "right" | "auto">("auto");
         const centerRef = React.useRef<HTMLDivElement>(null);
         const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+        const theme = useTheme();
 
         const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
             setAnchorEl(event.currentTarget);
@@ -658,32 +659,32 @@ export const AnchoredDialog: Story = {
         }, []);
 
         return (
-            <div 
+            <Box 
                 ref={scrollContainerRef}
-                style={{ 
+                sx={{ 
                     position: "fixed",
                     top: 0,
                     left: 0,
                     right: 0,
                     bottom: 0,
                     overflow: "auto",
-                    backgroundColor: "var(--background-default)",
+                    backgroundColor: "background.default",
                 }}
             >
-                <div style={{ 
+                <Box sx={{ 
                     minHeight: "300vh", 
                     width: "150vw", 
-                    padding: "40px",
+                    p: 5,
                     position: "relative",
                 }}>
-                <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
-                    <Typography variant="h4" style={{ marginBottom: "20px", textAlign: "center" }}>
+                <Box sx={{ maxWidth: 800, margin: "0 auto", p: 2.5 }}>
+                    <Typography variant="h4" sx={{ mb: 2.5, textAlign: "center" }}>
                         🎯 Anchored Dialog Test Arena
                     </Typography>
-                    <Typography variant="body1" style={{ marginBottom: "40px", textAlign: "center" }}>
+                    <Typography variant="body1" sx={{ mb: 5, textAlign: "center" }}>
                         Scroll around and click buttons to see dynamic dialog positioning!
                     </Typography>
-                </div>
+                </Box>
 
                 {/* Top Section */}
                 <div style={{ 
@@ -752,10 +753,11 @@ export const AnchoredDialog: Story = {
                         alignItems: "center",
                         gap: "30px",
                         padding: "60px",
-                        backgroundColor: "var(--background-paper)",
-                        borderRadius: "20px",
-                        border: "3px solid #2196f3",
-                        boxShadow: "0 0 30px rgba(33, 150, 243, 0.3)",
+                        backgroundColor: "background.paper",
+                        borderRadius: 2.5,
+                        border: 3,
+                        borderColor: "primary.main",
+                        boxShadow: `0 0 30px ${theme.palette.primary.main}33`,
                     }}
                 >
                     <Typography variant="h4" style={{ textAlign: "center" }}>
@@ -888,8 +890,8 @@ export const AnchoredDialog: Story = {
                         </Button>
                     </DialogActions>
                 </Dialog>
-                </div>
-            </div>
+                </Box>
+            </Box>
         );
     },
 };

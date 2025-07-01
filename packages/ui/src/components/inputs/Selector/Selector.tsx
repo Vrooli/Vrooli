@@ -1,20 +1,15 @@
-import FormControl from "@mui/material/FormControl";
-import FormHelperText from "@mui/material/FormHelperText";
-import InputLabel from "@mui/material/InputLabel";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material";
 import { exists } from "@vrooli/shared";
 import { useField } from "formik";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
+import { InputContainer } from "../InputContainer/index.js";
 import { type SelectorBaseProps, type SelectorProps } from "../types.js";
 
-export function SelectorBase<T extends string | number | { [x: string]: any }>({
+export function SelectorBase<T extends string | number | { [x: string]: unknown }>({
     addOption,
     autoFocus = false,
     options,
@@ -34,28 +29,32 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
     noneText,
     label,
     disabled = false,
+    size = "md",
     sxs,
     tabIndex,
     value,
+    variant = "filled",
 }: SelectorBaseProps<T>) {
-    const { palette, typography, spacing } = useTheme();
+    const { palette } = useTheme();
     const { t } = useTranslation();
+    const [isFocused, setIsFocused] = useState(false);
+    const selectRef = useRef<HTMLDivElement>(null);
 
     const getOptionStyle = useCallback((label: string) => {
         const isSelected = exists(value) && getOptionLabel(value, t) === label;
         return {
-            fontWeight: isSelected ? typography.fontWeightMedium : typography.fontWeightRegular,
+            fontWeight: isSelected ? "500" : "400",
         };
-    }, [value, getOptionLabel, t, typography.fontWeightMedium, typography.fontWeightRegular]);
+    }, [value, getOptionLabel, t]);
 
     const getLabelStyle = useCallback(function getLabelStyleCallback(label: string, description: string | null | undefined) {
         return {
             ...getOptionStyle(label),
-            "& .MuiTypography-root": {
-                fontWeight: description ? "bold" : typography.fontWeightRegular,
-            },
+            fontWeight: description ? "bold" : "400",
         };
-    }, [getOptionStyle, typography.fontWeightRegular]);
+    }, [getOptionStyle]);
+
+    const menuItemSx = useMemo(() => ({ whiteSpace: "normal" }), []);
 
     // Render all labels
     const labels = useMemo(() => options.map((option) => {
@@ -65,37 +64,28 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
         const labelStyle = getLabelStyle(labelText, description);
 
         return (
-            <MenuItem key={labelText} value={labelText} sx={{ whiteSpace: "normal" }}>
+            <MenuItem key={labelText} value={labelText} sx={menuItemSx}>
                 {
                     Icon ?
                         typeof Icon === "function" ?
-                            <ListItemIcon sx={{ minWidth: "32px" }}>
+                            <div className="tw-flex tw-items-center tw-justify-center tw-min-w-[32px]">
                                 <Icon fill={palette.background.textSecondary} />
-                            </ListItemIcon> :
+                            </div> :
                             Icon :
                         null
                 }
-                <Stack direction="column">
-                    <ListItemText sx={labelStyle}>{labelText}</ListItemText>
-                    {description && <ListItemText sx={getOptionStyle(labelText)}>{description}</ListItemText>}
-                </Stack>
+                <div className="tw-flex tw-flex-col">
+                    <span style={labelStyle}>{labelText}</span>
+                    {description && <span style={getOptionStyle(labelText)} className="tw-text-sm tw-text-text-secondary">{description}</span>}
+                </div>
             </MenuItem>
         );
-    }), [options, getOptionLabel, t, getOptionDescription, getOptionIcon, getLabelStyle, palette.background.textSecondary, getOptionStyle]);
+    }), [options, getOptionLabel, t, getOptionDescription, getOptionIcon, getLabelStyle, palette.background.textSecondary, getOptionStyle, menuItemSx]);
 
     // Find option from label
     const findOption = useCallback(function findOptionCallback(label: string) {
         return options.find((option) => getOptionLabel(option, t) === label);
     }, [options, getOptionLabel, t]);
-
-    /**
-     * Determines if label should be shrunk
-     */
-    const shrinkLabel = useMemo(() => {
-        if (!exists(value)) return false;
-        const labelText = getOptionLabel(value, t);
-        return typeof labelText === "string" && labelText.length > 0;
-    }, [value, getOptionLabel, t]);
 
     const renderValue = useCallback(function renderValueCallback(value: string) {
         const option = findOption(value as string);
@@ -108,87 +98,104 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 ? getOptionIcon(option) :
                 null;
         return (
-            <Stack direction="row" alignItems="center">
+            <div className="tw-flex tw-items-center">
                 {
                     Icon ?
                         typeof Icon === "function" ?
-                            <ListItemIcon sx={{ minWidth: "32px" }}>
+                            <div className="tw-flex tw-items-center tw-justify-center tw-min-w-[32px]">
                                 <Icon fill={palette.background.textSecondary} />
-                            </ListItemIcon> :
+                            </div> :
                             Icon :
                         null
                 }
-                <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
+                <span style={getOptionStyle(labelText)}>{labelText}</span>
                 {/* Note that we omit the description */}
-            </Stack>
+            </div>
         );
     }, [findOption, getDisplayIcon, getOptionIcon, getOptionLabel, getOptionStyle, palette.background.textSecondary, t]);
 
+    const handleChange = useCallback((e) => { 
+        const found = findOption(e.target.value as string);
+        if (found !== undefined) onChange(found as T); 
+    }, [findOption, onChange]);
+
     const selectStyle = useMemo(function selectStyle() {
         return {
-            ...sxs?.root,
-            borderRadius: spacing(3),
-            color: palette.background.textPrimary,
-            backgroundColor: palette.background.paper,
+            width: "100%",
+            height: "100%",
             "& .MuiSelect-select": {
-                padding: "8px",
+                padding: 0,
+                paddingRight: "32px", // Space for dropdown icon
                 display: "flex",
                 alignItems: "center",
-            },
-            "& .MuiSelect-icon": {
-                color: "inherit",
+                backgroundColor: "transparent",
+                border: "none",
             },
             "& .MuiOutlinedInput-notchedOutline": {
                 border: "none",
             },
-            "& .MuiPaper-root": {
-                zIndex: 9999,
-            },
             "& fieldset": {
-                ...sxs?.fieldset,
                 border: "none",
             },
-            "& svg": {
-                display: "flex",
-                alignItems: "center",
+            "& .MuiSelect-icon": {
+                right: "8px",
+                color: palette.text.secondary,
             },
+            ...sxs?.root,
         };
-    }, [sxs, spacing, palette.background.paper, palette.background.textPrimary]);
+    }, [palette.text.secondary, sxs]);
+
+    const handleFocus = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+        setIsFocused(true);
+    }, []);
+
+    const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+        setIsFocused(false);
+        onBlur?.(e);
+    }, [onBlur]);
+
+    const handleContainerClick = useCallback(() => {
+        // Focus the select when clicking the container
+        const selectElement = selectRef.current?.querySelector("input, [role=\"button\"]") as HTMLElement;
+        selectElement?.focus();
+        selectElement?.click();
+    }, []);
 
     return (
-        <FormControl
-            variant="outlined"
+        <InputContainer
+            variant={variant}
+            size={size}
             error={error}
-            sx={{
-                width: fullWidth ? "-webkit-fill-available" : "",
-                // Adjust label position when not shrunk to align with internal padding
-                "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": {
-                    transform: "translate(14px, 8px) scale(1)",
-                },
-            }}
+            disabled={disabled}
+            fullWidth={fullWidth}
+            focused={isFocused}
+            onClick={handleContainerClick}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            label={label}
+            isRequired={isRequired}
+            helperText={helperText}
+            htmlFor={name}
         >
-            <InputLabel
-                id={inputAriaLabel}
-                shrink={shrinkLabel}
-            >
-                {label}
-            </InputLabel>
             <Select
+                ref={selectRef}
                 aria-describedby={`helper-text-${name}`}
                 autoFocus={autoFocus}
                 disabled={disabled}
                 id={name}
-                label={label}
                 labelId={inputAriaLabel}
                 name={name}
-                onChange={(e) => { onChange(findOption(e.target.value as string) as T); }}
-                onBlur={onBlur}
+                onChange={handleChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 required={isRequired}
                 value={exists(value) ? (getOptionLabel(value, t) ?? undefined) : ""}
-                variant="outlined"
+                variant="standard"
                 sx={selectStyle}
                 tabIndex={tabIndex}
                 renderValue={renderValue}
+                displayEmpty
+                disableUnderline
             >
                 {
                     noneOption ? (
@@ -211,19 +218,18 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                                 decorative
                                 fill="inherit"
                                 name="Add"
-                                style={{ marginRight: "8px" }}
+                                className="tw-mr-2"
                             />
                             <em>{addOption.label}</em>
                         </MenuItem>
                     ) : null
                 }
             </Select>
-            {helperText && <FormHelperText id={`helper-text-${name}`}>{typeof helperText === "string" ? helperText : JSON.stringify(helperText)}</FormHelperText>}
-        </FormControl>
+        </InputContainer>
     );
 }
 
-export function Selector<T extends string | number | { [x: string]: any }>({
+export function Selector<T extends string | number | { [x: string]: unknown }>({
     name,
     onChange,
     ...props

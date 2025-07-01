@@ -1,10 +1,10 @@
 import { useField } from "formik";
-import { useCallback, useEffect, useState } from "react";
+import React, { forwardRef, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
 import { IconButton } from "../../buttons/IconButton.js";
-import { TailwindTextInput } from "../TextInput/TailwindTextInput.js";
-import { type PasswordTextInputProps } from "../types.js";
+import { TextInput, TextInputBase } from "../TextInput/TextInput.js";
+import { type PasswordTextInputProps, type PasswordTextInputBaseProps, type PasswordTextInputFormikProps } from "../types.js";
 
 // Constants for password strength scoring
 const PASSWORD_LENGTH_THRESHOLDS = {
@@ -63,17 +63,25 @@ function ProgressBar({ value, primaryColor, secondaryColor, visible }: ProgressB
     );
 }
 
-export function PasswordTextInput({
+/**
+ * Base password input component without Formik integration.
+ * This is the pure visual component that handles all styling and interaction logic.
+ */
+export const PasswordTextInputBase = forwardRef<HTMLInputElement, PasswordTextInputBaseProps>(({
     autoComplete = "current-password",
     autoFocus = false,
     fullWidth = true,
     label,
     name,
+    value,
+    onChange,
+    onBlur,
+    error,
+    helperText,
+    id,
     ...props
-}: PasswordTextInputProps) {
+}, ref) => {
     const { t } = useTranslation();
-    const [field, meta] = useField(name);
-
     const [showPassword, setShowPassword] = useState<boolean>(false);
 
     const handleClickShowPassword = useCallback(() => {
@@ -138,7 +146,7 @@ export function PasswordTextInput({
     useEffect(() => {
         let isMounted = true;
 
-        getPasswordStrengthProps(field.value).then((props) => {
+        getPasswordStrengthProps(value).then((props) => {
             if (isMounted) {
                 setStrengthProps(props);
             }
@@ -147,7 +155,7 @@ export function PasswordTextInput({
         return () => {
             isMounted = false;
         };
-    }, [field.value, getPasswordStrengthProps]);
+    }, [value, getPasswordStrengthProps]);
 
     // Start adornment - Lock icon
     const startAdornment = (
@@ -176,21 +184,22 @@ export function PasswordTextInput({
 
     return (
         <div className="tw-w-full">
-            <TailwindTextInput
+            <TextInputBase
                 {...props}
-                id={name}
+                ref={ref}
+                id={id || name}
                 name={name}
                 type={showPassword ? "text" : "password"}
-                value={field.value}
-                onBlur={field.onBlur}
-                onChange={field.onChange}
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
                 autoComplete={autoComplete}
                 autoFocus={autoFocus}
                 fullWidth={fullWidth}
                 label={label ?? t("Password")}
                 placeholder={t("PasswordPlaceholder")}
-                error={meta.touched && !!meta.error}
-                helperText={meta.touched && meta.error}
+                error={error}
+                helperText={helperText}
                 startAdornment={startAdornment}
                 endAdornment={endAdornment}
                 variant="outline"
@@ -202,8 +211,51 @@ export function PasswordTextInput({
                 value={strengthProps.score * SCORE_MULTIPLIER} // Convert 0-4 score to 0-100 percentage
                 primaryColor={strengthProps.primary}
                 secondaryColor={strengthProps.secondary}
-                visible={autoComplete === "new-password" && field.value.length > 0}
+                visible={autoComplete === "new-password" && value.length > 0}
             />
         </div>
     );
-}
+});
+
+PasswordTextInputBase.displayName = "PasswordTextInputBase";
+
+/**
+ * Formik-integrated password input component.
+ * Automatically connects to Formik context using the field name.
+ * 
+ * @example
+ * ```tsx
+ * // Inside a Formik form
+ * <PasswordTextInput name="password" label="Password" />
+ * 
+ * // With validation for new passwords
+ * <PasswordTextInput 
+ *   name="newPassword" 
+ *   label="New Password"
+ *   autoComplete="new-password"
+ *   validate={(value) => value.length < 8 ? "Password must be at least 8 characters" : undefined}
+ * />
+ * ```
+ */
+export const PasswordTextInput = forwardRef<HTMLInputElement, PasswordTextInputFormikProps>(({
+    name,
+    validate,
+    ...props
+}, ref) => {
+    const [field, meta] = useField({ name, validate });
+
+    return (
+        <PasswordTextInputBase
+            {...props}
+            ref={ref}
+            name={name}
+            value={field.value}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            error={meta.touched && !!meta.error}
+            helperText={meta.touched && meta.error}
+        />
+    );
+});
+
+PasswordTextInput.displayName = "PasswordTextInput";

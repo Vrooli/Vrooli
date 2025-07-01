@@ -89,13 +89,13 @@ export const ICON_VARIANT_STYLES: Record<IconButtonVariant, string> = {
     solid: cn(
         "tw-icon-button-solid",
         "tw-cursor-pointer tw-border-0",
-        "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50"
+        "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
     ),
     
     transparent: cn(
         "tw-icon-button-transparent",
         "tw-cursor-pointer tw-border-0",
-        "focus:tw-ring-1 focus:tw-ring-gray-400 focus:tw-ring-offset-1 focus:tw-ring-opacity-50"
+        "focus:tw-ring-1 focus:tw-ring-gray-400 focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
     ),
     
     space: cn(
@@ -111,14 +111,14 @@ export const ICON_VARIANT_STYLES: Record<IconButtonVariant, string> = {
         // Add anti-aliasing and smoother rendering
         "tw-antialiased",
         "[backface-visibility:hidden]",
-        "[transform:translateZ(0)]"
+        "[transform:translateZ(0)]",
     ),
     
     custom: cn(
         "tw-cursor-pointer tw-border-0",
         "tw-transition-all tw-duration-200",
         "focus:tw-ring-1 focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
-        "tw-shadow-md hover:tw-shadow-lg"
+        "tw-shadow-md hover:tw-shadow-lg",
     ),
     
     neon: cn(
@@ -128,7 +128,7 @@ export const ICON_VARIANT_STYLES: Record<IconButtonVariant, string> = {
         "focus:tw-ring-1 focus:tw-ring-green-400 focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
         "tw-antialiased",
         "[backface-visibility:hidden]",
-        "[transform:translateZ(0)]"
+        "[transform:translateZ(0)]",
     ),
 };
 
@@ -143,7 +143,7 @@ export const BASE_ICON_BUTTON_STYLES = cn(
     "tw-outline-none tw-overflow-hidden",
     
     // Focus accessibility
-    "focus:tw-ring-offset-background"
+    "focus:tw-ring-offset-background",
 );
 
 /**
@@ -171,13 +171,13 @@ export const calculatePadding = (size: number): string => {
  */
 export const createIconRippleStyle = (
     ripple: { x: number; y: number },
-    color: string
+    color: string,
 ) => {
     // Provide fallback color if undefined
-    const safeColor = color || 'rgba(255, 255, 255, 0.5)';
-    const fadeColor = safeColor.includes('rgba') 
-        ? safeColor.replace(/[\d.]+(?=\))/, '0.1')
-        : 'rgba(255, 255, 255, 0.1)';
+    const safeColor = color || "rgba(255, 255, 255, 0.5)";
+    const fadeColor = safeColor.includes("rgba") 
+        ? safeColor.replace(/[\d.]+(?=\))/, "0.1")
+        : "rgba(255, 255, 255, 0.1)";
     
     return {
         left: ripple.x - ICON_BUTTON_CONFIG.RIPPLE.RADIUS,
@@ -217,7 +217,7 @@ export const buildIconButtonClasses = ({
         disabled && "tw-opacity-50 tw-cursor-not-allowed tw-pointer-events-none",
         
         // Custom overrides
-        className
+        className,
     );
 };
 
@@ -225,7 +225,7 @@ export const buildIconButtonClasses = ({
  * Get ripple color for a specific variant
  */
 export const getRippleColor = (variant: IconButtonVariant): string => {
-    return ICON_BUTTON_COLORS.RIPPLE[variant] || 'rgba(255, 255, 255, 0.5)';
+    return ICON_BUTTON_COLORS.RIPPLE[variant] || "rgba(255, 255, 255, 0.5)";
 };
 
 /**
@@ -236,7 +236,7 @@ export const getRippleColor = (variant: IconButtonVariant): string => {
  */
 export const getContrastTextColor = (bgColor: string): string => {
     // Remove # if present and convert to RGB
-    const hex = bgColor.replace('#', '');
+    const hex = bgColor.replace("#", "");
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);
@@ -245,7 +245,7 @@ export const getContrastTextColor = (bgColor: string): string => {
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     
     // Return black text for light backgrounds, white for dark
-    return luminance > 0.5 ? '#000000' : '#FFFFFF';
+    return luminance > 0.5 ? "#000000" : "#FFFFFF";
 };
 
 /**
@@ -260,11 +260,11 @@ export const getCustomIconButtonStyle = (color: string) => ({
     // Ensure icons and other child elements inherit the text color
     fill: getContrastTextColor(color),
     // Add hover effects
-    '&:hover': {
+    "&:hover": {
         backgroundColor: color,
         opacity: 0.9,
     },
-    '&:active': {
+    "&:active": {
         backgroundColor: color,
         opacity: 0.8,
     },
@@ -281,8 +281,8 @@ export const SPACE_BACKGROUND_STYLES = {
             radial-gradient(ellipse at center, ${ICON_BUTTON_COLORS.SPACE.glow} 0%, transparent 70%),
             linear-gradient(135deg, ${ICON_BUTTON_COLORS.SPACE.background.start} 0%, ${ICON_BUTTON_COLORS.SPACE.background.mid} 50%, ${ICON_BUTTON_COLORS.SPACE.background.end} 100%)
         `,
-        border: `2px solid transparent`,
-        backgroundClip: 'padding-box',
+        border: "2px solid transparent",
+        backgroundClip: "padding-box",
         boxShadow: `
             0 0 0 2px transparent,
             inset 0 0 0 1px rgba(255, 255, 255, 0.1)
@@ -294,8 +294,8 @@ export const SPACE_BACKGROUND_STYLES = {
     },
     sweep: {
         background: `linear-gradient(110deg, transparent 25%, ${ICON_BUTTON_COLORS.SPACE.sweep.light} 45%, ${ICON_BUTTON_COLORS.SPACE.sweep.dark} 55%, transparent 75%)`,
-        backgroundSize: '200% 100%',
-        animation: 'iconButtonGradientSweep 3s ease-in-out infinite',
+        backgroundSize: "200% 100%",
+        animation: "iconButtonGradientSweep 3s ease-in-out infinite",
     },
 } as const;
 

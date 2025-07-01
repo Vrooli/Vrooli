@@ -1,18 +1,13 @@
 import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
-import type { DialogProps } from "@mui/material";
-import { styled, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import i18next from "i18next";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Icon, type IconInfo } from "../../../icons/Icons.js";
-import { Z_INDEX } from "../../../utils/consts.js";
 import { translateSnackMessage } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { DialogTitle } from "../DialogTitle/DialogTitle.js";
+import { Dialog, DialogContent, DialogActions } from "../Dialog/Dialog.js";
 
 interface StateButton {
     label: string;
@@ -41,21 +36,6 @@ function defaultState(): AlertDialogState {
 
 const titleId = "alert-dialog-title";
 const descriptionAria = "alert-dialog-description";
-interface StyledDialogProps extends Omit<DialogProps, "zIndex"> {
-    zIndex: number;
-}
-const StyledDialog = styled(Dialog, {
-    shouldForwardProp: (prop) => prop !== "zIndex",
-})<StyledDialogProps>(({ theme, zIndex }) => ({
-    zIndex,
-    "& > .MuiDialog-container": {
-        "& > .MuiPaper-root": {
-            zIndex,
-            borderRadius: 4,
-            background: theme.palette.background.paper,
-        },
-    },
-}));
 
 const dialogContextTextStyle = {
     whiteSpace: "pre-wrap",
@@ -63,12 +43,16 @@ const dialogContextTextStyle = {
     paddingTop: 2,
 } as const;
 
+// Global flag to ensure only one AlertDialog instance is active
+let alertDialogInstance: string | null = null;
+
 export function AlertDialog() {
     const { t } = useTranslation();
     const { palette } = useTheme();
 
     const [state, setState] = useState<AlertDialogState>(defaultState());
     const [open, setOpen] = useState(false);
+    const [instanceId] = useState(() => Math.random().toString(36).substr(2, 9));
 
     // Determine the icon based on severity
     const { iconInfo, iconFill }: { iconInfo: IconInfo | null, iconFill: string | null } = state.severity ? {
@@ -79,23 +63,38 @@ export function AlertDialog() {
     }[state.severity] : { iconInfo: null, iconFill: null };
 
     useEffect(() => {
+        // Register this instance as the active one
+        if (!alertDialogInstance) {
+            alertDialogInstance = instanceId;
+        }
+
         const unsubscribe = PubSub.get().subscribe("alertDialog", (o) => {
-            setState({
-                title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
-                message: o.messageKey ?
-                    translateSnackMessage(o.messageKey, o.messageVariables, o.severity === "Error" ? "error" : undefined).details ??
-                    translateSnackMessage(o.messageKey, o.messageVariables, o.severity === "Error" ? "error" : undefined).message :
-                    undefined,
-                buttons: o.buttons.map((b) => ({
-                    label: t(b.labelKey, { ...b.labelVariables, defaultValue: b.labelKey }),
-                    onClick: b.onClick,
-                })),
-                severity: o.severity,
-            });
-            setOpen(true);
+            // Only respond if this is the active instance
+            if (alertDialogInstance === instanceId) {
+                setState({
+                    title: o.titleKey ? t(o.titleKey, { ...o.titleVariables, defaultValue: o.titleKey }) : undefined,
+                    message: o.messageKey ?
+                        translateSnackMessage(o.messageKey, o.messageVariables, o.severity === "Error" ? "error" : undefined).details ??
+                        translateSnackMessage(o.messageKey, o.messageVariables, o.severity === "Error" ? "error" : undefined).message :
+                        undefined,
+                    buttons: o.buttons.map((b) => ({
+                        label: t(b.labelKey, { ...b.labelVariables, defaultValue: b.labelKey }),
+                        onClick: b.onClick,
+                    })),
+                    severity: o.severity,
+                });
+                setOpen(true);
+            }
         });
-        return unsubscribe;
-    }, [t]);
+
+        return () => {
+            unsubscribe();
+            // Clear the active instance if this was it
+            if (alertDialogInstance === instanceId) {
+                alertDialogInstance = null;
+            }
+        };
+    }, [t, instanceId]);
 
     const handleClick = useCallback((
         event: React.MouseEvent<HTMLButtonElement>,
@@ -107,33 +106,50 @@ export function AlertDialog() {
 
     const resetState = useCallback(() => setOpen(false), []);
 
+    // Determine dialog variant based on severity
+    const variant = state.severity ? {
+        [AlertDialogSeverity.Error]: "danger" as const,
+        [AlertDialogSeverity.Warning]: "default" as const,
+        [AlertDialogSeverity.Success]: "success" as const,
+        [AlertDialogSeverity.Info]: "default" as const,
+    }[state.severity] : "default" as const;
+
+    // Create title with icon
+    const titleWithIcon = state.title ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {iconInfo && (
+                <Icon
+                    decorative="false"
+                    fill={iconFill}
+                    info={iconInfo}
+                    size={24}
+                />
+            )}
+            <span>{state.title}</span>
+        </div>
+    ) : undefined;
+
     return (
-        <StyledDialog
-            open={open}
-            disableScrollLock={true}
+        <Dialog
+            isOpen={open}
             onClose={resetState}
+            title={titleWithIcon}
+            size="md"
+            variant={variant}
             aria-labelledby={state.title ? titleId : undefined}
             aria-describedby={descriptionAria}
-            zIndex={Z_INDEX.Popup}
         >
-            {state.title && <DialogTitle
-                id={titleId}
-                title={state.title}
-                onClose={resetState}
-                startComponent={iconInfo ? <Icon
-                    decorative={false}
-                    fill={iconFill}
-                    info={iconInfo}
-                    size={24}
-                /> : undefined}
-            />}
             <DialogContent>
-                {!state.title && iconInfo !== null && <Icon
-                    decorative={false}
-                    fill={iconFill}
-                    info={iconInfo}
-                    size={24}
-                />}
+                {!state.title && iconInfo !== null && (
+                    <div style={{ display: "flex", alignItems: "center", marginBottom: "16px" }}>
+                        <Icon
+                            decorative="false"
+                            fill={iconFill}
+                            info={iconInfo}
+                            size={24}
+                        />
+                    </div>
+                )}
                 <DialogContentText id={descriptionAria} sx={dialogContextTextStyle}>
                     {state.message}
                 </DialogContentText>
@@ -158,6 +174,6 @@ export function AlertDialog() {
                     })
                 ) : null}
             </DialogActions>
-        </StyledDialog>
+        </Dialog>
     );
 }

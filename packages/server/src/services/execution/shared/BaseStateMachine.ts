@@ -31,8 +31,8 @@
  */
 
 import { generatePK, type UnifiedEvent } from "@vrooli/shared";
-import { type Logger } from "winston";
-import { EventUtils, getUnifiedEventSystem, type IEventBus } from "../../events/index.js";
+import { logger } from "../../../events/logger.js";
+import { EventUtils, getUnifiedEventSystem, type BaseEvent, type IEventBus } from "../../events/index.js";
 import { ErrorHandler, type ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
@@ -48,6 +48,9 @@ export const BaseStates = {
     FAILED: "FAILED",
     TERMINATED: "TERMINATED",
 } as const;
+
+const DEFAULT_MAX_QUEUE_SIZE = 1000;
+const DEFAULT_QUEUE_DROP_PERCENT = 0.1;
 
 export type BaseState = (typeof BaseStates)[keyof typeof BaseStates];
 
@@ -96,7 +99,7 @@ export abstract class BaseStateMachine<
     protected readonly unifiedEventBus: IEventBus | null;
     protected readonly componentName: string;
     protected readonly errorHandler: ComponentErrorHandler;
-    protected readonly maxQueueSize: number = 1000; // Prevent unbounded growth
+    protected readonly maxQueueSize: number = DEFAULT_MAX_QUEUE_SIZE; // Prevent unbounded growth
 
     // Event-driven coordination
     protected readonly coordinationConfig: StateMachineCoordinationConfig;
@@ -105,7 +108,6 @@ export abstract class BaseStateMachine<
     protected readonly eventDrivenCoordinationEnabled: boolean;
 
     constructor(
-        protected readonly logger: Logger,
         initialState: TState = BaseStates.UNINITIALIZED as TState,
         componentName?: string,
         coordinationConfig: StateMachineCoordinationConfig = {},
@@ -129,9 +131,9 @@ export abstract class BaseStateMachine<
             this.unifiedEventBus !== null;
 
         // Create error handler for consistent error management
-        this.errorHandler = new ErrorHandler(logger, null).createComponentHandler(this.componentName);
+        this.errorHandler = new ErrorHandler().createComponentHandler(this.componentName);
 
-        this.logger.info(`[${this.componentName}] Initialized with ${this.eventDrivenCoordinationEnabled ? "event-driven" : "legacy"} coordination`, {
+        logger.info(`[${this.componentName}] Initialized with ${this.eventDrivenCoordinationEnabled ? "event-driven" : "legacy"} coordination`, {
             eventSystemAvailable: this.unifiedEventBus !== null,
             coordinationMode: this.eventDrivenCoordinationEnabled ? "event-driven" : "legacy",
             swarmId: this.coordinationConfig.swarmId,
@@ -157,7 +159,7 @@ export abstract class BaseStateMachine<
      */
     public async handleEvent(event: TEvent): Promise<void> {
         if (this.disposed || this.state === BaseStates.TERMINATED) {
-            this.logger.debug(`[${this.constructor.name}] Ignoring event in terminated state`, {
+            logger.debug(`[${this.constructor.name}] Ignoring event in terminated state`, {
                 event: event.type,
                 state: this.state,
             });
@@ -166,7 +168,7 @@ export abstract class BaseStateMachine<
 
         // Prevent unbounded queue growth
         if (this.eventQueue.length >= this.maxQueueSize) {
-            this.logger.warn(`[${this.constructor.name}] Event queue at capacity, dropping oldest events`, {
+            logger.warn(`[${this.constructor.name}] Event queue at capacity, dropping oldest events`, {
                 queueSize: this.eventQueue.length,
                 maxSize: this.maxQueueSize,
                 droppedEventType: this.eventQueue[0]?.type,
@@ -174,7 +176,7 @@ export abstract class BaseStateMachine<
             });
 
             // Drop oldest events to make room (FIFO eviction)
-            const dropCount = Math.floor(this.maxQueueSize * 0.1); // Drop 10% of queue
+            const dropCount = Math.floor(this.maxQueueSize * DEFAULT_QUEUE_DROP_PERCENT);
             this.eventQueue.splice(0, dropCount);
         }
 
@@ -195,12 +197,12 @@ export abstract class BaseStateMachine<
         if (pausableStates.includes(this.state)) {
             this.clearPendingDrainTimeout();
             this.state = BaseStates.PAUSED as TState;
-            this.logger.info(`[${this.constructor.name}] Paused from state ${this.state}`);
+            logger.info(`[${this.constructor.name}] Paused from state ${this.state}`);
             await this.onPause();
             return true;
         }
 
-        this.logger.warn(`[${this.constructor.name}] Cannot pause from state ${this.state}`);
+        logger.warn(`[${this.constructor.name}] Cannot pause from state ${this.state}`);
         return false;
     }
 
@@ -210,13 +212,13 @@ export abstract class BaseStateMachine<
     public async resume(): Promise<boolean> {
         if (this.state === BaseStates.PAUSED as TState) {
             this.state = BaseStates.IDLE as TState;
-            this.logger.info(`[${this.constructor.name}] Resumed`);
+            logger.info(`[${this.constructor.name}] Resumed`);
             await this.onResume();
             this.scheduleDrain();
             return true;
         }
 
-        this.logger.warn(`[${this.constructor.name}] Cannot resume from state ${this.state}`);
+        logger.warn(`[${this.constructor.name}] Cannot resume from state ${this.state}`);
         return false;
     }
 
@@ -269,7 +271,7 @@ export abstract class BaseStateMachine<
             };
         }
 
-        this.logger.info(`[${this.constructor.name}] Stopping (${mode}) - Reason: ${reason || "No reason"}`);
+        logger.info(`[${this.constructor.name}] Stopping (${mode}) - Reason: ${reason || "No reason"}`);
 
         const result = await this.errorHandler.wrap(
             async () => {
@@ -325,7 +327,7 @@ export abstract class BaseStateMachine<
         const drainableStates = [BaseStates.RUNNING, BaseStates.IDLE] as TState[];
 
         if (!drainableStates.includes(this.state) || this.disposed) {
-            this.logger.debug(`[${this.constructor.name}] Cannot drain in state ${this.state}`);
+            logger.debug(`[${this.constructor.name}] Cannot drain in state ${this.state}`);
             return;
         }
 
@@ -344,7 +346,7 @@ export abstract class BaseStateMachine<
         // Acquire distributed lock for coordination across instances
         const lockAcquired = await this.acquireDistributedProcessingLock();
         if (!lockAcquired) {
-            this.logger.debug(`[${this.componentName}] Could not acquire distributed processing lock, skipping drain`);
+            logger.debug(`[${this.componentName}] Could not acquire distributed processing lock, skipping drain`);
             return;
         }
 
@@ -421,7 +423,7 @@ export abstract class BaseStateMachine<
      */
     private async drainWithLegacyCoordination(): Promise<void> {
         if (this.processingLock) {
-            this.logger.debug(`[${this.constructor.name}] Legacy drain already in progress`);
+            logger.debug(`[${this.constructor.name}] Legacy drain already in progress`);
             return;
         }
 
@@ -474,7 +476,7 @@ export abstract class BaseStateMachine<
             this.pendingDrainTimeout = setTimeout(() => {
                 this.pendingDrainTimeout = null;
                 this.drain().catch(err =>
-                    this.logger.error(`[${this.constructor.name}] Error in scheduled drain`, {
+                    logger.error(`[${this.constructor.name}] Error in scheduled drain`, {
                         error: err instanceof Error ? err.message : String(err),
                     }),
                 );
@@ -482,7 +484,7 @@ export abstract class BaseStateMachine<
         } else {
             setImmediate(() =>
                 this.drain().catch(err =>
-                    this.logger.error(`[${this.constructor.name}] Error in immediate drain`, {
+                    logger.error(`[${this.constructor.name}] Error in immediate drain`, {
                         error: err instanceof Error ? err.message : String(err),
                     }),
                 ),
@@ -515,7 +517,7 @@ export abstract class BaseStateMachine<
         },
     ): Promise<void> {
         if (!this.unifiedEventBus) {
-            this.logger.debug(`[${this.componentName}] Unified event bus not available, skipping event publish`);
+            logger.debug(`[${this.componentName}] Unified event bus not available, skipping event publish`);
             return;
         }
 
@@ -523,7 +525,7 @@ export abstract class BaseStateMachine<
             const event = EventUtils.createBaseEvent(
                 eventType,
                 data,
-                EventUtils.createEventSource("cross-cutting", this.componentName, generatePK()),
+                EventUtils.createEventSource("cross-cutting", this.componentName, generatePK().toString()),
                 EventUtils.createEventMetadata(
                     options?.deliveryGuarantee || "fire-and-forget",
                     options?.priority || "medium",
@@ -537,7 +539,7 @@ export abstract class BaseStateMachine<
 
             await this.unifiedEventBus.publish(event);
         } catch (error) {
-            this.logger.error(`[${this.componentName}] Failed to publish unified event`, {
+            logger.error(`[${this.componentName}] Failed to publish unified event`, {
                 eventType,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -581,7 +583,7 @@ export abstract class BaseStateMachine<
      * Common logging patterns for lifecycle events
      */
     protected logLifecycleEvent(event: string, metadata?: Record<string, unknown>): void {
-        this.logger.info(`[${this.constructor.name}] ${event}`, {
+        logger.info(`[${this.constructor.name}] ${event}`, {
             state: this.state,
             ...metadata,
         });
@@ -593,7 +595,7 @@ export abstract class BaseStateMachine<
     protected validateEvent(event: TEvent, requiredFields: string[]): boolean {
         for (const field of requiredFields) {
             if (!(field in event) || (event as any)[field] == null) {
-                this.logger.error(`[${this.constructor.name}] Event missing required field: ${field}`, {
+                logger.error(`[${this.constructor.name}] Event missing required field: ${field}`, {
                     eventType: event.type,
                 });
                 return false;
@@ -660,7 +662,7 @@ export abstract class BaseStateMachine<
 
             // In a full implementation, this would use SwarmContextManager or Redis
             // For now, simulate successful lock acquisition
-            this.logger.debug(`[${this.componentName}] Acquired distributed processing lock`, {
+            logger.debug(`[${this.componentName}] Acquired distributed processing lock`, {
                 lockId,
                 swarmId: this.coordinationConfig.swarmId,
                 timeout: this.coordinationConfig.lockTimeoutMs,
@@ -669,14 +671,14 @@ export abstract class BaseStateMachine<
             return true;
 
         } catch (error) {
-            this.logger.warn(`[${this.componentName}] Failed to acquire distributed processing lock`, {
+            logger.warn(`[${this.componentName}] Failed to acquire distributed processing lock`, {
                 error: error instanceof Error ? error.message : String(error),
                 swarmId: this.coordinationConfig.swarmId,
             });
 
             // Fall back gracefully - allow processing to continue
             if (this.coordinationConfig.enableLegacyFallback) {
-                this.logger.debug(`[${this.componentName}] Falling back to legacy coordination due to lock failure`);
+                logger.debug(`[${this.componentName}] Falling back to legacy coordination due to lock failure`);
                 return true;
             }
 
@@ -694,7 +696,7 @@ export abstract class BaseStateMachine<
 
         try {
             // In a full implementation, this would release the Redis-based lock
-            this.logger.debug(`[${this.componentName}] Released distributed processing lock`, {
+            logger.debug(`[${this.componentName}] Released distributed processing lock`, {
                 lockId: this.currentDistributedLock,
                 swarmId: this.coordinationConfig.swarmId,
             });
@@ -702,7 +704,7 @@ export abstract class BaseStateMachine<
             this.currentDistributedLock = null;
 
         } catch (error) {
-            this.logger.error(`[${this.componentName}] Failed to release distributed processing lock`, {
+            logger.error(`[${this.componentName}] Failed to release distributed processing lock`, {
                 lockId: this.currentDistributedLock,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -731,3 +733,6 @@ export abstract class BaseStateMachine<
         };
     }
 }
+
+// Re-export BaseEvent for compatibility with tests and legacy code
+export type { BaseEvent };

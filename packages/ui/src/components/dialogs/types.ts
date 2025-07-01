@@ -31,6 +31,7 @@ export interface DeleteDialogProps {
     handleDelete: () => unknown;
     isOpen: boolean;
     objectName: string;
+    objectIcon?: IconInfo;
 }
 
 export interface DialogTitleProps extends Omit<TitleProps, "sxs"> {
@@ -39,6 +40,7 @@ export interface DialogTitleProps extends Omit<TitleProps, "sxs"> {
     onClose?: () => unknown;
     startComponent?: JSX.Element;
     sxs?: TitleProps["sxs"] & { root?: SxType; };
+    children?: ReactNode;
 }
 
 /**
@@ -224,36 +226,6 @@ export interface SelectLanguageMenuProps {
     sxs?: { root: SxType; };
 }
 
-export interface LargeDialogProps {
-    children: ReactNode;
-    id: string;
-    isOpen: boolean;
-    onClose: (_event: unknown, reason: "backdropClick" | "escapeKeyDown") => unknown;
-    titleId?: string;
-    sxs?: {
-        content?: SxType;
-        paper?: SxType;
-        root?: SxType;
-    };
-    /** Optional anchor element to position the dialog relative to */
-    anchorEl?: HTMLElement | null;
-    /** Optional anchor origin for positioning when using anchorEl */
-    anchorOrigin?: {
-        vertical: "top" | "center" | "bottom";
-        horizontal: "left" | "center" | "right";
-    };
-    /** Optional transform origin for positioning when using anchorEl */
-    transformOrigin?: {
-        vertical: "top" | "center" | "bottom";
-        horizontal: "left" | "center" | "right";
-    };
-}
-
-export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "isOpen" | "onClose"> {
-    display: ViewDisplayType | `${ViewDisplayType}`;
-    isOpen?: boolean;
-    onClose?: () => unknown;
-}
 
 export interface WalletInstallDialogProps {
     onClose: () => unknown;
